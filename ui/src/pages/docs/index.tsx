@@ -1,0 +1,215 @@
+import { useState, useEffect, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import {
+  Box, Typography, TextField, InputAdornment, Alert, CircularProgress,
+  List, ListItemButton, ListItemIcon, ListItemText, IconButton,
+  Collapse, Stack, useTheme,
+} from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
+import CloseIcon from '@mui/icons-material/Close';
+import DescriptionIcon from '@mui/icons-material/Description';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import ArticleIcon from '@mui/icons-material/Article';
+import { PageTopBar, FilterBar, StatusBadge, EmptyState } from '@/shared/ui/index.ts';
+import { listTopics, getToc, searchDocs, type DocTopic, type DocChunk } from '@/entities/doc/index.ts';
+
+export default function DocsPage() {
+  const { projectId } = useParams<{ projectId: string }>();
+  const navigate = useNavigate();
+  const { palette } = useTheme();
+
+  const [topics, setTopics] = useState<DocTopic[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [expandedFile, setExpandedFile] = useState<string | null>(null);
+  const [toc, setToc] = useState<DocChunk[]>([]);
+  const [tocLoading, setTocLoading] = useState(false);
+
+  const [search, setSearch] = useState('');
+  const [searchResults, setSearchResults] = useState<Array<DocChunk & { score: number }> | null>(null);
+  const [searching, setSearching] = useState(false);
+
+  const loadTopics = useCallback(async () => {
+    if (!projectId) return;
+    setLoading(true);
+    try {
+      const data = await listTopics(projectId, { limit: 200 });
+      setTopics(data);
+      setError(null);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId]);
+
+  useEffect(() => { loadTopics(); }, [loadTopics]);
+
+  const handleToggle = async (fileId: string) => {
+    if (expandedFile === fileId) {
+      setExpandedFile(null);
+      return;
+    }
+    setExpandedFile(fileId);
+    setTocLoading(true);
+    try {
+      const chunks = await getToc(projectId!, fileId);
+      setToc(chunks);
+    } catch {
+      setToc([]);
+    } finally {
+      setTocLoading(false);
+    }
+  };
+
+  const handleSearch = async () => {
+    if (!projectId || !search.trim()) {
+      setSearchResults(null);
+      return;
+    }
+    setSearching(true);
+    try {
+      const results = await searchDocs(projectId, search.trim(), { topK: 20, minScore: 0.1 });
+      setSearchResults(results);
+    } catch { /* ignore */ } finally {
+      setSearching(false);
+    }
+  };
+
+  const handleClearSearch = () => {
+    setSearch('');
+    setSearchResults(null);
+  };
+
+  return (
+    <Box>
+      <PageTopBar
+        breadcrumbs={[{ label: 'Docs' }]}
+        actions={
+          <Typography variant="body2" sx={{ color: palette.custom.textMuted }}>
+            {topics.length} files
+          </Typography>
+        }
+      />
+
+      <FilterBar>
+        <TextField
+          fullWidth size="small"
+          placeholder="Semantic search docs..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleSearch()}
+          slotProps={{
+            input: {
+              startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment>,
+              endAdornment: search && (
+                <InputAdornment position="end">
+                  <IconButton size="small" onClick={handleClearSearch}><CloseIcon /></IconButton>
+                </InputAdornment>
+              ),
+            },
+          }}
+        />
+      </FilterBar>
+
+      {searchResults && (
+        <Typography variant="caption" sx={{ color: palette.custom.textMuted, mb: 1, display: 'block' }}>
+          {searchResults.length} result{searchResults.length !== 1 ? 's' : ''} found
+        </Typography>
+      )}
+
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+      {loading || searching ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
+      ) : searchResults ? (
+        <List disablePadding>
+          {searchResults.map(chunk => (
+            <ListItemButton
+              key={chunk.id}
+              onClick={() => navigate(encodeURIComponent(chunk.id))}
+              sx={{ borderRadius: 1, mb: 0.5 }}
+            >
+              <ListItemIcon sx={{ minWidth: 36 }}>
+                <ArticleIcon fontSize="small" color="secondary" />
+              </ListItemIcon>
+              <ListItemText
+                primary={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="body2" fontWeight={600}>{chunk.title || chunk.id}</Typography>
+                    <StatusBadge label={`${(chunk.score * 100).toFixed(0)}%`} color="primary" size="small" />
+                  </Box>
+                }
+                secondary={
+                  <Typography variant="caption" sx={{ color: palette.custom.textMuted }} noWrap>
+                    {chunk.fileId} · level {chunk.level}
+                    {chunk.content ? ` · ${chunk.content.slice(0, 100)}` : ''}
+                  </Typography>
+                }
+              />
+            </ListItemButton>
+          ))}
+        </List>
+      ) : topics.length === 0 ? (
+        <EmptyState
+          icon={<DescriptionIcon />}
+          title="No docs indexed"
+          description="Configure docsPattern in graph-memory.yaml to start indexing documentation"
+        />
+      ) : (
+        <List disablePadding>
+          {topics.map(topic => (
+            <Box key={topic.fileId}>
+              <ListItemButton onClick={() => handleToggle(topic.fileId)} sx={{ borderRadius: 1 }}>
+                <ListItemIcon sx={{ minWidth: 36 }}>
+                  {expandedFile === topic.fileId ? <ExpandMoreIcon /> : <ChevronRightIcon />}
+                </ListItemIcon>
+                <ListItemIcon sx={{ minWidth: 36 }}>
+                  <DescriptionIcon fontSize="small" color="secondary" />
+                </ListItemIcon>
+                <ListItemText
+                  primary={<Typography variant="body2" fontWeight={600}>{topic.title || topic.fileId}</Typography>}
+                  secondary={<Typography variant="caption" sx={{ color: palette.custom.textMuted }}>{topic.fileId} · {topic.chunks} chunks</Typography>}
+                />
+              </ListItemButton>
+
+              <Collapse in={expandedFile === topic.fileId} timeout="auto" unmountOnExit>
+                {tocLoading ? (
+                  <Box sx={{ pl: 9, py: 1 }}><CircularProgress size={16} /></Box>
+                ) : (
+                  <List disablePadding sx={{ pl: 4 }}>
+                    {toc.map(chunk => (
+                      <ListItemButton
+                        key={chunk.id}
+                        onClick={() => navigate(encodeURIComponent(chunk.id))}
+                        sx={{ borderRadius: 1, py: 0.5 }}
+                      >
+                        <ListItemIcon sx={{ minWidth: 36 }}>
+                          <ArticleIcon fontSize="small" sx={{ opacity: 0.5 }} />
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              <Typography variant="body2" sx={{ pl: (chunk.level - 1) * 2 }}>
+                                {chunk.title || chunk.id}
+                              </Typography>
+                              {chunk.language && (
+                                <StatusBadge label={chunk.language} color="primary" size="small" />
+                              )}
+                            </Stack>
+                          }
+                        />
+                      </ListItemButton>
+                    ))}
+                  </List>
+                )}
+              </Collapse>
+            </Box>
+          ))}
+        </List>
+      )}
+    </Box>
+  );
+}

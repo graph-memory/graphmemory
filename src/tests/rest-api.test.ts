@@ -1,0 +1,648 @@
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import request from 'supertest';
+import express from 'express';
+import { EventEmitter } from 'events';
+import { createRestApp } from '@/api/rest/index';
+import { createKnowledgeGraph, KnowledgeGraphManager } from '@/graphs/knowledge';
+import { createFileIndexGraph } from '@/graphs/file-index-types';
+import { createTaskGraph, TaskGraphManager } from '@/graphs/task';
+import { createSkillGraph, SkillGraphManager } from '@/graphs/skill';
+import { FileIndexGraphManager } from '@/graphs/file-index';
+import { noopContext } from '@/graphs/manager-types';
+import { PromiseQueue } from '@/lib/promise-queue';
+import { unitVec, DIM } from '@/tests/helpers';
+import type { GraphManagerContext } from '@/graphs/manager-types';
+import type { ProjectManager, ProjectInstance } from '@/lib/project-manager';
+
+// ---------------------------------------------------------------------------
+// Setup: fake project manager with one project
+// ---------------------------------------------------------------------------
+
+function fakeEmbed(q: string): Promise<number[]> {
+  return Promise.resolve(unitVec(q.length % DIM));
+}
+
+function createTestProject(): ProjectInstance {
+  const knowledgeGraph = createKnowledgeGraph();
+  const fileIndexGraph = createFileIndexGraph();
+  const taskGraph = createTaskGraph();
+  const skillGraph = createSkillGraph();
+  const ctx = noopContext('test');
+  const ext = { knowledgeGraph, fileIndexGraph, taskGraph, skillGraph };
+
+  return {
+    id: 'test',
+    config: {
+      projectDir: '/tmp/test',
+      graphMemory: '/tmp/test/.graph-memory',
+      docsPattern: '**/*.md',
+      codePattern: '**/*.ts',
+      excludePattern: 'node_modules/**',
+      chunkDepth: 4,
+      maxTokensDefault: 4000,
+      embedMaxChars: 2000,
+      embeddingModel: 'test',
+    },
+    knowledgeGraph,
+    fileIndexGraph,
+    taskGraph,
+    skillGraph,
+    knowledgeManager: new KnowledgeGraphManager(knowledgeGraph, fakeEmbed, ctx, ext),
+    fileIndexManager: new FileIndexGraphManager(fileIndexGraph, fakeEmbed),
+    taskManager: new TaskGraphManager(taskGraph, fakeEmbed, ctx, ext),
+    skillManager: new SkillGraphManager(skillGraph, fakeEmbed, ctx, ext),
+    embedFns: {
+      docs: fakeEmbed,
+      code: fakeEmbed,
+      knowledge: fakeEmbed,
+      tasks: fakeEmbed,
+      files: fakeEmbed,
+      skills: fakeEmbed,
+    },
+    mutationQueue: new PromiseQueue(),
+    dirty: false,
+  };
+}
+
+function createTestManager(project: ProjectInstance): ProjectManager {
+  const emitter = new EventEmitter();
+  const manager = Object.assign(emitter, {
+    getProject: (id: string) => id === 'test' ? project : undefined,
+    listProjects: () => ['test'],
+    markDirty: () => {},
+  }) as any as ProjectManager;
+  return manager;
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+describe('REST API', () => {
+  let app: express.Express;
+  let project: ProjectInstance;
+
+  beforeEach(() => {
+    project = createTestProject();
+    const manager = createTestManager(project);
+    app = createRestApp(manager);
+  });
+
+  describe('GET /api/projects', () => {
+    it('lists projects wrapped in results', async () => {
+      const res = await request(app).get('/api/projects');
+      expect(res.status).toBe(200);
+      expect(res.body.results).toHaveLength(1);
+      expect(res.body.results[0].id).toBe('test');
+      expect(res.body.results[0].projectDir).toBe('/tmp/test');
+      expect(res.body.results[0].stats).toBeDefined();
+    });
+  });
+
+  describe('GET /api/projects/:id/stats', () => {
+    it('returns graph stats', async () => {
+      const res = await request(app).get('/api/projects/test/stats');
+      expect(res.status).toBe(200);
+      expect(res.body.knowledge).toBeDefined();
+      expect(res.body.tasks).toBeDefined();
+      expect(res.body.fileIndex).toBeDefined();
+    });
+
+    it('returns 404 for unknown project', async () => {
+      const res = await request(app).get('/api/projects/unknown/stats');
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe('Knowledge CRUD', () => {
+    it('creates a note', async () => {
+      const res = await request(app)
+        .post('/api/projects/test/knowledge/notes')
+        .send({ title: 'Test Note', content: 'Some content', tags: ['test'] });
+      expect(res.status).toBe(201);
+      expect(res.body.id).toBe('test-note');
+      expect(res.body.title).toBe('Test Note');
+    });
+
+    it('gets a note', async () => {
+      await request(app)
+        .post('/api/projects/test/knowledge/notes')
+        .send({ title: 'My Note', content: 'Content here' });
+
+      const res = await request(app).get('/api/projects/test/knowledge/notes/my-note');
+      expect(res.status).toBe(200);
+      expect(res.body.title).toBe('My Note');
+      expect(res.body.content).toBe('Content here');
+    });
+
+    it('lists notes in results wrapper', async () => {
+      await request(app)
+        .post('/api/projects/test/knowledge/notes')
+        .send({ title: 'Note A', content: 'A' });
+      await request(app)
+        .post('/api/projects/test/knowledge/notes')
+        .send({ title: 'Note B', content: 'B' });
+
+      const res = await request(app).get('/api/projects/test/knowledge/notes');
+      expect(res.status).toBe(200);
+      expect(res.body.results).toHaveLength(2);
+    });
+
+    it('updates a note', async () => {
+      await request(app)
+        .post('/api/projects/test/knowledge/notes')
+        .send({ title: 'Original', content: 'Old' });
+
+      const res = await request(app)
+        .put('/api/projects/test/knowledge/notes/original')
+        .send({ content: 'Updated' });
+      expect(res.status).toBe(200);
+      expect(res.body.title).toBe('Original');
+      expect(res.body.content).toBe('Updated');
+
+      const get = await request(app).get('/api/projects/test/knowledge/notes/original');
+      expect(get.body.content).toBe('Updated');
+    });
+
+    it('deletes a note with 204', async () => {
+      await request(app)
+        .post('/api/projects/test/knowledge/notes')
+        .send({ title: 'To Delete', content: 'Gone' });
+
+      const res = await request(app).delete('/api/projects/test/knowledge/notes/to-delete');
+      expect(res.status).toBe(204);
+
+      const get = await request(app).get('/api/projects/test/knowledge/notes/to-delete');
+      expect(get.status).toBe(404);
+    });
+
+    it('returns 404 for missing note', async () => {
+      const res = await request(app).get('/api/projects/test/knowledge/notes/nonexistent');
+      expect(res.status).toBe(404);
+    });
+
+    it('searches notes in results wrapper', async () => {
+      await request(app)
+        .post('/api/projects/test/knowledge/notes')
+        .send({ title: 'Auth tokens', content: 'JWT based auth' });
+
+      const res = await request(app).get('/api/projects/test/knowledge/search?q=auth');
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.results)).toBe(true);
+    });
+
+    it('validates create body', async () => {
+      const res = await request(app)
+        .post('/api/projects/test/knowledge/notes')
+        .send({ content: 'no title' });
+      expect(res.status).toBe(400);
+    });
+
+    it('creates and lists relations', async () => {
+      await request(app)
+        .post('/api/projects/test/knowledge/notes')
+        .send({ title: 'Note A', content: 'A' });
+      await request(app)
+        .post('/api/projects/test/knowledge/notes')
+        .send({ title: 'Note B', content: 'B' });
+
+      const rel = await request(app)
+        .post('/api/projects/test/knowledge/relations')
+        .send({ fromId: 'note-a', toId: 'note-b', kind: 'relates_to' });
+      expect(rel.status).toBe(201);
+      expect(rel.body.fromId).toBe('note-a');
+      expect(rel.body.toId).toBe('note-b');
+
+      const list = await request(app).get('/api/projects/test/knowledge/notes/note-a/relations');
+      expect(list.body.results.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Task CRUD', () => {
+    it('creates a task', async () => {
+      const res = await request(app)
+        .post('/api/projects/test/tasks')
+        .send({ title: 'Fix Bug', description: 'Fix the login bug' });
+      expect(res.status).toBe(201);
+      expect(res.body.id).toBe('fix-bug');
+      expect(res.body.title).toBe('Fix Bug');
+    });
+
+    it('gets a task', async () => {
+      await request(app)
+        .post('/api/projects/test/tasks')
+        .send({ title: 'My Task', description: 'Do something' });
+
+      const res = await request(app).get('/api/projects/test/tasks/my-task');
+      expect(res.status).toBe(200);
+      expect(res.body.title).toBe('My Task');
+    });
+
+    it('lists tasks in results wrapper', async () => {
+      await request(app)
+        .post('/api/projects/test/tasks')
+        .send({ title: 'Task 1', description: '' });
+      await request(app)
+        .post('/api/projects/test/tasks')
+        .send({ title: 'Task 2', description: '' });
+
+      const res = await request(app).get('/api/projects/test/tasks');
+      expect(res.status).toBe(200);
+      expect(res.body.results).toHaveLength(2);
+    });
+
+    it('moves a task via POST', async () => {
+      await request(app)
+        .post('/api/projects/test/tasks')
+        .send({ title: 'Move Me', description: '' });
+
+      const res = await request(app)
+        .post('/api/projects/test/tasks/move-me/move')
+        .send({ status: 'done' });
+      expect(res.status).toBe(200);
+
+      const get = await request(app).get('/api/projects/test/tasks/move-me');
+      expect(get.body.status).toBe('done');
+    });
+
+    it('deletes a task with 204', async () => {
+      await request(app)
+        .post('/api/projects/test/tasks')
+        .send({ title: 'Delete Me', description: '' });
+
+      const res = await request(app).delete('/api/projects/test/tasks/delete-me');
+      expect(res.status).toBe(204);
+
+      const get = await request(app).get('/api/projects/test/tasks/delete-me');
+      expect(get.status).toBe(404);
+    });
+
+    it('searches tasks in results wrapper', async () => {
+      await request(app)
+        .post('/api/projects/test/tasks')
+        .send({ title: 'Fix auth', description: 'Auth is broken' });
+
+      const res = await request(app).get('/api/projects/test/tasks/search?q=auth');
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.results)).toBe(true);
+    });
+  });
+
+  describe('Cross-graph proxy cleanup on delete', () => {
+    it('delete note cleans up proxy in TaskGraph', async () => {
+      // Create note and task
+      await request(app)
+        .post('/api/projects/test/knowledge/notes')
+        .send({ title: 'Linked Note', content: 'A note' });
+      await request(app)
+        .post('/api/projects/test/tasks')
+        .send({ title: 'Linked Task', description: 'A task' });
+
+      // Link task → knowledge note
+      await request(app)
+        .post('/api/projects/test/tasks/links')
+        .send({ fromId: 'linked-task', toId: 'linked-note', kind: 'references', targetGraph: 'knowledge' });
+
+      // Verify proxy exists
+      expect(project.taskGraph.hasNode('@knowledge::linked-note')).toBe(true);
+
+      // Delete note
+      await request(app).delete('/api/projects/test/knowledge/notes/linked-note');
+
+      // Proxy should be cleaned up
+      expect(project.taskGraph.hasNode('@knowledge::linked-note')).toBe(false);
+    });
+
+    it('delete task cleans up proxy in KnowledgeGraph', async () => {
+      // Create note and task
+      await request(app)
+        .post('/api/projects/test/knowledge/notes')
+        .send({ title: 'Another Note', content: 'A note' });
+      await request(app)
+        .post('/api/projects/test/tasks')
+        .send({ title: 'Another Task', description: 'A task' });
+
+      // Link note → task
+      await request(app)
+        .post('/api/projects/test/knowledge/relations')
+        .send({ fromId: 'another-note', toId: 'another-task', kind: 'tracks', targetGraph: 'tasks' });
+
+      // Verify proxy exists
+      expect(project.knowledgeGraph.hasNode('@tasks::another-task')).toBe(true);
+
+      // Delete task
+      await request(app).delete('/api/projects/test/tasks/another-task');
+
+      // Proxy should be cleaned up
+      expect(project.knowledgeGraph.hasNode('@tasks::another-task')).toBe(false);
+    });
+  });
+
+  describe('Graph export', () => {
+    it('exports all graphs', async () => {
+      await request(app)
+        .post('/api/projects/test/knowledge/notes')
+        .send({ title: 'Export Test', content: 'Data' });
+
+      const res = await request(app).get('/api/projects/test/graph');
+      expect(res.status).toBe(200);
+      expect(res.body.nodes).toBeDefined();
+      expect(res.body.edges).toBeDefined();
+      expect(res.body.nodes.length).toBeGreaterThan(0);
+    });
+
+    it('exports knowledge scope only', async () => {
+      await request(app)
+        .post('/api/projects/test/knowledge/notes')
+        .send({ title: 'Scoped', content: 'Data' });
+
+      const res = await request(app).get('/api/projects/test/graph?scope=knowledge');
+      expect(res.status).toBe(200);
+      expect(res.body.nodes.every((n: any) => n.graph === 'knowledge')).toBe(true);
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Attachment REST endpoints (require real temp dir for file I/O)
+// ---------------------------------------------------------------------------
+
+describe('Attachment REST endpoints', () => {
+  let app: express.Express;
+  let tmpDir: string;
+
+  function createProjectWithDir(dir: string): ProjectInstance {
+    const knowledgeGraph = createKnowledgeGraph();
+    const fileIndexGraph = createFileIndexGraph();
+    const taskGraph = createTaskGraph();
+    const skillGraph = createSkillGraph();
+    const ctx: GraphManagerContext = {
+      markDirty: () => {},
+      emit: () => {},
+      projectId: 'test',
+      projectDir: dir,
+    };
+    const ext = { knowledgeGraph, fileIndexGraph, taskGraph, skillGraph };
+
+    return {
+      id: 'test',
+      config: {
+        projectDir: dir,
+        graphMemory: path.join(dir, '.graph-memory'),
+        docsPattern: '**/*.md',
+        codePattern: '**/*.ts',
+        excludePattern: 'node_modules/**',
+        chunkDepth: 4,
+        maxTokensDefault: 4000,
+        embedMaxChars: 2000,
+        embeddingModel: 'test',
+      },
+      knowledgeGraph,
+      fileIndexGraph,
+      taskGraph,
+      skillGraph,
+      knowledgeManager: new KnowledgeGraphManager(knowledgeGraph, fakeEmbed, ctx, ext),
+      fileIndexManager: new FileIndexGraphManager(fileIndexGraph, fakeEmbed),
+      taskManager: new TaskGraphManager(taskGraph, fakeEmbed, ctx, ext),
+      skillManager: new SkillGraphManager(skillGraph, fakeEmbed, ctx, ext),
+      embedFns: {
+        docs: fakeEmbed,
+        code: fakeEmbed,
+        knowledge: fakeEmbed,
+        tasks: fakeEmbed,
+        files: fakeEmbed,
+        skills: fakeEmbed,
+      },
+      mutationQueue: new PromiseQueue(),
+      dirty: false,
+    };
+  }
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gm-attach-test-'));
+    const project = createProjectWithDir(tmpDir);
+    const emitter = new EventEmitter();
+    const manager = Object.assign(emitter, {
+      getProject: (id: string) => id === 'test' ? project : undefined,
+      listProjects: () => ['test'],
+      markDirty: () => {},
+    }) as any as ProjectManager;
+    app = createRestApp(manager);
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  describe('Knowledge attachments', () => {
+    const notesBase = '/api/projects/test/knowledge/notes';
+
+    async function createNote() {
+      const res = await request(app)
+        .post(notesBase)
+        .send({ title: 'Attach Note', content: 'For attachments' });
+      expect(res.status).toBe(201);
+      return res.body.id as string;
+    }
+
+    it('uploads an attachment and returns metadata', async () => {
+      const noteId = await createNote();
+
+      const res = await request(app)
+        .post(`${notesBase}/${noteId}/attachments`)
+        .attach('file', Buffer.from('test image data'), 'screenshot.png');
+
+      expect(res.status).toBe(201);
+      expect(res.body.filename).toBe('screenshot.png');
+      expect(res.body.mimeType).toBe('image/png');
+      expect(res.body.size).toBe(Buffer.from('test image data').length);
+      expect(typeof res.body.addedAt).toBe('number');
+    });
+
+    it('lists attachments for a note', async () => {
+      const noteId = await createNote();
+
+      await request(app)
+        .post(`${notesBase}/${noteId}/attachments`)
+        .attach('file', Buffer.from('aaa'), 'a.txt');
+      await request(app)
+        .post(`${notesBase}/${noteId}/attachments`)
+        .attach('file', Buffer.from('bbb'), 'b.txt');
+
+      const res = await request(app).get(`${notesBase}/${noteId}/attachments`);
+      expect(res.status).toBe(200);
+      expect(res.body.results).toHaveLength(2);
+      const filenames = res.body.results.map((a: any) => a.filename).sort();
+      expect(filenames).toEqual(['a.txt', 'b.txt']);
+    });
+
+    it('downloads an attachment with correct content-type', async () => {
+      const noteId = await createNote();
+      const content = 'hello world';
+
+      await request(app)
+        .post(`${notesBase}/${noteId}/attachments`)
+        .attach('file', Buffer.from(content), 'readme.txt');
+
+      const res = await request(app)
+        .get(`${notesBase}/${noteId}/attachments/readme.txt`)
+        .buffer(true)
+        .parse((res, cb) => {
+          let data = '';
+          res.setEncoding('utf8');
+          res.on('data', (chunk: string) => { data += chunk; });
+          res.on('end', () => cb(null, data));
+        });
+      expect(res.status).toBe(200);
+      expect(res.headers['content-type']).toMatch(/text\/plain/);
+      expect(res.body).toBe(content);
+    });
+
+    it('deletes an attachment with 204', async () => {
+      const noteId = await createNote();
+
+      await request(app)
+        .post(`${notesBase}/${noteId}/attachments`)
+        .attach('file', Buffer.from('gone'), 'temp.txt');
+
+      const del = await request(app).delete(`${notesBase}/${noteId}/attachments/temp.txt`);
+      expect(del.status).toBe(204);
+
+      const list = await request(app).get(`${notesBase}/${noteId}/attachments`);
+      expect(list.body.results).toHaveLength(0);
+    });
+
+    it('returns 404 when downloading from non-existent note', async () => {
+      const res = await request(app).get(`${notesBase}/no-such-note/attachments/file.txt`);
+      expect(res.status).toBe(404);
+    });
+
+    it('returns 404 when downloading non-existent attachment', async () => {
+      const noteId = await createNote();
+      const res = await request(app).get(`${notesBase}/${noteId}/attachments/missing.txt`);
+      expect(res.status).toBe(404);
+    });
+
+    it('returns 404 when deleting non-existent attachment', async () => {
+      const noteId = await createNote();
+      const res = await request(app).delete(`${notesBase}/${noteId}/attachments/missing.txt`);
+      expect(res.status).toBe(404);
+    });
+
+    it('returns 400 when no file is provided', async () => {
+      const noteId = await createNote();
+      const res = await request(app).post(`${notesBase}/${noteId}/attachments`);
+      expect(res.status).toBe(400);
+    });
+
+    it('returns empty list for note with no attachments', async () => {
+      const noteId = await createNote();
+      const res = await request(app).get(`${notesBase}/${noteId}/attachments`);
+      expect(res.status).toBe(200);
+      expect(res.body.results).toHaveLength(0);
+    });
+  });
+
+  describe('Task attachments', () => {
+    const tasksBase = '/api/projects/test/tasks';
+
+    async function createTask() {
+      const res = await request(app)
+        .post(tasksBase)
+        .send({ title: 'Attach Task', description: 'For attachments' });
+      expect(res.status).toBe(201);
+      return res.body.id as string;
+    }
+
+    it('uploads an attachment and returns metadata', async () => {
+      const taskId = await createTask();
+
+      const res = await request(app)
+        .post(`${tasksBase}/${taskId}/attachments`)
+        .attach('file', Buffer.from('pdf data'), 'report.pdf');
+
+      expect(res.status).toBe(201);
+      expect(res.body.filename).toBe('report.pdf');
+      expect(res.body.mimeType).toBe('application/pdf');
+      expect(res.body.size).toBe(Buffer.from('pdf data').length);
+      expect(typeof res.body.addedAt).toBe('number');
+    });
+
+    it('lists attachments for a task', async () => {
+      const taskId = await createTask();
+
+      await request(app)
+        .post(`${tasksBase}/${taskId}/attachments`)
+        .attach('file', Buffer.from('x'), 'x.txt');
+      await request(app)
+        .post(`${tasksBase}/${taskId}/attachments`)
+        .attach('file', Buffer.from('y'), 'y.png');
+
+      const res = await request(app).get(`${tasksBase}/${taskId}/attachments`);
+      expect(res.status).toBe(200);
+      expect(res.body.results).toHaveLength(2);
+      const filenames = res.body.results.map((a: any) => a.filename).sort();
+      expect(filenames).toEqual(['x.txt', 'y.png']);
+    });
+
+    it('downloads an attachment with correct content-type', async () => {
+      const taskId = await createTask();
+      const content = '{"key":"value"}';
+
+      await request(app)
+        .post(`${tasksBase}/${taskId}/attachments`)
+        .attach('file', Buffer.from(content), 'data.json');
+
+      const res = await request(app).get(`${tasksBase}/${taskId}/attachments/data.json`);
+      expect(res.status).toBe(200);
+      expect(res.headers['content-type']).toMatch(/application\/json/);
+      expect(res.body).toEqual({ key: 'value' });
+    });
+
+    it('deletes an attachment with 204', async () => {
+      const taskId = await createTask();
+
+      await request(app)
+        .post(`${tasksBase}/${taskId}/attachments`)
+        .attach('file', Buffer.from('bye'), 'remove-me.txt');
+
+      const del = await request(app).delete(`${tasksBase}/${taskId}/attachments/remove-me.txt`);
+      expect(del.status).toBe(204);
+
+      const list = await request(app).get(`${tasksBase}/${taskId}/attachments`);
+      expect(list.body.results).toHaveLength(0);
+    });
+
+    it('returns 404 when downloading from non-existent task', async () => {
+      const res = await request(app).get(`${tasksBase}/no-such-task/attachments/file.txt`);
+      expect(res.status).toBe(404);
+    });
+
+    it('returns 404 when downloading non-existent attachment', async () => {
+      const taskId = await createTask();
+      const res = await request(app).get(`${tasksBase}/${taskId}/attachments/missing.txt`);
+      expect(res.status).toBe(404);
+    });
+
+    it('returns 404 when deleting non-existent attachment', async () => {
+      const taskId = await createTask();
+      const res = await request(app).delete(`${tasksBase}/${taskId}/attachments/missing.txt`);
+      expect(res.status).toBe(404);
+    });
+
+    it('returns 400 when no file is provided', async () => {
+      const taskId = await createTask();
+      const res = await request(app).post(`${tasksBase}/${taskId}/attachments`);
+      expect(res.status).toBe(400);
+    });
+
+    it('returns empty list for task with no attachments', async () => {
+      const taskId = await createTask();
+      const res = await request(app).get(`${tasksBase}/${taskId}/attachments`);
+      expect(res.status).toBe(200);
+      expect(res.body.results).toHaveLength(0);
+    });
+  });
+});

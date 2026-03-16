@@ -1,0 +1,57 @@
+# ============================================================================
+# graph-memory.yaml — MCP Graph Memory configuration
+# ============================================================================
+# All fields are optional except projects.*.projectDir.
+# Values shown below are the defaults — uncomment and change as needed.
+# ============================================================================
+
+# ---------------------------------------------------------------------------
+# Server settings (shared across all projects)
+# ---------------------------------------------------------------------------
+server:
+  # host: "127.0.0.1"                          # HTTP server bind address
+  # port: 3000                                  # HTTP server port
+  # sessionTimeout: 1800                        # Idle session timeout (seconds)
+  # modelsDir: "~/.graph-memory/models"         # Local model cache directory
+  # embeddingModel: "Xenova/all-MiniLM-L6-v2"  # Default embedding model (fallback for all graphs)
+
+# ---------------------------------------------------------------------------
+# Projects
+# ---------------------------------------------------------------------------
+projects:
+
+  # ── Project 1: Full-stack app with docs and source code ──────────────────
+  my-app:
+    projectDir: "/path/to/my-app"               # (required) Root directory to index
+
+    # Storage
+    # graphMemory: ".graph-memory"              # Graph data dir (relative to projectDir)
+
+    # Indexing patterns
+    # docsPattern: "**/*.md"                    # Glob for markdown files
+    # codePattern: "**/*.{js,ts,jsx,tsx}"       # Glob for source files
+    # excludePattern: "node_modules/**"         # Glob to exclude from indexing
+    # tsconfig: "./tsconfig.json"               # Path to tsconfig.json (enables import resolution)
+
+    # Parsing
+    # chunkDepth: 4                             # Max heading depth to chunk at
+    # maxTokensDefault: 4000                    # Default max tokens for responses
+    # embedMaxChars: 2000                       # Max chars fed to embedder per node
+
+    # Per-project embedding model (overrides server.embeddingModel)
+    # embeddingModel: "Xenova/all-MiniLM-L6-v2"
+
+    # Per-graph embedding models (override project embeddingModel)
+    # docsModel: "Xenova/all-MiniLM-L6-v2"
+    # codeModel: "Xenova/bge-base-en-v1.5"
+    # knowledgeModel: "Xenova/all-MiniLM-L6-v2"
+    # taskModel: "Xenova/all-MiniLM-L6-v2"
+    # filesModel: "Xenova/all-MiniLM-L6-v2"
+    # skillsModel: "Xenova/all-MiniLM-L6-v2"
+
+  # ── Project 2: Documentation-only project (no code indexing) ─────────────
+  docs-site:
+    projectDir: "/path/to/docs-site"
+    docsPattern: "content/**/*.md"
+    codePattern: ""                             # Empty string disables code indexing
+    excludePattern: "node_modules/**,build/**"

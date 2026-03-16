@@ -1,0 +1,24 @@
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { z } from 'zod';
+import type { KnowledgeGraphManager } from '@/graphs/knowledge';
+
+export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
+  server.registerTool(
+    'remove_note_attachment',
+    {
+      description:
+        'Remove an attachment from a note. The file is deleted from disk.',
+      inputSchema: {
+        noteId:   z.string().describe('ID of the note'),
+        filename: z.string().describe('Filename of the attachment to remove'),
+      },
+    },
+    async ({ noteId, filename }) => {
+      const ok = mgr.removeAttachment(noteId, filename);
+      if (!ok) {
+        return { content: [{ type: 'text', text: JSON.stringify({ error: 'Attachment not found' }) }], isError: true };
+      }
+      return { content: [{ type: 'text', text: JSON.stringify({ deleted: filename }) }] };
+    },
+  );
+}

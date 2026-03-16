@@ -1,0 +1,25 @@
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { z } from 'zod';
+import type { TaskGraphManager } from '@/graphs/task';
+
+export function register(server: McpServer, mgr: TaskGraphManager): void {
+  server.registerTool(
+    'get_task',
+    {
+      description:
+        'Get full details of a task by ID, including subtasks, blockers, related tasks, and cross-graph links. ' +
+        'Returns: id, title, description, status, priority, tags, dueDate, estimate, ' +
+        'completedAt, createdAt, updatedAt, subtasks[], blockedBy[], blocks[], related[], crossLinks[].',
+      inputSchema: {
+        taskId: z.string().describe('Task ID to retrieve'),
+      },
+    },
+    async ({ taskId }) => {
+      const task = mgr.getTask(taskId);
+      if (!task) {
+        return { content: [{ type: 'text', text: `Task "${taskId}" not found.` }], isError: true };
+      }
+      return { content: [{ type: 'text', text: JSON.stringify(task, null, 2) }] };
+    },
+  );
+}

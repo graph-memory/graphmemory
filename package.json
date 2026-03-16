@@ -1,0 +1,60 @@
+{
+  "name": "mcp-graph-memory",
+  "version": "1.0.0",
+  "description": "MCP server for semantic graph memory from markdown files",
+  "main": "dist/cli/index.js",
+  "bin": {
+    "mcp-graph-memory": "dist/cli/index.js"
+  },
+  "scripts": {
+    "build": "npm run build:server && npm run build:ui",
+    "build:server": "rm -rf dist && tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
+    "build:ui": "cd ui && npm run build",
+    "start": "node dist/index.js",
+    "dev": "tsc --watch",
+    "cli": "node dist/cli/index.js",
+    "cli:dev": "tsx src/cli/index.ts",
+    "test": "jest",
+    "test:watch": "jest --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@git.itlid.com.ua:prih/mcp-graph-memory.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "@xenova/transformers": "^2.17.2",
+    "chokidar": "^5.0.0",
+    "commander": "^14.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "graphology": "^0.26.0",
+    "micromatch": "^4.0.8",
+    "mime": "^4.1.0",
+    "multer": "^2.1.1",
+    "ts-morph": "^27.0.2",
+    "ws": "^8.19.0",
+    "yaml": "^2.8.2",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
+    "@types/micromatch": "^4.0.10",
+    "@types/multer": "^2.1.0",
+    "@types/node": "^25.4.0",
+    "@types/supertest": "^7.2.0",
+    "@types/ws": "^8.18.1",
+    "jest": "^30.3.0",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.6",
+    "tsc-alias": "^1.8.16",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

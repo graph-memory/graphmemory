@@ -1,0 +1,204 @@
+# Knowledge Tools
+
+The knowledge tools manage a persistent graph of **notes, facts, and decisions**. Unlike docs and code tools that index existing files, the knowledge graph is built manually — capturing information that lives in people's heads.
+
+## Why use a knowledge graph?
+
+Code and docs tell you **what** exists. The knowledge graph captures **why** — architectural decisions, domain knowledge, gotchas, context that doesn't belong in code comments.
+
+Examples:
+- "We use JWT instead of sessions because the mobile app needs stateless auth"
+- "The billing service has a 30-second timeout — don't chain more than 3 API calls"
+- "Users in the 'legacy' tier have different rate limits, check `isLegacy` flag"
+
+## Tool overview
+
+| Tool | Purpose | Type |
+|------|---------|------|
+| `create_note` | Create a new note with title, content, tags | Mutation |
+| `update_note` | Update an existing note | Mutation |
+| `delete_note` | Remove a note and all its relations | Mutation |
+| `get_note` | Read a single note by ID | Read |
+| `list_notes` | List notes with optional filters | Read |
+| `search_notes` | Semantic search across notes | Read |
+| `create_relation` | Link a note to another note or external node | Mutation |
+| `delete_relation` | Remove a link | Mutation |
+| `list_relations` | List all relations for a note | Read |
+| `find_linked_notes` | Reverse lookup: find notes that link to an external node | Read |
+| `add_note_attachment` | Attach a file to a note | Mutation |
+| `remove_note_attachment` | Remove an attachment from a note | Mutation |
+
+> **Mutation tools** are serialized through a queue to prevent concurrent graph modifications.
+
+## Note ID generation
+
+Note IDs are slugified from the title:
+- "Auth Architecture" → `auth-architecture`
+- "JWT Token Format" → `jwt-token-format`
+
+Duplicate titles get a suffix: `auth-architecture::2`, `auth-architecture::3`.
+
+## Tool reference
+
+### create_note
+
+Create a new note. Automatically embedded for semantic search.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `title` | string | Yes | Short title, e.g. `"Auth uses JWT tokens"` |
+| `content` | string | Yes | Full text content |
+| `tags` | string[] | No | Tags for filtering, e.g. `["architecture", "decision"]` |
+
+**Returns:** `{ noteId }` — the generated slug ID
+
+### update_note
+
+Update an existing note. Only provided fields change. Re-embeds automatically if title or content changes.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `noteId` | string | Yes | ID of the note to update |
+| `title` | string | No | New title |
+| `content` | string | No | New content |
+| `tags` | string[] | No | New tags (replaces existing array entirely) |
+
+**Returns:** `{ noteId, updated: true }`
+
+### delete_note
+
+Delete a note and all its connected edges (relations, cross-graph links). Orphaned proxy nodes are cleaned up automatically.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `noteId` | string | Yes | ID of the note to delete |
+
+**Returns:** `{ noteId, deleted: true }`
+
+### get_note
+
+Return the full content of a note.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `noteId` | string | Yes | Note ID, e.g. `"auth-uses-jwt-tokens"` |
+
+**Returns:** `{ id, title, content, tags, createdAt, updatedAt }`
+
+### list_notes
+
+List notes with optional filtering. Sorted by most recently updated.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `filter` | string | No | — | Case-insensitive substring match on title or ID |
+| `tag` | string | No | — | Filter by tag (exact match, case-insensitive) |
+| `limit` | number | No | 20 | Maximum results |
+
+**Returns:** `[{ id, title, tags, updatedAt }]`
+
+### search_notes
+
+Semantic search over the knowledge graph with BFS expansion through note relations.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `query` | string | Yes | — | Natural language search query |
+| `topK` | number | No | 5 | Number of seed nodes from vector search |
+| `bfsDepth` | number | No | 1 | Hops to follow relations from each seed (0 = no expansion) |
+| `maxResults` | number | No | 20 | Maximum results |
+| `minScore` | number | No | 0.5 | Minimum relevance score (0–1) |
+| `bfsDecay` | number | No | 0.8 | Score multiplier per hop |
+
+**Returns:** `[{ id, title, content, tags, score }]`
+
+### create_relation
+
+Create a directed edge from a note to another note or to an external graph node.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `fromId` | string | Yes | Source note ID |
+| `toId` | string | Yes | Target note ID, or target node ID in external graph |
+| `kind` | string | Yes | Relation type: `"relates_to"`, `"depends_on"`, `"contradicts"`, `"supports"`, `"part_of"`, `"references"`, etc. |
+| `targetGraph` | `"docs"` \| `"code"` \| `"files"` \| `"tasks"` | No | Set to create a cross-graph link instead of note-to-note |
+
+**Returns:** `{ fromId, toId, kind, targetGraph, created: true }`
+
+**Cross-graph examples:**
+```
+create_relation({ fromId: "auth-arch", toId: "auth.ts::AuthService", kind: "documents", targetGraph: "code" })
+create_relation({ fromId: "config-note", toId: "src/config.ts", kind: "references", targetGraph: "files" })
+create_relation({ fromId: "api-decision", toId: "api-guide.md::Endpoints", kind: "explains", targetGraph: "docs" })
+create_relation({ fromId: "my-note", toId: "fix-auth-bug", kind: "tracks", targetGraph: "tasks" })
+```
+
+### delete_relation
+
+Remove a directed edge.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `fromId` | string | Yes | Source note ID |
+| `toId` | string | Yes | Target note ID or external node ID |
+| `targetGraph` | `"docs"` \| `"code"` \| `"files"` \| `"tasks"` | No | Set when deleting a cross-graph link |
+
+**Returns:** `{ fromId, toId, targetGraph, deleted: true }`
+
+### list_relations
+
+List all relations (both incoming and outgoing) for a note. Cross-graph links include `targetGraph` field and resolve the real node ID (not the proxy ID).
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `noteId` | string | Yes | Note ID to list relations for |
+
+**Returns:** `[{ fromId, toId, kind, targetGraph? }]`
+
+### find_linked_notes
+
+Reverse lookup: given a node in an external graph, find all notes that link to it.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `targetId` | string | Yes | Target node ID in the external graph, e.g. `"src/config.ts"`, `"auth.ts::login"`, `"api.md::Setup"` |
+| `targetGraph` | `"docs"` \| `"code"` \| `"files"` \| `"tasks"` | Yes | Which graph the target belongs to |
+| `kind` | string | No | Filter by relation kind. If omitted, returns all relations |
+
+**Returns:** `[{ noteId, title, kind, tags }]`
+
+**Use case:** When working on a code file, call `find_linked_notes({ targetId: "src/auth.ts", targetGraph: "code" })` to discover what knowledge notes reference that file.
+
+### add_note_attachment
+
+Attach a file to a note. The file is copied into the note's directory (`.notes/{noteId}/`).
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `noteId` | string | Yes | Note ID to attach the file to |
+| `filePath` | string | Yes | Absolute path to the file on disk |
+
+**Returns:** `{ noteId, attachment: { filename, mimeType, size } }`
+
+### remove_note_attachment
+
+Remove an attachment from a note. Deletes the file from disk.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `noteId` | string | Yes | Note ID |
+| `filename` | string | Yes | Filename of the attachment to remove |
+
+**Returns:** `{ noteId, filename, deleted: true }`
+
+## Tips
+
+- Use tags consistently for easy filtering (e.g., `decision`, `gotcha`, `todo`, `architecture`)
+- Link notes to the code they describe — this creates a navigable knowledge web
+- `find_linked_notes` is useful to discover what knowledge exists about a specific code symbol or file
+- Notes persist across server restarts (saved as `knowledge.json`)
+- The `kind` field on relations is free-form — use whatever makes sense for your domain
+- `update_note` with `tags` replaces the entire array — include all tags you want to keep
+- `search_notes` with `bfsDepth: 2` will traverse through related notes to find loosely connected knowledge
+- Notes support file attachments — attach images, logs, or any file via `add_note_attachment`
+- Attachments are stored in `.notes/{noteId}/` alongside the note's markdown file

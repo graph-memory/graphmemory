@@ -1,0 +1,285 @@
+import * as fs from 'fs';
+import * as path from 'path';
+import { parseMarkdown } from './frontmatter';
+import type { RelationFrontmatter } from './file-mirror';
+import type { TaskStatus, TaskPriority } from '../graphs/task-types';
+import type { SkillSource } from '../graphs/skill-types';
+import type { AttachmentMeta } from '../graphs/attachment-types';
+import { scanAttachments } from '../graphs/attachment-types';
+
+const VALID_STATUSES: TaskStatus[] = ['backlog', 'todo', 'in_progress', 'review', 'done', 'cancelled'];
+const VALID_PRIORITIES: TaskPriority[] = ['critical', 'high', 'medium', 'low'];
+const VALID_SOURCES: SkillSource[] = ['user', 'learned'];
+
+export interface ParsedNoteFile {
+  id: string;
+  title: string;
+  content: string;
+  tags: string[];
+  createdAt: number | null;
+  updatedAt: number | null;
+  relations: RelationFrontmatter[];
+  attachments: AttachmentMeta[];
+}
+
+export interface ParsedTaskFile {
+  id: string;
+  title: string;
+  description: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+  tags: string[];
+  dueDate: number | null;
+  estimate: number | null;
+  completedAt: number | null;
+  createdAt: number | null;
+  updatedAt: number | null;
+  relations: RelationFrontmatter[];
+  attachments: AttachmentMeta[];
+}
+
+function isoToMs(value: unknown): number | null {
+  if (value == null) return null;
+  const d = new Date(value as string);
+  return isNaN(d.getTime()) ? null : d.getTime();
+}
+
+function parseTags(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw.filter(t => typeof t === 'string');
+  return [];
+}
+
+function parseRelations(raw: unknown): RelationFrontmatter[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter(r => r && typeof r === 'object' && typeof r.to === 'string' && typeof r.kind === 'string')
+    .map(r => {
+      const entry: RelationFrontmatter = { to: r.to, kind: r.kind };
+      if (typeof r.graph === 'string') entry.graph = r.graph;
+      return entry;
+    });
+}
+
+function extractTitleAndContent(body: string): { title: string; content: string } {
+  const lines = body.split('\n');
+  const headingMatch = lines[0]?.match(/^#\s+(.+)/);
+  if (!headingMatch) return { title: '', content: body.trim() };
+
+  const title = headingMatch[1].trim();
+  // Skip heading line and the blank line after it
+  let start = 1;
+  if (lines[start] === '') start++;
+  const content = lines.slice(start).join('\n').trim();
+  return { title, content };
+}
+
+/**
+ * Determine the entity ID from a file path.
+ * New format: .notes/{id}/note.md or .tasks/{id}/task.md or .skills/{id}/skill.md → id from dirname
+ * Legacy format: .notes/{id}.md or .tasks/{id}.md → id from basename
+ */
+function extractId(filePath: string): string {
+  const basename = path.basename(filePath, '.md');
+  if (basename === 'note' || basename === 'task' || basename === 'skill') {
+    return path.basename(path.dirname(filePath));
+  }
+  return basename;
+}
+
+export function parseNoteFile(filePath: string): ParsedNoteFile | null {
+  try {
+    const raw = fs.readFileSync(filePath, 'utf-8');
+    const { frontmatter: fm, body } = parseMarkdown(raw);
+    const { title, content } = extractTitleAndContent(body);
+
+    const id = extractId(filePath);
+    if (!title && !id) return null;
+
+    const dir = path.dirname(filePath);
+    const mdFile = path.basename(filePath);
+    const attachments = scanAttachments(dir, mdFile);
+
+    return {
+      id,
+      title: title || id,
+      content,
+      tags: parseTags(fm.tags),
+      createdAt: isoToMs(fm.createdAt),
+      updatedAt: isoToMs(fm.updatedAt),
+      relations: parseRelations(fm.relations),
+      attachments,
+    };
+  } catch (err) {
+    process.stderr.write(`[file-import] failed to parse note ${filePath}: ${err}\n`);
+    return null;
+  }
+}
+
+export function parseTaskFile(filePath: string): ParsedTaskFile | null {
+  try {
+    const raw = fs.readFileSync(filePath, 'utf-8');
+    const { frontmatter: fm, body } = parseMarkdown(raw);
+    const { title, content: description } = extractTitleAndContent(body);
+
+    const id = extractId(filePath);
+    if (!title && !id) return null;
+
+    const status = VALID_STATUSES.includes(fm.status as TaskStatus)
+      ? (fm.status as TaskStatus) : 'backlog';
+    const priority = VALID_PRIORITIES.includes(fm.priority as TaskPriority)
+      ? (fm.priority as TaskPriority) : 'medium';
+
+    const dir = path.dirname(filePath);
+    const mdFile = path.basename(filePath);
+    const attachments = scanAttachments(dir, mdFile);
+
+    return {
+      id,
+      title: title || id,
+      description,
+      status,
+      priority,
+      tags: parseTags(fm.tags),
+      dueDate: isoToMs(fm.dueDate),
+      estimate: typeof fm.estimate === 'number' ? fm.estimate : null,
+      completedAt: isoToMs(fm.completedAt),
+      createdAt: isoToMs(fm.createdAt),
+      updatedAt: isoToMs(fm.updatedAt),
+      relations: parseRelations(fm.relations),
+      attachments,
+    };
+  } catch (err) {
+    process.stderr.write(`[file-import] failed to parse task ${filePath}: ${err}\n`);
+    return null;
+  }
+}
+
+export interface ParsedSkillFile {
+  id: string;
+  title: string;
+  description: string;
+  steps: string[];
+  triggers: string[];
+  inputHints: string[];
+  filePatterns: string[];
+  tags: string[];
+  source: SkillSource;
+  confidence: number;
+  usageCount: number | null;
+  lastUsedAt: number | null;
+  createdAt: number | null;
+  updatedAt: number | null;
+  relations: RelationFrontmatter[];
+  attachments: AttachmentMeta[];
+}
+
+function parseStringArray(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw.filter(t => typeof t === 'string');
+  return [];
+}
+
+function extractDescriptionAndSteps(body: string): { title: string; description: string; steps: string[] } {
+  const lines = body.split('\n');
+  const headingMatch = lines[0]?.match(/^#\s+(.+)/);
+  if (!headingMatch) return { title: '', description: body.trim(), steps: [] };
+
+  const title = headingMatch[1].trim();
+  let start = 1;
+  if (lines[start] === '') start++;
+
+  // Find ## Steps section
+  const stepsIdx = lines.findIndex((l, i) => i >= start && /^##\s+Steps/i.test(l));
+
+  if (stepsIdx === -1) {
+    return { title, description: lines.slice(start).join('\n').trim(), steps: [] };
+  }
+
+  const description = lines.slice(start, stepsIdx).join('\n').trim();
+
+  // Parse numbered list after ## Steps
+  const steps: string[] = [];
+  for (let i = stepsIdx + 1; i < lines.length; i++) {
+    const stepMatch = lines[i].match(/^\d+\.\s+(.+)/);
+    if (stepMatch) {
+      steps.push(stepMatch[1].trim());
+    } else if (lines[i].trim() === '') {
+      continue;
+    } else if (/^##\s+/.test(lines[i])) {
+      break; // another heading section
+    }
+  }
+
+  return { title, description, steps };
+}
+
+export function parseSkillFile(filePath: string): ParsedSkillFile | null {
+  try {
+    const raw = fs.readFileSync(filePath, 'utf-8');
+    const { frontmatter: fm, body } = parseMarkdown(raw);
+    const { title, description, steps } = extractDescriptionAndSteps(body);
+
+    const id = extractId(filePath);
+    if (!title && !id) return null;
+
+    const source = VALID_SOURCES.includes(fm.source as SkillSource)
+      ? (fm.source as SkillSource) : 'user';
+    const confidence = typeof fm.confidence === 'number' ? Math.max(0, Math.min(1, fm.confidence)) : 1;
+
+    const dir = path.dirname(filePath);
+    const mdFile = path.basename(filePath);
+    const attachments = scanAttachments(dir, mdFile);
+
+    return {
+      id,
+      title: title || id,
+      description,
+      steps,
+      triggers: parseStringArray(fm.triggers),
+      inputHints: parseStringArray(fm.inputHints),
+      filePatterns: parseStringArray(fm.filePatterns),
+      tags: parseTags(fm.tags),
+      source,
+      confidence,
+      usageCount: typeof fm.usageCount === 'number' ? fm.usageCount : null,
+      lastUsedAt: isoToMs(fm.lastUsedAt),
+      createdAt: isoToMs(fm.createdAt),
+      updatedAt: isoToMs(fm.updatedAt),
+      relations: parseRelations(fm.relations),
+      attachments,
+    };
+  } catch (err) {
+    process.stderr.write(`[file-import] failed to parse skill ${filePath}: ${err}\n`);
+    return null;
+  }
+}
+
+export interface RelationDiff {
+  toAdd: RelationFrontmatter[];
+  toRemove: RelationFrontmatter[];
+}
+
+function relationKey(r: RelationFrontmatter): string {
+  return `${r.to}:${r.kind}:${r.graph ?? ''}`;
+}
+
+export function diffRelations(
+  current: RelationFrontmatter[],
+  desired: RelationFrontmatter[],
+): RelationDiff {
+  const currentKeys = new Set(current.map(relationKey));
+  const desiredKeys = new Set(desired.map(relationKey));
+  const desiredMap = new Map(desired.map(r => [relationKey(r), r]));
+  const currentMap = new Map(current.map(r => [relationKey(r), r]));
+
+  const toAdd: RelationFrontmatter[] = [];
+  const toRemove: RelationFrontmatter[] = [];
+
+  for (const key of desiredKeys) {
+    if (!currentKeys.has(key)) toAdd.push(desiredMap.get(key)!);
+  }
+  for (const key of currentKeys) {
+    if (!desiredKeys.has(key)) toRemove.push(currentMap.get(key)!);
+  }
+
+  return { toAdd, toRemove };
+}

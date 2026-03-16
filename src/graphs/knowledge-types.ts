@@ -1,0 +1,50 @@
+import { DirectedGraph } from 'graphology';
+import type { AttachmentMeta } from './attachment-types';
+
+export type CrossGraphType = 'docs' | 'code' | 'files' | 'tasks' | 'skills';
+
+export interface KnowledgeNodeAttributes {
+  title: string;
+  content: string;
+  tags: string[];
+  embedding: number[];     // embedded from title + content; [] until filled
+  attachments: AttachmentMeta[];
+  createdAt: number;       // timestamp ms
+  updatedAt: number;       // timestamp ms
+  proxyFor?: { graph: CrossGraphType; nodeId: string };  // cross-graph proxy node marker
+}
+
+export interface KnowledgeEdgeAttributes {
+  kind: string;  // free-form relation type, e.g. "relates_to", "depends_on", "contradicts"
+}
+
+export type KnowledgeGraph = DirectedGraph<KnowledgeNodeAttributes, KnowledgeEdgeAttributes>;
+
+export function createKnowledgeGraph(): KnowledgeGraph {
+  return new DirectedGraph<KnowledgeNodeAttributes, KnowledgeEdgeAttributes>({
+    multi: false,
+    allowSelfLoops: false,
+  });
+}
+
+/**
+ * Generate a slug ID from a title: lowercase, spaces → hyphens, strip non-alphanumeric.
+ * Dedup with ::2, ::3, etc. if the ID already exists in the graph.
+ */
+export function slugify(title: string, graph: { hasNode(id: string): boolean }): string {
+  const base = title
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+
+  if (!base) return `note-${Date.now()}`;
+
+  if (!graph.hasNode(base)) return base;
+
+  let n = 2;
+  while (graph.hasNode(`${base}::${n}`)) n++;
+  return `${base}::${n}`;
+}

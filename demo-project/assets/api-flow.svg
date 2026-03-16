@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 300">
+  <style>
+    text { font-family: Arial, sans-serif; font-size: 12px; fill: #333; }
+    .title { font-size: 16px; font-weight: bold; }
+    .box { rx: 6; ry: 6; stroke: #666; stroke-width: 1.5; }
+  </style>
+  <text x="350" y="25" text-anchor="middle" class="title">API Request Flow</text>
+  <rect x="20" y="50" width="100" height="50" class="box" fill="#bbdefb"/>
+  <text x="70" y="80" text-anchor="middle">Client</text>
+  <rect x="160" y="50" width="100" height="50" class="box" fill="#c8e6c9"/>
+  <text x="210" y="80" text-anchor="middle">Auth MW</text>
+  <rect x="300" y="50" width="100" height="50" class="box" fill="#c8e6c9"/>
+  <text x="350" y="80" text-anchor="middle">Rate Limit</text>
+  <rect x="440" y="50" width="100" height="50" class="box" fill="#fff9c4"/>
+  <text x="490" y="80" text-anchor="middle">Controller</text>
+  <rect x="580" y="50" width="100" height="50" class="box" fill="#f8bbd0"/>
+  <text x="630" y="80" text-anchor="middle">Service</text>
+  <rect x="580" y="140" width="100" height="50" class="box" fill="#e1bee7"/>
+  <text x="630" y="170" text-anchor="middle">Database</text>
+  <line x1="120" y1="75" x2="160" y2="75" stroke="#999" stroke-width="1.5"/>
+  <line x1="260" y1="75" x2="300" y2="75" stroke="#999" stroke-width="1.5"/>
+  <line x1="400" y1="75" x2="440" y2="75" stroke="#999" stroke-width="1.5"/>
+  <line x1="540" y1="75" x2="580" y2="75" stroke="#999" stroke-width="1.5"/>
+  <line x1="630" y1="100" x2="630" y2="140" stroke="#999" stroke-width="1.5"/>
+</svg>

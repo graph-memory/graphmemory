@@ -9,6 +9,7 @@ import { loadSkillGraph, saveSkillGraph, SkillGraphManager } from '@/graphs/skil
 import { createProjectIndexer, type ProjectIndexer } from '@/cli/indexer';
 import { PromiseQueue } from '@/lib/promise-queue';
 import type { ProjectConfig, ServerConfig } from '@/lib/multi-config';
+import { formatAuthor } from '@/lib/multi-config';
 import type { KnowledgeGraph } from '@/graphs/knowledge-types';
 import type { FileIndexGraph } from '@/graphs/file-index-types';
 import type { TaskGraph } from '@/graphs/task-types';
@@ -104,7 +105,7 @@ export class ProjectManager extends EventEmitter {
       emit: (event: string, data: unknown) => { this.emit(event, data); },
       projectId: id,
       projectDir: config.projectDir,
-      author: config.author,
+      author: formatAuthor(config.author),
     };
 
     const ext: ExternalGraphs = { docGraph, codeGraph, knowledgeGraph, fileIndexGraph, taskGraph, skillGraph };

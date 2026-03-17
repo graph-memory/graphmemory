@@ -687,8 +687,10 @@ export class KnowledgeGraphManager {
         tags: parsed.tags,
         embedding,
         updatedAt: now,
-        // preserve createdAt from graph
         createdAt: existing.createdAt,
+        // preserve createdBy from graph if file doesn't have it
+        ...(parsed.createdBy != null ? { createdBy: parsed.createdBy } : {}),
+        ...(parsed.updatedBy != null ? { updatedBy: parsed.updatedBy } : {}),
       });
     } else {
       this._graph.addNode(parsed.id, {
@@ -699,6 +701,8 @@ export class KnowledgeGraphManager {
         attachments: parsed.attachments ?? [],
         createdAt: parsed.createdAt ?? now,
         updatedAt: now,
+        createdBy: parsed.createdBy ?? undefined,
+        updatedBy: parsed.updatedBy ?? undefined,
       });
     }
 

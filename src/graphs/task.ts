@@ -904,6 +904,8 @@ export class TaskGraphManager {
         embedding,
         updatedAt: now,
         createdAt: existing.createdAt,
+        ...(parsed.createdBy != null ? { createdBy: parsed.createdBy } : {}),
+        ...(parsed.updatedBy != null ? { updatedBy: parsed.updatedBy } : {}),
       });
     } else {
       this._graph.addNode(parsed.id, {
@@ -919,6 +921,8 @@ export class TaskGraphManager {
         attachments: parsed.attachments ?? [],
         createdAt: parsed.createdAt ?? now,
         updatedAt: now,
+        createdBy: parsed.createdBy ?? undefined,
+        updatedBy: parsed.updatedBy ?? undefined,
       });
     }
 

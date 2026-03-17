@@ -70,6 +70,8 @@ describe('KnowledgeGraphManager.importFromFile', () => {
       tags: ['test', 'import'],
       createdAt: 1700000000000,
       updatedAt: 1700000000000,
+      createdBy: null,
+      updatedBy: null,
       relations: [],
       attachments: [],
     });
@@ -100,6 +102,8 @@ describe('KnowledgeGraphManager.importFromFile', () => {
       tags: ['updated'],
       createdAt: 1700000000000,
       updatedAt: 1700000001000,
+      createdBy: null,
+      updatedBy: null,
       relations: [],
       attachments: [],
     });
@@ -128,6 +132,8 @@ describe('KnowledgeGraphManager.importFromFile', () => {
       tags: [],
       createdAt: null,
       updatedAt: null,
+      createdBy: null,
+      updatedBy: null,
       relations: [{ to: 'note-b', kind: 'depends_on' }],
       attachments: [],
     });
@@ -178,6 +184,8 @@ describe('TaskGraphManager.importFromFile', () => {
       completedAt: null,
       createdAt: 1700000000000,
       updatedAt: 1700000000000,
+      createdBy: null,
+      updatedBy: null,
       relations: [],
       attachments: [],
     });
@@ -210,6 +218,8 @@ describe('TaskGraphManager.importFromFile', () => {
       completedAt: 1700000005000,
       createdAt: null,
       updatedAt: null,
+      createdBy: null,
+      updatedBy: null,
       relations: [],
       attachments: [],
     });

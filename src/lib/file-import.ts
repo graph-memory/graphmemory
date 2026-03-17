@@ -18,6 +18,8 @@ export interface ParsedNoteFile {
   tags: string[];
   createdAt: number | null;
   updatedAt: number | null;
+  createdBy: string | null;
+  updatedBy: string | null;
   relations: RelationFrontmatter[];
   attachments: AttachmentMeta[];
 }
@@ -34,6 +36,8 @@ export interface ParsedTaskFile {
   completedAt: number | null;
   createdAt: number | null;
   updatedAt: number | null;
+  createdBy: string | null;
+  updatedBy: string | null;
   relations: RelationFrontmatter[];
   attachments: AttachmentMeta[];
 }
@@ -58,6 +62,11 @@ function parseRelations(raw: unknown): RelationFrontmatter[] {
       if (typeof r.graph === 'string') entry.graph = r.graph;
       return entry;
     });
+}
+
+function parseAuthorString(raw: unknown): string | null {
+  if (typeof raw === 'string' && raw.trim()) return raw.trim();
+  return null;
 }
 
 function extractTitleAndContent(body: string): { title: string; content: string } {
@@ -106,6 +115,8 @@ export function parseNoteFile(filePath: string): ParsedNoteFile | null {
       tags: parseTags(fm.tags),
       createdAt: isoToMs(fm.createdAt),
       updatedAt: isoToMs(fm.updatedAt),
+      createdBy: parseAuthorString(fm.createdBy),
+      updatedBy: parseAuthorString(fm.updatedBy),
       relations: parseRelations(fm.relations),
       attachments,
     };
@@ -145,6 +156,8 @@ export function parseTaskFile(filePath: string): ParsedTaskFile | null {
       completedAt: isoToMs(fm.completedAt),
       createdAt: isoToMs(fm.createdAt),
       updatedAt: isoToMs(fm.updatedAt),
+      createdBy: parseAuthorString(fm.createdBy),
+      updatedBy: parseAuthorString(fm.updatedBy),
       relations: parseRelations(fm.relations),
       attachments,
     };
@@ -169,6 +182,8 @@ export interface ParsedSkillFile {
   lastUsedAt: number | null;
   createdAt: number | null;
   updatedAt: number | null;
+  createdBy: string | null;
+  updatedBy: string | null;
   relations: RelationFrontmatter[];
   attachments: AttachmentMeta[];
 }
@@ -244,6 +259,8 @@ export function parseSkillFile(filePath: string): ParsedSkillFile | null {
       lastUsedAt: isoToMs(fm.lastUsedAt),
       createdAt: isoToMs(fm.createdAt),
       updatedAt: isoToMs(fm.updatedAt),
+      createdBy: parseAuthorString(fm.createdBy),
+      updatedBy: parseAuthorString(fm.updatedBy),
       relations: parseRelations(fm.relations),
       attachments,
     };

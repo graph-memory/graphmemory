@@ -965,6 +965,8 @@ export class SkillGraphManager {
         embedding,
         updatedAt: now,
         createdAt: existing.createdAt,
+        ...(parsed.createdBy != null ? { createdBy: parsed.createdBy } : {}),
+        ...(parsed.updatedBy != null ? { updatedBy: parsed.updatedBy } : {}),
       });
     } else {
       this._graph.addNode(parsed.id, {
@@ -983,6 +985,8 @@ export class SkillGraphManager {
         attachments: parsed.attachments ?? [],
         createdAt: parsed.createdAt ?? now,
         updatedAt: now,
+        createdBy: parsed.createdBy ?? undefined,
+        updatedBy: parsed.updatedBy ?? undefined,
       });
     }
 

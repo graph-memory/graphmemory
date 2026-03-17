@@ -99,9 +99,9 @@ export function createKnowledgeRouter(): Router {
   router.post('/relations', validateBody(createRelationSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
-      const { fromId, toId, kind, targetGraph } = req.body;
+      const { fromId, toId, kind, targetGraph, projectId } = req.body;
       const ok = await p.mutationQueue.enqueue(async () => {
-        return p.knowledgeManager.createRelation(fromId, toId, kind, targetGraph);
+        return p.knowledgeManager.createRelation(fromId, toId, kind, targetGraph, projectId);
       });
       if (!ok) return res.status(400).json({ error: 'Failed to create relation' });
       res.status(201).json({ fromId, toId, kind, targetGraph: targetGraph || undefined });
@@ -109,12 +109,12 @@ export function createKnowledgeRouter(): Router {
   });
 
   // Delete relation
-  router.delete('/relations', validateBody(createRelationSchema.pick({ fromId: true, toId: true, targetGraph: true })), async (req, res, next) => {
+  router.delete('/relations', validateBody(createRelationSchema.pick({ fromId: true, toId: true, targetGraph: true, projectId: true })), async (req, res, next) => {
     try {
       const p = getProject(req);
-      const { fromId, toId, targetGraph } = req.body;
+      const { fromId, toId, targetGraph, projectId } = req.body;
       const ok = await p.mutationQueue.enqueue(async () => {
-        return p.knowledgeManager.deleteRelation(fromId, toId, targetGraph);
+        return p.knowledgeManager.deleteRelation(fromId, toId, targetGraph, projectId);
       });
       if (!ok) return res.status(404).json({ error: 'Relation not found' });
       res.status(204).end();
@@ -134,11 +134,11 @@ export function createKnowledgeRouter(): Router {
   router.get('/linked', (req, res, next) => {
     try {
       const p = getProject(req);
-      const { targetGraph, targetNodeId, kind } = req.query as any;
+      const { targetGraph, targetNodeId, kind, projectId } = req.query as any;
       if (!targetGraph || !targetNodeId) {
         return res.status(400).json({ error: 'targetGraph and targetNodeId are required' });
       }
-      const notes = p.knowledgeManager.findLinkedNotes(targetGraph, targetNodeId, kind);
+      const notes = p.knowledgeManager.findLinkedNotes(targetGraph, targetNodeId, kind, projectId ?? (req.params as any).projectId);
       res.json({ results: notes });
     } catch (err) { next(err); }
   });

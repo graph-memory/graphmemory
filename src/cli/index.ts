@@ -11,7 +11,7 @@ import { loadFileIndexGraph, saveFileIndexGraph } from '@/graphs/file-index';
 import { loadTaskGraph, saveTaskGraph } from '@/graphs/task';
 import { loadSkillGraph } from '@/graphs/skill';
 import { startStdioServer, startMultiProjectHttpServer } from '@/api/index';
-import type { EmbedFnMap } from '@/api/index';
+import type { EmbedFnMap, McpSessionContext } from '@/api/index';
 import { createProjectIndexer } from '@/cli/indexer';
 import { startWatcher } from '@/lib/watcher';
 
@@ -162,11 +162,85 @@ program
 
 program
   .command('mcp')
-  .description('Index one project, keep watching for changes, and start MCP server on stdio')
+  .description('Index one project (or workspace), keep watching for changes, and start MCP server on stdio')
   .option('--config <path>', 'Path to graph-memory.yaml', 'graph-memory.yaml')
   .option('--project <id>', 'Project ID (defaults to first project)')
+  .option('--workspace <id>', 'Workspace ID (loads all workspace projects with shared graphs)')
   .option('--reindex', 'Discard persisted graphs and re-index from scratch')
-  .action(async (opts: { config: string; project?: string; reindex?: boolean }) => {
+  .action(async (opts: { config: string; project?: string; workspace?: string; reindex?: boolean }) => {
+    // Workspace mode: load all projects in the workspace with shared graphs
+    if (opts.workspace) {
+      const mc = loadMultiConfig(opts.config);
+      const wsConfig = mc.workspaces.get(opts.workspace);
+      if (!wsConfig) {
+        process.stderr.write(`[mcp] Workspace "${opts.workspace}" not found in config. Available: ${Array.from(mc.workspaces.keys()).join(', ')}\n`);
+        process.exit(1);
+      }
+
+      const fresh = !!opts.reindex;
+      if (fresh) process.stderr.write(`[mcp] Re-indexing workspace "${opts.workspace}" from scratch\n`);
+
+      const manager = new ProjectManager(mc.server);
+      await manager.addWorkspace(opts.workspace, wsConfig, fresh);
+
+      for (const projId of wsConfig.projects) {
+        const projConfig = mc.projects.get(projId);
+        if (!projConfig) {
+          process.stderr.write(`[mcp] Project "${projId}" referenced by workspace not found\n`);
+          process.exit(1);
+        }
+        await manager.addProject(projId, projConfig, fresh, opts.workspace);
+      }
+
+      // Use specified project (or first) for stdio server
+      const targetId = opts.project ?? wsConfig.projects[0];
+      if (!wsConfig.projects.includes(targetId)) {
+        process.stderr.write(`[mcp] Project "${targetId}" is not part of workspace "${opts.workspace}"\n`);
+        process.exit(1);
+      }
+      const instance = manager.getProject(targetId)!;
+      const sessionCtx: McpSessionContext = {
+        projectId: targetId,
+        workspaceId: opts.workspace,
+        workspaceProjects: wsConfig.projects,
+      };
+      await startStdioServer(
+        instance.docGraph, instance.codeGraph,
+        instance.knowledgeGraph, instance.fileIndexGraph,
+        instance.taskGraph, instance.embedFns,
+        instance.config.projectDir, instance.skillGraph,
+        sessionCtx,
+      );
+
+      // Load models and index in background
+      (async () => {
+        await manager.loadWorkspaceModels(opts.workspace!);
+        for (const projId of wsConfig.projects) {
+          await manager.loadModels(projId);
+          await manager.startIndexing(projId);
+        }
+        await manager.startWorkspaceMirror(opts.workspace!);
+        process.stderr.write(`[mcp] Workspace "${opts.workspace}" fully indexed\n`);
+      })().catch((err: unknown) => {
+        process.stderr.write(`[mcp] Workspace indexer error: ${err}\n`);
+      });
+
+      let shuttingDown = false;
+      async function shutdown(): Promise<void> {
+        if (shuttingDown) { process.stderr.write('[mcp] Force exit\n'); process.exit(1); }
+        shuttingDown = true;
+        process.stderr.write('[mcp] Shutting down...\n');
+        const forceTimer = setTimeout(() => { process.stderr.write('[mcp] Shutdown timeout, force exit\n'); process.exit(1); }, 5000);
+        forceTimer.unref();
+        try { await manager.shutdown(); } catch { /* ignore */ }
+        process.exit(0);
+      }
+
+      process.on('SIGINT',  () => { void shutdown(); });
+      process.on('SIGTERM', () => { void shutdown(); });
+      return;
+    }
+
     const { id, project, server } = resolveProject(opts.config, opts.project);
     const projectDir = path.resolve(project.projectDir);
     const fresh = !!opts.reindex;
@@ -183,7 +257,8 @@ program
     const skillGraph = loadSkillGraph(project.graphMemory, fresh, models[`${id}:skills`]);
 
     const embedFns = buildEmbedFns(id);
-    await startStdioServer(docGraph, codeGraph, knowledgeGraph, fileIndexGraph, taskGraph, embedFns, project.projectDir, skillGraph);
+    const sessionCtx: McpSessionContext = { projectId: id };
+    await startStdioServer(docGraph, codeGraph, knowledgeGraph, fileIndexGraph, taskGraph, embedFns, project.projectDir, skillGraph, sessionCtx);
 
     // Load models and start watcher in the background
     let watcher: ReturnType<ReturnType<typeof createProjectIndexer>['watch']> | undefined;
@@ -277,9 +352,22 @@ program
 
     const manager = new ProjectManager(mc.server);
 
-    // Add all projects (loads graphs from disk, or fresh if reindexing)
+    // Build workspace membership lookup
+    const projectWorkspace = new Map<string, string>();
+    for (const [wsId, wsConfig] of mc.workspaces) {
+      for (const projId of wsConfig.projects) {
+        projectWorkspace.set(projId, wsId);
+      }
+    }
+
+    // Add workspaces first (loads shared knowledge/task/skill graphs)
+    for (const [wsId, wsConfig] of mc.workspaces) {
+      await manager.addWorkspace(wsId, wsConfig, reindex);
+    }
+
+    // Add all projects (workspace projects share knowledge/task/skill graphs)
     for (const [id, config] of mc.projects) {
-      await manager.addProject(id, config, reindex);
+      await manager.addProject(id, config, reindex, projectWorkspace.get(id));
     }
 
     // Start HTTP server immediately (before models are loaded)
@@ -295,14 +383,33 @@ program
     // Start auto-save
     manager.startAutoSave();
 
-    // Load models and start indexing in background (per project, sequentially)
+    // Load models and start indexing in background (workspaces first, then projects)
     async function initProjects(): Promise<void> {
+      // Load workspace models
+      for (const wsId of manager.listWorkspaces()) {
+        try {
+          await manager.loadWorkspaceModels(wsId);
+        } catch (err: unknown) {
+          process.stderr.write(`[serve] Failed to load workspace "${wsId}" models: ${err}\n`);
+        }
+      }
+
+      // Load project models and start indexing
       for (const id of manager.listProjects()) {
         try {
           await manager.loadModels(id);
           await manager.startIndexing(id);
         } catch (err: unknown) {
           process.stderr.write(`[serve] Failed to initialize project "${id}": ${err}\n`);
+        }
+      }
+
+      // Start workspace mirror watchers (after all projects are indexed)
+      for (const wsId of manager.listWorkspaces()) {
+        try {
+          await manager.startWorkspaceMirror(wsId);
+        } catch (err: unknown) {
+          process.stderr.write(`[serve] Failed to start workspace "${wsId}" mirror: ${err}\n`);
         }
       }
     }

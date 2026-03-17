@@ -9,34 +9,41 @@ export interface ParsedFile {
   edges: Array<{ from: string; to: string; attrs: CodeEdgeAttributes }>;
 }
 
-// Shared Project instance — reused across calls to avoid re-parsing tsconfig
-let _project: Project | null = null;
+// Keyed cache: one ts-morph Project per codeDir — avoids re-parsing tsconfig
+const _projects = new Map<string, Project>();
 
 export function getProject(codeDir: string, tsconfig?: string): Project {
-  if (_project) return _project;
+  const existing = _projects.get(codeDir);
+  if (existing) return existing;
 
   const tsconfigPath = tsconfig ?? path.join(codeDir, 'tsconfig.json');
+  let project: Project;
 
   try {
-    _project = new Project({
+    project = new Project({
       tsConfigFilePath: tsconfigPath,
       skipAddingFilesFromTsConfig: true, // we add files manually
       skipFileDependencyResolution: false,
     });
   } catch {
     // No tsconfig — use minimal compiler options
-    _project = new Project({
+    project = new Project({
       compilerOptions: { allowJs: true, strict: false },
       skipFileDependencyResolution: true,
     });
   }
 
-  return _project;
+  _projects.set(codeDir, project);
+  return project;
 }
 
-/** Reset the shared project (needed when codeDir changes between calls). */
-export function resetProject(): void {
-  _project = null;
+/** Reset cached project for a specific codeDir, or all if omitted. */
+export function resetProject(codeDir?: string): void {
+  if (codeDir) {
+    _projects.delete(codeDir);
+  } else {
+    _projects.clear();
+  }
 }
 
 export function parseCodeFile(

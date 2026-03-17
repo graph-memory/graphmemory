@@ -78,8 +78,15 @@ import * as addSkillAttachment from '@/api/tools/skills/add-attachment';
 import * as removeSkillAttachment from '@/api/tools/skills/remove-attachment';
 import * as recallSkills from '@/api/tools/skills/recall-skills';
 import * as bumpSkillUsage from '@/api/tools/skills/bump-usage';
+import * as getContext from '@/api/tools/context/get-context';
 
 export type EmbedFn = (query: string) => Promise<number[]>;
+
+export interface McpSessionContext {
+  projectId: string;
+  workspaceId?: string;
+  workspaceProjects?: string[];
+}
 
 export type EmbedFnMap = {
   docs: EmbedFn;
@@ -107,6 +114,23 @@ function createMutationServer(server: McpServer, queue: PromiseQueue): McpServer
   return proxy;
 }
 
+function buildInstructions(ctx: McpSessionContext): string {
+  const lines: string[] = [];
+  if (ctx.workspaceId) {
+    lines.push(`Connected to project "${ctx.projectId}" in workspace "${ctx.workspaceId}".`);
+    if (ctx.workspaceProjects?.length) {
+      lines.push(`Workspace projects: ${ctx.workspaceProjects.join(', ')}.`);
+    }
+    lines.push('Knowledge, tasks, and skills are shared across all workspace projects.');
+    lines.push('Docs, code, and files are specific to the current project.');
+    lines.push('Use projectId parameter in cross-graph links to reference nodes from other projects.');
+  } else {
+    lines.push(`Connected to project "${ctx.projectId}".`);
+  }
+  lines.push('Use get_context tool for structured project/workspace information.');
+  return lines.join(' ');
+}
+
 /**
  * Creates the McpServer with all tools wired to the given graphs.
  * Pass docGraph to enable the 10 doc tools (5 base + 5 code-block tools);
@@ -129,6 +153,7 @@ export function createMcpServer(
   mutationQueue?: PromiseQueue,
   projectDir?: string,
   skillGraph?: SkillGraph,
+  sessionContext?: McpSessionContext,
 ): McpServer {
   const defaultFn: EmbedFn = (q) => embed(q, '');
   const fns: EmbedFnMap = typeof embedFn === 'function'
@@ -142,9 +167,17 @@ export function createMcpServer(
         skills:    embedFn?.skills    ?? defaultFn,
       };
 
-  const server = new McpServer({ name: 'mcp-graph-memory', version: '1.0.0' });
+  // Build instructions for MCP clients (workspace/project context)
+  const instructions = sessionContext ? buildInstructions(sessionContext) : undefined;
+  const server = new McpServer(
+    { name: 'mcp-graph-memory', version: '1.0.0' },
+    instructions ? { instructions } : undefined,
+  );
   // Mutation tools are registered through mutServer to serialize concurrent writes
   const mutServer = mutationQueue ? createMutationServer(server, mutationQueue) : server;
+
+  // Context tool (always registered)
+  getContext.register(server, sessionContext);
 
   const ext: ExternalGraphs = { docGraph, codeGraph, knowledgeGraph, fileIndexGraph, taskGraph, skillGraph };
 
@@ -263,8 +296,9 @@ export async function startStdioServer(
   embedFn?: EmbedFn | Partial<EmbedFnMap>,
   projectDir?: string,
   skillGraph?: SkillGraph,
+  sessionContext?: McpSessionContext,
 ): Promise<void> {
-  const server = createMcpServer(docGraph, codeGraph, knowledgeGraph, fileIndexGraph, taskGraph, embedFn, undefined, projectDir, skillGraph);
+  const server = createMcpServer(docGraph, codeGraph, knowledgeGraph, fileIndexGraph, taskGraph, embedFn, undefined, projectDir, skillGraph, sessionContext);
   const transport = new StdioServerTransport();
   await server.connect(transport);
   process.stderr.write('[server] MCP server running on stdio\n');
@@ -366,6 +400,7 @@ export async function startHttpServer(
 
 interface MultiProjectHttpSession {
   projectId: string;
+  workspaceId?: string;
   server: McpServer;
   transport: StreamableHTTPServerTransport;
   lastActivity: number;
@@ -402,15 +437,40 @@ export async function startMultiProjectHttpServer(
       return;
     }
 
-    // Route: /mcp/{projectId}
-    const mcpMatch = req.url?.match(/^\/mcp\/([^/?]+)/);
-    if (!mcpMatch) {
+    // Route: /mcp/{workspaceId}/{projectId} or /mcp/{projectId}
+    const wsMatch = req.url?.match(/^\/mcp\/([^/?]+)\/([^/?]+)/);
+    const projMatch = !wsMatch ? req.url?.match(/^\/mcp\/([^/?]+)/) : null;
+
+    if (!wsMatch && !projMatch) {
       // Everything else (UI static files, SPA fallback) goes through Express
       restApp(req, res);
       return;
     }
 
-    const projectId = decodeURIComponent(mcpMatch[1]);
+    // Resolve project and optional workspace from URL
+    let projectId: string;
+    let workspaceId: string | undefined;
+
+    if (wsMatch) {
+      const maybeWs = decodeURIComponent(wsMatch[1]);
+      const maybeProjId = decodeURIComponent(wsMatch[2]);
+      const ws = projectManager.getWorkspace(maybeWs);
+      if (ws) {
+        // Valid workspace route
+        if (!ws.config.projects.includes(maybeProjId)) {
+          res.writeHead(404).end(JSON.stringify({ error: `Project "${maybeProjId}" is not part of workspace "${maybeWs}"` }));
+          return;
+        }
+        workspaceId = maybeWs;
+        projectId = maybeProjId;
+      } else {
+        // Not a workspace — treat first segment as projectId (fallback)
+        projectId = maybeWs;
+      }
+    } else {
+      projectId = decodeURIComponent(projMatch![1]);
+    }
+
     const sessionId = req.headers['mcp-session-id'] as string | undefined;
 
     // Existing session — route to its transport
@@ -439,12 +499,22 @@ export async function startMultiProjectHttpServer(
       return;
     }
 
+    // Build session context (auto-detect workspace if not in URL)
+    const ws = workspaceId
+      ? projectManager.getWorkspace(workspaceId)
+      : projectManager.getProjectWorkspace(projectId);
+    const sessionCtx: McpSessionContext = {
+      projectId,
+      workspaceId: ws?.id,
+      workspaceProjects: ws?.config.projects,
+    };
+
     const body = await collectBody(req);
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID(),
       onsessioninitialized: (sid) => {
-        sessions.set(sid, { projectId, server: mcpServer, transport, lastActivity: Date.now() });
-        process.stderr.write(`[http] Session ${sid} started (project: ${projectId})\n`);
+        sessions.set(sid, { projectId, workspaceId: ws?.id, server: mcpServer, transport, lastActivity: Date.now() });
+        process.stderr.write(`[http] Session ${sid} started (project: ${projectId}${ws ? `, workspace: ${ws.id}` : ''})\n`);
       },
     });
     transport.onclose = () => {
@@ -462,6 +532,7 @@ export async function startMultiProjectHttpServer(
       project.mutationQueue,
       project.config.projectDir,
       project.skillGraph,
+      sessionCtx,
     );
     await mcpServer.connect(transport);
     await transport.handleRequest(req, res, body);
@@ -472,7 +543,7 @@ export async function startMultiProjectHttpServer(
 
   return new Promise((resolve) => {
     httpServer.listen(port, host, () => {
-      process.stderr.write(`[server] Multi-project MCP HTTP server listening on http://${host}:${port}/mcp/{projectId}\n`);
+      process.stderr.write(`[server] MCP endpoints: http://${host}:${port}/mcp/{projectId} and /mcp/{workspaceId}/{projectId}\n`);
       process.stderr.write(`[server] REST API at http://${host}:${port}/api/\n`);
       process.stderr.write(`[server] WebSocket at ws://${host}:${port}/api/ws\n`);
       resolve(httpServer);

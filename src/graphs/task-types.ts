@@ -29,7 +29,7 @@ export interface TaskNodeAttributes {
   updatedBy?: string;      // author from config at last update
   embedding: number[];
   attachments: AttachmentMeta[];
-  proxyFor?: { graph: TaskCrossGraphType; nodeId: string };
+  proxyFor?: { graph: TaskCrossGraphType; nodeId: string; projectId?: string };
 }
 
 export interface TaskEdgeAttributes {

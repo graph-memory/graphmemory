@@ -16,10 +16,11 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
         targetGraph: z.enum(['docs', 'code', 'files', 'knowledge'])
           .describe('Which graph the target belongs to'),
         kind:        z.string().optional().describe('Filter by relation kind. If omitted, returns all relations.'),
+        projectId:   z.string().optional().describe('Project ID that the target node belongs to. Defaults to the current project.'),
       },
     },
-    async ({ targetId, targetGraph, kind }) => {
-      const results = mgr.findLinkedTasks(targetGraph, targetId, kind);
+    async ({ targetId, targetGraph, kind, projectId }) => {
+      const results = mgr.findLinkedTasks(targetGraph, targetId, kind, projectId);
       if (results.length === 0) {
         return { content: [{ type: 'text', text: `No tasks linked to ${targetGraph}::${targetId}` }] };
       }

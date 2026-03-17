@@ -16,10 +16,11 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
         targetGraph: z.enum(['docs', 'code', 'files', 'knowledge', 'tasks'])
           .describe('Which graph the target belongs to'),
         kind:        z.string().describe('Relation type, e.g. "references", "implements", "documents"'),
+        projectId:   z.string().optional().describe('Project ID that the target node belongs to. Defaults to the current project.'),
       },
     },
-    async ({ skillId, targetId, targetGraph, kind }) => {
-      const created = mgr.createCrossLink(skillId, targetId, targetGraph, kind);
+    async ({ skillId, targetId, targetGraph, kind, projectId }) => {
+      const created = mgr.createCrossLink(skillId, targetId, targetGraph, kind, projectId);
       if (!created) {
         return { content: [{ type: 'text', text: `Could not create cross-graph link — skill not found, target not found in ${targetGraph} graph, or link already exists.` }], isError: true };
       }

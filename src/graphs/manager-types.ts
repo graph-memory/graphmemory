@@ -13,7 +13,16 @@ export interface GraphManagerContext {
   emit: (event: string, data: unknown) => void;
   projectId: string;
   projectDir?: string;
+  /** Override for mirror file location (workspace mode uses workspace mirrorDir). */
+  mirrorDir?: string;
   author: string;
+}
+
+/** Per-project indexed graphs (docs, code, file-index). */
+export interface ProjectGraphs {
+  docGraph?: DocGraph;
+  codeGraph?: CodeGraph;
+  fileIndexGraph?: FileIndexGraph;
 }
 
 /** All graphs available for cross-graph resolution. */
@@ -24,6 +33,8 @@ export interface ExternalGraphs {
   fileIndexGraph?: FileIndexGraph;
   taskGraph?: TaskGraph;
   skillGraph?: SkillGraph;
+  /** Workspace mode: per-project indexed graphs keyed by project ID. */
+  projectGraphs?: Map<string, ProjectGraphs>;
 }
 
 /** Thrown when an update specifies an expectedVersion that doesn't match the current node version. */
@@ -46,12 +57,25 @@ export function noopContext(projectId = ''): GraphManagerContext {
 
 /**
  * Resolve a targetGraph string to the actual graph instance.
- * Used for cross-graph relation creation.
+ * When projectId is given (workspace mode), per-project graphs are checked first.
  */
 export function resolveExternalGraph(
   ext: ExternalGraphs,
   targetGraph: string,
+  projectId?: string,
 ): DirectedGraph | undefined {
+  // In workspace mode, resolve per-project indexed graphs first
+  if (projectId && ext.projectGraphs) {
+    const pg = ext.projectGraphs.get(projectId);
+    if (pg) {
+      switch (targetGraph) {
+        case 'docs': return pg.docGraph;
+        case 'code': return pg.codeGraph;
+        case 'files': return pg.fileIndexGraph;
+      }
+    }
+  }
+
   switch (targetGraph) {
     case 'docs': return ext.docGraph;
     case 'code': return ext.codeGraph;
@@ -75,63 +99,43 @@ export interface IncomingCrossLink {
 
 /**
  * Find all cross-graph links that point to `nodeId` in `graphName`
- * by scanning proxy nodes in Knowledge and Task graphs.
- * Used by read-only graph getters (docs, code, files) to show incoming links.
+ * by scanning proxy nodes in Knowledge, Task, and Skill graphs.
+ * Checks both legacy (`@graph::nodeId`) and project-scoped (`@graph::projectId::nodeId`) proxies.
  */
 export function findIncomingCrossLinks(
   ext: ExternalGraphs,
   graphName: string,
   nodeId: string,
+  projectId?: string,
 ): IncomingCrossLink[] {
   const results: IncomingCrossLink[] = [];
 
-  // Check KnowledgeGraph for proxy nodes like @docs::nodeId, @code::nodeId, @files::nodeId
-  if (ext.knowledgeGraph) {
-    const pId = `@${graphName}::${nodeId}`;
-    if (ext.knowledgeGraph.hasNode(pId)) {
-      ext.knowledgeGraph.forEachInEdge(pId, (_edge, attrs, source) => {
-        const sourceAttrs = ext.knowledgeGraph!.getNodeAttributes(source);
+  // Candidate proxy IDs: legacy format + project-scoped format
+  const candidates = [`@${graphName}::${nodeId}`];
+  if (projectId) candidates.push(`@${graphName}::${projectId}::${nodeId}`);
+
+  function scanGraph(
+    graph: DirectedGraph | undefined,
+    sourceGraphName: string,
+  ): void {
+    if (!graph) return;
+    for (const pId of candidates) {
+      if (!graph.hasNode(pId)) continue;
+      graph.forEachInEdge(pId, (_edge, attrs, source) => {
+        const sourceAttrs = graph.getNodeAttributes(source);
         if (sourceAttrs.proxyFor) return; // skip proxy-to-proxy
         results.push({
           sourceId: source,
-          sourceGraph: 'knowledge',
+          sourceGraph: sourceGraphName,
           kind: (attrs as { kind: string }).kind,
         });
       });
     }
   }
 
-  // Check TaskGraph for proxy nodes like @docs::nodeId, @code::nodeId, @files::nodeId
-  if (ext.taskGraph) {
-    const pId = `@${graphName}::${nodeId}`;
-    if (ext.taskGraph.hasNode(pId)) {
-      ext.taskGraph.forEachInEdge(pId, (_edge, attrs, source) => {
-        const sourceAttrs = ext.taskGraph!.getNodeAttributes(source);
-        if (sourceAttrs.proxyFor) return; // skip proxy-to-proxy
-        results.push({
-          sourceId: source,
-          sourceGraph: 'tasks',
-          kind: (attrs as { kind: string }).kind,
-        });
-      });
-    }
-  }
-
-  // Check SkillGraph for proxy nodes
-  if (ext.skillGraph) {
-    const pId = `@${graphName}::${nodeId}`;
-    if (ext.skillGraph.hasNode(pId)) {
-      ext.skillGraph.forEachInEdge(pId, (_edge, attrs, source) => {
-        const sourceAttrs = ext.skillGraph!.getNodeAttributes(source);
-        if (sourceAttrs.proxyFor) return;
-        results.push({
-          sourceId: source,
-          sourceGraph: 'skills',
-          kind: (attrs as { kind: string }).kind,
-        });
-      });
-    }
-  }
+  scanGraph(ext.knowledgeGraph, 'knowledge');
+  scanGraph(ext.taskGraph, 'tasks');
+  scanGraph(ext.skillGraph, 'skills');
 
   return results;
 }

@@ -43,6 +43,7 @@ export const createRelationSchema = z.object({
   toId:   z.string().min(1),
   kind:   z.string().min(1),
   targetGraph: z.enum(['docs', 'code', 'files', 'tasks', 'skills']).optional(),
+  projectId: z.string().min(1).optional(),
 });
 
 export const noteSearchSchema = z.object({
@@ -93,6 +94,7 @@ export const createTaskLinkSchema = z.object({
   toId:   z.string().min(1),
   kind:   z.string().min(1),
   targetGraph: z.enum(['docs', 'code', 'files', 'knowledge', 'skills']).optional(),
+  projectId: z.string().min(1).optional(),
 });
 
 export const taskSearchSchema = z.object({
@@ -176,6 +178,7 @@ export const createSkillLinkSchema = z.object({
   toId:        z.string().min(1),
   kind:        z.string().min(1),
   targetGraph: z.enum(['docs', 'code', 'files', 'knowledge', 'tasks']).optional(),
+  projectId:   z.string().min(1).optional(),
 });
 
 export const skillSearchSchema = z.object({

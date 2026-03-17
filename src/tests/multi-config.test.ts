@@ -129,4 +129,99 @@ projects:
 `);
     expect(() => loadMultiConfig(yamlPath)).toThrow();
   });
+
+  it('returns empty workspaces map when no workspaces defined', () => {
+    const yamlPath = tmpYaml(`
+projects:
+  a:
+    projectDir: /tmp/a
+`);
+    const mc = loadMultiConfig(yamlPath);
+    expect(mc.workspaces.size).toBe(0);
+  });
+
+  it('parses a workspace with project references', () => {
+    const yamlPath = tmpYaml(`
+projects:
+  frontend:
+    projectDir: /tmp/frontend
+  backend:
+    projectDir: /tmp/backend
+workspaces:
+  my-ws:
+    projects: [frontend, backend]
+    graphMemory: /tmp/shared/.graph-memory
+    mirrorDir: /tmp/shared/mirror
+`);
+    const mc = loadMultiConfig(yamlPath);
+    expect(mc.workspaces.size).toBe(1);
+    const ws = mc.workspaces.get('my-ws')!;
+    expect(ws.projects).toEqual(['frontend', 'backend']);
+    expect(ws.graphMemory).toBe('/tmp/shared/.graph-memory');
+    expect(ws.mirrorDir).toBe('/tmp/shared/mirror');
+    expect(ws.embeddingModel).toBe('Xenova/all-MiniLM-L6-v2');
+  });
+
+  it('workspace inherits global embeddingModel', () => {
+    const yamlPath = tmpYaml(`
+server:
+  embeddingModel: custom/model
+projects:
+  a:
+    projectDir: /tmp/a
+workspaces:
+  ws:
+    projects: [a]
+`);
+    const mc = loadMultiConfig(yamlPath);
+    expect(mc.workspaces.get('ws')!.embeddingModel).toBe('custom/model');
+  });
+
+  it('workspace can override embedding models', () => {
+    const yamlPath = tmpYaml(`
+projects:
+  a:
+    projectDir: /tmp/a
+workspaces:
+  ws:
+    projects: [a]
+    knowledgeModel: model/k
+    taskModel: model/t
+    skillsModel: model/s
+`);
+    const mc = loadMultiConfig(yamlPath);
+    const ws = mc.workspaces.get('ws')!;
+    expect(ws.knowledgeModel).toBe('model/k');
+    expect(ws.taskModel).toBe('model/t');
+    expect(ws.skillsModel).toBe('model/s');
+  });
+
+  it('throws when workspace references unknown project', () => {
+    const yamlPath = tmpYaml(`
+projects:
+  a:
+    projectDir: /tmp/a
+workspaces:
+  ws:
+    projects: [a, nonexistent]
+`);
+    expect(() => loadMultiConfig(yamlPath)).toThrow('unknown project "nonexistent"');
+  });
+
+  it('workspace defaults graphMemory to first project dir', () => {
+    const yamlPath = tmpYaml(`
+projects:
+  a:
+    projectDir: /tmp/a
+  b:
+    projectDir: /tmp/b
+workspaces:
+  ws:
+    projects: [a, b]
+`);
+    const mc = loadMultiConfig(yamlPath);
+    const ws = mc.workspaces.get('ws')!;
+    expect(ws.graphMemory).toBe('/tmp/a/.graph-memory/workspace');
+    expect(ws.mirrorDir).toBe(ws.graphMemory);
+  });
 });

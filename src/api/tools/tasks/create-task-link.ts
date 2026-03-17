@@ -16,10 +16,11 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
         targetGraph: z.enum(['docs', 'code', 'files', 'knowledge'])
           .describe('Which graph the target belongs to'),
         kind:        z.string().describe('Relation type, e.g. "references", "fixes", "implements"'),
+        projectId:   z.string().optional().describe('Project ID that the target node belongs to. Defaults to the current project.'),
       },
     },
-    async ({ taskId, targetId, targetGraph, kind }) => {
-      const created = mgr.createCrossLink(taskId, targetId, targetGraph, kind);
+    async ({ taskId, targetId, targetGraph, kind, projectId }) => {
+      const created = mgr.createCrossLink(taskId, targetId, targetGraph, kind, projectId);
       if (!created) {
         return { content: [{ type: 'text', text: `Could not create cross-graph link — task not found, target not found in ${targetGraph} graph, or link already exists.` }], isError: true };
       }

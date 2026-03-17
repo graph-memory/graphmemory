@@ -22,9 +22,9 @@ export { createKnowledgeGraph };
 // Proxy helpers
 // ---------------------------------------------------------------------------
 
-/** Build the proxy node ID: `@docs::guide.md::Setup` or `@code::auth.ts::Foo` */
-export function proxyId(targetGraph: CrossGraphType, nodeId: string): string {
-  return `@${targetGraph}::${nodeId}`;
+/** Build the proxy node ID. With projectId: `@docs::frontend::guide.md::Setup`, without: `@docs::guide.md::Setup` */
+export function proxyId(targetGraph: CrossGraphType, nodeId: string, projectId?: string): string {
+  return projectId ? `@${targetGraph}::${projectId}::${nodeId}` : `@${targetGraph}::${nodeId}`;
 }
 
 /** Check whether a node is a cross-graph proxy. */
@@ -34,8 +34,8 @@ export function isProxy(graph: KnowledgeGraph, nodeId: string): boolean {
 }
 
 /** Ensure a proxy node exists for the given external target. Returns its ID. */
-function ensureProxyNode(graph: KnowledgeGraph, targetGraph: CrossGraphType, nodeId: string): string {
-  const id = proxyId(targetGraph, nodeId);
+function ensureProxyNode(graph: KnowledgeGraph, targetGraph: CrossGraphType, nodeId: string, projectId?: string): string {
+  const id = proxyId(targetGraph, nodeId, projectId);
   if (!graph.hasNode(id)) {
     graph.addNode(id, {
       title: '',
@@ -46,7 +46,7 @@ function ensureProxyNode(graph: KnowledgeGraph, targetGraph: CrossGraphType, nod
       createdAt: 0,
       updatedAt: 0,
       version: 0,
-      proxyFor: { graph: targetGraph, nodeId },
+      proxyFor: { graph: targetGraph, nodeId, projectId },
     });
   }
   return id;
@@ -314,22 +314,30 @@ export function findLinkedNotes(
   targetGraph: CrossGraphType,
   targetNodeId: string,
   kind?: string,
+  projectId?: string,
 ): LinkedNoteEntry[] {
-  const pId = proxyId(targetGraph, targetNodeId);
-  if (!graph.hasNode(pId)) return [];
+  // Check both project-scoped and legacy proxy IDs
+  const candidates = [proxyId(targetGraph, targetNodeId, projectId)];
+  if (projectId) candidates.push(proxyId(targetGraph, targetNodeId));
 
   const results: LinkedNoteEntry[] = [];
-  graph.forEachInEdge(pId, (_edge, attrs: KnowledgeEdgeAttributes, source) => {
-    if (isProxy(graph, source)) return;
-    if (kind && attrs.kind !== kind) return;
-    const noteAttrs = graph.getNodeAttributes(source);
-    results.push({
-      noteId: source,
-      title: noteAttrs.title,
-      kind: attrs.kind,
-      tags: noteAttrs.tags,
+  const seen = new Set<string>();
+  for (const pId of candidates) {
+    if (!graph.hasNode(pId)) continue;
+    graph.forEachInEdge(pId, (_edge, attrs: KnowledgeEdgeAttributes, source) => {
+      if (seen.has(source)) return;
+      if (isProxy(graph, source)) return;
+      if (kind && attrs.kind !== kind) return;
+      const noteAttrs = graph.getNodeAttributes(source);
+      seen.add(source);
+      results.push({
+        noteId: source,
+        title: noteAttrs.title,
+        kind: attrs.kind,
+        tags: noteAttrs.tags,
+      });
     });
-  });
+  }
 
   return results;
 }
@@ -349,6 +357,7 @@ export function createCrossRelation(
   targetNodeId: string,
   kind: string,
   externalGraph?: DirectedGraph,
+  projectId?: string,
 ): boolean {
   // Source must be a real note (not a proxy)
   if (!graph.hasNode(fromNoteId) || isProxy(graph, fromNoteId)) return false;
@@ -356,7 +365,7 @@ export function createCrossRelation(
   // Validate target exists in external graph if provided
   if (externalGraph && !externalGraph.hasNode(targetNodeId)) return false;
 
-  const pId = ensureProxyNode(graph, targetGraph, targetNodeId);
+  const pId = ensureProxyNode(graph, targetGraph, targetNodeId, projectId);
 
   if (graph.hasEdge(fromNoteId, pId)) return false;
   graph.addEdgeWithKey(`${fromNoteId}→${pId}`, fromNoteId, pId, { kind });
@@ -371,12 +380,20 @@ export function deleteCrossRelation(
   fromNoteId: string,
   targetGraph: CrossGraphType,
   targetNodeId: string,
+  projectId?: string,
 ): boolean {
-  const pId = proxyId(targetGraph, targetNodeId);
-  if (!graph.hasEdge(fromNoteId, pId)) return false;
-  graph.dropEdge(fromNoteId, pId);
-  cleanupProxy(graph, pId);
-  return true;
+  // Try project-scoped first, then legacy
+  const candidates = [proxyId(targetGraph, targetNodeId, projectId)];
+  if (projectId) candidates.push(proxyId(targetGraph, targetNodeId));
+
+  for (const pId of candidates) {
+    if (graph.hasEdge(fromNoteId, pId)) {
+      graph.dropEdge(fromNoteId, pId);
+      cleanupProxy(graph, pId);
+      return true;
+    }
+  }
+  return false;
 }
 
 // ---------------------------------------------------------------------------
@@ -484,6 +501,8 @@ export class KnowledgeGraphManager {
   private mirrorTracker?: MirrorWriteTracker;
   private _bm25Index: BM25Index<KnowledgeNodeAttributes>;
 
+  get externalGraphs(): ExternalGraphs { return this.ext; }
+
   constructor(
     private _graph: KnowledgeGraph,
     private embedFn: EmbedFn,
@@ -521,7 +540,8 @@ export class KnowledgeGraphManager {
   }
 
   private get notesDir(): string | undefined {
-    return this.ctx.projectDir ? path.join(this.ctx.projectDir, '.notes') : undefined;
+    const base = this.ctx.mirrorDir ?? this.ctx.projectDir;
+    return base ? path.join(base, '.notes') : undefined;
   }
 
   private recordMirrorWrites(noteId: string): void {
@@ -579,10 +599,13 @@ export class KnowledgeGraphManager {
 
     // Clean up proxy in TaskGraph if any task links to this note
     if (this.taskGraph) {
-      const pId = `@knowledge::${noteId}`;
-      if (this.taskGraph.hasNode(pId)) {
-        this.taskGraph.dropNode(pId);
-      }
+      const toRemove: string[] = [];
+      this.taskGraph.forEachNode((id, attrs) => {
+        if (attrs.proxyFor?.graph === 'knowledge' && attrs.proxyFor.nodeId === noteId) {
+          toRemove.push(id);
+        }
+      });
+      for (const id of toRemove) this.taskGraph.dropNode(id);
     }
 
     this.ctx.markDirty();
@@ -590,11 +613,12 @@ export class KnowledgeGraphManager {
     return true;
   }
 
-  createRelation(fromId: string, toId: string, kind: string, targetGraph?: CrossGraphType): boolean {
+  createRelation(fromId: string, toId: string, kind: string, targetGraph?: CrossGraphType, projectId?: string): boolean {
+    const pid = projectId || this.ctx.projectId;
     let ok: boolean;
     if (targetGraph) {
-      const extGraph = resolveExternalGraph(this.ext, targetGraph);
-      ok = createCrossRelation(this._graph, fromId, targetGraph, toId, kind, extGraph);
+      const extGraph = resolveExternalGraph(this.ext, targetGraph, pid);
+      ok = createCrossRelation(this._graph, fromId, targetGraph, toId, kind, extGraph, pid);
       // Bidirectional: create mirror proxy in TaskGraph
       if (ok && targetGraph === 'tasks' && this.taskGraph) {
         createMirrorInTaskGraph(this.taskGraph, fromId, toId, kind);
@@ -615,11 +639,12 @@ export class KnowledgeGraphManager {
     return ok;
   }
 
-  deleteRelation(fromId: string, toId: string, targetGraph?: CrossGraphType): boolean {
+  deleteRelation(fromId: string, toId: string, targetGraph?: CrossGraphType, projectId?: string): boolean {
+    const pid = projectId || this.ctx.projectId;
     // Read edge kind before deleting (for event log)
     let kind = '';
     try {
-      const actualToId = targetGraph ? proxyId(targetGraph, toId) : toId;
+      const actualToId = targetGraph ? proxyId(targetGraph, toId, pid) : toId;
       if (this._graph.hasEdge(fromId, actualToId)) {
         kind = this._graph.getEdgeAttribute(this._graph.edge(fromId, actualToId)!, 'kind') ?? '';
       }
@@ -627,7 +652,7 @@ export class KnowledgeGraphManager {
 
     let ok: boolean;
     if (targetGraph) {
-      ok = deleteCrossRelation(this._graph, fromId, targetGraph, toId);
+      ok = deleteCrossRelation(this._graph, fromId, targetGraph, toId, pid);
       // Bidirectional: remove mirror proxy from TaskGraph
       if (ok && targetGraph === 'tasks' && this.taskGraph) {
         deleteMirrorFromTaskGraph(this.taskGraph, fromId, toId);
@@ -846,7 +871,7 @@ export class KnowledgeGraphManager {
     return listRelations(this._graph, noteId, this.ext);
   }
 
-  findLinkedNotes(targetGraph: CrossGraphType, targetNodeId: string, kind?: string) {
-    return findLinkedNotes(this._graph, targetGraph, targetNodeId, kind);
+  findLinkedNotes(targetGraph: CrossGraphType, targetNodeId: string, kind?: string, projectId?: string) {
+    return findLinkedNotes(this._graph, targetGraph, targetNodeId, kind, projectId || this.ctx.projectId);
   }
 }

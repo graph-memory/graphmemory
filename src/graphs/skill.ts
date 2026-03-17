@@ -23,9 +23,9 @@ export { createSkillGraph };
 // Proxy helpers
 // ---------------------------------------------------------------------------
 
-/** Build the proxy node ID: `@docs::guide.md::Setup` or `@knowledge::my-note` */
-export function proxyId(targetGraph: SkillCrossGraphType, nodeId: string): string {
-  return `@${targetGraph}::${nodeId}`;
+/** Build the proxy node ID. With projectId: `@docs::frontend::guide.md::Setup`, without: `@docs::guide.md::Setup` */
+export function proxyId(targetGraph: SkillCrossGraphType, nodeId: string, projectId?: string): string {
+  return projectId ? `@${targetGraph}::${projectId}::${nodeId}` : `@${targetGraph}::${nodeId}`;
 }
 
 /** Check whether a node is a cross-graph proxy. */
@@ -35,8 +35,8 @@ export function isProxy(graph: SkillGraph, nodeId: string): boolean {
 }
 
 /** Ensure a proxy node exists for the given external target. Returns its ID. */
-function ensureProxyNode(graph: SkillGraph, targetGraph: SkillCrossGraphType, nodeId: string): string {
-  const id = proxyId(targetGraph, nodeId);
+function ensureProxyNode(graph: SkillGraph, targetGraph: SkillCrossGraphType, nodeId: string, projectId?: string): string {
+  const id = proxyId(targetGraph, nodeId, projectId);
   if (!graph.hasNode(id)) {
     graph.addNode(id, {
       title: '',
@@ -55,7 +55,7 @@ function ensureProxyNode(graph: SkillGraph, targetGraph: SkillCrossGraphType, no
       createdAt: 0,
       updatedAt: 0,
       version: 0,
-      proxyFor: { graph: targetGraph, nodeId },
+      proxyFor: { graph: targetGraph, nodeId, projectId },
     });
   }
   return id;
@@ -502,24 +502,31 @@ export function findLinkedSkills(
   targetGraph: SkillCrossGraphType,
   targetNodeId: string,
   kind?: string,
+  projectId?: string,
 ): LinkedSkillEntry[] {
-  const pId = proxyId(targetGraph, targetNodeId);
-  if (!graph.hasNode(pId)) return [];
+  const candidates = [proxyId(targetGraph, targetNodeId, projectId)];
+  if (projectId) candidates.push(proxyId(targetGraph, targetNodeId));
 
   const results: LinkedSkillEntry[] = [];
-  graph.forEachInEdge(pId, (_edge, attrs: SkillEdgeAttributes, source) => {
-    if (isProxy(graph, source)) return;
-    if (kind && attrs.kind !== kind) return;
-    const skillAttrs = graph.getNodeAttributes(source);
-    results.push({
-      skillId: source,
-      title: skillAttrs.title,
-      kind: attrs.kind,
-      source: skillAttrs.source,
-      confidence: skillAttrs.confidence,
-      tags: skillAttrs.tags,
+  const seen = new Set<string>();
+  for (const pId of candidates) {
+    if (!graph.hasNode(pId)) continue;
+    graph.forEachInEdge(pId, (_edge, attrs: SkillEdgeAttributes, source) => {
+      if (seen.has(source)) return;
+      if (isProxy(graph, source)) return;
+      if (kind && attrs.kind !== kind) return;
+      const skillAttrs = graph.getNodeAttributes(source);
+      seen.add(source);
+      results.push({
+        skillId: source,
+        title: skillAttrs.title,
+        kind: attrs.kind,
+        source: skillAttrs.source,
+        confidence: skillAttrs.confidence,
+        tags: skillAttrs.tags,
+      });
     });
-  });
+  }
 
   return results;
 }
@@ -539,11 +546,12 @@ export function createCrossRelation(
   targetNodeId: string,
   kind: string,
   externalGraph?: DirectedGraph,
+  projectId?: string,
 ): boolean {
   if (!graph.hasNode(fromSkillId) || isProxy(graph, fromSkillId)) return false;
   if (externalGraph && !externalGraph.hasNode(targetNodeId)) return false;
 
-  const pId = ensureProxyNode(graph, targetGraph, targetNodeId);
+  const pId = ensureProxyNode(graph, targetGraph, targetNodeId, projectId);
   if (graph.hasEdge(fromSkillId, pId)) return false;
   graph.addEdgeWithKey(`${fromSkillId}→${pId}`, fromSkillId, pId, { kind });
   return true;
@@ -557,12 +565,19 @@ export function deleteCrossRelation(
   fromSkillId: string,
   targetGraph: SkillCrossGraphType,
   targetNodeId: string,
+  projectId?: string,
 ): boolean {
-  const pId = proxyId(targetGraph, targetNodeId);
-  if (!graph.hasEdge(fromSkillId, pId)) return false;
-  graph.dropEdge(fromSkillId, pId);
-  cleanupProxy(graph, pId);
-  return true;
+  const candidates = [proxyId(targetGraph, targetNodeId, projectId)];
+  if (projectId) candidates.push(proxyId(targetGraph, targetNodeId));
+
+  for (const pId of candidates) {
+    if (graph.hasEdge(fromSkillId, pId)) {
+      graph.dropEdge(fromSkillId, pId);
+      cleanupProxy(graph, pId);
+      return true;
+    }
+  }
+  return false;
 }
 
 // ---------------------------------------------------------------------------
@@ -751,7 +766,8 @@ export class SkillGraphManager {
   }
 
   private get skillsDir(): string | undefined {
-    return this.ctx.projectDir ? path.join(this.ctx.projectDir, '.skills') : undefined;
+    const base = this.ctx.mirrorDir ?? this.ctx.projectDir;
+    return base ? path.join(base, '.skills') : undefined;
   }
 
   private recordMirrorWrites(skillId: string): void {
@@ -872,9 +888,10 @@ export class SkillGraphManager {
     return ok;
   }
 
-  createCrossLink(skillId: string, targetId: string, targetGraph: SkillCrossGraphType, kind: string): boolean {
-    const extGraph = resolveExternalGraph(this.ext, targetGraph);
-    const ok = createCrossRelation(this._graph, skillId, targetGraph, targetId, kind, extGraph);
+  createCrossLink(skillId: string, targetId: string, targetGraph: SkillCrossGraphType, kind: string, projectId?: string): boolean {
+    const pid = projectId || this.ctx.projectId;
+    const extGraph = resolveExternalGraph(this.ext, targetGraph, pid);
+    const ok = createCrossRelation(this._graph, skillId, targetGraph, targetId, kind, extGraph, pid);
     // Bidirectional: create mirror proxy in KnowledgeGraph
     if (ok && targetGraph === 'knowledge' && this.knowledgeGraph) {
       createMirrorInKnowledgeGraph(this.knowledgeGraph, skillId, targetId, kind);
@@ -896,17 +913,18 @@ export class SkillGraphManager {
     return ok;
   }
 
-  deleteCrossLink(skillId: string, targetId: string, targetGraph: SkillCrossGraphType): boolean {
+  deleteCrossLink(skillId: string, targetId: string, targetGraph: SkillCrossGraphType, projectId?: string): boolean {
+    const pid = projectId || this.ctx.projectId;
     // Read edge kind before deleting
     let kind = '';
     try {
-      const proxyNodeId = `@${targetGraph}::${targetId}`;
+      const proxyNodeId = proxyId(targetGraph, targetId, pid);
       if (this._graph.hasEdge(skillId, proxyNodeId)) {
         kind = this._graph.getEdgeAttribute(this._graph.edge(skillId, proxyNodeId)!, 'kind') ?? '';
       }
     } catch { /* ignore */ }
 
-    const ok = deleteCrossRelation(this._graph, skillId, targetGraph, targetId);
+    const ok = deleteCrossRelation(this._graph, skillId, targetGraph, targetId, pid);
     if (ok && targetGraph === 'knowledge' && this.knowledgeGraph) {
       deleteMirrorFromKnowledgeGraph(this.knowledgeGraph, skillId, targetId);
     }
@@ -1172,7 +1190,7 @@ export class SkillGraphManager {
     return listSkillRelations(this._graph, skillId, this.ext);
   }
 
-  findLinkedSkills(targetGraph: SkillCrossGraphType, targetNodeId: string, kind?: string) {
-    return findLinkedSkills(this._graph, targetGraph, targetNodeId, kind);
+  findLinkedSkills(targetGraph: SkillCrossGraphType, targetNodeId: string, kind?: string, projectId?: string) {
+    return findLinkedSkills(this._graph, targetGraph, targetNodeId, kind, projectId || this.ctx.projectId);
   }
 }

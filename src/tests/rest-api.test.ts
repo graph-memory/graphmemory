@@ -211,7 +211,7 @@ describe('REST API', () => {
 
       const rel = await request(app)
         .post('/api/projects/test/knowledge/relations')
-        .send({ fromId: 'note-a', toId: 'note-b', kind: 'relates_to' });
+        .send({ fromId: 'note-a', toId: 'note-b', kind: 'relates_to', projectId: 'test' });
       expect(rel.status).toBe(201);
       expect(rel.body.fromId).toBe('note-a');
       expect(rel.body.toId).toBe('note-b');
@@ -304,16 +304,16 @@ describe('REST API', () => {
       // Link task → knowledge note
       await request(app)
         .post('/api/projects/test/tasks/links')
-        .send({ fromId: 'linked-task', toId: 'linked-note', kind: 'references', targetGraph: 'knowledge' });
+        .send({ fromId: 'linked-task', toId: 'linked-note', kind: 'references', targetGraph: 'knowledge', projectId: 'test' });
 
-      // Verify proxy exists
-      expect(project.taskGraph.hasNode('@knowledge::linked-note')).toBe(true);
+      // Verify proxy exists (project-scoped proxy ID)
+      expect(project.taskGraph.hasNode('@knowledge::test::linked-note')).toBe(true);
 
       // Delete note
       await request(app).delete('/api/projects/test/knowledge/notes/linked-note');
 
       // Proxy should be cleaned up
-      expect(project.taskGraph.hasNode('@knowledge::linked-note')).toBe(false);
+      expect(project.taskGraph.hasNode('@knowledge::test::linked-note')).toBe(false);
     });
 
     it('delete task cleans up proxy in KnowledgeGraph', async () => {
@@ -328,16 +328,16 @@ describe('REST API', () => {
       // Link note → task
       await request(app)
         .post('/api/projects/test/knowledge/relations')
-        .send({ fromId: 'another-note', toId: 'another-task', kind: 'tracks', targetGraph: 'tasks' });
+        .send({ fromId: 'another-note', toId: 'another-task', kind: 'tracks', targetGraph: 'tasks', projectId: 'test' });
 
-      // Verify proxy exists
-      expect(project.knowledgeGraph.hasNode('@tasks::another-task')).toBe(true);
+      // Verify proxy exists (project-scoped proxy ID)
+      expect(project.knowledgeGraph.hasNode('@tasks::test::another-task')).toBe(true);
 
       // Delete task
       await request(app).delete('/api/projects/test/tasks/another-task');
 
       // Proxy should be cleaned up
-      expect(project.knowledgeGraph.hasNode('@tasks::another-task')).toBe(false);
+      expect(project.knowledgeGraph.hasNode('@tasks::test::another-task')).toBe(false);
     });
   });
 

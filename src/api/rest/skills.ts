@@ -43,11 +43,11 @@ export function createSkillsRouter(): Router {
   router.get('/linked', (req, res, next) => {
     try {
       const p = getProject(req);
-      const { targetGraph, targetNodeId, kind } = req.query as any;
+      const { targetGraph, targetNodeId, kind, projectId } = req.query as any;
       if (!targetGraph || !targetNodeId) {
         return res.status(400).json({ error: 'targetGraph and targetNodeId are required' });
       }
-      const skills = p.skillManager.findLinkedSkills(targetGraph, targetNodeId, kind);
+      const skills = p.skillManager.findLinkedSkills(targetGraph, targetNodeId, kind, projectId ?? (req.params as any).projectId);
       res.json({ results: skills });
     } catch (err) { next(err); }
   });
@@ -127,10 +127,10 @@ export function createSkillsRouter(): Router {
   router.post('/links', validateBody(createSkillLinkSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
-      const { fromId, toId, kind, targetGraph } = req.body;
+      const { fromId, toId, kind, targetGraph, projectId } = req.body;
       const ok = await p.mutationQueue.enqueue(async () => {
         if (targetGraph) {
-          return p.skillManager.createCrossLink(fromId, toId, targetGraph, kind);
+          return p.skillManager.createCrossLink(fromId, toId, targetGraph, kind, projectId);
         } else {
           return p.skillManager.linkSkills(fromId, toId, kind);
         }
@@ -141,13 +141,13 @@ export function createSkillsRouter(): Router {
   });
 
   // Delete skill link
-  router.delete('/links', validateBody(createSkillLinkSchema.pick({ fromId: true, toId: true, targetGraph: true })), async (req, res, next) => {
+  router.delete('/links', validateBody(createSkillLinkSchema.pick({ fromId: true, toId: true, targetGraph: true, projectId: true })), async (req, res, next) => {
     try {
       const p = getProject(req);
-      const { fromId, toId, targetGraph } = req.body;
+      const { fromId, toId, targetGraph, projectId } = req.body;
       const ok = await p.mutationQueue.enqueue(async () => {
         if (targetGraph) {
-          return p.skillManager.deleteCrossLink(fromId, toId, targetGraph);
+          return p.skillManager.deleteCrossLink(fromId, toId, targetGraph, projectId);
         } else {
           return p.skillManager.deleteSkillLink(fromId, toId);
         }

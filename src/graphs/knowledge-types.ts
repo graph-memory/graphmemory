@@ -14,7 +14,7 @@ export interface KnowledgeNodeAttributes {
   version: number;         // incremented on every mutation (starts at 1)
   createdBy?: string;      // author from config at creation time
   updatedBy?: string;      // author from config at last update
-  proxyFor?: { graph: CrossGraphType; nodeId: string };  // cross-graph proxy node marker
+  proxyFor?: { graph: CrossGraphType; nodeId: string; projectId?: string };  // cross-graph proxy node marker
 }
 
 export interface KnowledgeEdgeAttributes {

@@ -16,10 +16,11 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
         targetId:    z.string().describe('Target node ID in the external graph (e.g. "src/config.ts", "src/auth.ts::login", "docs/api.md::Setup")'),
         targetGraph: z.enum(['docs', 'code', 'files', 'tasks']).describe('Which graph the target belongs to: "docs", "code", "files", or "tasks"'),
         kind:        z.string().optional().describe('Filter by relation kind (e.g. "references", "depends_on"). If omitted, returns all relations.'),
+        projectId:   z.string().optional().describe('Project ID that the target node belongs to. Defaults to the current project.'),
       },
     },
-    async ({ targetId, targetGraph, kind }) => {
-      const results = mgr.findLinkedNotes(targetGraph, targetId, kind);
+    async ({ targetId, targetGraph, kind, projectId }) => {
+      const results = mgr.findLinkedNotes(targetGraph, targetId, kind, projectId);
       if (results.length === 0) {
         return { content: [{ type: 'text', text: `No notes linked to ${targetGraph}::${targetId}` }] };
       }

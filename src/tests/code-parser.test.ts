@@ -433,3 +433,41 @@ describe('store.ts', () => {
     expect(hasEdge(store, 'store.ts::CachedStore', 'store.ts::CachedStore::persist', 'contains')).toBe(true);
   });
 });
+
+describe('getProject caching', () => {
+  beforeEach(() => resetProject());
+
+  it('returns the same Project instance for the same codeDir', () => {
+    const p1 = getProject(FIXTURES);
+    const p2 = getProject(FIXTURES);
+    expect(p1).toBe(p2);
+  });
+
+  it('returns different Project instances for different codeDirs', () => {
+    const p1 = getProject(FIXTURES);
+    const p2 = getProject(path.join(FIXTURES, '..'));
+    expect(p1).not.toBe(p2);
+  });
+
+  it('resetProject(codeDir) clears only that codeDir', () => {
+    const p1 = getProject(FIXTURES);
+    const other = path.join(FIXTURES, '..');
+    const p2 = getProject(other);
+    resetProject(FIXTURES);
+    const p1b = getProject(FIXTURES);
+    const p2b = getProject(other);
+    expect(p1b).not.toBe(p1);
+    expect(p2b).toBe(p2);
+  });
+
+  it('resetProject() without args clears all', () => {
+    const p1 = getProject(FIXTURES);
+    const other = path.join(FIXTURES, '..');
+    const p2 = getProject(other);
+    resetProject();
+    const p1b = getProject(FIXTURES);
+    const p2b = getProject(other);
+    expect(p1b).not.toBe(p1);
+    expect(p2b).not.toBe(p2);
+  });
+});

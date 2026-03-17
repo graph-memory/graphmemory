@@ -43,10 +43,22 @@ const serverSchema = z.object({
   embeddingModel:  z.string().optional(),
 });
 
+const workspaceSchema = z.object({
+  projects:       z.array(z.string()),
+  graphMemory:    z.string().optional(),
+  mirrorDir:      z.string().optional(),
+  embeddingModel: z.string().optional(),
+  knowledgeModel: z.string().optional(),
+  taskModel:      z.string().optional(),
+  skillsModel:    z.string().optional(),
+  author:         authorSchema.optional(),
+});
+
 const configFileSchema = z.object({
-  author:   authorSchema.optional(),
-  server:   serverSchema.optional(),
-  projects: z.record(z.string(), projectSchema),
+  author:     authorSchema.optional(),
+  server:     serverSchema.optional(),
+  projects:   z.record(z.string(), projectSchema),
+  workspaces: z.record(z.string(), workspaceSchema).optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -86,10 +98,22 @@ export interface ProjectConfig {
   author: AuthorConfig;
 }
 
+export interface WorkspaceConfig {
+  projects: string[];
+  graphMemory: string;
+  mirrorDir: string;
+  embeddingModel: string;
+  knowledgeModel?: string;
+  taskModel?: string;
+  skillsModel?: string;
+  author: AuthorConfig;
+}
+
 export interface MultiConfig {
   author: AuthorConfig;
   server: ServerConfig;
   projects: Map<string, ProjectConfig>;
+  workspaces: Map<string, WorkspaceConfig>;
 }
 
 // ---------------------------------------------------------------------------
@@ -182,5 +206,40 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
     });
   }
 
-  return { author: globalAuthor, server, projects };
+  // --- Workspaces ---
+  const workspaces = new Map<string, WorkspaceConfig>();
+
+  if (validated.workspaces) {
+    for (const [wsId, raw] of Object.entries(validated.workspaces)) {
+      // Validate that all referenced projects exist
+      for (const projId of raw.projects) {
+        if (!projects.has(projId)) {
+          throw new Error(
+            `Workspace "${wsId}" references unknown project "${projId}"`,
+          );
+        }
+      }
+
+      const firstProject = projects.get(raw.projects[0])!;
+      const graphMemory = raw.graphMemory
+        ? path.resolve(raw.graphMemory)
+        : path.join(firstProject.projectDir, '.graph-memory', 'workspace');
+      const mirrorDir = raw.mirrorDir
+        ? path.resolve(raw.mirrorDir)
+        : graphMemory;
+
+      workspaces.set(wsId, {
+        projects:       raw.projects,
+        graphMemory,
+        mirrorDir,
+        embeddingModel: raw.embeddingModel ?? globalModel,
+        knowledgeModel: raw.knowledgeModel,
+        taskModel:      raw.taskModel,
+        skillsModel:    raw.skillsModel,
+        author:         raw.author ?? globalAuthor,
+      });
+    }
+  }
+
+  return { author: globalAuthor, server, projects, workspaces };
 }

@@ -43,11 +43,11 @@ export function createTasksRouter(): Router {
   router.get('/linked', (req, res, next) => {
     try {
       const p = getProject(req);
-      const { targetGraph, targetNodeId, kind } = req.query as any;
+      const { targetGraph, targetNodeId, kind, projectId } = req.query as any;
       if (!targetGraph || !targetNodeId) {
         return res.status(400).json({ error: 'targetGraph and targetNodeId are required' });
       }
-      const tasks = p.taskManager.findLinkedTasks(targetGraph, targetNodeId, kind);
+      const tasks = p.taskManager.findLinkedTasks(targetGraph, targetNodeId, kind, projectId ?? (req.params as any).projectId);
       res.json({ results: tasks });
     } catch (err) { next(err); }
   });
@@ -133,10 +133,10 @@ export function createTasksRouter(): Router {
   router.post('/links', validateBody(createTaskLinkSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
-      const { fromId, toId, kind, targetGraph } = req.body;
+      const { fromId, toId, kind, targetGraph, projectId } = req.body;
       const ok = await p.mutationQueue.enqueue(async () => {
         if (targetGraph) {
-          return p.taskManager.createCrossLink(fromId, toId, targetGraph, kind);
+          return p.taskManager.createCrossLink(fromId, toId, targetGraph, kind, projectId);
         } else {
           return p.taskManager.linkTasks(fromId, toId, kind);
         }
@@ -147,13 +147,13 @@ export function createTasksRouter(): Router {
   });
 
   // Delete task link
-  router.delete('/links', validateBody(createTaskLinkSchema.pick({ fromId: true, toId: true, targetGraph: true })), async (req, res, next) => {
+  router.delete('/links', validateBody(createTaskLinkSchema.pick({ fromId: true, toId: true, targetGraph: true, projectId: true })), async (req, res, next) => {
     try {
       const p = getProject(req);
-      const { fromId, toId, targetGraph } = req.body;
+      const { fromId, toId, targetGraph, projectId } = req.body;
       const ok = await p.mutationQueue.enqueue(async () => {
         if (targetGraph) {
-          return p.taskManager.deleteCrossLink(fromId, toId, targetGraph);
+          return p.taskManager.deleteCrossLink(fromId, toId, targetGraph, projectId);
         } else {
           return p.taskManager.deleteTaskLink(fromId, toId);
         }

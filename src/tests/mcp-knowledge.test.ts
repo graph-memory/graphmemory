@@ -157,7 +157,7 @@ describe('knowledge tools', () => {
 
   it('create_relation: creates depends_on relation', async () => {
     const rel1 = json<RelCreateResult>(await call('create_relation', {
-      fromId: note1.noteId, toId: note2.noteId, kind: 'depends_on',
+      fromId: note1.noteId, toId: note2.noteId, kind: 'depends_on', projectId: 'test',
     }));
     expect(rel1.created).toBe(true);
     expect(rel1.fromId).toBe(note1.noteId);
@@ -166,21 +166,21 @@ describe('knowledge tools', () => {
 
   it('create_relation: creates relates_to relation', async () => {
     const rel2 = json<RelCreateResult>(await call('create_relation', {
-      fromId: note2.noteId, toId: note3.noteId, kind: 'relates_to',
+      fromId: note2.noteId, toId: note3.noteId, kind: 'relates_to', projectId: 'test',
     }));
     expect(rel2.created).toBe(true);
   });
 
   it('create_relation: duplicate returns isError', async () => {
     const relDup = await call('create_relation', {
-      fromId: note1.noteId, toId: note2.noteId, kind: 'depends_on',
+      fromId: note1.noteId, toId: note2.noteId, kind: 'depends_on', projectId: 'test',
     });
     expect(relDup.isError).toBe(true);
   });
 
   it('create_relation: missing node returns isError', async () => {
     const relGhost = await call('create_relation', {
-      fromId: note1.noteId, toId: 'ghost', kind: 'x',
+      fromId: note1.noteId, toId: 'ghost', kind: 'x', projectId: 'test',
     });
     expect(relGhost.isError).toBe(true);
   });
@@ -244,12 +244,12 @@ describe('knowledge tools', () => {
   // ── delete_relation ──
 
   it('delete_relation: deletes existing relation', async () => {
-    const relDel = json<RelDelResult>(await call('delete_relation', { fromId: note1.noteId, toId: note2.noteId }));
+    const relDel = json<RelDelResult>(await call('delete_relation', { fromId: note1.noteId, toId: note2.noteId, projectId: 'test' }));
     expect(relDel.deleted).toBe(true);
   });
 
   it('delete_relation: missing relation returns isError', async () => {
-    const relDelMissing = await call('delete_relation', { fromId: note1.noteId, toId: note2.noteId });
+    const relDelMissing = await call('delete_relation', { fromId: note1.noteId, toId: note2.noteId, projectId: 'test' });
     expect(relDelMissing.isError).toBe(true);
   });
 
@@ -357,6 +357,7 @@ describe('cross-graph relation tools', () => {
       toId: 'guide.md::Setup',
       kind: 'references',
       targetGraph: 'docs',
+      projectId: 'test',
     }));
     expect(res.created).toBe(true);
     expect(res.targetGraph).toBe('docs');
@@ -368,6 +369,7 @@ describe('cross-graph relation tools', () => {
       toId: 'auth.ts::AuthService',
       kind: 'depends_on',
       targetGraph: 'code',
+      projectId: 'test',
     }));
     expect(res.created).toBe(true);
     expect(res.targetGraph).toBe('code');
@@ -379,6 +381,7 @@ describe('cross-graph relation tools', () => {
       toId: 'guide.md::Setup',
       kind: 'references',
       targetGraph: 'docs',
+      projectId: 'test',
     });
     expect(res.isError).toBe(true);
   });
@@ -389,6 +392,7 @@ describe('cross-graph relation tools', () => {
       toId: 'nonexistent::Node',
       kind: 'references',
       targetGraph: 'docs',
+      projectId: 'test',
     });
     expect(res.isError).toBe(true);
   });
@@ -425,6 +429,7 @@ describe('cross-graph relation tools', () => {
         fromId: noteId,
         toId: 'guide.md::Setup',
         targetGraph: 'docs',
+        projectId: 'test',
       }),
     );
     expect(res.deleted).toBe(true);
@@ -500,9 +505,9 @@ describe('find_linked_notes', () => {
     await fCall('create_note', { title: 'Note B', content: 'Second note', tags: ['b'] });
     await fCall('create_note', { title: 'Note C', content: 'Third note', tags: ['c'] });
 
-    await fCall('create_relation', { fromId: 'note-a', toId: 'api.md::Auth', kind: 'references', targetGraph: 'docs' });
-    await fCall('create_relation', { fromId: 'note-b', toId: 'api.md::Auth', kind: 'documents', targetGraph: 'docs' });
-    await fCall('create_relation', { fromId: 'note-a', toId: 'src/auth.ts::login', kind: 'depends_on', targetGraph: 'code' });
+    await fCall('create_relation', { fromId: 'note-a', toId: 'api.md::Auth', kind: 'references', targetGraph: 'docs', projectId: 'test' });
+    await fCall('create_relation', { fromId: 'note-b', toId: 'api.md::Auth', kind: 'documents', targetGraph: 'docs', projectId: 'test' });
+    await fCall('create_relation', { fromId: 'note-a', toId: 'src/auth.ts::login', kind: 'depends_on', targetGraph: 'code', projectId: 'test' });
   });
 
   afterAll(async () => {
@@ -513,6 +518,7 @@ describe('find_linked_notes', () => {
     const results = json<LinkedNoteResult[]>(await fCall('find_linked_notes', {
       targetId: 'api.md::Auth',
       targetGraph: 'docs',
+      projectId: 'test',
     }));
     expect(results).toHaveLength(2);
     const ids = results.map(r => r.noteId);
@@ -524,6 +530,7 @@ describe('find_linked_notes', () => {
     const results = json<LinkedNoteResult[]>(await fCall('find_linked_notes', {
       targetId: 'src/auth.ts::login',
       targetGraph: 'code',
+      projectId: 'test',
     }));
     expect(results).toHaveLength(1);
     expect(results[0].noteId).toBe('note-a');
@@ -536,6 +543,7 @@ describe('find_linked_notes', () => {
       targetId: 'api.md::Auth',
       targetGraph: 'docs',
       kind: 'references',
+      projectId: 'test',
     }));
     expect(results).toHaveLength(1);
     expect(results[0].noteId).toBe('note-a');
@@ -545,6 +553,7 @@ describe('find_linked_notes', () => {
     const res = await fCall('find_linked_notes', {
       targetId: 'nonexistent.md::Foo',
       targetGraph: 'docs',
+      projectId: 'test',
     });
     expect(res.isError).toBeUndefined();
     const text = res.content[0].text!;
@@ -555,6 +564,7 @@ describe('find_linked_notes', () => {
     const res = await fCall('find_linked_notes', {
       targetId: 'api.md::Auth',
       targetGraph: 'files', // this target is in docs, not files
+      projectId: 'test',
     });
     const text = res.content[0].text!;
     expect(text).toContain('No notes linked');

@@ -16,10 +16,11 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
           .describe('Which graph the target belongs to'),
         targetNodeId: z.string().describe('Target node ID in the external graph'),
         kind:         z.string().optional().describe('Filter by relation kind. If omitted, returns all relations.'),
+        projectId:    z.string().optional().describe('Project ID that the target node belongs to. Defaults to the current project.'),
       },
     },
-    async ({ targetGraph, targetNodeId, kind }) => {
-      const results = mgr.findLinkedSkills(targetGraph, targetNodeId, kind);
+    async ({ targetGraph, targetNodeId, kind, projectId }) => {
+      const results = mgr.findLinkedSkills(targetGraph, targetNodeId, kind, projectId);
       if (results.length === 0) {
         return { content: [{ type: 'text', text: `No skills linked to ${targetGraph}::${targetNodeId}` }] };
       }

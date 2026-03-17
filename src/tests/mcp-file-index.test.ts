@@ -248,6 +248,7 @@ describe('cross-graph relation to files', () => {
       toId: 'src/config.ts',
       kind: 'references',
       targetGraph: 'files',
+      projectId: 'test',
     }));
     expect(res.created).toBe(true);
     expect(res.targetGraph).toBe('files');
@@ -259,6 +260,7 @@ describe('cross-graph relation to files', () => {
       toId: 'src',
       kind: 'part_of',
       targetGraph: 'files',
+      projectId: 'test',
     }));
     expect(res.created).toBe(true);
     expect(res.targetGraph).toBe('files');
@@ -270,6 +272,7 @@ describe('cross-graph relation to files', () => {
       toId: 'src/config.ts',
       kind: 'references',
       targetGraph: 'files',
+      projectId: 'test',
     });
     expect(res.isError).toBe(true);
   });
@@ -280,6 +283,7 @@ describe('cross-graph relation to files', () => {
       toId: 'nonexistent.ts',
       kind: 'references',
       targetGraph: 'files',
+      projectId: 'test',
     });
     expect(res.isError).toBe(true);
   });
@@ -305,6 +309,7 @@ describe('cross-graph relation to files', () => {
         fromId: noteId,
         toId: 'src/config.ts',
         targetGraph: 'files',
+        projectId: 'test',
       }),
     );
     expect(res.deleted).toBe(true);

@@ -24,7 +24,7 @@ export interface SkillNodeAttributes {
   updatedBy?: string;      // author from config at last update
   embedding: number[];
   attachments: AttachmentMeta[];
-  proxyFor?: { graph: SkillCrossGraphType; nodeId: string };
+  proxyFor?: { graph: SkillCrossGraphType; nodeId: string; projectId?: string };
 }
 
 export interface SkillEdgeAttributes {

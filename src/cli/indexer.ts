@@ -4,7 +4,7 @@ import micromatch from 'micromatch';
 import { embed, embedBatch } from '@/lib/embedder';
 import { parseFile } from '@/lib/parsers/docs';
 import { updateFile, removeFile, getFileMtime, type DocGraph } from '@/graphs/docs';
-import { parseCodeFile, getProject } from '@/lib/parsers/code';
+import { parseCodeFile, getProject, resetProject } from '@/lib/parsers/code';
 import { updateCodeFile, removeCodeFile, getCodeFileMtime, type CodeGraph } from '@/graphs/code';
 import { startWatcher, type WatcherHandle } from '@/lib/watcher';
 import type { KnowledgeGraph } from '@/graphs/knowledge-types';
@@ -52,10 +52,13 @@ export function createProjectIndexer(
   let codeQueue: Promise<void> = Promise.resolve();
   let fileQueue: Promise<void> = Promise.resolve();
 
-  const project: Project | undefined =
+  let project: Project | undefined =
     codeGraph && config.codePattern
       ? getProject(config.projectDir, config.tsconfig)
       : undefined;
+
+  // Resolve the tsconfig path the indexer watches for changes
+  const tsconfigPath = config.tsconfig ?? path.join(config.projectDir, 'tsconfig.json');
 
   function enqueueDoc(fn: () => Promise<void>): void {
     docsQueue = docsQueue.then(fn).catch((err: unknown) => {
@@ -164,6 +167,22 @@ export function createProjectIndexer(
   }
 
   function dispatchAdd(absolutePath: string): void {
+    // tsconfig change — reset ts-morph project and re-index all code files
+    if (codeGraph && project && absolutePath === tsconfigPath) {
+      process.stderr.write(`[indexer] tsconfig changed, re-indexing code\n`);
+      resetProject(config.projectDir);
+      project = getProject(config.projectDir, config.tsconfig);
+      codeGraph.forEachNode((nodeId, attrs) => {
+        if (attrs.kind === 'file') {
+          const abs = path.join(config.projectDir, attrs.fileId);
+          // Reset mtime to force re-index
+          codeGraph!.setNodeAttribute(nodeId, 'mtime', 0);
+          enqueueCode(() => indexCodeFile(abs));
+        }
+      });
+      return;
+    }
+
     const rel = path.relative(config.projectDir, absolutePath);
     if (isExcluded(rel)) return;
     if (config.docsPattern && micromatch.isMatch(rel, config.docsPattern)) {

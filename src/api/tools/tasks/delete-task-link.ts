@@ -14,10 +14,11 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
         targetId:    z.string().describe('Target node ID in the external graph'),
         targetGraph: z.enum(['docs', 'code', 'files', 'knowledge'])
           .describe('Which graph the target belongs to'),
+        projectId:   z.string().optional().describe('Project ID that the target node belongs to. Defaults to the current project.'),
       },
     },
-    async ({ taskId, targetId, targetGraph }) => {
-      const deleted = mgr.deleteCrossLink(taskId, targetId, targetGraph);
+    async ({ taskId, targetId, targetGraph, projectId }) => {
+      const deleted = mgr.deleteCrossLink(taskId, targetId, targetGraph, projectId);
       if (!deleted) {
         return { content: [{ type: 'text', text: 'Cross-graph link not found.' }], isError: true };
       }

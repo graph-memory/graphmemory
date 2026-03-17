@@ -1,6 +1,6 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { createMcpServer } from '@/api/index';
+import { createMcpServer, type McpSessionContext } from '@/api/index';
 import type { DocGraph } from '@/graphs/docs';
 import type { CodeGraph } from '@/graphs/code-types';
 import type { KnowledgeGraph } from '@/graphs/knowledge-types';
@@ -64,6 +64,7 @@ export async function setupMcpClient(opts: {
   taskGraph?: TaskGraph;
   skillGraph?: SkillGraph;
   embedFn?: (query: string) => Promise<number[]>;
+  sessionContext?: McpSessionContext;
 }): Promise<McpTestContext> {
   const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
   const server = createMcpServer(
@@ -76,6 +77,7 @@ export async function setupMcpClient(opts: {
     undefined,
     undefined,
     opts.skillGraph,
+    opts.sessionContext,
   );
   await server.connect(serverTransport);
 

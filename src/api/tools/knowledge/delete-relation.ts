@@ -14,10 +14,11 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
         toId:        z.string().describe('Target note ID, or target node ID in docs/code/files/tasks graph'),
         targetGraph: z.enum(['docs', 'code', 'files', 'tasks']).optional()
           .describe('Set to "docs", "code", "files", or "tasks" when deleting a cross-graph link'),
+        projectId:   z.string().optional().describe('Project ID that the target node belongs to. Defaults to the current project.'),
       },
     },
-    async ({ fromId, toId, targetGraph }) => {
-      const deleted = mgr.deleteRelation(fromId, toId, targetGraph);
+    async ({ fromId, toId, targetGraph, projectId }) => {
+      const deleted = mgr.deleteRelation(fromId, toId, targetGraph, projectId);
 
       if (!deleted) {
         return { content: [{ type: 'text', text: 'Relation not found.' }], isError: true };

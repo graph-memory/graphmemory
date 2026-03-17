@@ -304,6 +304,7 @@ describe('MCP Skill Tools', () => {
         targetId: 'auth-guide',
         targetGraph: 'knowledge',
         kind: 'references',
+        projectId: 'test',
       }));
       expect(res.created).toBe(true);
     });
@@ -314,6 +315,7 @@ describe('MCP Skill Tools', () => {
         targetId: 'auth-guide',
         targetGraph: 'knowledge',
         kind: 'references',
+        projectId: 'test',
       });
       expect(res.isError).toBe(true);
     });
@@ -324,6 +326,7 @@ describe('MCP Skill Tools', () => {
         targetId: 'nonexistent-note',
         targetGraph: 'knowledge',
         kind: 'references',
+        projectId: 'test',
       });
       expect(res.isError).toBe(true);
     });
@@ -334,6 +337,7 @@ describe('MCP Skill Tools', () => {
       const results = json<LinkedSkillResult[]>(await call('find_linked_skills', {
         targetGraph: 'knowledge',
         targetNodeId: 'auth-guide',
+        projectId: 'test',
       }));
       expect(results).toHaveLength(1);
       expect(results[0].skillId).toBe('debug-auth-issues');
@@ -344,6 +348,7 @@ describe('MCP Skill Tools', () => {
       const res = await call('find_linked_skills', {
         targetGraph: 'knowledge',
         targetNodeId: 'nonexistent',
+        projectId: 'test',
       });
       expect(res.isError).toBeUndefined();
       const text = res.content[0].text!;
@@ -355,6 +360,7 @@ describe('MCP Skill Tools', () => {
         targetGraph: 'knowledge',
         targetNodeId: 'auth-guide',
         kind: 'implements', // linked with 'references', not 'implements'
+        projectId: 'test',
       });
       const text = res.content[0].text!;
       expect(text).toContain('No skills linked');
@@ -367,6 +373,7 @@ describe('MCP Skill Tools', () => {
         skillId: 'debug-auth-issues',
         targetId: 'auth-guide',
         targetGraph: 'knowledge',
+        projectId: 'test',
       }));
       expect(res.deleted).toBe(true);
     });
@@ -375,6 +382,7 @@ describe('MCP Skill Tools', () => {
       const res = await call('find_linked_skills', {
         targetGraph: 'knowledge',
         targetNodeId: 'auth-guide',
+        projectId: 'test',
       });
       const text = res.content[0].text!;
       expect(text).toContain('No skills linked');
@@ -415,15 +423,16 @@ describe('MCP Skill Tools', () => {
         targetId: 'auth-guide',
         targetGraph: 'knowledge',
         kind: 'documents',
+        projectId: 'test',
       });
-      expect(skillGraph.hasNode('@knowledge::auth-guide')).toBe(true);
+      expect(skillGraph.hasNode('@knowledge::test::auth-guide')).toBe(true);
 
       // Delete the skill
       const del = json<DeleteResult>(await call('delete_skill', { skillId: 'debug-auth-issues' }));
       expect(del.deleted).toBe(true);
 
       // Proxy should be cleaned up
-      expect(skillGraph.hasNode('@knowledge::auth-guide')).toBe(false);
+      expect(skillGraph.hasNode('@knowledge::test::auth-guide')).toBe(false);
     });
   });
 });

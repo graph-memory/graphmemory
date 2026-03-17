@@ -17,10 +17,11 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
         kind:        z.string().describe('Relation type, e.g. "depends_on", "references"'),
         targetGraph: z.enum(['docs', 'code', 'files', 'tasks']).optional()
           .describe('Set to "docs", "code", "files", or "tasks" to create a cross-graph link instead of note-to-note'),
+        projectId:   z.string().optional().describe('Project ID that the target node belongs to. Defaults to the current project.'),
       },
     },
-    async ({ fromId, toId, kind, targetGraph }) => {
-      const created = mgr.createRelation(fromId, toId, kind, targetGraph);
+    async ({ fromId, toId, kind, targetGraph, projectId }) => {
+      const created = mgr.createRelation(fromId, toId, kind, targetGraph, projectId);
 
       if (!created) {
         const msg = targetGraph

@@ -367,6 +367,7 @@ describe('Task cross-graph links', () => {
       targetId: 'api.md::Auth',
       targetGraph: 'docs',
       kind: 'references',
+      projectId: 'test',
     }));
     expect(res.created).toBe(true);
   });
@@ -377,6 +378,7 @@ describe('Task cross-graph links', () => {
       targetId: 'src/auth.ts::login',
       targetGraph: 'code',
       kind: 'fixes',
+      projectId: 'test',
     }));
     expect(res.created).toBe(true);
   });
@@ -387,6 +389,7 @@ describe('Task cross-graph links', () => {
       targetId: 'api.md::Auth',
       targetGraph: 'docs',
       kind: 'references',
+      projectId: 'test',
     });
     expect(res.isError).toBe(true);
   });
@@ -397,6 +400,7 @@ describe('Task cross-graph links', () => {
       targetId: 'nonexistent.md::Foo',
       targetGraph: 'docs',
       kind: 'references',
+      projectId: 'test',
     });
     expect(res.isError).toBe(true);
   });
@@ -405,6 +409,7 @@ describe('Task cross-graph links', () => {
     const results = json<LinkedTaskResult[]>(await tCall('find_linked_tasks', {
       targetId: 'api.md::Auth',
       targetGraph: 'docs',
+      projectId: 'test',
     }));
     expect(results).toHaveLength(1);
     expect(results[0].taskId).toBe('task-a');
@@ -415,6 +420,7 @@ describe('Task cross-graph links', () => {
     const results = json<LinkedTaskResult[]>(await tCall('find_linked_tasks', {
       targetId: 'src/auth.ts::login',
       targetGraph: 'code',
+      projectId: 'test',
     }));
     expect(results).toHaveLength(1);
     expect(results[0].taskId).toBe('task-a');
@@ -425,6 +431,7 @@ describe('Task cross-graph links', () => {
     const res = await tCall('find_linked_tasks', {
       targetId: 'nonexistent.md::Foo',
       targetGraph: 'docs',
+      projectId: 'test',
     });
     expect(res.isError).toBeUndefined();
     const text = res.content[0].text!;
@@ -437,6 +444,7 @@ describe('Task cross-graph links', () => {
       targetId: 'src/auth.ts::login',
       targetGraph: 'code',
       kind: 'references', // task-a linked with 'fixes', not 'references'
+      projectId: 'test',
     });
     const text = res.content[0].text!;
     expect(text).toContain('No tasks linked');
@@ -447,6 +455,7 @@ describe('Task cross-graph links', () => {
       taskId: 'task-a',
       targetId: 'api.md::Auth',
       targetGraph: 'docs',
+      projectId: 'test',
     }));
     expect(res.deleted).toBe(true);
   });
@@ -455,6 +464,7 @@ describe('Task cross-graph links', () => {
     const res = await tCall('find_linked_tasks', {
       targetId: 'api.md::Auth',
       targetGraph: 'docs',
+      projectId: 'test',
     });
     const text = res.content[0].text!;
     expect(text).toContain('No tasks linked');
@@ -503,6 +513,7 @@ describe('Knowledge to Task cross-graph links', () => {
       toId: 'my-task',
       kind: 'tracks',
       targetGraph: 'tasks',
+      projectId: 'test',
     });
     expect(res.isError).toBeUndefined();
     const data = json<{ created: boolean }>(res);
@@ -513,6 +524,7 @@ describe('Knowledge to Task cross-graph links', () => {
     const results = json<Array<{ noteId: string; kind: string }>>(await kCall('find_linked_notes', {
       targetId: 'my-task',
       targetGraph: 'tasks',
+      projectId: 'test',
     }));
     expect(results).toHaveLength(1);
     expect(results[0].noteId).toBe('my-note');
@@ -524,6 +536,7 @@ describe('Knowledge to Task cross-graph links', () => {
       fromId: 'my-note',
       toId: 'my-task',
       targetGraph: 'tasks',
+      projectId: 'test',
     });
     expect(res.isError).toBeUndefined();
     const data = json<{ deleted: boolean }>(res);
@@ -568,16 +581,17 @@ describe('Cross-graph proxy cleanup on entity deletion', () => {
       targetId: 'linked-note',
       targetGraph: 'knowledge',
       kind: 'references',
+      projectId: 'test',
     });
 
-    // Verify proxy exists in TaskGraph
-    expect(cgTaskGraph.hasNode('@knowledge::linked-note')).toBe(true);
+    // Verify proxy exists in TaskGraph (project-scoped proxy ID)
+    expect(cgTaskGraph.hasNode('@knowledge::test::linked-note')).toBe(true);
 
     // Delete the note
     await cgCall('delete_note', { noteId: 'linked-note' });
 
     // Proxy in TaskGraph should be cleaned up
-    expect(cgTaskGraph.hasNode('@knowledge::linked-note')).toBe(false);
+    expect(cgTaskGraph.hasNode('@knowledge::test::linked-note')).toBe(false);
   });
 
   it('delete_task cleans up proxy in KnowledgeGraph', async () => {
@@ -589,15 +603,16 @@ describe('Cross-graph proxy cleanup on entity deletion', () => {
       toId: 'another-task',
       kind: 'tracks',
       targetGraph: 'tasks',
+      projectId: 'test',
     });
 
-    // Verify proxy exists in KnowledgeGraph
-    expect(cgKnowledgeGraph.hasNode('@tasks::another-task')).toBe(true);
+    // Verify proxy exists in KnowledgeGraph (project-scoped proxy ID)
+    expect(cgKnowledgeGraph.hasNode('@tasks::test::another-task')).toBe(true);
 
     // Delete the task
     await cgCall('delete_task', { taskId: 'another-task' });
 
     // Proxy in KnowledgeGraph should be cleaned up
-    expect(cgKnowledgeGraph.hasNode('@tasks::another-task')).toBe(false);
+    expect(cgKnowledgeGraph.hasNode('@tasks::test::another-task')).toBe(false);
   });
 });

@@ -40,6 +40,10 @@ export async function loadModel(
 
   const pipeOpts: Record<string, unknown> = {};
   if (config.dtype) pipeOpts.dtype = config.dtype;
+  // Use per-session threads (intraOpNumThreads: 1) instead of the global ONNX thread pool.
+  // The global thread pool destructor crashes on macOS (libc++ mutex Invalid argument) during
+  // process exit. With intraOpNumThreads: 1 the global pool is never created.
+  pipeOpts.session_options = { intraOpNumThreads: 1, interOpNumThreads: 1 };
 
   const pipe = await pipeline('feature-extraction', config.model, pipeOpts);
   _pipeCache.set(cacheKey, pipe);

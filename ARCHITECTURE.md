@@ -823,7 +823,7 @@ src/
       file-index/            # 3 MCP file index tools (via FileIndexGraphManager)
       context/               # 1 MCP context tool (get_context — project/workspace discovery)
   tests/
-    *.test.ts                # Jest test suites (26 suites, 1152 tests)
+    *.test.ts                # Jest test suites (26 suites, 1169 tests)
     helpers.ts               # Test utilities (fakeEmbed, setupMcpClient)
     __mocks__/               # Jest mocks for ESM-only packages (chokidar, @xenova/transformers, mime)
     fixtures/                # Test fixtures (markdown, TypeScript)

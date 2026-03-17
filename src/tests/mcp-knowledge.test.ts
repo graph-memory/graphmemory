@@ -236,6 +236,30 @@ describe('knowledge tools', () => {
     expect(kHitsMin[0].id).toBe(note1.noteId);
   });
 
+  it('search_notes: vector-only mode returns results', async () => {
+    const hits = json<KnowledgeHit[]>(await call('search_notes', {
+      query: 'database postgres',
+      topK: 3,
+      bfsDepth: 0,
+      searchMode: 'vector',
+    }));
+    expect(hits.length).toBeGreaterThan(0);
+    expect(hits[0].id).toBe(note2.noteId);
+    expect(hits[0].score).toBeGreaterThan(0.5);
+  });
+
+  it('search_notes: keyword-only mode returns results', async () => {
+    const hits = json<KnowledgeHit[]>(await call('search_notes', {
+      query: 'PostgreSQL persistence',
+      topK: 3,
+      bfsDepth: 0,
+      searchMode: 'keyword',
+      minScore: 0,
+    }));
+    expect(hits.length).toBeGreaterThan(0);
+    expect(hits[0].id).toBe(note2.noteId);
+  });
+
   it('search_notes: unknown query returns empty', async () => {
     const kHitsNone = json<KnowledgeHit[]>(await call('search_notes', { query: 'xyzzy completely unknown xyz', minScore: 0.1 }));
     expect(kHitsNone).toHaveLength(0);

@@ -688,6 +688,103 @@ describe('Cross-graph relations (tasks)', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Persistence round-trip
+// ---------------------------------------------------------------------------
+
+describe('persistence round-trip (tasks)', () => {
+  let tmpDir: string;
+  const fakeEmbed = (_q: string) => Promise.resolve(unitVec(0));
+
+  beforeAll(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'task-roundtrip-'));
+  });
+
+  afterAll(() => {
+    if (fs.existsSync(tmpDir)) fs.rmSync(tmpDir, { recursive: true });
+  });
+
+  it('save → load → Manager preserves items, relations, proxies, and BM25', async () => {
+    // 1. Build a graph with tasks, relations, and a cross-graph proxy
+    const g = createTaskGraph();
+    const t1 = createTask(g, 'Fix Auth Redirect', 'Login redirect is broken', 'todo', 'high', ['bug', 'auth'], unitVec(0));
+    const t2 = createTask(g, 'Add File Search', 'Implement file search feature', 'backlog', 'medium', ['feature'], unitVec(1), 1700000000000, 4);
+    const t3 = createTask(g, 'Refactor Config', 'Clean up config loading', 'in_progress', 'low', ['refactor'], unitVec(2));
+    createTaskRelation(g, t1, t2, 'blocks');
+    createTaskRelation(g, t3, t1, 'subtask_of');
+
+    // Cross-graph proxy (skip external graph validation)
+    createCrossRelation(g, t1, 'docs', 'guide.md::Setup', 'references');
+
+    // 2. Save
+    saveTaskGraph(g, tmpDir);
+
+    // 3. Load into fresh graph
+    const loaded = loadTaskGraph(tmpDir);
+
+    // 4. Create a new Manager from the loaded graph
+    const ctx: GraphManagerContext = {
+      markDirty: jest.fn(),
+      emit: jest.fn(),
+      projectId: 'test',
+      author: '',
+    };
+    const manager = new TaskGraphManager(loaded, fakeEmbed, ctx, {});
+
+    // 5. Verify: list returns all items (3 tasks, no proxies)
+    const tasks = listTasks(loaded);
+    expect(tasks).toHaveLength(3);
+    expect(tasks.map(t => t.id).sort()).toEqual([t1, t2, t3].sort());
+
+    // Verify task attributes survived
+    expect(loaded.getNodeAttribute(t1, 'title')).toBe('Fix Auth Redirect');
+    expect(loaded.getNodeAttribute(t1, 'status')).toBe('todo');
+    expect(loaded.getNodeAttribute(t1, 'priority')).toBe('high');
+    expect(loaded.getNodeAttribute(t1, 'tags')).toEqual(['bug', 'auth']);
+    expect(loaded.getNodeAttribute(t1, 'embedding')).toHaveLength(DIM);
+    expect(loaded.getNodeAttribute(t2, 'dueDate')).toBe(1700000000000);
+    expect(loaded.getNodeAttribute(t2, 'estimate')).toBe(4);
+
+    // Verify task-to-task relations preserved
+    expect(loaded.hasEdge(t1, t2)).toBe(true);
+    expect(loaded.getEdgeAttribute(loaded.edge(t1, t2)!, 'kind')).toBe('blocks');
+    expect(loaded.hasEdge(t3, t1)).toBe(true);
+    expect(loaded.getEdgeAttribute(loaded.edge(t3, t1)!, 'kind')).toBe('subtask_of');
+
+    // Verify cross-graph proxy
+    const rels = listTaskRelations(loaded, t1);
+    const crossRel = rels.find(r => r.targetGraph === 'docs');
+    expect(crossRel).toBeDefined();
+    expect(crossRel!.toId).toBe('guide.md::Setup');
+    expect(crossRel!.kind).toBe('references');
+
+    expect(loaded.hasNode('@docs::guide.md::Setup')).toBe(true);
+    expect(isProxy(loaded, '@docs::guide.md::Setup')).toBe(true);
+
+    // Verify getTask enrichment still works
+    const enriched = getTask(loaded, t1)!;
+    expect(enriched.blocks).toHaveLength(1);
+    expect(enriched.blocks[0].id).toBe(t2);
+
+    // Verify BM25 index was rebuilt
+    const bm25Scores = manager.bm25Index.score('auth redirect');
+    expect(bm25Scores.size).toBeGreaterThan(0);
+    expect(bm25Scores.has(t1)).toBe(true);
+    expect(manager.bm25Index.size).toBe(3);
+
+    // Verify vector search still works
+    const vectorHits = searchTasks(loaded, unitVec(0), { topK: 1, bfsDepth: 0, minScore: 0.5 });
+    expect(vectorHits).toHaveLength(1);
+    expect(vectorHits[0].id).toBe(t1);
+
+    // Verify a new task can be created via Manager on the loaded graph
+    const t4 = await manager.createTask('New Task', 'Created after load', 'todo', 'medium', ['test']);
+    expect(t4).toBe('new-task');
+    expect(listTasks(loaded)).toHaveLength(4);
+    expect(manager.bm25Index.size).toBe(4);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Attachments (TaskGraphManager)
 // ---------------------------------------------------------------------------
 

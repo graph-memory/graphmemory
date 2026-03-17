@@ -217,7 +217,7 @@ describe('MCP Skill Tools', () => {
 
     // -- search_skills --
 
-    it('search_skills finds by query', async () => {
+    it('search_skills finds by query (vector mode)', async () => {
       const hits = json<SkillSearchHit[]>(await call('search_skills', {
         query: 'endpoint',
         minScore: 0.5,
@@ -226,6 +226,16 @@ describe('MCP Skill Tools', () => {
       expect(hits.length).toBeGreaterThan(0);
       expect(hits[0].id).toBe('add-rest-endpoint');
       expect(hits[0].score).toBeGreaterThan(0.5);
+    });
+
+    it('search_skills finds by query (keyword mode)', async () => {
+      const hits = json<SkillSearchHit[]>(await call('search_skills', {
+        query: 'REST endpoint validation',
+        minScore: 0,
+        searchMode: 'keyword',
+      }));
+      expect(hits.length).toBeGreaterThan(0);
+      expect(hits[0].id).toBe('add-rest-endpoint');
     });
 
     // -- link_skill --

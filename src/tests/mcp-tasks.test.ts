@@ -229,7 +229,7 @@ describe('Task CRUD tools', () => {
 
   // -- search_tasks --
 
-  it('search_tasks finds by query', async () => {
+  it('search_tasks finds by query (vector mode)', async () => {
     const hits = json<TaskSearchHit[]>(await call('search_tasks', {
       query: 'fix auth redirect',
       minScore: 0.5,
@@ -238,6 +238,16 @@ describe('Task CRUD tools', () => {
     expect(hits.length).toBeGreaterThan(0);
     expect(hits[0].id).toBe('fix-auth-redirect');
     expect(hits[0].score).toBeGreaterThan(0.5);
+  });
+
+  it('search_tasks finds by query (keyword mode)', async () => {
+    const hits = json<TaskSearchHit[]>(await call('search_tasks', {
+      query: 'OAuth callback redirect',
+      minScore: 0,
+      searchMode: 'keyword',
+    }));
+    expect(hits.length).toBeGreaterThan(0);
+    expect(hits[0].id).toBe('fix-auth-redirect');
   });
 
   // -- link_task --

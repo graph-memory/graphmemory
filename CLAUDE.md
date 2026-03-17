@@ -31,7 +31,7 @@ npm run cli:dev        # tsx src/cli/index.ts (no build needed)
 
 Run tests with Jest:
 ```bash
-npm test                               # run all tests (1152 tests across 26 suites)
+npm test                               # run all tests (1169 tests across 26 suites)
 npm test -- --testPathPatterns=search   # run a specific test file
 npm run test:watch                     # watch mode
 npx tsx src/tests/embedder.test.ts     # embedding model (loads real model — slow, excluded from Jest)
@@ -152,7 +152,7 @@ src/
       skills/        # create-skill.ts, update-skill.ts, delete-skill.ts, get-skill.ts, list-skills.ts, search-skills.ts, link-skill.ts, create-skill-link.ts, delete-skill-link.ts, find-linked-skills.ts, add-attachment.ts, remove-attachment.ts, recall-skills.ts, bump-skill-usage.ts
       context/       # get-context.ts
   tests/
-    *.test.ts        # Jest test suites (1152 tests across 26 suites)
+    *.test.ts        # Jest test suites (1169 tests across 26 suites)
     helpers.ts       # shared test utilities (unitVec, fakeEmbed, setupMcpClient, text/json)
     __mocks__/       # Jest mocks for ESM-only packages (chokidar, @xenova/transformers, mime)
     fixtures/

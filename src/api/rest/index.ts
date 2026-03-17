@@ -104,6 +104,9 @@ export function createRestApp(projectManager: ProjectManager): express.Express {
     if (err.name === 'ZodError') {
       return res.status(400).json({ error: 'Validation error', details: err.issues });
     }
+    if (err.type === 'entity.parse.failed' || (err instanceof SyntaxError && 'body' in err)) {
+      return res.status(400).json({ error: 'Invalid JSON' });
+    }
     process.stderr.write(`[rest] Error: ${err.stack || err}\n`);
     res.status(500).json({ error: 'Internal server error' });
   });

@@ -706,6 +706,113 @@ describe('Cross-graph relations (skills)', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Persistence round-trip
+// ---------------------------------------------------------------------------
+
+describe('persistence round-trip (skills)', () => {
+  let tmpDir: string;
+  const fakeEmbed = (_q: string) => Promise.resolve(unitVec(0));
+
+  beforeAll(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-roundtrip-'));
+  });
+
+  afterAll(() => {
+    if (fs.existsSync(tmpDir)) fs.rmSync(tmpDir, { recursive: true });
+  });
+
+  it('save → load → Manager preserves items, relations, proxies, and BM25', async () => {
+    // 1. Build a graph with skills, relations, and a cross-graph proxy
+    const g = createSkillGraph();
+    const s1 = createSkill(g, 'Add REST Endpoint', 'How to add a new REST endpoint', ['Create route', 'Add schema'], ['add endpoint', 'new route'], ['endpoint name'], ['src/api/rest/*.ts'], ['api', 'rest'], 'user', 1, unitVec(0));
+    const s2 = createSkill(g, 'Debug Auth Issues', 'How to debug authentication', ['Check JWT', 'Verify tokens'], ['debug auth'], [], [], ['auth', 'debug'], 'learned', 0.8, unitVec(1));
+    const s3 = createSkill(g, 'Run Tests', 'How to run the test suite', ['npm test'], ['run tests'], [], [], ['testing'], 'user', 1, unitVec(2));
+
+    // Bump usage on s1 to verify usageCount survives
+    bumpUsage(g, s1);
+    bumpUsage(g, s1);
+
+    createSkillRelation(g, s1, s2, 'related_to');
+    createSkillRelation(g, s2, s3, 'depends_on');
+
+    // Cross-graph proxy (skip external graph validation)
+    createCrossRelation(g, s1, 'docs', 'guide.md::Setup', 'references');
+
+    // 2. Save
+    saveSkillGraph(g, tmpDir);
+
+    // 3. Load into fresh graph
+    const loaded = loadSkillGraph(tmpDir);
+
+    // 4. Create a new Manager from the loaded graph
+    const ctx: GraphManagerContext = {
+      markDirty: jest.fn(),
+      emit: jest.fn(),
+      projectId: 'test',
+      author: '',
+    };
+    const manager = new SkillGraphManager(loaded, fakeEmbed, ctx, {});
+
+    // 5. Verify: list returns all items (3 skills, no proxies)
+    const skills = listSkills(loaded);
+    expect(skills).toHaveLength(3);
+    expect(skills.map(s => s.id).sort()).toEqual([s1, s2, s3].sort());
+
+    // Verify skill attributes survived
+    expect(loaded.getNodeAttribute(s1, 'title')).toBe('Add REST Endpoint');
+    expect(loaded.getNodeAttribute(s1, 'steps')).toEqual(['Create route', 'Add schema']);
+    expect(loaded.getNodeAttribute(s1, 'triggers')).toEqual(['add endpoint', 'new route']);
+    expect(loaded.getNodeAttribute(s1, 'inputHints')).toEqual(['endpoint name']);
+    expect(loaded.getNodeAttribute(s1, 'filePatterns')).toEqual(['src/api/rest/*.ts']);
+    expect(loaded.getNodeAttribute(s1, 'source')).toBe('user');
+    expect(loaded.getNodeAttribute(s1, 'confidence')).toBe(1);
+    expect(loaded.getNodeAttribute(s1, 'usageCount')).toBe(2);
+    expect(loaded.getNodeAttribute(s1, 'lastUsedAt')).toBeGreaterThan(0);
+    expect(loaded.getNodeAttribute(s1, 'embedding')).toHaveLength(DIM);
+    expect(loaded.getNodeAttribute(s2, 'source')).toBe('learned');
+    expect(loaded.getNodeAttribute(s2, 'confidence')).toBe(0.8);
+
+    // Verify skill-to-skill relations preserved
+    expect(loaded.hasEdge(s1, s2)).toBe(true);
+    expect(loaded.getEdgeAttribute(loaded.edge(s1, s2)!, 'kind')).toBe('related_to');
+    expect(loaded.hasEdge(s2, s3)).toBe(true);
+    expect(loaded.getEdgeAttribute(loaded.edge(s2, s3)!, 'kind')).toBe('depends_on');
+
+    // Verify cross-graph proxy
+    const rels = listSkillRelations(loaded, s1);
+    const crossRel = rels.find(r => r.targetGraph === 'docs');
+    expect(crossRel).toBeDefined();
+    expect(crossRel!.toId).toBe('guide.md::Setup');
+    expect(crossRel!.kind).toBe('references');
+
+    expect(loaded.hasNode('@docs::guide.md::Setup')).toBe(true);
+    expect(isProxy(loaded, '@docs::guide.md::Setup')).toBe(true);
+
+    // Verify getSkill enrichment still works
+    const enriched = getSkill(loaded, s1)!;
+    expect(enriched.related).toHaveLength(1);
+    expect(enriched.related[0].id).toBe(s2);
+
+    // Verify BM25 index was rebuilt (search by keyword works)
+    const bm25Scores = manager.bm25Index.score('REST endpoint');
+    expect(bm25Scores.size).toBeGreaterThan(0);
+    expect(bm25Scores.has(s1)).toBe(true);
+    expect(manager.bm25Index.size).toBe(3);
+
+    // Verify vector search still works
+    const vectorHits = searchSkills(loaded, unitVec(0), { topK: 1, bfsDepth: 0, minScore: 0.5 });
+    expect(vectorHits).toHaveLength(1);
+    expect(vectorHits[0].id).toBe(s1);
+
+    // Verify a new skill can be created via Manager on the loaded graph
+    const s4 = await manager.createSkill('New Skill', 'Created after load', ['Step 1'], ['trigger'], [], [], ['test']);
+    expect(s4).toBe('new-skill');
+    expect(listSkills(loaded)).toHaveLength(4);
+    expect(manager.bm25Index.size).toBe(4);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Attachments (SkillGraphManager)
 // ---------------------------------------------------------------------------
 

@@ -727,6 +727,100 @@ describe('Cross-graph relations', () => {
 // Attachments
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Persistence round-trip
+// ---------------------------------------------------------------------------
+
+describe('persistence round-trip (knowledge)', () => {
+  let tmpDir: string;
+  const fakeEmbed = (_q: string) => Promise.resolve(unitVec(0));
+
+  beforeAll(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kg-roundtrip-'));
+  });
+
+  afterAll(() => {
+    if (fs.existsSync(tmpDir)) fs.rmSync(tmpDir, { recursive: true });
+  });
+
+  it('save → load → Manager preserves items, relations, proxies, and BM25', async () => {
+    // 1. Build a graph with notes, relations, and a cross-graph proxy
+    const g = createKnowledgeGraph();
+    const n1 = createNote(g, 'Auth JWT', 'JWT authentication system', ['auth', 'security'], unitVec(0));
+    const n2 = createNote(g, 'Database Setup', 'PostgreSQL 15 config', ['infra'], unitVec(1));
+    const n3 = createNote(g, 'Rate Limiting', 'API rate-limit rules', ['api'], unitVec(2));
+    createRelation(g, n1, n2, 'depends_on');
+    createRelation(g, n2, n3, 'relates_to');
+
+    // Cross-graph proxy (skip external graph validation)
+    createCrossRelation(g, n1, 'docs', 'guide.md::Setup', 'references');
+
+    // 2. Save
+    saveKnowledgeGraph(g, tmpDir);
+
+    // 3. Load into fresh graph
+    const loaded = loadKnowledgeGraph(tmpDir);
+
+    // 4. Create a new Manager from the loaded graph
+    const ctx: GraphManagerContext = {
+      markDirty: jest.fn(),
+      emit: jest.fn(),
+      projectId: 'test',
+      author: '',
+    };
+    const manager = new KnowledgeGraphManager(loaded, fakeEmbed, ctx, {});
+
+    // 5. Verify: list returns all items (3 notes, no proxies)
+    const notes = listNotes(loaded);
+    expect(notes).toHaveLength(3);
+    expect(notes.map(n => n.id).sort()).toEqual([n1, n2, n3].sort());
+
+    // Verify note attributes survived
+    expect(loaded.getNodeAttribute(n1, 'title')).toBe('Auth JWT');
+    expect(loaded.getNodeAttribute(n1, 'tags')).toEqual(['auth', 'security']);
+    expect(loaded.getNodeAttribute(n1, 'embedding')).toHaveLength(DIM);
+    expect(loaded.getNodeAttribute(n2, 'content')).toBe('PostgreSQL 15 config');
+
+    // Verify relations preserved
+    const rels = listRelations(loaded, n1);
+    expect(rels).toHaveLength(2); // depends_on to n2 + references to proxy
+    const noteRel = rels.find(r => r.toId === n2);
+    expect(noteRel).toBeDefined();
+    expect(noteRel!.kind).toBe('depends_on');
+
+    const crossRel = rels.find(r => r.targetGraph === 'docs');
+    expect(crossRel).toBeDefined();
+    expect(crossRel!.toId).toBe('guide.md::Setup');
+    expect(crossRel!.kind).toBe('references');
+
+    // Verify proxy node survived
+    expect(loaded.hasNode('@docs::guide.md::Setup')).toBe(true);
+    expect(isProxy(loaded, '@docs::guide.md::Setup')).toBe(true);
+
+    // Verify n2→n3 relation
+    expect(loaded.hasEdge(n2, n3)).toBe(true);
+
+    // Verify BM25 index was rebuilt (search by keyword works)
+    const bm25Scores = manager.bm25Index.score('JWT authentication');
+    expect(bm25Scores.size).toBeGreaterThan(0);
+    expect(bm25Scores.has(n1)).toBe(true);
+
+    // Verify BM25 has correct document count (3 notes, not proxy)
+    expect(manager.bm25Index.size).toBe(3);
+
+    // Verify vector search still works
+    const vectorHits = searchKnowledge(loaded, unitVec(0), { topK: 1, bfsDepth: 0, minScore: 0.5 });
+    expect(vectorHits).toHaveLength(1);
+    expect(vectorHits[0].id).toBe(n1);
+
+    // Verify a new note can be created via Manager on the loaded graph
+    const n4 = await manager.createNote('New Note', 'Created after load', ['test']);
+    expect(n4).toBe('new-note');
+    expect(listNotes(loaded)).toHaveLength(4);
+    expect(manager.bm25Index.size).toBe(4);
+  });
+});
+
 describe('Attachments (KnowledgeGraphManager)', () => {
   let tmpDir: string;
   let manager: KnowledgeGraphManager;

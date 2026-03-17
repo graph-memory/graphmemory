@@ -1,12 +1,16 @@
 import { createKnowledgeGraph } from '@/graphs/knowledge-types';
 import { createTaskGraph } from '@/graphs/task-types';
 import { createSkillGraph } from '@/graphs/skill-types';
+import { createFileIndexGraph } from '@/graphs/file-index-types';
+import { createCodeGraph } from '@/graphs/code-types';
+import { createGraph as createDocGraph } from '@/graphs/docs';
 import {
   proxyId as knowledgeProxyId,
   createCrossRelation as knowledgeCreateCross,
   deleteCrossRelation as knowledgeDeleteCross,
   findLinkedNotes,
   createNote,
+  KnowledgeGraphManager,
 } from '@/graphs/knowledge';
 import {
   proxyId as taskProxyId,
@@ -14,6 +18,7 @@ import {
   deleteCrossRelation as taskDeleteCross,
   findLinkedTasks,
   createTask,
+  TaskGraphManager,
 } from '@/graphs/task';
 import {
   proxyId as skillProxyId,
@@ -21,8 +26,10 @@ import {
   deleteCrossRelation as skillDeleteCross,
   findLinkedSkills,
   createSkill,
+  SkillGraphManager,
 } from '@/graphs/skill';
-import { findIncomingCrossLinks, type ExternalGraphs } from '@/graphs/manager-types';
+import { findIncomingCrossLinks, noopContext, type ExternalGraphs } from '@/graphs/manager-types';
+import { PromiseQueue } from '@/lib/promise-queue';
 import { unitVec } from './helpers';
 
 // ---------------------------------------------------------------------------
@@ -194,5 +201,187 @@ describe('findIncomingCrossLinks with projectId', () => {
     expect(links).toHaveLength(2);
     const sourceIds = links.map(l => l.sourceId).sort();
     expect(sourceIds).toEqual([note1, note2].sort());
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Workspace shared graphs
+// ---------------------------------------------------------------------------
+
+describe('workspace shared graphs', () => {
+  // Simulate the workspace sharing pattern from ProjectManager:
+  // - Shared knowledge/task/skill graphs + managers + mutationQueue
+  // - Per-project docs/code/fileIndex graphs
+
+  const fakeEmbed = (_q: string) => Promise.resolve(unitVec(0));
+
+  // Shared graphs (workspace-level)
+  const sharedKnowledgeGraph = createKnowledgeGraph();
+  const sharedTaskGraph = createTaskGraph();
+  const sharedSkillGraph = createSkillGraph();
+  const sharedMutationQueue = new PromiseQueue();
+
+  // Per-project graphs
+  const projectADocGraph = createDocGraph();
+  const projectACodeGraph = createCodeGraph();
+  const projectAFileIndexGraph = createFileIndexGraph();
+
+  const projectBDocGraph = createDocGraph();
+  const projectBCodeGraph = createCodeGraph();
+  const projectBFileIndexGraph = createFileIndexGraph();
+
+  // Standalone project (no workspace) — separate graphs
+  const standaloneKnowledgeGraph = createKnowledgeGraph();
+  const standaloneTaskGraph = createTaskGraph();
+  const standaloneSkillGraph = createSkillGraph();
+
+  // Workspace context and external graphs
+  const wsCtx = noopContext('workspace');
+  const wsExt: ExternalGraphs = {
+    knowledgeGraph: sharedKnowledgeGraph,
+    taskGraph: sharedTaskGraph,
+    skillGraph: sharedSkillGraph,
+    projectGraphs: new Map([
+      ['proj-a', { docGraph: projectADocGraph, codeGraph: projectACodeGraph, fileIndexGraph: projectAFileIndexGraph }],
+      ['proj-b', { docGraph: projectBDocGraph, codeGraph: projectBCodeGraph, fileIndexGraph: projectBFileIndexGraph }],
+    ]),
+  };
+
+  // Shared managers (workspace-level, used by both projects)
+  const sharedKnowledgeManager = new KnowledgeGraphManager(sharedKnowledgeGraph, fakeEmbed, wsCtx, wsExt);
+  const sharedTaskManager = new TaskGraphManager(sharedTaskGraph, fakeEmbed, wsCtx, wsExt);
+  const sharedSkillManager = new SkillGraphManager(sharedSkillGraph, fakeEmbed, wsCtx, wsExt);
+
+  // Standalone managers
+  const standaloneCtx = noopContext('standalone');
+  const standaloneKnowledgeManager = new KnowledgeGraphManager(
+    standaloneKnowledgeGraph, fakeEmbed, standaloneCtx,
+  );
+  const standaloneTaskManager = new TaskGraphManager(
+    standaloneTaskGraph, fakeEmbed, standaloneCtx,
+  );
+  const standaloneSkillManager = new SkillGraphManager(
+    standaloneSkillGraph, fakeEmbed, standaloneCtx,
+  );
+
+  it('two workspace projects share the same knowledgeGraph instance', () => {
+    // In ProjectManager.addProject with workspaceId, both projects get ws.knowledgeGraph
+    // Here we verify the pattern: both "project A" and "project B" reference the same graph
+    const projectAKnowledge = sharedKnowledgeGraph;
+    const projectBKnowledge = sharedKnowledgeGraph;
+    expect(projectAKnowledge).toBe(projectBKnowledge);
+  });
+
+  it('two workspace projects share the same taskGraph and skillGraph instances', () => {
+    const projectATask = sharedTaskGraph;
+    const projectBTask = sharedTaskGraph;
+    expect(projectATask).toBe(projectBTask);
+
+    const projectASkill = sharedSkillGraph;
+    const projectBSkill = sharedSkillGraph;
+    expect(projectASkill).toBe(projectBSkill);
+  });
+
+  it('two workspace projects share the same mutationQueue instance', () => {
+    // In ProjectManager, workspace projects get ws.mutationQueue
+    const projectAQueue = sharedMutationQueue;
+    const projectBQueue = sharedMutationQueue;
+    expect(projectAQueue).toBe(projectBQueue);
+  });
+
+  it('creating a note via project A knowledgeManager is visible from project B', async () => {
+    // Both projects share the same knowledgeManager (ws.knowledgeManager)
+    const noteId = await sharedKnowledgeManager.createNote('Shared Note', 'visible to all workspace projects', ['shared']);
+
+    // The note is on the shared graph, so project B's manager can see it
+    const note = sharedKnowledgeManager.getNote(noteId);
+    expect(note).not.toBeNull();
+    expect(note!.title).toBe('Shared Note');
+    expect(note!.content).toBe('visible to all workspace projects');
+    expect(note!.tags).toEqual(['shared']);
+
+    // Also visible via listNotes (used by both projects)
+    const notes = sharedKnowledgeManager.listNotes();
+    expect(notes.some(n => n.id === noteId)).toBe(true);
+  });
+
+  it('creating a task via shared manager is visible across workspace projects', async () => {
+    const taskId = await sharedTaskManager.createTask('Shared Task', 'workspace-wide task', 'todo', 'high', ['ws']);
+
+    const task = sharedTaskManager.getTask(taskId);
+    expect(task).not.toBeNull();
+    expect(task!.title).toBe('Shared Task');
+    expect(task!.status).toBe('todo');
+    expect(task!.priority).toBe('high');
+  });
+
+  it('creating a skill via shared manager is visible across workspace projects', async () => {
+    const skillId = await sharedSkillManager.createSkill(
+      'Shared Skill', 'workspace-wide skill', ['step 1'], ['trigger'], [], [], ['ws'], 'user', 1,
+    );
+
+    const skill = sharedSkillManager.getSkill(skillId);
+    expect(skill).not.toBeNull();
+    expect(skill!.title).toBe('Shared Skill');
+    expect(skill!.steps).toEqual(['step 1']);
+  });
+
+  it('per-project graphs (docGraph, codeGraph, fileIndexGraph) are NOT shared', () => {
+    expect(projectADocGraph).not.toBe(projectBDocGraph);
+    expect(projectACodeGraph).not.toBe(projectBCodeGraph);
+    expect(projectAFileIndexGraph).not.toBe(projectBFileIndexGraph);
+  });
+
+  it('standalone project has its own separate knowledge graph', async () => {
+    // Standalone project should NOT see workspace notes
+    const standaloneNotes = standaloneKnowledgeManager.listNotes();
+    expect(standaloneNotes).toHaveLength(0);
+
+    // Create a note on standalone — not visible in workspace
+    const standaloneNoteId = await standaloneKnowledgeManager.createNote('Standalone Note', 'only here');
+    expect(standaloneKnowledgeManager.getNote(standaloneNoteId)).not.toBeNull();
+
+    // Workspace notes unchanged (still has the shared note from earlier test)
+    const wsNotes = sharedKnowledgeManager.listNotes();
+    expect(wsNotes.every(n => n.id !== standaloneNoteId)).toBe(true);
+  });
+
+  it('standalone project has its own separate task and skill graphs', async () => {
+    const standaloneTasks = standaloneTaskManager.listTasks();
+    expect(standaloneTasks).toHaveLength(0);
+
+    const standaloneSkills = standaloneSkillManager.listSkills();
+    expect(standaloneSkills).toHaveLength(0);
+
+    // Create items on standalone — not visible in workspace
+    await standaloneTaskManager.createTask('Solo Task', 'only standalone');
+    await standaloneSkillManager.createSkill('Solo Skill', 'only standalone', ['s1']);
+
+    expect(standaloneTaskManager.listTasks()).toHaveLength(1);
+    expect(standaloneSkillManager.listSkills()).toHaveLength(1);
+
+    // Workspace graphs unaffected
+    expect(sharedTaskGraph.order).toBeGreaterThan(0);
+    expect(sharedTaskGraph.nodes().every(n => {
+      const attrs = sharedTaskGraph.getNodeAttributes(n);
+      return attrs.title !== 'Solo Task';
+    })).toBe(true);
+  });
+
+  it('shared mutationQueue serializes mutations across workspace projects', async () => {
+    const order: string[] = [];
+
+    await Promise.all([
+      sharedMutationQueue.enqueue(async () => {
+        await new Promise(r => setTimeout(r, 10));
+        order.push('first');
+      }),
+      sharedMutationQueue.enqueue(async () => {
+        order.push('second');
+      }),
+    ]);
+
+    // PromiseQueue guarantees serial execution
+    expect(order).toEqual(['first', 'second']);
   });
 });

@@ -367,6 +367,86 @@ describe('REST API', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Validation & error handling
+// ---------------------------------------------------------------------------
+
+describe('Validation & error handling', () => {
+  let app: express.Express;
+
+  beforeEach(() => {
+    const project = createTestProject();
+    const manager = createTestManager(project);
+    app = createRestApp(manager);
+  });
+
+  it('rejects note with title exceeding max length', async () => {
+    const res = await request(app)
+      .post('/api/projects/test/knowledge/notes')
+      .send({ title: 'x'.repeat(501), content: 'Valid content' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/[Vv]alidation/);
+  });
+
+  it('rejects note with too many tags', async () => {
+    const tags = Array.from({ length: 101 }, (_, i) => `tag-${i}`);
+    const res = await request(app)
+      .post('/api/projects/test/knowledge/notes')
+      .send({ title: 'Valid Title', content: 'Content', tags });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/[Vv]alidation/);
+  });
+
+  it('rejects search with topK exceeding limit', async () => {
+    const res = await request(app)
+      .get('/api/projects/test/knowledge/search?q=test&topK=501');
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/[Vv]alidation/);
+  });
+
+  it('rejects search with invalid searchMode', async () => {
+    const res = await request(app)
+      .get('/api/projects/test/knowledge/search?q=test&searchMode=bogus');
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/[Vv]alidation/);
+  });
+
+  it('returns 404 for non-existent project', async () => {
+    const res = await request(app)
+      .get('/api/projects/no-such-project/knowledge/notes');
+    expect(res.status).toBe(404);
+    expect(res.body.error).toMatch(/not found/i);
+  });
+
+  it('returns 404 for non-existent note', async () => {
+    const res = await request(app)
+      .get('/api/projects/test/knowledge/notes/does-not-exist');
+    expect(res.status).toBe(404);
+  });
+
+  it('returns 400 for invalid JSON', async () => {
+    const res = await request(app)
+      .post('/api/projects/test/knowledge/notes')
+      .set('Content-Type', 'application/json')
+      .send('{ not valid json }');
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects path traversal in file info', async () => {
+    const res = await request(app)
+      .get('/api/projects/test/files/info?path=../../etc/passwd');
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/[Ii]nvalid path/);
+  });
+
+  it('rejects linked query with invalid targetGraph', async () => {
+    const res = await request(app)
+      .get('/api/projects/test/knowledge/linked?targetGraph=invalid&targetNodeId=foo');
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/[Vv]alidation/);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Attachment REST endpoints (require real temp dir for file I/O)
 // ---------------------------------------------------------------------------
 

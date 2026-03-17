@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import {
-  Box, Button, TextField, FormControl, InputLabel, Select, MenuItem,
-  CircularProgress, Typography,
+  Box, Button, TextField, Select, MenuItem,
+  CircularProgress,
 } from '@mui/material';
-import { Section, FormGrid, FormField, Tags, MarkdownEditor } from '@/shared/ui/index.ts';
+import { Section, FormGrid, FormField, FieldLabel, Tags, MarkdownEditor } from '@/shared/ui/index.ts';
 import { COLUMNS, type Task, type TaskStatus, type TaskPriority } from '@/entities/task/index.ts';
 
 interface TaskFormProps {
@@ -62,10 +62,10 @@ export function TaskForm({ task, onSubmit, onCancel, submitLabel = 'Save' }: Tas
       <Section title="Details">
         <FormGrid>
           <FormField fullWidth>
+            <FieldLabel required>Title</FieldLabel>
             <TextField
               autoFocus
               fullWidth
-              label="Title"
               value={title}
               onChange={e => { setTitle(e.target.value); setTitleError(false); }}
               error={titleError}
@@ -73,7 +73,7 @@ export function TaskForm({ task, onSubmit, onCancel, submitLabel = 'Save' }: Tas
             />
           </FormField>
           <FormField fullWidth>
-            <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>Description</Typography>
+            <FieldLabel>Description</FieldLabel>
             <MarkdownEditor value={description} onChange={setDescription} height={250} />
           </FormField>
         </FormGrid>
@@ -82,38 +82,33 @@ export function TaskForm({ task, onSubmit, onCancel, submitLabel = 'Save' }: Tas
       <Section title="Properties">
         <FormGrid>
           <FormField>
-            <FormControl fullWidth>
-              <InputLabel>Status</InputLabel>
-              <Select value={status} label="Status" onChange={e => setStatus(e.target.value as TaskStatus)}>
-                {COLUMNS.map(c => <MenuItem key={c.status} value={c.status}>{c.label}</MenuItem>)}
-              </Select>
-            </FormControl>
+            <FieldLabel>Status</FieldLabel>
+            <Select fullWidth value={status} onChange={e => setStatus(e.target.value as TaskStatus)}>
+              {COLUMNS.map(c => <MenuItem key={c.status} value={c.status}>{c.label}</MenuItem>)}
+            </Select>
           </FormField>
           <FormField>
-            <FormControl fullWidth>
-              <InputLabel>Priority</InputLabel>
-              <Select value={priority} label="Priority" onChange={e => setPriority(e.target.value as TaskPriority)}>
-                <MenuItem value="critical">Critical</MenuItem>
-                <MenuItem value="high">High</MenuItem>
-                <MenuItem value="medium">Medium</MenuItem>
-                <MenuItem value="low">Low</MenuItem>
-              </Select>
-            </FormControl>
+            <FieldLabel>Priority</FieldLabel>
+            <Select fullWidth value={priority} onChange={e => setPriority(e.target.value as TaskPriority)}>
+              <MenuItem value="critical">Critical</MenuItem>
+              <MenuItem value="high">High</MenuItem>
+              <MenuItem value="medium">Medium</MenuItem>
+              <MenuItem value="low">Low</MenuItem>
+            </Select>
           </FormField>
           <FormField>
+            <FieldLabel>Due Date</FieldLabel>
             <TextField
               fullWidth
-              label="Due Date"
               type="date"
               value={dueDate}
               onChange={e => setDueDate(e.target.value)}
-              slotProps={{ inputLabel: { shrink: true } }}
             />
           </FormField>
           <FormField>
+            <FieldLabel>Estimate (hours)</FieldLabel>
             <TextField
               fullWidth
-              label="Estimate (hours)"
               type="number"
               value={estimate}
               onChange={e => setEstimate(e.target.value)}

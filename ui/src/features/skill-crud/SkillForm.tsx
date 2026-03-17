@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import {
-  Box, Button, TextField, FormControl, InputLabel, Select, MenuItem,
-  CircularProgress, Typography, IconButton, Slider,
+  Box, Button, TextField, Select, MenuItem, Typography,
+  CircularProgress, IconButton, Slider,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
-import { Section, FormGrid, FormField, Tags, MarkdownEditor } from '@/shared/ui/index.ts';
+import { Section, FormGrid, FormField, FieldLabel, Tags, MarkdownEditor } from '@/shared/ui/index.ts';
 import type { Skill } from '@/entities/skill/index.ts';
 
 interface SkillFormProps {
@@ -92,10 +92,10 @@ export function SkillForm({ skill, onSubmit, onCancel, submitLabel = 'Save' }: S
       <Section title="Details">
         <FormGrid>
           <FormField fullWidth>
+            <FieldLabel required>Title</FieldLabel>
             <TextField
               autoFocus
               fullWidth
-              label="Title"
               value={title}
               onChange={e => { setTitle(e.target.value); setTitleError(false); }}
               error={titleError}
@@ -103,7 +103,7 @@ export function SkillForm({ skill, onSubmit, onCancel, submitLabel = 'Save' }: S
             />
           </FormField>
           <FormField fullWidth>
-            <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>Description</Typography>
+            <FieldLabel>Description</FieldLabel>
             <MarkdownEditor value={description} onChange={setDescription} height={200} />
           </FormField>
         </FormGrid>
@@ -139,7 +139,7 @@ export function SkillForm({ skill, onSubmit, onCancel, submitLabel = 'Save' }: S
       <Section title="Matching">
         <FormGrid>
           <FormField fullWidth>
-            <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>Triggers</Typography>
+            <FieldLabel>Triggers</FieldLabel>
             <Tags
               tags={triggers}
               editable
@@ -148,7 +148,7 @@ export function SkillForm({ skill, onSubmit, onCancel, submitLabel = 'Save' }: S
             />
           </FormField>
           <FormField fullWidth>
-            <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>Input Hints</Typography>
+            <FieldLabel>Input Hints</FieldLabel>
             <Tags
               tags={inputHints}
               editable
@@ -157,7 +157,7 @@ export function SkillForm({ skill, onSubmit, onCancel, submitLabel = 'Save' }: S
             />
           </FormField>
           <FormField fullWidth>
-            <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>File Patterns</Typography>
+            <FieldLabel>File Patterns</FieldLabel>
             <Tags
               tags={filePatterns}
               editable
@@ -171,19 +171,15 @@ export function SkillForm({ skill, onSubmit, onCancel, submitLabel = 'Save' }: S
       <Section title="Properties">
         <FormGrid>
           <FormField>
-            <FormControl fullWidth>
-              <InputLabel>Source</InputLabel>
-              <Select value={source} label="Source" onChange={e => setSource(e.target.value as 'user' | 'learned')}>
-                <MenuItem value="user">User</MenuItem>
-                <MenuItem value="learned">Learned</MenuItem>
-              </Select>
-            </FormControl>
+            <FieldLabel>Source</FieldLabel>
+            <Select fullWidth value={source} onChange={e => setSource(e.target.value as 'user' | 'learned')}>
+              <MenuItem value="user">User</MenuItem>
+              <MenuItem value="learned">Learned</MenuItem>
+            </Select>
           </FormField>
           <FormField>
             <Box sx={{ px: 1 }}>
-              <Typography variant="caption" color="text.secondary" gutterBottom>
-                Confidence: {Math.round(confidence * 100)}%
-              </Typography>
+              <FieldLabel>Confidence: {Math.round(confidence * 100)}%</FieldLabel>
               <Slider
                 value={confidence}
                 onChange={(_e, v) => setConfidence(v as number)}

@@ -186,6 +186,19 @@ export const lightTheme = createTheme({
   },
   typography,
   components: {
+    MuiInputLabel: {
+      styleOverrides: {
+        root: {
+          fontSize: '0.8125rem',
+          textTransform: 'uppercase' as const,
+          letterSpacing: '0.04em',
+          fontWeight: 500,
+          '&.MuiInputLabel-shrink': {
+            transform: 'translate(14px, -9px) scale(0.85)',
+          },
+        },
+      },
+    },
     MuiDrawer: {
       styleOverrides: {
         paper: {

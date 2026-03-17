@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Box, Button, TextField, CircularProgress, Typography } from '@mui/material';
-import { Section, FormGrid, FormField, Tags, MarkdownEditor } from '@/shared/ui/index.ts';
+import { Box, Button, TextField, CircularProgress } from '@mui/material';
+import { Section, FormGrid, FormField, FieldLabel, Tags, MarkdownEditor } from '@/shared/ui/index.ts';
 import type { Note } from '@/entities/note/index.ts';
 
 interface NoteFormProps {
@@ -43,10 +43,10 @@ export function NoteForm({ note, onSubmit, onCancel, submitLabel = 'Save' }: Not
       <Section title="Details">
         <FormGrid>
           <FormField fullWidth>
+            <FieldLabel required>Title</FieldLabel>
             <TextField
               autoFocus
               fullWidth
-              label="Title"
               value={title}
               onChange={e => { setTitle(e.target.value); setTitleError(false); }}
               error={titleError}
@@ -54,7 +54,7 @@ export function NoteForm({ note, onSubmit, onCancel, submitLabel = 'Save' }: Not
             />
           </FormField>
           <FormField fullWidth>
-            <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>Content</Typography>
+            <FieldLabel>Content</FieldLabel>
             <MarkdownEditor value={content} onChange={setContent} height={300} />
           </FormField>
           <FormField fullWidth>

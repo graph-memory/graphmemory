@@ -3,12 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Typography, TextField, Button, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, useTheme, CircularProgress,
-  Switch, FormControlLabel, Chip, Alert,
+  Switch, Chip, Alert,
 } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import BuildIcon from '@mui/icons-material/Build';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
-import { PageTopBar, Section, StatusBadge, CopyButton, EmptyState } from '@/shared/ui/index.ts';
+import { PageTopBar, Section, StatusBadge, CopyButton, EmptyState, FieldLabel } from '@/shared/ui/index.ts';
 import { getTool, callTool, type ToolInfo, type ToolCallResult, type JsonSchemaProperty } from '@/entities/tool/index.ts';
 import { getArticlesForTool } from '@/content/help/index.ts';
 
@@ -227,24 +227,14 @@ export default function ToolDetailPage() {
               Object.entries(properties).map(([name, prop]) => {
                 if (prop.type === 'boolean') {
                   return (
-                    <FormControlLabel
-                      key={name}
-                      control={
-                        <Switch
-                          checked={args[name] === 'true'}
-                          onChange={(e) => setArgs(prev => ({ ...prev, [name]: String(e.target.checked) }))}
-                          size="small"
-                        />
-                      }
-                      label={
-                        <Typography variant="body2">
-                          <Box component="span" sx={{ fontFamily: 'monospace', fontWeight: 600, mr: 0.5 }}>{name}</Box>
-                          {!required.has(name) && (
-                            <Box component="span" sx={{ color: palette.custom.textMuted }}>(optional)</Box>
-                          )}
-                        </Typography>
-                      }
-                    />
+                    <Box key={name}>
+                      <FieldLabel>{name}</FieldLabel>
+                      <Switch
+                        checked={args[name] === 'true'}
+                        onChange={(e) => setArgs(prev => ({ ...prev, [name]: String(e.target.checked) }))}
+                        size="small"
+                      />
+                    </Box>
                   );
                 }
 
@@ -252,27 +242,27 @@ export default function ToolDetailPage() {
                   (name === 'content' || name === 'description');
 
                 return (
-                  <TextField
-                    key={name}
-                    label={`${name}${required.has(name) ? ' *' : ''}`}
-                    value={args[name] || ''}
-                    onChange={(e) => setArgs(prev => ({ ...prev, [name]: e.target.value }))}
-                    size="small"
-                    fullWidth
-                    multiline={isMultiline}
-                    minRows={isMultiline ? 2 : undefined}
-                    helperText={prop.description}
-                    placeholder={
-                      prop.enum ? prop.enum.join(' | ') :
-                      prop.type === 'array' ? '["item1", "item2"] or item1, item2' :
-                      prop.type === 'number' || prop.type === 'integer' ? '0' :
-                      undefined
-                    }
-                    slotProps={{
-                      inputLabel: { shrink: true },
-                      input: { sx: { fontFamily: 'monospace', fontSize: '0.875rem' } },
-                    }}
-                  />
+                  <Box key={name}>
+                    <FieldLabel required={required.has(name)}>{name}</FieldLabel>
+                    <TextField
+                      value={args[name] || ''}
+                      onChange={(e) => setArgs(prev => ({ ...prev, [name]: e.target.value }))}
+                      size="small"
+                      fullWidth
+                      multiline={isMultiline}
+                      minRows={isMultiline ? 2 : undefined}
+                      helperText={prop.description}
+                      placeholder={
+                        prop.enum ? prop.enum.join(' | ') :
+                        prop.type === 'array' ? '["item1", "item2"] or item1, item2' :
+                        prop.type === 'number' || prop.type === 'integer' ? '0' :
+                        undefined
+                      }
+                      slotProps={{
+                        input: { sx: { fontFamily: 'monospace', fontSize: '0.875rem' } },
+                      }}
+                    />
+                  </Box>
                 );
               })
             )}

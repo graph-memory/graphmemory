@@ -14,6 +14,7 @@ server:
   # sessionTimeout: 1800                        # Idle session timeout (seconds)
   # modelsDir: "~/.graph-memory/models"         # Local model cache directory
   # embeddingModel: "Xenova/all-MiniLM-L6-v2"  # Default embedding model (fallback for all graphs)
+  # author: "Your Name"                         # Default author for notes/tasks/skills (can be overridden per project)
 
 # ---------------------------------------------------------------------------
 # Projects
@@ -40,6 +41,9 @@ projects:
 
     # Per-project embedding model (overrides server.embeddingModel)
     # embeddingModel: "Xenova/all-MiniLM-L6-v2"
+
+    # Per-project author (overrides server.author)
+    # author: "Project Bot"
 
     # Per-graph embedding models (override project embeddingModel)
     # docsModel: "Xenova/all-MiniLM-L6-v2"

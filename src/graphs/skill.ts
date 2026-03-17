@@ -108,6 +108,7 @@ export function createSkill(
   source: SkillSource,
   confidence: number,
   embedding: number[],
+  author = '',
 ): string {
   const id = slugify(title, graph);
   const now = Date.now();
@@ -127,6 +128,8 @@ export function createSkill(
     attachments: [],
     createdAt: now,
     updatedAt: now,
+    createdBy: author || undefined,
+    updatedBy: author || undefined,
   });
   return id;
 }
@@ -147,6 +150,7 @@ export function updateSkill(
     confidence?: number;
   },
   embedding?: number[],
+  author = '',
 ): boolean {
   if (!graph.hasNode(skillId)) return false;
   if (isProxy(graph, skillId)) return false;
@@ -161,6 +165,7 @@ export function updateSkill(
   if (patch.source !== undefined)       graph.setNodeAttribute(skillId, 'source', patch.source);
   if (patch.confidence !== undefined)   graph.setNodeAttribute(skillId, 'confidence', patch.confidence);
   if (embedding !== undefined)          graph.setNodeAttribute(skillId, 'embedding', embedding);
+  if (author)                           graph.setNodeAttribute(skillId, 'updatedBy', author);
 
   graph.setNodeAttribute(skillId, 'updatedAt', Date.now());
   return true;
@@ -760,7 +765,7 @@ export class SkillGraphManager {
     confidence: number = 1,
   ): Promise<string> {
     const embedding = await this.embedFn(`${title} ${description}`);
-    const skillId = createSkill(this._graph, title, description, steps, triggers, inputHints, filePatterns, tags, source, confidence, embedding);
+    const skillId = createSkill(this._graph, title, description, steps, triggers, inputHints, filePatterns, tags, source, confidence, embedding, this.ctx.author);
     this._bm25Index.addDocument(skillId, this._graph.getNodeAttributes(skillId));
     this.ctx.markDirty();
     this.ctx.emit('skill:created', { projectId: this.ctx.projectId, skillId });
@@ -778,7 +783,7 @@ export class SkillGraphManager {
 
     const embedText = `${patch.title ?? existing.title} ${patch.description ?? existing.description}`;
     const embedding = await this.embedFn(embedText);
-    updateSkill(this._graph, skillId, patch, embedding);
+    updateSkill(this._graph, skillId, patch, embedding, this.ctx.author);
     this._bm25Index.updateDocument(skillId, this._graph.getNodeAttributes(skillId));
     this.ctx.markDirty();
     this.ctx.emit('skill:updated', { projectId: this.ctx.projectId, skillId });

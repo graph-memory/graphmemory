@@ -705,6 +705,7 @@ describe('Attachments (TaskGraphManager)', () => {
       emit: () => {},
       projectId: 'test',
       projectDir: tmpDir,
+      author: '',
     };
     manager = new TaskGraphManager(graph, embedFn, ctx, {});
     taskId = await manager.createTask('Test Task', 'A task for attachment tests', 'todo', 'medium', []);

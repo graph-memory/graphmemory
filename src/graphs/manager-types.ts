@@ -13,6 +13,7 @@ export interface GraphManagerContext {
   emit: (event: string, data: unknown) => void;
   projectId: string;
   projectDir?: string;
+  author: string;
 }
 
 /** All graphs available for cross-graph resolution. */
@@ -31,6 +32,7 @@ export function noopContext(projectId = ''): GraphManagerContext {
     markDirty: () => {},
     emit: () => {},
     projectId,
+    author: '',
   };
 }
 

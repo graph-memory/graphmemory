@@ -27,6 +27,7 @@ const projectSchema = z.object({
   taskModel:       z.string().optional(),
   filesModel:      z.string().optional(),
   skillsModel:     z.string().optional(),
+  author:          z.string().optional(),
 });
 
 const serverSchema = z.object({
@@ -35,6 +36,7 @@ const serverSchema = z.object({
   sessionTimeout:  z.number().int().positive().optional(),
   modelsDir:       z.string().optional(),
   embeddingModel:  z.string().optional(),
+  author:          z.string().optional(),
 });
 
 const configFileSchema = z.object({
@@ -52,6 +54,7 @@ export interface ServerConfig {
   sessionTimeout: number;
   modelsDir: string;
   embeddingModel: string;
+  author: string;
 }
 
 export interface ProjectConfig {
@@ -71,6 +74,7 @@ export interface ProjectConfig {
   taskModel?: string;
   filesModel?: string;
   skillsModel?: string;
+  author: string;
 }
 
 export interface MultiConfig {
@@ -88,6 +92,7 @@ const SERVER_DEFAULTS: ServerConfig = {
   sessionTimeout: 1800,
   modelsDir:      path.join(HOME, '.graph-memory/models'),
   embeddingModel: 'Xenova/all-MiniLM-L6-v2',
+  author:         '',
 };
 
 const PROJECT_DEFAULTS = {
@@ -115,12 +120,15 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
   const srv = validated.server ?? {};
   const globalModel = srv.embeddingModel ?? SERVER_DEFAULTS.embeddingModel;
 
+  const globalAuthor = srv.author ?? SERVER_DEFAULTS.author;
+
   const server: ServerConfig = {
     host:           srv.host           ?? SERVER_DEFAULTS.host,
     port:           srv.port           ?? SERVER_DEFAULTS.port,
     sessionTimeout: srv.sessionTimeout ?? SERVER_DEFAULTS.sessionTimeout,
     modelsDir:      path.resolve(srv.modelsDir ?? SERVER_DEFAULTS.modelsDir),
     embeddingModel: globalModel,
+    author:         globalAuthor,
   };
 
   const projects = new Map<string, ProjectConfig>();
@@ -148,6 +156,7 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
       taskModel:       raw.taskModel,
       filesModel:      raw.filesModel,
       skillsModel:     raw.skillsModel,
+      author:          raw.author          ?? globalAuthor,
     });
   }
 

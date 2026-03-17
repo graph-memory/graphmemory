@@ -741,6 +741,7 @@ describe('Attachments (KnowledgeGraphManager)', () => {
       emit: jest.fn(),
       projectId: 'test',
       projectDir: tmpDir,
+      author: '',
     };
     manager = new KnowledgeGraphManager(graph, fakeEmbed, ctx, {});
     noteId = await manager.createNote('Test Note', 'Some content', ['tag']);
@@ -876,6 +877,7 @@ describe('Attachments (KnowledgeGraphManager)', () => {
         markDirty: jest.fn(),
         emit: jest.fn(),
         projectId: 'test',
+        author: '',
         // no projectDir
       };
       const mgr = new KnowledgeGraphManager(graph, fakeEmbed, ctx, {});
@@ -940,6 +942,7 @@ describe('Attachments (KnowledgeGraphManager)', () => {
         markDirty: jest.fn(),
         emit: jest.fn(),
         projectId: 'test',
+        author: '',
         // no projectDir
       };
       const mgr = new KnowledgeGraphManager(graph, fakeEmbed, ctx, {});

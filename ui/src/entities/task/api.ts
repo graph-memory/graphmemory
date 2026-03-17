@@ -13,6 +13,10 @@ export interface Task {
   dueDate: number | null;
   estimate: number | null;
   completedAt: number | null;
+  createdAt: number;
+  updatedAt: number;
+  createdBy?: string;
+  updatedBy?: string;
 }
 
 export function listTasks(projectId: string, params?: { status?: TaskStatus; priority?: TaskPriority; tag?: string; limit?: number }) {

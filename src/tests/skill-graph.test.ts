@@ -723,6 +723,7 @@ describe('Attachments (SkillGraphManager)', () => {
       emit: () => {},
       projectId: 'test',
       projectDir: tmpDir,
+      author: '',
     };
     manager = new SkillGraphManager(graph, embedFn, ctx, {});
     skillId = await manager.createSkill('Test Skill', 'A skill for attachment tests', [], [], [], [], []);
@@ -833,6 +834,7 @@ describe('SkillGraphManager BM25', () => {
       markDirty: () => {},
       emit: () => {},
       projectId: 'test',
+      author: '',
     };
     manager = new SkillGraphManager(graph, embedFn, ctx, {});
     await manager.createSkill('REST Endpoint', 'Create REST endpoints', [], ['add endpoint'], [], [], ['api']);

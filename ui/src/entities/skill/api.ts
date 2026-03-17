@@ -22,6 +22,8 @@ export interface Skill {
   lastUsedAt: number | null;
   createdAt: number;
   updatedAt: number;
+  createdBy?: string;
+  updatedBy?: string;
   attachments: AttachmentMeta[];
   // enriched fields from getSkill
   dependsOn?: Array<{ id: string; title: string }>;

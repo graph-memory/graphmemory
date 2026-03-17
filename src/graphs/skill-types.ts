@@ -19,6 +19,8 @@ export interface SkillNodeAttributes {
   lastUsedAt: number | null;
   createdAt: number;
   updatedAt: number;
+  createdBy?: string;      // author from config at creation time
+  updatedBy?: string;      // author from config at last update
   embedding: number[];
   attachments: AttachmentMeta[];
   proxyFor?: { graph: SkillCrossGraphType; nodeId: string };

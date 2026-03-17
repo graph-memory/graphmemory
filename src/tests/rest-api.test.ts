@@ -44,6 +44,7 @@ function createTestProject(): ProjectInstance {
       maxTokensDefault: 4000,
       embedMaxChars: 2000,
       embeddingModel: 'test',
+      author: '',
     },
     knowledgeGraph,
     fileIndexGraph,
@@ -383,6 +384,7 @@ describe('Attachment REST endpoints', () => {
       emit: () => {},
       projectId: 'test',
       projectDir: dir,
+      author: '',
     };
     const ext = { knowledgeGraph, fileIndexGraph, taskGraph, skillGraph };
 
@@ -398,6 +400,7 @@ describe('Attachment REST endpoints', () => {
         maxTokensDefault: 4000,
         embedMaxChars: 2000,
         embeddingModel: 'test',
+        author: '',
       },
       knowledgeGraph,
       fileIndexGraph,

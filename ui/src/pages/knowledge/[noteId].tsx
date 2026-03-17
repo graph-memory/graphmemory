@@ -11,7 +11,7 @@ import {
 import { RelationManager } from '@/features/relation-manager/index.ts';
 import { AttachmentSection } from '@/features/attachments/index.ts';
 import { useWebSocket } from '@/shared/lib/useWebSocket.ts';
-import { PageTopBar, Section, FieldRow, Tags, CopyButton, ConfirmDialog, MarkdownRenderer } from '@/shared/ui/index.ts';
+import { PageTopBar, Section, FieldRow, Tags, CopyButton, ConfirmDialog, MarkdownRenderer, DateDisplay } from '@/shared/ui/index.ts';
 
 export default function NoteDetailPage() {
   const { projectId, noteId } = useParams<{ projectId: string; noteId: string }>();
@@ -88,8 +88,24 @@ export default function NoteDetailPage() {
             <CopyButton value={note.id} />
           </Box>
         </FieldRow>
-        <FieldRow label="Tags" divider={!note.content}>
+        <FieldRow label="Tags">
           {note.tags.length > 0 ? <Tags tags={note.tags} /> : <Typography variant="body2" color="text.secondary">—</Typography>}
+        </FieldRow>
+        {note.createdBy && (
+          <FieldRow label="Created by">
+            <Typography variant="body2">{note.createdBy}</Typography>
+          </FieldRow>
+        )}
+        {note.updatedBy && note.updatedBy !== note.createdBy && (
+          <FieldRow label="Updated by">
+            <Typography variant="body2">{note.updatedBy}</Typography>
+          </FieldRow>
+        )}
+        <FieldRow label="Created">
+          <DateDisplay value={note.createdAt} showTime showRelative />
+        </FieldRow>
+        <FieldRow label="Updated" divider={!note.content}>
+          <DateDisplay value={note.updatedAt} showTime showRelative />
         </FieldRow>
         {note.content && (
           <FieldRow label="Content" divider={false}>

@@ -103,6 +103,16 @@ export default function SkillDetailPage() {
             <Typography variant="body2">{new Date(skill.lastUsedAt).toLocaleString()}</Typography>
           </FieldRow>
         )}
+        {skill.createdBy && (
+          <FieldRow label="Created by">
+            <Typography variant="body2">{skill.createdBy}</Typography>
+          </FieldRow>
+        )}
+        {skill.updatedBy && skill.updatedBy !== skill.createdBy && (
+          <FieldRow label="Updated by">
+            <Typography variant="body2">{skill.updatedBy}</Typography>
+          </FieldRow>
+        )}
         <FieldRow label="Created">
           <Typography variant="body2">{new Date(skill.createdAt).toLocaleString()}</Typography>
         </FieldRow>

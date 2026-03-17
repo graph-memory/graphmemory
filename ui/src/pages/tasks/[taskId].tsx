@@ -157,10 +157,26 @@ export default function TaskDetailPage() {
           </FieldRow>
         )}
         {task.completedAt != null && (
-          <FieldRow label="Completed" divider={false}>
+          <FieldRow label="Completed">
             <DateDisplay value={task.completedAt} showTime showRelative />
           </FieldRow>
         )}
+        {task.createdBy && (
+          <FieldRow label="Created by">
+            <Typography variant="body2">{task.createdBy}</Typography>
+          </FieldRow>
+        )}
+        {task.updatedBy && task.updatedBy !== task.createdBy && (
+          <FieldRow label="Updated by">
+            <Typography variant="body2">{task.updatedBy}</Typography>
+          </FieldRow>
+        )}
+        <FieldRow label="Created">
+          <DateDisplay value={task.createdAt} showTime showRelative />
+        </FieldRow>
+        <FieldRow label="Updated" divider={false}>
+          <DateDisplay value={task.updatedAt} showTime showRelative />
+        </FieldRow>
       </Section>
 
       {task.description && (

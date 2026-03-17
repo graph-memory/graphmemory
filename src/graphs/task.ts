@@ -103,6 +103,7 @@ export function createTask(
   embedding: number[],
   dueDate: number | null = null,
   estimate: number | null = null,
+  author = '',
 ): string {
   const id = slugify(title, graph);
   const now = Date.now();
@@ -119,6 +120,8 @@ export function createTask(
     attachments: [],
     createdAt: now,
     updatedAt: now,
+    createdBy: author || undefined,
+    updatedBy: author || undefined,
   });
   return id;
 }
@@ -137,6 +140,7 @@ export function updateTask(
     estimate?: number | null;
   },
   embedding?: number[],
+  author = '',
 ): boolean {
   if (!graph.hasNode(taskId)) return false;
   if (isProxy(graph, taskId)) return false;
@@ -148,6 +152,7 @@ export function updateTask(
   if (patch.dueDate !== undefined)     graph.setNodeAttribute(taskId, 'dueDate', patch.dueDate);
   if (patch.estimate !== undefined)    graph.setNodeAttribute(taskId, 'estimate', patch.estimate);
   if (embedding !== undefined)         graph.setNodeAttribute(taskId, 'embedding', embedding);
+  if (author)                          graph.setNodeAttribute(taskId, 'updatedBy', author);
 
   // Handle status change with completedAt auto-logic
   if (patch.status !== undefined) {
@@ -715,7 +720,7 @@ export class TaskGraphManager {
     estimate: number | null = null,
   ): Promise<string> {
     const embedding = await this.embedFn(`${title} ${description}`);
-    const taskId = createTask(this._graph, title, description, status, priority, tags, embedding, dueDate, estimate);
+    const taskId = createTask(this._graph, title, description, status, priority, tags, embedding, dueDate, estimate, this.ctx.author);
     this._bm25Index.addDocument(taskId, this._graph.getNodeAttributes(taskId));
     this.ctx.markDirty();
     this.ctx.emit('task:created', { projectId: this.ctx.projectId, taskId });
@@ -732,7 +737,7 @@ export class TaskGraphManager {
 
     const embedText = `${patch.title ?? existing.title} ${patch.description ?? existing.description}`;
     const embedding = await this.embedFn(embedText);
-    updateTask(this._graph, taskId, patch, embedding);
+    updateTask(this._graph, taskId, patch, embedding, this.ctx.author);
     this._bm25Index.updateDocument(taskId, this._graph.getNodeAttributes(taskId));
     this.ctx.markDirty();
     this.ctx.emit('task:updated', { projectId: this.ctx.projectId, taskId });

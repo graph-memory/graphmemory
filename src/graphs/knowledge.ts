@@ -93,6 +93,7 @@ export function createNote(
   content: string,
   tags: string[],
   embedding: number[],
+  author = '',
 ): string {
   const id = slugify(title, graph);
   const now = Date.now();
@@ -104,6 +105,8 @@ export function createNote(
     attachments: [],
     createdAt: now,
     updatedAt: now,
+    createdBy: author || undefined,
+    updatedBy: author || undefined,
   });
   return id;
 }
@@ -114,6 +117,7 @@ export function updateNote(
   noteId: string,
   patch: { title?: string; content?: string; tags?: string[] },
   embedding?: number[],
+  author = '',
 ): boolean {
   if (!graph.hasNode(noteId)) return false;
 
@@ -121,6 +125,7 @@ export function updateNote(
   if (patch.content !== undefined) graph.setNodeAttribute(noteId, 'content', patch.content);
   if (patch.tags !== undefined)    graph.setNodeAttribute(noteId, 'tags', patch.tags);
   if (embedding !== undefined)     graph.setNodeAttribute(noteId, 'embedding', embedding);
+  if (author)                      graph.setNodeAttribute(noteId, 'updatedBy', author);
 
   graph.setNodeAttribute(noteId, 'updatedAt', Date.now());
   return true;
@@ -524,7 +529,7 @@ export class KnowledgeGraphManager {
 
   async createNote(title: string, content: string, tags: string[] = []): Promise<string> {
     const embedding = await this.embedFn(`${title} ${content}`);
-    const noteId = createNote(this._graph, title, content, tags, embedding);
+    const noteId = createNote(this._graph, title, content, tags, embedding, this.ctx.author);
     this._bm25Index.addDocument(noteId, this._graph.getNodeAttributes(noteId));
     this.ctx.markDirty();
     this.ctx.emit('note:created', { projectId: this.ctx.projectId, noteId });
@@ -538,7 +543,7 @@ export class KnowledgeGraphManager {
 
     const embedText = `${patch.title ?? existing.title} ${patch.content ?? existing.content}`;
     const embedding = await this.embedFn(embedText);
-    updateNote(this._graph, noteId, patch, embedding);
+    updateNote(this._graph, noteId, patch, embedding, this.ctx.author);
     this._bm25Index.updateDocument(noteId, this._graph.getNodeAttributes(noteId));
     this.ctx.markDirty();
     this.ctx.emit('note:updated', { projectId: this.ctx.projectId, noteId });

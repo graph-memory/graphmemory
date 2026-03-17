@@ -5,6 +5,10 @@ export interface Note {
   title: string;
   content: string;
   tags: string[];
+  createdAt: number;
+  updatedAt: number;
+  createdBy?: string;
+  updatedBy?: string;
 }
 
 export interface Relation {

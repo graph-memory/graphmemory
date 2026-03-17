@@ -104,6 +104,7 @@ export class ProjectManager extends EventEmitter {
       emit: (event: string, data: unknown) => { this.emit(event, data); },
       projectId: id,
       projectDir: config.projectDir,
+      author: config.author,
     };
 
     const ext: ExternalGraphs = { docGraph, codeGraph, knowledgeGraph, fileIndexGraph, taskGraph, skillGraph };

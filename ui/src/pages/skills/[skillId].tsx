@@ -89,6 +89,9 @@ export default function SkillDetailPage() {
             <CopyButton value={skill.id} />
           </Box>
         </FieldRow>
+        <FieldRow label="Version">
+          <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>v{skill.version}</Typography>
+        </FieldRow>
         <FieldRow label="Source">
           <StatusBadge label={sourceLabel(skill.source)} color={SOURCE_BADGE_COLOR[skill.source] ?? 'primary'} />
         </FieldRow>

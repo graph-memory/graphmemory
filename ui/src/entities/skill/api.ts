@@ -22,6 +22,7 @@ export interface Skill {
   lastUsedAt: number | null;
   createdAt: number;
   updatedAt: number;
+  version: number;
   createdBy?: string;
   updatedBy?: string;
   attachments: AttachmentMeta[];

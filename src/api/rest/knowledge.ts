@@ -4,6 +4,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import type { ProjectInstance } from '@/lib/project-manager';
 import { validateBody, validateQuery, createNoteSchema, updateNoteSchema, createRelationSchema, noteSearchSchema, noteListSchema, attachmentFilenameSchema } from '@/api/rest/validation';
+import { VersionConflictError } from '@/graphs/manager-types';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
@@ -66,14 +67,19 @@ export function createKnowledgeRouter(): Router {
     try {
       const p = getProject(req);
       const noteId = req.params.noteId as string;
-      const patch = req.body;
+      const { version, ...patch } = req.body;
       const ok = await p.mutationQueue.enqueue(async () => {
-        return p.knowledgeManager.updateNote(noteId, patch);
+        return p.knowledgeManager.updateNote(noteId, patch, version);
       });
       if (!ok) return res.status(404).json({ error: 'Note not found' });
       const updated = p.knowledgeManager.getNote(noteId);
       res.json(updated);
-    } catch (err) { next(err); }
+    } catch (err) {
+      if (err instanceof VersionConflictError) {
+        return res.status(409).json({ error: 'version_conflict', current: err.current, expected: err.expected });
+      }
+      next(err);
+    }
   });
 
   // Delete note

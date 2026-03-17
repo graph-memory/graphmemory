@@ -72,6 +72,7 @@ describe('file-mirror', () => {
         tags: ['test', 'demo'],
         createdAt: 1710000000000,
         updatedAt: 1710000060000,
+        version: 3,
       };
       const relations: RelationLike[] = [
         { fromId: 'my-note', toId: 'fix-bug', kind: 'relates_to', targetGraph: 'tasks' },
@@ -106,7 +107,7 @@ describe('file-mirror', () => {
       const notesDir = path.join(tmpDir, '.notes');
       writeNoteFile(notesDir, 'lonely', {
         title: 'Lonely', content: '', tags: [],
-        createdAt: 1710000000000, updatedAt: 1710000000000,
+        createdAt: 1710000000000, updatedAt: 1710000000000, version: 1,
       }, []);
 
       const raw = fs.readFileSync(path.join(notesDir, 'lonely', 'note.md'), 'utf-8');
@@ -128,6 +129,7 @@ describe('file-mirror', () => {
         completedAt: null,
         createdAt: 1710000000000,
         updatedAt: 1710000060000,
+        version: 2,
       };
 
       writeTaskFile(tasksDir, 'fix-bug', attrs, []);

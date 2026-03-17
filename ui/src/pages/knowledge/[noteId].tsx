@@ -88,6 +88,9 @@ export default function NoteDetailPage() {
             <CopyButton value={note.id} />
           </Box>
         </FieldRow>
+        <FieldRow label="Version">
+          <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>v{note.version}</Typography>
+        </FieldRow>
         <FieldRow label="Tags">
           {note.tags.length > 0 ? <Tags tags={note.tags} /> : <Typography variant="body2" color="text.secondary">—</Typography>}
         </FieldRow>

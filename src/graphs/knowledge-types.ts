@@ -11,6 +11,7 @@ export interface KnowledgeNodeAttributes {
   attachments: AttachmentMeta[];
   createdAt: number;       // timestamp ms
   updatedAt: number;       // timestamp ms
+  version: number;         // incremented on every mutation (starts at 1)
   createdBy?: string;      // author from config at creation time
   updatedBy?: string;      // author from config at last update
   proxyFor?: { graph: CrossGraphType; nodeId: string };  // cross-graph proxy node marker

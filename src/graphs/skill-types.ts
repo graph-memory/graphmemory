@@ -19,6 +19,7 @@ export interface SkillNodeAttributes {
   lastUsedAt: number | null;
   createdAt: number;
   updatedAt: number;
+  version: number;         // incremented on every mutation (starts at 1)
   createdBy?: string;      // author from config at creation time
   updatedBy?: string;      // author from config at last update
   embedding: number[];

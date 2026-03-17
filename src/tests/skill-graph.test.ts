@@ -27,7 +27,7 @@ describe('slugify (shared with skills)', () => {
       title: 'Add REST Endpoint', description: '', steps: [], triggers: [],
       inputHints: [], filePatterns: [], tags: [], source: 'user', confidence: 1,
       usageCount: 0, lastUsedAt: null,
-      embedding: [], attachments: [], createdAt: 0, updatedAt: 0,
+      version: 1, embedding: [], attachments: [], createdAt: 0, updatedAt: 0,
     });
     expect(slugify('Add REST Endpoint', graph)).toBe('add-rest-endpoint::2');
   });

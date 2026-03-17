@@ -26,6 +26,14 @@ export interface ExternalGraphs {
   skillGraph?: SkillGraph;
 }
 
+/** Thrown when an update specifies an expectedVersion that doesn't match the current node version. */
+export class VersionConflictError extends Error {
+  constructor(public readonly current: number, public readonly expected: number) {
+    super(`Version conflict: expected ${expected}, current is ${current}`);
+    this.name = 'VersionConflictError';
+  }
+}
+
 /** No-op context for tests and single-project stdio mode. */
 export function noopContext(projectId = ''): GraphManagerContext {
   return {

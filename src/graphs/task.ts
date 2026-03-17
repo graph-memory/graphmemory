@@ -6,7 +6,7 @@ import { createTaskGraph, PRIORITY_ORDER } from '@/graphs/task-types';
 import { slugify } from '@/graphs/knowledge-types';
 import type { DirectedGraph } from 'graphology';
 import type { EmbedFn, GraphManagerContext, ExternalGraphs } from '@/graphs/manager-types';
-import { resolveExternalGraph } from '@/graphs/manager-types';
+import { resolveExternalGraph, VersionConflictError } from '@/graphs/manager-types';
 import { searchTasks, type TaskSearchResult } from '@/lib/search/tasks';
 import { BM25Index } from '@/lib/search/bm25';
 import { writeTaskFile, deleteMirrorDir, writeAttachment, deleteAttachment, getAttachmentPath as getAttPath, sanitizeFilename } from '@/lib/file-mirror';
@@ -51,6 +51,7 @@ function ensureProxyNode(graph: TaskGraph, targetGraph: TaskCrossGraphType, node
       attachments: [],
       createdAt: 0,
       updatedAt: 0,
+      version: 0,
       proxyFor: { graph: targetGraph, nodeId },
     });
   }
@@ -120,13 +121,14 @@ export function createTask(
     attachments: [],
     createdAt: now,
     updatedAt: now,
+    version: 1,
     createdBy: author || undefined,
     updatedBy: author || undefined,
   });
   return id;
 }
 
-/** Partial update of a task. Returns true if found and updated. */
+/** Partial update of a task. Returns true if found and updated. Throws VersionConflictError if expectedVersion is provided and doesn't match. */
 export function updateTask(
   graph: TaskGraph,
   taskId: string,
@@ -141,9 +143,15 @@ export function updateTask(
   },
   embedding?: number[],
   author = '',
+  expectedVersion?: number,
 ): boolean {
   if (!graph.hasNode(taskId)) return false;
   if (isProxy(graph, taskId)) return false;
+
+  if (expectedVersion !== undefined) {
+    const current = graph.getNodeAttribute(taskId, 'version');
+    if (current !== expectedVersion) throw new VersionConflictError(current, expectedVersion);
+  }
 
   if (patch.title !== undefined)       graph.setNodeAttribute(taskId, 'title', patch.title);
   if (patch.description !== undefined) graph.setNodeAttribute(taskId, 'description', patch.description);
@@ -165,18 +173,25 @@ export function updateTask(
     }
   }
 
+  graph.setNodeAttribute(taskId, 'version', graph.getNodeAttribute(taskId, 'version') + 1);
   graph.setNodeAttribute(taskId, 'updatedAt', Date.now());
   return true;
 }
 
-/** Move a task to a new status. Handles completedAt auto-logic. Returns true if found. */
+/** Move a task to a new status. Handles completedAt auto-logic. Returns true if found. Throws VersionConflictError if expectedVersion is provided and doesn't match. */
 export function moveTask(
   graph: TaskGraph,
   taskId: string,
   newStatus: TaskStatus,
+  expectedVersion?: number,
 ): boolean {
   if (!graph.hasNode(taskId)) return false;
   if (isProxy(graph, taskId)) return false;
+
+  if (expectedVersion !== undefined) {
+    const current = graph.getNodeAttribute(taskId, 'version');
+    if (current !== expectedVersion) throw new VersionConflictError(current, expectedVersion);
+  }
 
   const oldStatus = graph.getNodeAttribute(taskId, 'status');
   graph.setNodeAttribute(taskId, 'status', newStatus);
@@ -187,6 +202,7 @@ export function moveTask(
     graph.setNodeAttribute(taskId, 'completedAt', null);
   }
 
+  graph.setNodeAttribute(taskId, 'version', graph.getNodeAttribute(taskId, 'version') + 1);
   graph.setNodeAttribute(taskId, 'updatedAt', Date.now());
   return true;
 }
@@ -222,6 +238,7 @@ export interface TaskEntry {
   completedAt: number | null;
   createdAt: number;
   updatedAt: number;
+  version: number;
   attachments: AttachmentMeta[];
 }
 
@@ -318,6 +335,7 @@ export function getTask(
     completedAt: attrs.completedAt,
     createdAt: attrs.createdAt,
     updatedAt: attrs.updatedAt,
+    version: attrs.version,
     attachments: attrs.attachments ?? [],
     subtasks,
     blockedBy,
@@ -364,6 +382,7 @@ export function listTasks(
       dueDate: attrs.dueDate,
       estimate: attrs.estimate,
       completedAt: attrs.completedAt,
+      version: attrs.version,
       createdAt: attrs.createdAt,
       updatedAt: attrs.updatedAt,
       attachments: attrs.attachments ?? [],
@@ -617,6 +636,7 @@ function createMirrorInKnowledgeGraph(
       attachments: [],
       createdAt: 0,
       updatedAt: 0,
+      version: 0,
       proxyFor: { graph: 'tasks', nodeId: taskId },
     });
   }
@@ -731,13 +751,13 @@ export class TaskGraphManager {
   async updateTask(taskId: string, patch: {
     title?: string; description?: string; status?: TaskStatus; priority?: TaskPriority;
     tags?: string[]; dueDate?: number | null; estimate?: number | null;
-  }): Promise<boolean> {
+  }, expectedVersion?: number): Promise<boolean> {
     const existing = getTask(this._graph, taskId);
     if (!existing) return false;
 
     const embedText = `${patch.title ?? existing.title} ${patch.description ?? existing.description}`;
     const embedding = await this.embedFn(embedText);
-    updateTask(this._graph, taskId, patch, embedding, this.ctx.author);
+    updateTask(this._graph, taskId, patch, embedding, this.ctx.author, expectedVersion);
     this._bm25Index.updateDocument(taskId, this._graph.getNodeAttributes(taskId));
     this.ctx.markDirty();
     this.ctx.emit('task:updated', { projectId: this.ctx.projectId, taskId });
@@ -765,8 +785,8 @@ export class TaskGraphManager {
     return true;
   }
 
-  moveTask(taskId: string, status: TaskStatus): boolean {
-    const ok = moveTask(this._graph, taskId, status);
+  moveTask(taskId: string, status: TaskStatus, expectedVersion?: number): boolean {
+    const ok = moveTask(this._graph, taskId, status, expectedVersion);
     if (!ok) return false;
     this.ctx.markDirty();
     this.ctx.emit('task:moved', { projectId: this.ctx.projectId, taskId, status });
@@ -904,6 +924,7 @@ export class TaskGraphManager {
         embedding,
         updatedAt: now,
         createdAt: existing.createdAt,
+        version: parsed.version ?? existing.version + 1,
         ...(parsed.createdBy != null ? { createdBy: parsed.createdBy } : {}),
         ...(parsed.updatedBy != null ? { updatedBy: parsed.updatedBy } : {}),
       });
@@ -921,6 +942,7 @@ export class TaskGraphManager {
         attachments: parsed.attachments ?? [],
         createdAt: parsed.createdAt ?? now,
         updatedAt: now,
+        version: parsed.version ?? 1,
         createdBy: parsed.createdBy ?? undefined,
         updatedBy: parsed.updatedBy ?? undefined,
       });

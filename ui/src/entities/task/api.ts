@@ -15,6 +15,7 @@ export interface Task {
   completedAt: number | null;
   createdAt: number;
   updatedAt: number;
+  version: number;
   createdBy?: string;
   updatedBy?: string;
 }

@@ -4,6 +4,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import type { ProjectInstance } from '@/lib/project-manager';
 import { validateBody, validateQuery, createSkillSchema, updateSkillSchema, createSkillLinkSchema, skillSearchSchema, skillListSchema, attachmentFilenameSchema } from '@/api/rest/validation';
+import { VersionConflictError } from '@/graphs/manager-types';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
@@ -80,14 +81,19 @@ export function createSkillsRouter(): Router {
     try {
       const p = getProject(req);
       const skillId = req.params.skillId as string;
-      const patch = req.body;
+      const { version, ...patch } = req.body;
       const ok = await p.mutationQueue.enqueue(async () => {
-        return p.skillManager.updateSkill(skillId, patch);
+        return p.skillManager.updateSkill(skillId, patch, version);
       });
       if (!ok) return res.status(404).json({ error: 'Skill not found' });
       const updated = p.skillManager.getSkill(skillId);
       res.json(updated);
-    } catch (err) { next(err); }
+    } catch (err) {
+      if (err instanceof VersionConflictError) {
+        return res.status(409).json({ error: 'version_conflict', current: err.current, expected: err.expected });
+      }
+      next(err);
+    }
   });
 
   // Bump usage

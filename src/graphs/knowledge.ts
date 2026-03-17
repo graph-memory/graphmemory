@@ -4,7 +4,7 @@ import type { KnowledgeGraph, KnowledgeNodeAttributes, KnowledgeEdgeAttributes, 
 import { createKnowledgeGraph, slugify } from '@/graphs/knowledge-types';
 import type { DirectedGraph } from 'graphology';
 import type { EmbedFn, GraphManagerContext, ExternalGraphs } from '@/graphs/manager-types';
-import { resolveExternalGraph } from '@/graphs/manager-types';
+import { resolveExternalGraph, VersionConflictError } from '@/graphs/manager-types';
 import { searchKnowledge, type KnowledgeSearchResult } from '@/lib/search/knowledge';
 import { BM25Index } from '@/lib/search/bm25';
 import { writeNoteFile, deleteMirrorDir, writeAttachment, deleteAttachment, getAttachmentPath as getAttPath, sanitizeFilename } from '@/lib/file-mirror';
@@ -45,6 +45,7 @@ function ensureProxyNode(graph: KnowledgeGraph, targetGraph: CrossGraphType, nod
       attachments: [],
       createdAt: 0,
       updatedAt: 0,
+      version: 0,
       proxyFor: { graph: targetGraph, nodeId },
     });
   }
@@ -105,21 +106,28 @@ export function createNote(
     attachments: [],
     createdAt: now,
     updatedAt: now,
+    version: 1,
     createdBy: author || undefined,
     updatedBy: author || undefined,
   });
   return id;
 }
 
-/** Partial update of a note. Returns true if found and updated. */
+/** Partial update of a note. Returns true if found and updated. Throws VersionConflictError if expectedVersion is provided and doesn't match. */
 export function updateNote(
   graph: KnowledgeGraph,
   noteId: string,
   patch: { title?: string; content?: string; tags?: string[] },
   embedding?: number[],
   author = '',
+  expectedVersion?: number,
 ): boolean {
   if (!graph.hasNode(noteId)) return false;
+
+  if (expectedVersion !== undefined) {
+    const current = graph.getNodeAttribute(noteId, 'version');
+    if (current !== expectedVersion) throw new VersionConflictError(current, expectedVersion);
+  }
 
   if (patch.title !== undefined)   graph.setNodeAttribute(noteId, 'title', patch.title);
   if (patch.content !== undefined) graph.setNodeAttribute(noteId, 'content', patch.content);
@@ -127,6 +135,7 @@ export function updateNote(
   if (embedding !== undefined)     graph.setNodeAttribute(noteId, 'embedding', embedding);
   if (author)                      graph.setNodeAttribute(noteId, 'updatedBy', author);
 
+  graph.setNodeAttribute(noteId, 'version', graph.getNodeAttribute(noteId, 'version') + 1);
   graph.setNodeAttribute(noteId, 'updatedAt', Date.now());
   return true;
 }
@@ -537,13 +546,13 @@ export class KnowledgeGraphManager {
     return noteId;
   }
 
-  async updateNote(noteId: string, patch: { title?: string; content?: string; tags?: string[] }): Promise<boolean> {
+  async updateNote(noteId: string, patch: { title?: string; content?: string; tags?: string[] }, expectedVersion?: number): Promise<boolean> {
     const existing = getNote(this._graph, noteId);
     if (!existing) return false;
 
     const embedText = `${patch.title ?? existing.title} ${patch.content ?? existing.content}`;
     const embedding = await this.embedFn(embedText);
-    updateNote(this._graph, noteId, patch, embedding, this.ctx.author);
+    updateNote(this._graph, noteId, patch, embedding, this.ctx.author, expectedVersion);
     this._bm25Index.updateDocument(noteId, this._graph.getNodeAttributes(noteId));
     this.ctx.markDirty();
     this.ctx.emit('note:updated', { projectId: this.ctx.projectId, noteId });
@@ -688,6 +697,7 @@ export class KnowledgeGraphManager {
         embedding,
         updatedAt: now,
         createdAt: existing.createdAt,
+        version: parsed.version ?? existing.version + 1,
         // preserve createdBy from graph if file doesn't have it
         ...(parsed.createdBy != null ? { createdBy: parsed.createdBy } : {}),
         ...(parsed.updatedBy != null ? { updatedBy: parsed.updatedBy } : {}),
@@ -701,6 +711,7 @@ export class KnowledgeGraphManager {
         attachments: parsed.attachments ?? [],
         createdAt: parsed.createdAt ?? now,
         updatedAt: now,
+        version: parsed.version ?? 1,
         createdBy: parsed.createdBy ?? undefined,
         updatedBy: parsed.updatedBy ?? undefined,
       });

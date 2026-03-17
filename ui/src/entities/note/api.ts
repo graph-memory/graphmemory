@@ -7,6 +7,7 @@ export interface Note {
   tags: string[];
   createdAt: number;
   updatedAt: number;
+  version: number;
   createdBy?: string;
   updatedBy?: string;
 }

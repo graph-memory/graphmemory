@@ -127,6 +127,9 @@ export default function TaskDetailPage() {
             <CopyButton value={task.id} />
           </Box>
         </FieldRow>
+        <FieldRow label="Version">
+          <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>v{task.version}</Typography>
+        </FieldRow>
         <FieldRow label="Status">
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <StatusBadge label={statusLabel(task.status)} color={STATUS_BADGE_COLOR[task.status]} />

@@ -6,7 +6,7 @@ import { createSkillGraph } from '@/graphs/skill-types';
 import { slugify } from '@/graphs/knowledge-types';
 import type { DirectedGraph } from 'graphology';
 import type { EmbedFn, GraphManagerContext, ExternalGraphs } from '@/graphs/manager-types';
-import { resolveExternalGraph } from '@/graphs/manager-types';
+import { resolveExternalGraph, VersionConflictError } from '@/graphs/manager-types';
 import { searchSkills, type SkillSearchResult } from '@/lib/search/skills';
 import { BM25Index } from '@/lib/search/bm25';
 import { writeSkillFile, deleteMirrorDir, writeAttachment, deleteAttachment, getAttachmentPath as getAttPath, sanitizeFilename } from '@/lib/file-mirror';
@@ -54,6 +54,7 @@ function ensureProxyNode(graph: SkillGraph, targetGraph: SkillCrossGraphType, no
       attachments: [],
       createdAt: 0,
       updatedAt: 0,
+      version: 0,
       proxyFor: { graph: targetGraph, nodeId },
     });
   }
@@ -128,13 +129,14 @@ export function createSkill(
     attachments: [],
     createdAt: now,
     updatedAt: now,
+    version: 1,
     createdBy: author || undefined,
     updatedBy: author || undefined,
   });
   return id;
 }
 
-/** Partial update of a skill. Returns true if found and updated. */
+/** Partial update of a skill. Returns true if found and updated. Throws VersionConflictError if expectedVersion is provided and doesn't match. */
 export function updateSkill(
   graph: SkillGraph,
   skillId: string,
@@ -151,9 +153,15 @@ export function updateSkill(
   },
   embedding?: number[],
   author = '',
+  expectedVersion?: number,
 ): boolean {
   if (!graph.hasNode(skillId)) return false;
   if (isProxy(graph, skillId)) return false;
+
+  if (expectedVersion !== undefined) {
+    const current = graph.getNodeAttribute(skillId, 'version');
+    if (current !== expectedVersion) throw new VersionConflictError(current, expectedVersion);
+  }
 
   if (patch.title !== undefined)        graph.setNodeAttribute(skillId, 'title', patch.title);
   if (patch.description !== undefined)  graph.setNodeAttribute(skillId, 'description', patch.description);
@@ -167,6 +175,7 @@ export function updateSkill(
   if (embedding !== undefined)          graph.setNodeAttribute(skillId, 'embedding', embedding);
   if (author)                           graph.setNodeAttribute(skillId, 'updatedBy', author);
 
+  graph.setNodeAttribute(skillId, 'version', graph.getNodeAttribute(skillId, 'version') + 1);
   graph.setNodeAttribute(skillId, 'updatedAt', Date.now());
   return true;
 }
@@ -179,6 +188,7 @@ export function bumpUsage(graph: SkillGraph, skillId: string): boolean {
   const count = graph.getNodeAttribute(skillId, 'usageCount');
   graph.setNodeAttribute(skillId, 'usageCount', count + 1);
   graph.setNodeAttribute(skillId, 'lastUsedAt', Date.now());
+  graph.setNodeAttribute(skillId, 'version', graph.getNodeAttribute(skillId, 'version') + 1);
   graph.setNodeAttribute(skillId, 'updatedAt', Date.now());
   return true;
 }
@@ -215,6 +225,7 @@ export interface SkillEntry {
   confidence: number;
   usageCount: number;
   lastUsedAt: number | null;
+  version: number;
   createdAt: number;
   updatedAt: number;
   attachments: AttachmentMeta[];
@@ -314,6 +325,7 @@ export function getSkill(
     confidence: attrs.confidence,
     usageCount: attrs.usageCount,
     lastUsedAt: attrs.lastUsedAt,
+    version: attrs.version,
     createdAt: attrs.createdAt,
     updatedAt: attrs.updatedAt,
     attachments: attrs.attachments ?? [],
@@ -363,6 +375,7 @@ export function listSkills(
       confidence: attrs.confidence,
       usageCount: attrs.usageCount,
       lastUsedAt: attrs.lastUsedAt,
+      version: attrs.version,
       createdAt: attrs.createdAt,
       updatedAt: attrs.updatedAt,
       attachments: attrs.attachments ?? [],
@@ -777,13 +790,13 @@ export class SkillGraphManager {
     title?: string; description?: string; steps?: string[]; triggers?: string[];
     inputHints?: string[]; filePatterns?: string[]; tags?: string[];
     source?: SkillSource; confidence?: number;
-  }): Promise<boolean> {
+  }, expectedVersion?: number): Promise<boolean> {
     const existing = getSkill(this._graph, skillId);
     if (!existing) return false;
 
     const embedText = `${patch.title ?? existing.title} ${patch.description ?? existing.description}`;
     const embedding = await this.embedFn(embedText);
-    updateSkill(this._graph, skillId, patch, embedding, this.ctx.author);
+    updateSkill(this._graph, skillId, patch, embedding, this.ctx.author, expectedVersion);
     this._bm25Index.updateDocument(skillId, this._graph.getNodeAttributes(skillId));
     this.ctx.markDirty();
     this.ctx.emit('skill:updated', { projectId: this.ctx.projectId, skillId });
@@ -965,6 +978,7 @@ export class SkillGraphManager {
         embedding,
         updatedAt: now,
         createdAt: existing.createdAt,
+        version: parsed.version ?? existing.version + 1,
         ...(parsed.createdBy != null ? { createdBy: parsed.createdBy } : {}),
         ...(parsed.updatedBy != null ? { updatedBy: parsed.updatedBy } : {}),
       });
@@ -985,6 +999,7 @@ export class SkillGraphManager {
         attachments: parsed.attachments ?? [],
         createdAt: parsed.createdAt ?? now,
         updatedAt: now,
+        version: parsed.version ?? 1,
         createdBy: parsed.createdBy ?? undefined,
         updatedBy: parsed.updatedBy ?? undefined,
       });

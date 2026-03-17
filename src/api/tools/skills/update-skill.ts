@@ -1,6 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { SkillGraphManager } from '@/graphs/skill';
+import { VersionConflictError } from '@/graphs/manager-types';
 
 export function register(server: McpServer, mgr: SkillGraphManager): void {
   server.registerTool(
@@ -8,21 +9,23 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
     {
       description:
         'Update an existing skill. Only provided fields are changed. ' +
-        'Re-embeds automatically when title or description changes.',
+        'Re-embeds automatically when title or description changes. ' +
+        'Pass expectedVersion to enable optimistic locking.',
       inputSchema: {
-        skillId:      z.string().describe('Skill ID to update'),
-        title:        z.string().optional().describe('New title'),
-        description:  z.string().optional().describe('New description'),
-        steps:        z.array(z.string()).optional().describe('Replace steps array'),
-        triggers:     z.array(z.string()).optional().describe('Replace triggers array'),
-        inputHints:   z.array(z.string()).optional().describe('Replace inputHints array'),
-        filePatterns: z.array(z.string()).optional().describe('Replace filePatterns array'),
-        tags:         z.array(z.string()).optional().describe('Replace tags array'),
-        source:       z.enum(['user', 'learned']).optional().describe('New source'),
-        confidence:   z.number().min(0).max(1).optional().describe('New confidence score 0–1'),
+        skillId:         z.string().describe('Skill ID to update'),
+        title:           z.string().optional().describe('New title'),
+        description:     z.string().optional().describe('New description'),
+        steps:           z.array(z.string()).optional().describe('Replace steps array'),
+        triggers:        z.array(z.string()).optional().describe('Replace triggers array'),
+        inputHints:      z.array(z.string()).optional().describe('Replace inputHints array'),
+        filePatterns:    z.array(z.string()).optional().describe('Replace filePatterns array'),
+        tags:            z.array(z.string()).optional().describe('Replace tags array'),
+        source:          z.enum(['user', 'learned']).optional().describe('New source'),
+        confidence:      z.number().min(0).max(1).optional().describe('New confidence score 0–1'),
+        expectedVersion: z.number().int().positive().optional().describe('Current version for optimistic locking — request fails with version_conflict if the skill has been updated since'),
       },
     },
-    async ({ skillId, title, description, steps, triggers, inputHints, filePatterns, tags, source, confidence }) => {
+    async ({ skillId, title, description, steps, triggers, inputHints, filePatterns, tags, source, confidence, expectedVersion }) => {
       const patch: Record<string, unknown> = {};
       if (title !== undefined) patch.title = title;
       if (description !== undefined) patch.description = description;
@@ -34,11 +37,18 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
       if (source !== undefined) patch.source = source;
       if (confidence !== undefined) patch.confidence = confidence;
 
-      const updated = await mgr.updateSkill(skillId, patch);
-      if (!updated) {
-        return { content: [{ type: 'text', text: `Skill "${skillId}" not found.` }], isError: true };
+      try {
+        const updated = await mgr.updateSkill(skillId, patch, expectedVersion);
+        if (!updated) {
+          return { content: [{ type: 'text', text: `Skill "${skillId}" not found.` }], isError: true };
+        }
+        return { content: [{ type: 'text', text: JSON.stringify({ skillId, updated: true }, null, 2) }] };
+      } catch (err) {
+        if (err instanceof VersionConflictError) {
+          return { content: [{ type: 'text', text: JSON.stringify({ error: 'version_conflict', current: err.current, expected: err.expected }) }], isError: true };
+        }
+        throw err;
       }
-      return { content: [{ type: 'text', text: JSON.stringify({ skillId, updated: true }, null, 2) }] };
     },
   );
 }

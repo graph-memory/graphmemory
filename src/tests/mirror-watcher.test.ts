@@ -70,6 +70,7 @@ describe('KnowledgeGraphManager.importFromFile', () => {
       tags: ['test', 'import'],
       createdAt: 1700000000000,
       updatedAt: 1700000000000,
+      version: null,
       createdBy: null,
       updatedBy: null,
       relations: [],
@@ -102,6 +103,7 @@ describe('KnowledgeGraphManager.importFromFile', () => {
       tags: ['updated'],
       createdAt: 1700000000000,
       updatedAt: 1700000001000,
+      version: null,
       createdBy: null,
       updatedBy: null,
       relations: [],
@@ -134,6 +136,7 @@ describe('KnowledgeGraphManager.importFromFile', () => {
       updatedAt: null,
       createdBy: null,
       updatedBy: null,
+      version: null,
       relations: [{ to: 'note-b', kind: 'depends_on' }],
       attachments: [],
     });
@@ -184,6 +187,7 @@ describe('TaskGraphManager.importFromFile', () => {
       completedAt: null,
       createdAt: 1700000000000,
       updatedAt: 1700000000000,
+      version: null,
       createdBy: null,
       updatedBy: null,
       relations: [],
@@ -218,6 +222,7 @@ describe('TaskGraphManager.importFromFile', () => {
       completedAt: 1700000005000,
       createdAt: null,
       updatedAt: null,
+      version: null,
       createdBy: null,
       updatedBy: null,
       relations: [],
@@ -261,6 +266,7 @@ describe('round-trip note write → parse → import', () => {
       tags: ['rt', 'test'],
       createdAt: 1700000000000,
       updatedAt: 1700000001000,
+      version: 1,
     }, []);
 
     // Parse it back
@@ -299,6 +305,7 @@ describe('round-trip task write → parse → import', () => {
       completedAt: null,
       createdAt: 1700000000000,
       updatedAt: 1700000001000,
+      version: 1,
     }, []);
 
     const parsed = parseTaskFile(path.join(tasksDir, 'rt-task', 'task.md'));

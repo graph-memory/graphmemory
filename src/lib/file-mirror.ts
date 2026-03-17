@@ -36,7 +36,7 @@ function buildOutgoingRelations(noteId: string, relations: RelationLike[]): Rela
 export function writeNoteFile(
   notesDir: string,
   noteId: string,
-  attrs: Pick<KnowledgeNodeAttributes, 'title' | 'content' | 'tags' | 'createdAt' | 'updatedAt' | 'createdBy' | 'updatedBy'>,
+  attrs: Pick<KnowledgeNodeAttributes, 'title' | 'content' | 'tags' | 'createdAt' | 'updatedAt' | 'version' | 'createdBy' | 'updatedBy'>,
   relations: RelationLike[],
 ): void {
   try {
@@ -46,6 +46,7 @@ export function writeNoteFile(
       tags: attrs.tags,
       createdAt: tsToIso(attrs.createdAt),
       updatedAt: tsToIso(attrs.updatedAt),
+      version: attrs.version,
     };
     if (attrs.createdBy) fm.createdBy = attrs.createdBy;
     if (attrs.updatedBy) fm.updatedBy = attrs.updatedBy;
@@ -63,7 +64,7 @@ export function writeNoteFile(
 export function writeTaskFile(
   tasksDir: string,
   taskId: string,
-  attrs: Pick<TaskNodeAttributes, 'title' | 'description' | 'status' | 'priority' | 'tags' | 'dueDate' | 'estimate' | 'completedAt' | 'createdAt' | 'updatedAt' | 'createdBy' | 'updatedBy'>,
+  attrs: Pick<TaskNodeAttributes, 'title' | 'description' | 'status' | 'priority' | 'tags' | 'dueDate' | 'estimate' | 'completedAt' | 'createdAt' | 'updatedAt' | 'version' | 'createdBy' | 'updatedBy'>,
   relations: RelationLike[],
 ): void {
   try {
@@ -78,6 +79,7 @@ export function writeTaskFile(
       completedAt: tsToIso(attrs.completedAt),
       createdAt: tsToIso(attrs.createdAt),
       updatedAt: tsToIso(attrs.updatedAt),
+      version: attrs.version,
     };
     if (attrs.createdBy) fm.createdBy = attrs.createdBy;
     if (attrs.updatedBy) fm.updatedBy = attrs.updatedBy;
@@ -95,7 +97,7 @@ export function writeTaskFile(
 export function writeSkillFile(
   skillsDir: string,
   skillId: string,
-  attrs: Pick<SkillNodeAttributes, 'title' | 'description' | 'steps' | 'triggers' | 'inputHints' | 'filePatterns' | 'tags' | 'source' | 'confidence' | 'createdAt' | 'updatedAt' | 'createdBy' | 'updatedBy'>,
+  attrs: Pick<SkillNodeAttributes, 'title' | 'description' | 'steps' | 'triggers' | 'inputHints' | 'filePatterns' | 'tags' | 'source' | 'confidence' | 'createdAt' | 'updatedAt' | 'version' | 'createdBy' | 'updatedBy'>,
   relations: RelationLike[],
 ): void {
   try {
@@ -110,6 +112,7 @@ export function writeSkillFile(
       tags: attrs.tags,
       createdAt: tsToIso(attrs.createdAt),
       updatedAt: tsToIso(attrs.updatedAt),
+      version: attrs.version,
     };
     if (attrs.createdBy) fm.createdBy = attrs.createdBy;
     if (attrs.updatedBy) fm.updatedBy = attrs.updatedBy;

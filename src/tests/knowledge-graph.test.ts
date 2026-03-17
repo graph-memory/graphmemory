@@ -34,7 +34,7 @@ describe('slugify', () => {
   it('dedup: returns ::2 when base exists', () => {
     graph.addNode('hello-world', {
       title: 'Hello World', content: '', tags: [], embedding: [],
-      attachments: [], createdAt: 0, updatedAt: 0,
+      version: 1, attachments: [], createdAt: 0, updatedAt: 0,
     });
     expect(slugify('Hello World', graph)).toBe('hello-world::2');
   });
@@ -42,7 +42,7 @@ describe('slugify', () => {
   it('dedup: returns ::3 when ::2 exists', () => {
     graph.addNode('hello-world::2', {
       title: 'Hello World', content: '', tags: [], embedding: [],
-      attachments: [], createdAt: 0, updatedAt: 0,
+      version: 1, attachments: [], createdAt: 0, updatedAt: 0,
     });
     expect(slugify('Hello World', graph)).toBe('hello-world::3');
   });

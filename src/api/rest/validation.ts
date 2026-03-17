@@ -35,6 +35,7 @@ export const updateNoteSchema = z.object({
   title:   z.string().min(1).optional(),
   content: z.string().optional(),
   tags:    z.array(z.string()).optional(),
+  version: z.number().int().positive().optional(),
 });
 
 export const createRelationSchema = z.object({
@@ -79,10 +80,12 @@ export const updateTaskSchema = z.object({
   tags:        z.array(z.string()).optional(),
   dueDate:     z.number().nullable().optional(),
   estimate:    z.number().nullable().optional(),
+  version:     z.number().int().positive().optional(),
 });
 
 export const moveTaskSchema = z.object({
-  status: z.enum(['backlog', 'todo', 'in_progress', 'review', 'done', 'cancelled']),
+  status:  z.enum(['backlog', 'todo', 'in_progress', 'review', 'done', 'cancelled']),
+  version: z.number().int().positive().optional(),
 });
 
 export const createTaskLinkSchema = z.object({
@@ -165,6 +168,7 @@ export const updateSkillSchema = z.object({
   tags:         z.array(z.string()).optional(),
   source:       z.enum(['user', 'learned']).optional(),
   confidence:   z.number().min(0).max(1).optional(),
+  version:      z.number().int().positive().optional(),
 });
 
 export const createSkillLinkSchema = z.object({

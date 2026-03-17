@@ -18,6 +18,7 @@ export interface ParsedNoteFile {
   tags: string[];
   createdAt: number | null;
   updatedAt: number | null;
+  version: number | null;
   createdBy: string | null;
   updatedBy: string | null;
   relations: RelationFrontmatter[];
@@ -36,6 +37,7 @@ export interface ParsedTaskFile {
   completedAt: number | null;
   createdAt: number | null;
   updatedAt: number | null;
+  version: number | null;
   createdBy: string | null;
   updatedBy: string | null;
   relations: RelationFrontmatter[];
@@ -115,6 +117,7 @@ export function parseNoteFile(filePath: string): ParsedNoteFile | null {
       tags: parseTags(fm.tags),
       createdAt: isoToMs(fm.createdAt),
       updatedAt: isoToMs(fm.updatedAt),
+      version: typeof fm.version === 'number' ? fm.version : null,
       createdBy: parseAuthorString(fm.createdBy),
       updatedBy: parseAuthorString(fm.updatedBy),
       relations: parseRelations(fm.relations),
@@ -156,6 +159,7 @@ export function parseTaskFile(filePath: string): ParsedTaskFile | null {
       completedAt: isoToMs(fm.completedAt),
       createdAt: isoToMs(fm.createdAt),
       updatedAt: isoToMs(fm.updatedAt),
+      version: typeof fm.version === 'number' ? fm.version : null,
       createdBy: parseAuthorString(fm.createdBy),
       updatedBy: parseAuthorString(fm.updatedBy),
       relations: parseRelations(fm.relations),
@@ -182,6 +186,7 @@ export interface ParsedSkillFile {
   lastUsedAt: number | null;
   createdAt: number | null;
   updatedAt: number | null;
+  version: number | null;
   createdBy: string | null;
   updatedBy: string | null;
   relations: RelationFrontmatter[];
@@ -259,6 +264,7 @@ export function parseSkillFile(filePath: string): ParsedSkillFile | null {
       lastUsedAt: isoToMs(fm.lastUsedAt),
       createdAt: isoToMs(fm.createdAt),
       updatedAt: isoToMs(fm.updatedAt),
+      version: typeof fm.version === 'number' ? fm.version : null,
       createdBy: parseAuthorString(fm.createdBy),
       updatedBy: parseAuthorString(fm.updatedBy),
       relations: parseRelations(fm.relations),

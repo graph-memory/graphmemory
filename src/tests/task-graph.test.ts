@@ -26,7 +26,7 @@ describe('slugify (shared with tasks)', () => {
     graph.addNode('fix-auth-bug', {
       title: 'Fix Auth Bug', description: '', status: 'backlog', priority: 'medium',
       tags: [], dueDate: null, estimate: null, completedAt: null,
-      embedding: [], attachments: [], createdAt: 0, updatedAt: 0,
+      version: 1, embedding: [], attachments: [], createdAt: 0, updatedAt: 0,
     });
     expect(slugify('Fix Auth Bug', graph)).toBe('fix-auth-bug::2');
   });

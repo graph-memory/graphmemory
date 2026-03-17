@@ -4,6 +4,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import type { ProjectInstance } from '@/lib/project-manager';
 import { validateBody, validateQuery, createTaskSchema, updateTaskSchema, moveTaskSchema, createTaskLinkSchema, taskSearchSchema, taskListSchema, attachmentFilenameSchema } from '@/api/rest/validation';
+import { VersionConflictError } from '@/graphs/manager-types';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
@@ -80,14 +81,19 @@ export function createTasksRouter(): Router {
     try {
       const p = getProject(req);
       const taskId = req.params.taskId as string;
-      const patch = req.body;
+      const { version, ...patch } = req.body;
       const ok = await p.mutationQueue.enqueue(async () => {
-        return p.taskManager.updateTask(taskId, patch);
+        return p.taskManager.updateTask(taskId, patch, version);
       });
       if (!ok) return res.status(404).json({ error: 'Task not found' });
       const updated = p.taskManager.getTask(taskId);
       res.json(updated);
-    } catch (err) { next(err); }
+    } catch (err) {
+      if (err instanceof VersionConflictError) {
+        return res.status(409).json({ error: 'version_conflict', current: err.current, expected: err.expected });
+      }
+      next(err);
+    }
   });
 
   // Move task (change status) — action, so POST
@@ -95,14 +101,19 @@ export function createTasksRouter(): Router {
     try {
       const p = getProject(req);
       const taskId = req.params.taskId as string;
-      const { status } = req.body;
+      const { status, version } = req.body;
       const ok = await p.mutationQueue.enqueue(async () => {
-        return p.taskManager.moveTask(taskId, status);
+        return p.taskManager.moveTask(taskId, status, version);
       });
       if (!ok) return res.status(404).json({ error: 'Task not found' });
       const updated = p.taskManager.getTask(taskId);
       res.json(updated);
-    } catch (err) { next(err); }
+    } catch (err) {
+      if (err instanceof VersionConflictError) {
+        return res.status(409).json({ error: 'version_conflict', current: err.current, expected: err.expected });
+      }
+      next(err);
+    }
   });
 
   // Delete task

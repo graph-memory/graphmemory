@@ -4,7 +4,7 @@ describe('embedder', () => {
   beforeAll(async () => {
     await loadModel({
       model: 'Xenova/bge-m3',
-      pooling: 'mean',
+      pooling: 'cls',
       normalize: true,
       queryPrefix: '',
       documentPrefix: '',

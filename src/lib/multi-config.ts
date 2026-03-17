@@ -168,7 +168,7 @@ export function formatAuthor(author: AuthorConfig): string {
 
 const EMBEDDING_DEFAULTS: EmbeddingConfig = {
   model:          'Xenova/bge-m3',
-  pooling:        'mean',
+  pooling:        'cls',
   normalize:      true,
   queryPrefix:    '',
   documentPrefix: '',

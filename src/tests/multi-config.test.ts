@@ -42,7 +42,7 @@ projects:
     expect(mc.server.port).toBe(3000);
     expect(mc.server.sessionTimeout).toBe(1800);
     expect(mc.server.embedding.model).toBe('Xenova/bge-m3');
-    expect(mc.server.embedding.pooling).toBe('mean');
+    expect(mc.server.embedding.pooling).toBe('cls');
     expect(mc.server.embedding.queryPrefix).toBe('');
     expect(mc.server.embedding.documentPrefix).toBe('');
   });
@@ -260,7 +260,7 @@ workspaces:
     expect(ws.graphEmbeddings.tasks.model).toBe('model/t');
     expect(ws.graphEmbeddings.skills.model).toBe('model/s');
     // Inherited fields from workspace embedding
-    expect(ws.graphEmbeddings.tasks.pooling).toBe('mean');
+    expect(ws.graphEmbeddings.tasks.pooling).toBe('cls');
   });
 
   it('throws when workspace references unknown project', () => {

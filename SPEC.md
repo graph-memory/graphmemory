@@ -294,7 +294,7 @@ server:
   modelsDir: "~/.graph-memory/models"
   embedding:
     model: "Xenova/bge-m3"              # 1024 dims, multilingual, 8K tokens
-    # pooling: "mean"                   # mean | cls
+    # pooling: "cls"                    # mean | cls
     # normalize: true                   # L2-normalize output vectors
     # dtype: "fp32"                     # fp32 | fp16 | q8 | q4
     # queryPrefix: ""                   # prepended to search queries

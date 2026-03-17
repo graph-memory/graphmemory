@@ -332,7 +332,7 @@ YAML config file. All fields optional except `projects.*.projectDir`:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `model` | `string` | `Xenova/bge-m3` | Embedding model from HuggingFace |
-| `pooling` | `string` | `mean` | Pooling strategy: `mean` or `cls` |
+| `pooling` | `string` | `cls` | Pooling strategy: `mean` or `cls` |
 | `normalize` | `boolean` | `true` | L2-normalize output vectors |
 | `dtype` | `string` | — | Quantization: `fp32`, `fp16`, `q8`, `q4` |
 | `queryPrefix` | `string` | `""` | Prefix prepended to search queries |

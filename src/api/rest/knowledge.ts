@@ -176,6 +176,8 @@ export function createKnowledgeRouter(): Router {
       if (!filePath) return res.status(404).json({ error: 'Attachment not found' });
       const mimeType = mime.getType(filePath) ?? 'application/octet-stream';
       res.setHeader('Content-Type', mimeType);
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('X-Content-Type-Options', 'nosniff');
       const stream = fs.createReadStream(filePath);
       stream.on('error', (err) => next(err));
       stream.pipe(res);

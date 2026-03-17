@@ -479,7 +479,7 @@ cd ui && npm run dev   # Vite dev server on :5173, proxies /api → :3000
 
 Run tests:
 ```bash
-npm test                                   # all tests (26 suites)
+npm test                                   # all tests (1178 tests across 26 suites)
 npm test -- --testPathPatterns=search       # run a specific test file
 npm run test:watch                         # watch mode
 ```

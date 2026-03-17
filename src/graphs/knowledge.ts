@@ -797,6 +797,7 @@ export class KnowledgeGraphManager {
     if (!this._graph.hasNode(noteId)) return;
     if (isProxy(this._graph, noteId)) return;
 
+    this._bm25Index.removeDocument(noteId);
     deleteNote(this._graph, noteId);
 
     if (this.taskGraph) {

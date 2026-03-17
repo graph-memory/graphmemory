@@ -142,6 +142,30 @@ projects:
 
 Validated with **Zod** schemas. All fields optional with sensible defaults.
 
+### Workspaces
+
+Projects can be grouped into **workspaces** that share a single KnowledgeGraph, TaskGraph, and SkillGraph. Each project keeps its own DocGraph, CodeGraph, and FileIndexGraph.
+
+```yaml
+workspaces:
+  backend:
+    projects: [api-gateway, catalog-service]
+    graphMemory: "./.workspace-backend"
+    mirrorDir: "./.workspace-backend"
+    author:
+      name: "Backend Team"
+      email: "backend@example.com"
+```
+
+| Field | Description |
+|-------|-------------|
+| `projects` | List of project IDs that share this workspace |
+| `graphMemory` | Where shared graph JSON files are stored |
+| `mirrorDir` | Where shared `.notes/`, `.tasks/`, `.skills/` mirror files are written |
+| `author` | Author for shared notes/tasks/skills (overrides root author) |
+
+Workspace projects use a shared `PromiseQueue` for mutation serialization across all member projects. Cross-graph links between workspace projects use project-scoped proxy IDs (e.g., `@docs::api-gateway::guide.md::Setup`).
+
 ---
 
 ## 3. Six Graphs
@@ -614,6 +638,8 @@ interface ProjectInstance {
 
 Each manager wraps its graph and provides a unified API for all operations. Managers for KnowledgeGraph, TaskGraph, and SkillGraph receive a `GraphManagerContext` with `markDirty()` and `emit()` callbacks, plus references to neighboring graphs for cross-graph cleanup.
 
+For **workspace projects**, the `ProjectInstance` has `workspaceId` set. These projects share the workspace's `knowledgeManager`, `taskManager`, `skillManager`, and `mutationQueue`. Per-project graphs (doc, code, file index) remain isolated. On project removal, workspace `projectGraphs` references are cleaned up.
+
 ### Lifecycle
 
 1. `addProject(id, config, reindex?)` — load graphs from disk (or fresh if reindex), create instance
@@ -823,7 +849,7 @@ src/
       file-index/            # 3 MCP file index tools (via FileIndexGraphManager)
       context/               # 1 MCP context tool (get_context — project/workspace discovery)
   tests/
-    *.test.ts                # Jest test suites (26 suites, 1169 tests)
+    *.test.ts                # Jest test suites (26 suites, 1178 tests)
     helpers.ts               # Test utilities (fakeEmbed, setupMcpClient)
     __mocks__/               # Jest mocks for ESM-only packages (chokidar, @xenova/transformers, mime)
     fixtures/                # Test fixtures (markdown, TypeScript)

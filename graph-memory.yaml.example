@@ -68,3 +68,19 @@ projects:
     docsPattern: "content/**/*.md"
     codePattern: ""                             # Empty string disables code indexing
     excludePattern: "node_modules/**,build/**"
+
+# ---------------------------------------------------------------------------
+# Workspaces (optional — share knowledge/tasks/skills across projects)
+# ---------------------------------------------------------------------------
+# Projects in the same workspace share a single KnowledgeGraph, TaskGraph,
+# and SkillGraph. Each project keeps its own DocGraph, CodeGraph, and
+# FileIndexGraph. Useful for microservice repos or mono-repos.
+#
+# workspaces:
+#   backend:
+#     projects: [api-gateway, catalog-service]  # List of project IDs from above
+#     graphMemory: "./.workspace-backend"       # Where shared graph JSON files are stored
+#     mirrorDir: "./.workspace-backend"         # Where shared .notes/, .tasks/, .skills/ are written
+#     author:                                   # Author for shared notes/tasks/skills
+#       name: "Backend Team"
+#       email: "backend@example.com"

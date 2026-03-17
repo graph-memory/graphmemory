@@ -1107,6 +1107,7 @@ export class SkillGraphManager {
     if (!this._graph.hasNode(skillId)) return;
     if (isProxy(this._graph, skillId)) return;
 
+    this._bm25Index.removeDocument(skillId);
     deleteSkill(this._graph, skillId);
 
     if (this.knowledgeGraph) {

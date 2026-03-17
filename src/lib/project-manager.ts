@@ -373,6 +373,14 @@ export class ProjectManager extends EventEmitter {
     if (instance.mcpClientCleanup) await instance.mcpClientCleanup();
     this.saveProject(instance);
 
+    // Clean up workspace projectGraphs reference
+    if (instance.workspaceId) {
+      const ws = this.workspaces.get(instance.workspaceId);
+      if (ws) {
+        ws.knowledgeManager.externalGraphs?.projectGraphs?.delete(id);
+      }
+    }
+
     this.projects.delete(id);
     process.stderr.write(`[project-manager] Removed project "${id}"\n`);
   }

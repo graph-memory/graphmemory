@@ -1051,6 +1051,7 @@ export class TaskGraphManager {
     if (!this._graph.hasNode(taskId)) return;
     if (isProxy(this._graph, taskId)) return;
 
+    this._bm25Index.removeDocument(taskId);
     deleteTask(this._graph, taskId);
 
     if (this.knowledgeGraph) {

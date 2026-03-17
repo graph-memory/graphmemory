@@ -22,6 +22,7 @@ import GraphPage from '@/pages/graph/index.tsx';
 import DashboardPage from '@/pages/dashboard/index.tsx';
 import ToolsPage from '@/pages/tools/index.tsx';
 import ToolDetailPage2 from '@/pages/tools/[toolName].tsx';
+import PromptsPage from '@/pages/prompts/index.tsx';
 import HelpPage from '@/pages/help/index.tsx';
 import HelpArticlePage from '@/pages/help/[articleId].tsx';
 
@@ -49,6 +50,7 @@ export default function App() {
         <Route path="files/view/*" element={<FileDetailPage />} />
         <Route path="search" element={<SearchPage />} />
         <Route path="graph" element={<GraphPage />} />
+        <Route path="prompts" element={<PromptsPage />} />
         <Route path="tools" element={<ToolsPage />} />
         <Route path="tools/:toolName" element={<ToolDetailPage2 />} />
         <Route path="help" element={<HelpPage />} />

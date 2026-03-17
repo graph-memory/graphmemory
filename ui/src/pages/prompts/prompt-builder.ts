@@ -1,0 +1,103 @@
+import {
+  TEMPLATE, ROLES, STYLES, GRAPHS, WORKFLOWS, TOOL_CATALOG,
+  type GraphName, type RoleName, type StyleName,
+} from '@/content/prompts/index.ts';
+
+export interface GraphStats {
+  name: GraphName;
+  nodeCount: number;
+  available: boolean;
+}
+
+export interface BuilderState {
+  scenarioId: string;
+  graphs: Record<GraphName, boolean>;
+  role: RoleName;
+  style: StyleName;
+}
+
+export function buildPrompt(
+  state: BuilderState,
+  graphStats: GraphStats[],
+  focusTools: string[],
+): string {
+  const enabledGraphs = graphStats.filter(
+    g => state.graphs[g.name] && g.available,
+  );
+  const enabledGraphNames = new Set(enabledGraphs.map(g => g.name));
+
+  // Role
+  const roleContent = ROLES[state.role] || '';
+
+  // Style
+  const styleContent = STYLES[state.style] || '';
+
+  // Graphs — short descriptions with node counts (no tool tables)
+  let graphsContent = '';
+  if (enabledGraphs.length > 0) {
+    graphsContent = enabledGraphs
+      .map(g => {
+        // Take only the first line (### title) and the description paragraph from graph md
+        const lines = GRAPHS[g.name].split('\n').filter(l => l.trim());
+        const title = lines[0]?.replace(/^#+\s*/, '') || g.name;
+        const desc = lines[1] || '';
+        return `- **${title}** — ${desc}`;
+      })
+      .join('\n');
+  } else {
+    graphsContent = '*No graphs indexed yet.*';
+  }
+
+  // Tools — focus tools as table, rest as compact list
+  let toolsContent = '';
+  const availableTools = Object.entries(TOOL_CATALOG)
+    .filter(([, info]) => enabledGraphNames.has(info.graph));
+
+  if (focusTools.length > 0) {
+    // Focus tools — detailed table
+    const focusEntries = focusTools
+      .filter(name => TOOL_CATALOG[name] && enabledGraphNames.has(TOOL_CATALOG[name].graph));
+
+    if (focusEntries.length > 0) {
+      toolsContent += '| Tool | Purpose |\n|------|---------|';
+      for (const name of focusEntries) {
+        toolsContent += `\n| \`${name}\` | ${TOOL_CATALOG[name].description} |`;
+      }
+    }
+
+    // Remaining tools — compact list
+    const focusSet = new Set(focusEntries);
+    const remaining = availableTools
+      .filter(([name]) => !focusSet.has(name))
+      .map(([name]) => `\`${name}\``);
+
+    if (remaining.length > 0) {
+      toolsContent += `\n\nAlso available: ${remaining.join(', ')}`;
+    }
+  } else {
+    // Custom scenario — show all tools grouped by graph
+    for (const g of enabledGraphs) {
+      const graphTools = availableTools.filter(([, info]) => info.graph === g.name);
+      if (graphTools.length > 0) {
+        toolsContent += `\n\n**${g.name}:** ${graphTools.map(([name]) => `\`${name}\``).join(', ')}`;
+      }
+    }
+    toolsContent = toolsContent.trim();
+  }
+
+  // Workflow
+  const workflowContent = WORKFLOWS[state.scenarioId] || '';
+
+  // Build from template
+  let result = TEMPLATE
+    .replace('{{role}}', roleContent)
+    .replace('{{style}}', styleContent)
+    .replace('{{graphs}}', graphsContent)
+    .replace('{{tools}}', toolsContent)
+    .replace('{{workflow}}', workflowContent);
+
+  // Clean up blank lines
+  result = result.replace(/\n{3,}/g, '\n\n');
+
+  return result.trim();
+}

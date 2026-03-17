@@ -12,6 +12,7 @@ export interface ProjectDetailedStats {
   knowledge: { nodes: number; edges: number };
   fileIndex: { nodes: number; edges: number };
   tasks: { nodes: number; edges: number };
+  skills: { nodes: number; edges: number };
 }
 
 export function listProjects(): Promise<ProjectInfo[]> {

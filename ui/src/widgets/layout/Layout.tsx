@@ -16,6 +16,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import HubIcon from '@mui/icons-material/Hub';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import PsychologyIcon from '@mui/icons-material/Psychology';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import BuildIcon from '@mui/icons-material/Build';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import { useProjects } from '@/entities/project/index.ts';
@@ -34,6 +35,7 @@ const NAV_ITEMS = [
   { label: 'Files', icon: <FolderIcon />, path: 'files' },
   { label: 'Search', icon: <SearchIcon />, path: 'search' },
   { label: 'Graph', icon: <HubIcon />, path: 'graph' },
+  { label: 'Prompts', icon: <AutoAwesomeIcon />, path: 'prompts' },
   { label: 'Tools', icon: <BuildIcon />, path: 'tools' },
   { label: 'Help', icon: <MenuBookIcon />, path: 'help' },
 ];
@@ -47,6 +49,7 @@ const PAGE_TITLES: Record<string, string> = {
   files: 'Files',
   search: 'Search',
   graph: 'Graph',
+  prompts: 'Prompts',
   tools: 'Tools',
   help: 'Help',
 };

@@ -4,9 +4,9 @@ Graph Memory uses **hybrid search** — combining BM25 keyword matching with vec
 
 ## Vector embeddings
 
-When content is indexed, each chunk (doc section, code symbol, file path, note, task, skill) is converted to a **vector embedding** — a list of ~384 numbers that represent semantic meaning.
+When content is indexed, each chunk (doc section, code symbol, file path, note, task, skill) is converted to a **vector embedding** — a list of ~1024 numbers that represent semantic meaning.
 
-The default model is `all-MiniLM-L6-v2`, a lightweight transformer that runs locally. No API calls, no data leaves your machine.
+The default model is `bge-m3`, a multilingual transformer that runs locally. No API calls, no data leaves your machine.
 
 Similar concepts produce similar vectors:
 - "authentication" and "login" will have high similarity
@@ -32,13 +32,21 @@ Each graph can use a different embedding model, configured in `graph-memory.yaml
 ```yaml
 projects:
   my-app:
-    embeddingModel: Xenova/all-MiniLM-L6-v2  # default for all graphs
-    docsModel: Xenova/all-MiniLM-L6-v2       # override for docs
-    codeModel: Xenova/all-MiniLM-L6-v2       # override for code
-    knowledgeModel: ...                        # override for knowledge
-    taskModel: ...                             # override for tasks
-    filesModel: ...                            # override for file index
-    skillsModel: ...                           # override for skills
+    embedding:
+      model: Xenova/bge-m3        # default for all graphs
+    graphs:
+      docs:
+        model: Xenova/bge-m3      # override for docs
+      code:
+        model: Xenova/bge-m3      # override for code
+      knowledge:
+        model: ...                # override for knowledge
+      tasks:
+        model: ...                # override for tasks
+      files:
+        model: ...                # override for file index
+      skills:
+        model: ...                # override for skills
 ```
 
 ## Cosine similarity

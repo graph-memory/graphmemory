@@ -462,6 +462,7 @@ function createMirrorInTaskGraph(
       attachments: [],
       createdAt: 0,
       updatedAt: 0,
+      version: 0,
       proxyFor: { graph: 'knowledge', nodeId: noteId },
     });
   }

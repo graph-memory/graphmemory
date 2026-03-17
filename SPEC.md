@@ -200,7 +200,7 @@ Six graph files, stored in `graphMemory` directory:
 - `tasks.json` — TaskGraph
 - `skills.json` — SkillGraph
 
-Serialized via graphology's `export()`/`import()`. Each graph JSON file stores the embedding model name used to create it; when the configured model changes, graphs are automatically re-indexed.
+Serialized via graphology's `export()`/`import()`. Each graph JSON file stores an embedding fingerprint (model + pooling + normalize + dtype + documentPrefix); when any embedding config field changes, the graph is automatically discarded and re-indexed.
 
 ### File Mirror
 
@@ -292,7 +292,13 @@ server:
   port: 3000
   sessionTimeout: 1800
   modelsDir: "~/.graph-memory/models"
-  embeddingModel: "Xenova/all-MiniLM-L6-v2"
+  embedding:
+    model: "Xenova/bge-m3"              # 1024 dims, multilingual, 8K tokens
+    # pooling: "mean"                   # mean | cls
+    # normalize: true                   # L2-normalize output vectors
+    # dtype: "fp32"                     # fp32 | fp16 | q8 | q4
+    # queryPrefix: ""                   # prepended to search queries
+    # documentPrefix: ""                # prepended to documents during indexing
 
 projects:
   my-app:
@@ -304,13 +310,15 @@ projects:
     tsconfig: "./tsconfig.json"
     chunkDepth: 4
     embedMaxChars: 2000
-    # Per-graph model overrides (optional):
-    # docsModel: "Xenova/all-MiniLM-L6-v2"
-    # codeModel: "Xenova/bge-base-en-v1.5"
-    # knowledgeModel: "..."
-    # taskModel: "..."
-    # filesModel: "..."
-    # skillsModel: "..."
+    # Per-project embedding override (optional):
+    # embedding:
+    #   model: "Xenova/bge-m3"
+    # Per-graph embedding overrides (optional):
+    # graphs:
+    #   code:
+    #     model: "Xenova/bge-base-en-v1.5"
+    #     pooling: "cls"
+    #     queryPrefix: "Represent this sentence for searching relevant passages: "
 ```
 
 ### Config fields
@@ -323,7 +331,7 @@ projects:
 | `port` | `3000` | HTTP server port |
 | `sessionTimeout` | `1800` | Idle session timeout in seconds |
 | `modelsDir` | `~/.graph-memory/models` | Local model cache directory |
-| `embeddingModel` | `Xenova/all-MiniLM-L6-v2` | Default embedding model (fallback for all graphs) |
+| `embedding.model` | `Xenova/bge-m3` | Default embedding model (fallback for all graphs) |
 
 **Per-project settings** (`projects.<id>:`):
 
@@ -335,13 +343,13 @@ projects:
 | `codePattern` | `**/*.{js,ts,jsx,tsx}` | Glob for source files; set empty to disable code indexing |
 | `excludePattern` | `node_modules/**` | Glob to exclude from indexing and watching |
 | `tsconfig` | — | Path to tsconfig.json for import resolution |
-| `embeddingModel` | (server default) | Embedding model for this project |
-| `docsModel` | — | Embedding model for docs graph |
-| `codeModel` | — | Embedding model for code graph |
-| `knowledgeModel` | — | Embedding model for knowledge graph |
-| `taskModel` | — | Embedding model for task graph |
-| `filesModel` | — | Embedding model for file index graph |
-| `skillsModel` | — | Embedding model for skill graph |
+| `embedding.model` | (server default) | Embedding model for this project |
+| `graphs.docs.model` | — | Embedding model override for docs graph |
+| `graphs.code.model` | — | Embedding model override for code graph |
+| `graphs.knowledge.model` | — | Embedding model override for knowledge graph |
+| `graphs.tasks.model` | — | Embedding model override for task graph |
+| `graphs.files.model` | — | Embedding model override for file index graph |
+| `graphs.skills.model` | — | Embedding model override for skill graph |
 | `chunkDepth` | `4` | Max heading depth to create chunk boundaries at |
 | `maxTokensDefault` | `4000` | Default max tokens for responses |
 | `embedMaxChars` | `2000` | Max characters fed to embedding model per node |

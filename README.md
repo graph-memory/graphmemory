@@ -43,7 +43,7 @@ Three mounts:
 | **Projects** | `/data/projects/` | Project directories to index (read-only, unless you use knowledge/tasks/skills — then remove `:ro`) |
 | **Models** | `/data/models/` | Embedding model cache — use a named volume so models persist across container restarts |
 
-The embedding model (`Xenova/all-MiniLM-L6-v2`, ~90MB) is downloaded on first startup. Subsequent starts use the cached model from the volume.
+The embedding model (`Xenova/bge-m3`, ~2.3GB) is downloaded on first startup. Subsequent starts use the cached model from the volume.
 
 ### 3. Run with Docker Compose
 
@@ -96,7 +96,7 @@ docker run --rm \
 - Stores **facts and notes** in a dedicated knowledge graph with typed relations, file attachments, and cross-graph links; mirrors to `.notes/{id}/` directories
 - Tracks **tasks** in a task graph with status (kanban), priority, due dates, estimates, file attachments, and cross-graph links; mirrors to `.tasks/{id}/` directories
 - Manages **skills** (recipes/procedures) in a skill graph with steps, triggers, usage tracking, file attachments, and cross-graph links; mirrors to `.skills/{id}/` directories
-- Embeds every node locally using `Xenova/all-MiniLM-L6-v2` by default (no external API calls); supports per-graph models
+- Embeds every node locally using `Xenova/bge-m3` by default (no external API calls); supports per-graph models with configurable pooling, normalization, dtype, and query/document prefixes
 - Answers search queries via **hybrid search** (BM25 keyword + vector cosine similarity) with BFS graph expansion
 - Watches for file changes and re-indexes incrementally
 
@@ -221,7 +221,8 @@ server:
   host: "127.0.0.1"
   port: 3000
   sessionTimeout: 1800
-  embeddingModel: "Xenova/all-MiniLM-L6-v2"
+  embedding:
+    model: "Xenova/bge-m3"              # default for all graphs
 
 projects:
   my-app:
@@ -230,11 +231,15 @@ projects:
     codePattern: "src/**/*.{ts,tsx}"
     excludePattern: "node_modules/**,dist/**"
     tsconfig: "./tsconfig.json"
-    codeModel: "Xenova/bge-base-en-v1.5"
-    skillsModel: "Xenova/all-MiniLM-L6-v2"
+    # Per-graph embedding overrides (optional):
+    graphs:
+      code:
+        model: "Xenova/bge-base-en-v1.5"
+        pooling: "cls"
+        queryPrefix: "Represent this sentence for searching relevant passages: "
 ```
 
-Per-graph models are optional — any graph without its own model uses `server.embeddingModel` (default `Xenova/all-MiniLM-L6-v2`). The same model string is loaded only once (deduplication).
+Embedding config uses inheritance: `graphs.<name>` → `project.embedding` → `server.embedding` → defaults. The same model is loaded only once (deduplication). See [`graph-memory.yaml.example`](graph-memory.yaml.example) for all options and model examples.
 
 All fields are optional except `projectDir` — see [`graph-memory.yaml.example`](graph-memory.yaml.example) for the full list.
 
@@ -320,7 +325,20 @@ YAML config file. All fields optional except `projects.*.projectDir`:
 | `port` | `number` | `3000` | HTTP server port |
 | `sessionTimeout` | `number` | `1800` | Idle session timeout in seconds |
 | `modelsDir` | `string` | `~/.graph-memory/models` | Local model cache directory |
-| `embeddingModel` | `string` | `Xenova/all-MiniLM-L6-v2` | Default embedding model (fallback for all graphs) |
+| `embedding` | `object` | (see below) | Default embedding config (fallback for all graphs) |
+
+**Embedding config** (`server.embedding`, `projects.<id>.embedding`, `projects.<id>.graphs.<name>`):
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `model` | `string` | `Xenova/bge-m3` | Embedding model from HuggingFace |
+| `pooling` | `string` | `mean` | Pooling strategy: `mean` or `cls` |
+| `normalize` | `boolean` | `true` | L2-normalize output vectors |
+| `dtype` | `string` | — | Quantization: `fp32`, `fp16`, `q8`, `q4` |
+| `queryPrefix` | `string` | `""` | Prefix prepended to search queries |
+| `documentPrefix` | `string` | `""` | Prefix prepended to documents during indexing |
+
+Config inheritance: `graphs.<name>` → `project.embedding` → `server.embedding` → defaults.
 
 **Per-project settings** (`projects.<id>:`):
 
@@ -332,13 +350,8 @@ YAML config file. All fields optional except `projects.*.projectDir`:
 | `codePattern` | `string` | `**/*.{js,ts,jsx,tsx}` | Glob for source files |
 | `excludePattern` | `string` | `node_modules/**` | Glob to exclude from indexing |
 | `tsconfig` | `string` | — | Path to tsconfig.json |
-| `embeddingModel` | `string` | (server default) | Embedding model for this project |
-| `docsModel` | `string` | — | Embedding model for docs graph |
-| `codeModel` | `string` | — | Embedding model for code graph |
-| `knowledgeModel` | `string` | — | Embedding model for knowledge graph |
-| `taskModel` | `string` | — | Embedding model for task graph |
-| `filesModel` | `string` | — | Embedding model for file index graph |
-| `skillsModel` | `string` | — | Embedding model for skills graph |
+| `embedding` | `object` | (server default) | Project-level embedding config |
+| `graphs` | `object` | — | Per-graph embedding overrides (`docs`, `code`, `knowledge`, `tasks`, `files`, `skills`) |
 | `chunkDepth` | `number` | `4` | Max heading depth to chunk at |
 | `maxTokensDefault` | `number` | `4000` | Default max tokens for responses |
 | `embedMaxChars` | `number` | `2000` | Max chars fed to embedder per node |

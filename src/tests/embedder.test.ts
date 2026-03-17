@@ -1,8 +1,14 @@
-import { loadModel, embed, cosineSimilarity } from '@/lib/embedder';
+import { loadModel, embed, embedQuery, cosineSimilarity } from '@/lib/embedder';
 
 describe('embedder', () => {
   beforeAll(async () => {
-    await loadModel('Xenova/all-MiniLM-L6-v2', './models', 4000);
+    await loadModel({
+      model: 'Xenova/bge-m3',
+      pooling: 'mean',
+      normalize: true,
+      queryPrefix: '',
+      documentPrefix: '',
+    }, './models', 4000);
   }, 60_000);
 
   it.each([
@@ -21,5 +27,13 @@ describe('embedder', () => {
     const v = await embed('test', '');
     const selfSim = cosineSimilarity(v, v);
     expect(Math.abs(selfSim - 1)).toBeLessThan(1e-5);
+  }, 60_000);
+
+  it('embedQuery applies queryPrefix (different from embed)', async () => {
+    const doc = await embed('auth', '');
+    const query = await embedQuery('auth');
+    // With empty prefixes they should be very similar but embed wraps as "title\ncontent"
+    const sim = cosineSimilarity(doc, query);
+    expect(sim).toBeGreaterThan(0.5);
   }, 60_000);
 });

@@ -21,7 +21,16 @@ server:
   # port: 3000                                  # HTTP server port
   # sessionTimeout: 1800                        # Idle session timeout (seconds)
   # modelsDir: "~/.graph-memory/models"         # Local model cache directory
-  # embeddingModel: "Xenova/all-MiniLM-L6-v2"  # Default embedding model (fallback for all graphs)
+
+  # Default embedding config (fallback for all graphs in all projects).
+  # All embedding fields are optional — shown values are defaults.
+  # embedding:
+  #   model: "Xenova/bge-m3"                    # Default model (1024 dims, multilingual, 8K tokens)
+  #   pooling: "mean"                           # Pooling strategy: "mean" or "cls"
+  #   normalize: true                           # L2-normalize output vectors
+  #   dtype: "fp32"                             # Quantization: fp32, fp16, q8, q4
+  #   queryPrefix: ""                           # Prefix prepended to search queries
+  #   documentPrefix: ""                        # Prefix prepended to documents during indexing
 
 # ---------------------------------------------------------------------------
 # Projects
@@ -46,21 +55,30 @@ projects:
     # maxTokensDefault: 4000                    # Default max tokens for responses
     # embedMaxChars: 2000                       # Max chars fed to embedder per node
 
-    # Per-project embedding model (overrides server.embeddingModel)
-    # embeddingModel: "Xenova/all-MiniLM-L6-v2"
+    # Per-project embedding config (overrides server.embedding)
+    # embedding:
+    #   model: "Xenova/bge-m3"
 
     # Per-project author (overrides root author)
     # author:
     #   name: "Project Bot"
     #   email: "bot@example.com"
 
-    # Per-graph embedding models (override project embeddingModel)
-    # docsModel: "Xenova/all-MiniLM-L6-v2"
-    # codeModel: "Xenova/bge-base-en-v1.5"
-    # knowledgeModel: "Xenova/all-MiniLM-L6-v2"
-    # taskModel: "Xenova/all-MiniLM-L6-v2"
-    # filesModel: "Xenova/all-MiniLM-L6-v2"
-    # skillsModel: "Xenova/all-MiniLM-L6-v2"
+    # Per-graph embedding overrides (inherit from project embedding, then server embedding)
+    # Only specify fields you want to override — the rest inherit from the project/server level.
+    # graphs:
+    #   docs:
+    #     model: "Xenova/bge-m3"
+    #   code:
+    #     model: "Xenova/bge-m3"
+    #   knowledge:
+    #     model: "Xenova/bge-m3"
+    #   tasks:
+    #     model: "Xenova/bge-m3"
+    #   files:
+    #     model: "Xenova/bge-m3"
+    #   skills:
+    #     model: "Xenova/bge-m3"
 
   # ── Project 2: Documentation-only project (no code indexing) ─────────────
   docs-site:
@@ -84,3 +102,92 @@ projects:
 #     author:                                   # Author for shared notes/tasks/skills
 #       name: "Backend Team"
 #       email: "backend@example.com"
+#     # Workspace-level embedding (overrides server.embedding for shared graphs)
+#     # embedding:
+#     #   model: "Xenova/bge-m3"
+#     # Per-graph overrides for shared graphs (knowledge, tasks, skills only)
+#     # graphs:
+#     #   knowledge:
+#     #     model: "Xenova/bge-m3"
+
+# ============================================================================
+# Embedding model examples
+# ============================================================================
+# Below are examples of how to configure different embedding models.
+# Copy the relevant `embedding:` block into server, project, or graphs section.
+#
+# ── Default: BGE-M3 (recommended) ─────────────────────────────────────────
+# Best general-purpose model. 1024 dimensions, multilingual (100+ languages),
+# 8K token context. Works out of the box with default settings.
+#
+#   embedding:
+#     model: "Xenova/bge-m3"
+#     pooling: "cls"
+#     normalize: true
+#
+# ── BGE-base (English, smaller) ───────────────────────────────────────────
+# Good English-only model. 768 dimensions, faster than BGE-M3.
+# Requires query prefix for best results.
+#
+#   embedding:
+#     model: "Xenova/bge-base-en-v1.5"
+#     pooling: "cls"
+#     normalize: true
+#     queryPrefix: "Represent this sentence for searching relevant passages: "
+#
+# ── BGE-small (English, smallest) ─────────────────────────────────────────
+# Lightweight English model. 384 dimensions, fastest inference.
+#
+#   embedding:
+#     model: "Xenova/bge-small-en-v1.5"
+#     pooling: "cls"
+#     normalize: true
+#     queryPrefix: "Represent this sentence for searching relevant passages: "
+#
+# ── all-MiniLM-L6-v2 (legacy default) ────────────────────────────────────
+# The previous default. 384 dimensions, English-only.
+# No prefixes needed. Good for low-resource environments.
+#
+#   embedding:
+#     model: "Xenova/all-MiniLM-L6-v2"
+#     pooling: "mean"
+#     normalize: true
+#
+# ── nomic-embed-text-v1.5 ────────────────────────────────────────────────
+# High-quality model with separate query/document prefixes.
+# 768 dimensions, 8K context, Matryoshka support.
+#
+#   embedding:
+#     model: "nomic-ai/nomic-embed-text-v1.5"
+#     pooling: "mean"
+#     normalize: true
+#     queryPrefix: "search_query: "
+#     documentPrefix: "search_document: "
+#
+# ── Quantized model (lower memory usage) ─────────────────────────────────
+# Use dtype to load quantized model variants for reduced memory.
+# Options: fp32 (default), fp16, q8, q4
+#
+#   embedding:
+#     model: "Xenova/bge-m3"
+#     pooling: "cls"
+#     normalize: true
+#     dtype: "q8"
+#
+# ── Mixed config: different models per graph ──────────────────────────────
+# Use a smaller model for file paths and a larger model for content search.
+#
+# projects:
+#   my-app:
+#     projectDir: "/path/to/my-app"
+#     embedding:
+#       model: "Xenova/bge-m3"
+#       pooling: "cls"
+#       normalize: true
+#     graphs:
+#       files:
+#         model: "Xenova/bge-small-en-v1.5"
+#         pooling: "cls"
+#       code:
+#         model: "Xenova/bge-base-en-v1.5"
+#         queryPrefix: "Represent this sentence for searching relevant passages: "

@@ -133,9 +133,13 @@ projects:
     docsPattern: "docs/**/*.md"
     codePattern: "src/**/*.ts"
     excludePattern: "node_modules/**"
-    embeddingModel: "Xenova/all-MiniLM-L6-v2"
-    docsModel: ""               # per-graph model override
-    codeModel: ""
+    embedding:
+      model: "Xenova/bge-m3"
+    graphs:
+      docs:
+        model: ""               # per-graph model override
+      code:
+        model: ""
     chunkDepth: 4
     embedMaxChars: 2000
 ```
@@ -331,7 +335,7 @@ Two-level cache:
 
 ### Defaults
 
-- Model: `Xenova/all-MiniLM-L6-v2` (384 dimensions)
+- Model: `Xenova/bge-m3` (1024 dimensions)
 - Local cache: `~/.graph-memory/models/`
 - Max chars: configurable per project (`embedMaxChars`, default 2000)
 
@@ -805,7 +809,7 @@ src/
     indexer.ts               # ProjectIndexer (3 queues, scan, watch, drain)
   lib/
     multi-config.ts          # Multi-project config (YAML + Zod)
-    embedder.ts              # Embeddings (@xenova/transformers)
+    embedder.ts              # Embeddings (@huggingface/transformers)
     watcher.ts               # File watching (chokidar)
     project-manager.ts       # Multi-project lifecycle + creates managers
     promise-queue.ts         # Serial PromiseQueue
@@ -851,7 +855,7 @@ src/
   tests/
     *.test.ts                # Jest test suites (26 suites, 1178 tests)
     helpers.ts               # Test utilities (fakeEmbed, setupMcpClient)
-    __mocks__/               # Jest mocks for ESM-only packages (chokidar, @xenova/transformers, mime)
+    __mocks__/               # Jest mocks for ESM-only packages (chokidar, @huggingface/transformers, mime)
     fixtures/                # Test fixtures (markdown, TypeScript)
 ui/
   src/                       # React UI (FSD architecture — see section 10)
@@ -869,7 +873,7 @@ ui/
 | Package | Purpose |
 |---------|---------|
 | `@modelcontextprotocol/sdk` | MCP server + transports (stdio, StreamableHTTP) |
-| `@xenova/transformers` | Embedding models (ONNX runtime) |
+| `@huggingface/transformers` | Embedding models (ONNX runtime) |
 | `graphology` | In-memory directed graph |
 | `chokidar` | File system watching |
 | `commander` | CLI argument parsing |

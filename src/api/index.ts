@@ -139,8 +139,8 @@ function buildInstructions(ctx: McpSessionContext): string {
  * pass codeGraph to enable the 5 code tools;
  * pass fileIndexGraph to enable the 3 file index tools.
  * cross_references requires both docGraph and codeGraph.
- * Knowledge tools (10) are always registered.
- * Task tools (11) are always registered when taskGraph is provided.
+ * Knowledge tools (12) are always registered.
+ * Task tools (13) are always registered when taskGraph is provided.
  * @param embedFn  Single EmbedFn (all graphs share it) or per-graph EmbedFnMap.
  *                 Tests typically pass a single function; CLI passes a map for per-graph models.
  * @param mutationQueue  Optional PromiseQueue to serialize mutation tool handlers.

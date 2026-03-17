@@ -41,7 +41,7 @@ Can be overridden per project or per workspace.
 | `port` | `3000` | HTTP server port |
 | `sessionTimeout` | `1800` | Idle MCP session timeout in seconds (30 min) |
 | `modelsDir` | `~/.graph-memory/models` | Where embedding models are cached locally |
-| `embeddingModel` | `Xenova/all-MiniLM-L6-v2` | Default model for all graphs |
+| `embedding.model` | `Xenova/bge-m3` | Default model for all graphs |
 
 ## Project settings
 
@@ -66,15 +66,22 @@ Override the embedding model for specific graphs:
 projects:
   my-app:
     projectDir: "/path/to/my-app"
-    docsModel: "Xenova/all-MiniLM-L6-v2"
-    codeModel: "Xenova/bge-base-en-v1.5"
-    knowledgeModel: "Xenova/all-MiniLM-L6-v2"
-    taskModel: "Xenova/all-MiniLM-L6-v2"
-    filesModel: "Xenova/all-MiniLM-L6-v2"
-    skillsModel: "Xenova/all-MiniLM-L6-v2"
+    graphs:
+      docs:
+        model: "Xenova/bge-m3"
+      code:
+        model: "Xenova/bge-base-en-v1.5"
+      knowledge:
+        model: "Xenova/bge-m3"
+      tasks:
+        model: "Xenova/bge-m3"
+      files:
+        model: "Xenova/bge-m3"
+      skills:
+        model: "Xenova/bge-m3"
 ```
 
-Graphs without a specific model use `embeddingModel` (project-level, then server-level). The same model string is loaded only once, even if used by multiple graphs.
+Graphs without a specific model use `embedding.model` (project-level, then server-level). The same model string is loaded only once, even if used by multiple graphs.
 
 ## Workspaces
 

@@ -154,7 +154,7 @@ src/
   tests/
     *.test.ts        # Jest test suites (1178 tests across 26 suites)
     helpers.ts       # shared test utilities (unitVec, fakeEmbed, setupMcpClient, text/json)
-    __mocks__/       # Jest mocks for ESM-only packages (chokidar, @xenova/transformers, mime)
+    __mocks__/       # Jest mocks for ESM-only packages (chokidar, @huggingface/transformers, mime)
     fixtures/
       *.md           # markdown fixtures for docs tests
       code/          # TypeScript fixtures for code-parser tests
@@ -247,7 +247,7 @@ demo-projects/       # Demo "ShopFlow" multi-project workspace for testing works
   **file mirror**: every create/update/delete/move writes a `.tasks/{id}/task.md` file (markdown
   with YAML frontmatter — status, priority, tags, dueDate, estimate, timestamps, relations)
 - **Skill graph**: CRUD-only graph (no file indexing, like KnowledgeGraph/TaskGraph); skills have
-  title, description, steps (string[]), triggers (string[]), source (`learned`|`manual`|`imported`),
+  title, description, steps (string[]), triggers (string[]), source (`user`|`learned`),
   tags, usageCount, lastUsedAt; slug IDs from title (shared `slugify`); skill↔skill edges:
   `depends_on`, `related_to`, `variant_of`; `get_skill` enriches with dependsOn/dependedBy/related/variants;
   `recall_skills` uses lower minScore (0.3) for higher recall in task contexts;
@@ -290,12 +290,12 @@ demo-projects/       # Demo "ShopFlow" multi-project workspace for testing works
   `scanMirrorDirs()` imports any files newer than the graph's `updatedAt`. Manager methods
   `importFromFile()` and `deleteFromFile()` update the graph without re-writing the mirror
   file. Relation changes in frontmatter are diffed and applied via `diffRelations()`
-- **Embeddings**: default model `Xenova/all-MiniLM-L6-v2` via `@xenova/transformers`; L2-normalized,
+- **Embeddings**: default model `Xenova/bge-m3` via `@huggingface/transformers`; L2-normalized,
   cosine similarity = dot product; empty `[]` means not yet embedded; named model registry in
   `embedder.ts` with `Map<string, Pipeline>` keyed by name and dedup by model string (same
   model loaded only once); `embed(title, content, modelName?)` for single items,
-  `embedBatch(inputs, modelName?)` for batch; per-graph models configured via `docsModel`,
-  `codeModel`, etc. with fallback to `embeddingModel`; `createMcpServer` accepts
+  `embedBatch(inputs, modelName?)` for batch; per-graph models configured via `graphs.docs.model`,
+  `graphs.code.model`, etc. with fallback to `embedding.model`; `createMcpServer` accepts
   `EmbedFn | Partial<EmbedFnMap>` — single function for tests, per-graph map for CLI;
   indexer passes model names (`docsModelName`, `codeModelName`, `filesModelName`) to
   embed/embedBatch calls
@@ -356,9 +356,9 @@ All configuration is via `graph-memory.yaml` (multi-project YAML). See `graph-me
 
 **Author settings** (`author:`): `name`, `email` — used as createdBy/updatedBy in notes/tasks/skills; git-style format `"Name <email>"` in mirror files. Can be overridden per project or per workspace
 
-**Server settings** (`server:`): `host`, `port`, `sessionTimeout`, `modelsDir`, `embeddingModel`
+**Server settings** (`server:`): `host`, `port`, `sessionTimeout`, `modelsDir`, `embedding.model`
 
-**Per-project settings** (`projects.<id>:`): `projectDir` (required), `graphMemory`, `docsPattern`, `codePattern`, `excludePattern`, `tsconfig`, `embeddingModel`, `docsModel`, `codeModel`, `knowledgeModel`, `taskModel`, `filesModel`, `skillsModel`, `chunkDepth`, `maxTokensDefault`, `embedMaxChars`, `author`
+**Per-project settings** (`projects.<id>:`): `projectDir` (required), `graphMemory`, `docsPattern`, `codePattern`, `excludePattern`, `tsconfig`, `embedding.model`, `graphs.docs.model`, `graphs.code.model`, `graphs.knowledge.model`, `graphs.tasks.model`, `graphs.files.model`, `graphs.skills.model`, `chunkDepth`, `maxTokensDefault`, `embedMaxChars`, `author`
 
 **Workspace settings** (`workspaces.<id>:`): `projects` (list of project IDs), `graphMemory`, `mirrorDir`, `author` — shared knowledge/tasks/skills graphs across member projects
 
@@ -367,7 +367,7 @@ All configuration is via `graph-memory.yaml` (multi-project YAML). See `graph-me
 - TypeScript strict mode — no implicit `any`, no unused vars/params
 - Error handling: `.catch()` with `process.stderr.write` + `process.exit(1)` for fatal CLI errors
 - Async errors in the indexer queue are logged to stderr but do not stop the queue (intentional)
-- Tests use Jest with ts-jest; ESM-only deps (`@xenova/transformers`, `chokidar`, `mime`) mocked via `moduleNameMapper`
+- Tests use Jest with ts-jest; ESM-only deps (`@huggingface/transformers`, `chokidar`, `mime`) mocked via `moduleNameMapper`
 - MCP tests use `InMemoryTransport.createLinkedPair()` + fake unit-vector embeddings — no model loading
 - `embedder.test.ts` loads a real model (slow) — excluded from Jest, run with `npx tsx`
 - `parser.debug.ts` is a manual debug script (no assertions), not part of the test suite

@@ -80,7 +80,9 @@ import * as recallSkills from '@/api/tools/skills/recall-skills';
 import * as bumpSkillUsage from '@/api/tools/skills/bump-usage';
 import * as getContext from '@/api/tools/context/get-context';
 
-export type EmbedFn = (query: string) => Promise<number[]>;
+import type { EmbedFn, EmbedFns } from '@/graphs/manager-types';
+
+export type { EmbedFn, EmbedFns };
 
 export interface McpSessionContext {
   projectId: string;
@@ -89,12 +91,12 @@ export interface McpSessionContext {
 }
 
 export type EmbedFnMap = {
-  docs: EmbedFn;
-  code: EmbedFn;
-  knowledge: EmbedFn;
-  tasks: EmbedFn;
-  files: EmbedFn;
-  skills: EmbedFn;
+  docs: EmbedFns;
+  code: EmbedFns;
+  knowledge: EmbedFns;
+  tasks: EmbedFns;
+  files: EmbedFns;
+  skills: EmbedFns;
 };
 
 /**
@@ -155,16 +157,24 @@ export function createMcpServer(
   skillGraph?: SkillGraph,
   sessionContext?: McpSessionContext,
 ): McpServer {
-  const defaultFn: EmbedFn = (q) => embed(q, '');
+  // Backward-compat: single EmbedFn → use for both document and query
+  const defaultPair: EmbedFns = { document: (q) => embed(q, ''), query: (q) => embed(q, '') };
   const fns: EmbedFnMap = typeof embedFn === 'function'
-    ? { docs: embedFn, code: embedFn, knowledge: embedFn, tasks: embedFn, files: embedFn, skills: embedFn }
+    ? {
+        docs: { document: embedFn, query: embedFn },
+        code: { document: embedFn, query: embedFn },
+        knowledge: { document: embedFn, query: embedFn },
+        tasks: { document: embedFn, query: embedFn },
+        files: { document: embedFn, query: embedFn },
+        skills: { document: embedFn, query: embedFn },
+      }
     : {
-        docs:      embedFn?.docs      ?? defaultFn,
-        code:      embedFn?.code      ?? defaultFn,
-        knowledge: embedFn?.knowledge ?? defaultFn,
-        tasks:     embedFn?.tasks     ?? defaultFn,
-        files:     embedFn?.files     ?? defaultFn,
-        skills:    embedFn?.skills    ?? defaultFn,
+        docs:      embedFn?.docs      ?? defaultPair,
+        code:      embedFn?.code      ?? defaultPair,
+        knowledge: embedFn?.knowledge ?? defaultPair,
+        tasks:     embedFn?.tasks     ?? defaultPair,
+        files:     embedFn?.files     ?? defaultPair,
+        skills:    embedFn?.skills    ?? defaultPair,
       };
 
   // Build instructions for MCP clients (workspace/project context)

@@ -3,7 +3,7 @@ import path from 'path';
 import type { CodeGraph, CodeNodeAttributes } from '@/graphs/code-types';
 import { createCodeGraph } from '@/graphs/code-types';
 import type { ParsedFile } from '@/lib/parsers/code';
-import type { EmbedFn, ExternalGraphs, IncomingCrossLink } from '@/graphs/manager-types';
+import type { EmbedFns, ExternalGraphs, IncomingCrossLink } from '@/graphs/manager-types';
 import { findIncomingCrossLinks } from '@/graphs/manager-types';
 import { searchCode, type CodeSearchResult } from '@/lib/search/code';
 import { searchCodeFiles, type CodeFileSearchResult } from '@/lib/search/files';
@@ -89,15 +89,15 @@ export function listCodeFiles(
 // Persistence
 // ---------------------------------------------------------------------------
 
-export function saveCodeGraph(graph: CodeGraph, graphMemory: string, embeddingModel?: string): void {
+export function saveCodeGraph(graph: CodeGraph, graphMemory: string, embeddingFingerprint?: string): void {
   fs.mkdirSync(graphMemory, { recursive: true });
   const file = path.join(graphMemory, 'code.json');
   const tmp = file + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify({ embeddingModel, graph: graph.export() }));
+  fs.writeFileSync(tmp, JSON.stringify({ embeddingModel: embeddingFingerprint, graph: graph.export() }));
   fs.renameSync(tmp, file);
 }
 
-export function loadCodeGraph(graphMemory: string, fresh = false, embeddingModel?: string): CodeGraph {
+export function loadCodeGraph(graphMemory: string, fresh = false, embeddingFingerprint?: string): CodeGraph {
   const graph = createCodeGraph();
   if (fresh) return graph;
   const file = path.join(graphMemory, 'code.json');
@@ -106,10 +106,10 @@ export function loadCodeGraph(graphMemory: string, fresh = false, embeddingModel
 
   try {
     const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
-    const storedModel = data.embeddingModel as string | undefined;
+    const stored = data.embeddingModel as string | undefined;
 
-    if (embeddingModel && storedModel !== embeddingModel) {
-      process.stderr.write(`[code-graph] Embedding model changed (${storedModel ?? 'unknown'} → ${embeddingModel}), re-indexing code graph\n`);
+    if (embeddingFingerprint && stored !== embeddingFingerprint) {
+      process.stderr.write(`[code-graph] Embedding config changed, re-indexing code graph\n`);
       return graph;
     }
 
@@ -131,7 +131,7 @@ export class CodeGraphManager {
 
   constructor(
     private _graph: CodeGraph,
-    private embedFn: EmbedFn,
+    private embedFns: EmbedFns,
     private ext: ExternalGraphs = {},
   ) {
     _graph.forEachNode((id, attrs) => {
@@ -187,14 +187,14 @@ export class CodeGraphManager {
     topK?: number; bfsDepth?: number; maxResults?: number; minScore?: number; bfsDecay?: number;
     searchMode?: SearchMode;
   }): Promise<CodeSearchResult[]> {
-    const embedding = opts?.searchMode === 'keyword' ? [] : await this.embedFn(query);
+    const embedding = opts?.searchMode === 'keyword' ? [] : await this.embedFns.query(query);
     return searchCode(this._graph, embedding, { ...opts, queryText: query, bm25Index: this._bm25Index });
   }
 
   async searchFiles(query: string, opts?: {
     topK?: number; minScore?: number;
   }): Promise<CodeFileSearchResult[]> {
-    const embedding = await this.embedFn(query);
+    const embedding = await this.embedFns.query(query);
     return searchCodeFiles(this._graph, embedding, opts);
   }
 }

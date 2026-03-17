@@ -10,7 +10,7 @@ const config: Config = {
   },
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
-    '^@xenova/transformers$': '<rootDir>/src/tests/__mocks__/xenova-transformers.ts',
+    '^@huggingface/transformers$': '<rootDir>/src/tests/__mocks__/huggingface-transformers.ts',
     '^chokidar$': '<rootDir>/src/tests/__mocks__/chokidar.ts',
     '^mime$': '<rootDir>/src/tests/__mocks__/mime.ts',
   },

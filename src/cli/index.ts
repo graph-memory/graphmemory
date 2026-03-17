@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
 import path from 'path';
-import { loadMultiConfig, type ProjectConfig, type ServerConfig } from '@/lib/multi-config';
+import { loadMultiConfig, GRAPH_NAMES, embeddingFingerprint, type ProjectConfig, type ServerConfig, type GraphName } from '@/lib/multi-config';
 import { ProjectManager } from '@/lib/project-manager';
-import { loadModel, embed } from '@/lib/embedder';
+import { loadModel, embed, embedQuery } from '@/lib/embedder';
 import { loadGraph, saveGraph } from '@/graphs/docs';
 import { loadCodeGraph, saveCodeGraph } from '@/graphs/code';
 import { loadKnowledgeGraph, saveKnowledgeGraph } from '@/graphs/knowledge';
@@ -47,33 +47,20 @@ function resolveProject(configPath: string, projectId?: string): { id: string; p
   return { id, project, server: mc.server };
 }
 
-function resolveModels(projectId: string, config: ProjectConfig): Record<string, string> {
-  const fallback = config.embeddingModel;
-  return {
-    [`${projectId}:docs`]:      config.docsModel      ?? fallback,
-    [`${projectId}:code`]:      config.codeModel      ?? fallback,
-    [`${projectId}:knowledge`]: config.knowledgeModel ?? fallback,
-    [`${projectId}:tasks`]:     config.taskModel      ?? fallback,
-    [`${projectId}:files`]:     config.filesModel     ?? fallback,
-    [`${projectId}:skills`]:    config.skillsModel    ?? fallback,
-  };
-}
-
 async function loadAllModels(projectId: string, config: ProjectConfig, modelsDir: string): Promise<void> {
-  const models = resolveModels(projectId, config);
-  for (const [name, model] of Object.entries(models)) {
-    await loadModel(model, modelsDir, config.embedMaxChars, name);
+  for (const gn of GRAPH_NAMES) {
+    await loadModel(config.graphEmbeddings[gn], modelsDir, config.embedMaxChars, `${projectId}:${gn}`);
   }
 }
 
 function buildEmbedFns(projectId: string): EmbedFnMap {
+  const pair = (gn: GraphName) => ({
+    document: (q: string) => embed(q, '', `${projectId}:${gn}`),
+    query:    (q: string) => embedQuery(q, `${projectId}:${gn}`),
+  });
   return {
-    docs:      (q: string) => embed(q, '', `${projectId}:docs`),
-    code:      (q: string) => embed(q, '', `${projectId}:code`),
-    knowledge: (q: string) => embed(q, '', `${projectId}:knowledge`),
-    tasks:     (q: string) => embed(q, '', `${projectId}:tasks`),
-    files:     (q: string) => embed(q, '', `${projectId}:files`),
-    skills:    (q: string) => embed(q, '', `${projectId}:skills`),
+    docs: pair('docs'), code: pair('code'), knowledge: pair('knowledge'),
+    tasks: pair('tasks'), files: pair('files'), skills: pair('skills'),
   };
 }
 
@@ -250,15 +237,15 @@ program
     const fresh = !!opts.reindex;
     if (fresh) process.stderr.write(`[mcp] Re-indexing project "${id}" from scratch\n`);
 
-    const models = resolveModels(id, project);
+    const ge = project.graphEmbeddings;
 
     // Load persisted graphs (or create fresh ones if reindexing / model changed) and start MCP server immediately
-    const docGraph  = project.docsPattern ? loadGraph(project.graphMemory, fresh, models[`${id}:docs`]) : undefined;
-    const codeGraph = project.codePattern ? loadCodeGraph(project.graphMemory, fresh, models[`${id}:code`]) : undefined;
-    const knowledgeGraph = loadKnowledgeGraph(project.graphMemory, fresh, models[`${id}:knowledge`]);
-    const fileIndexGraph = loadFileIndexGraph(project.graphMemory, fresh, models[`${id}:files`]);
-    const taskGraph = loadTaskGraph(project.graphMemory, fresh, models[`${id}:tasks`]);
-    const skillGraph = loadSkillGraph(project.graphMemory, fresh, models[`${id}:skills`]);
+    const docGraph  = project.docsPattern ? loadGraph(project.graphMemory, fresh, embeddingFingerprint(ge.docs)) : undefined;
+    const codeGraph = project.codePattern ? loadCodeGraph(project.graphMemory, fresh, embeddingFingerprint(ge.code)) : undefined;
+    const knowledgeGraph = loadKnowledgeGraph(project.graphMemory, fresh, embeddingFingerprint(ge.knowledge));
+    const fileIndexGraph = loadFileIndexGraph(project.graphMemory, fresh, embeddingFingerprint(ge.files));
+    const taskGraph = loadTaskGraph(project.graphMemory, fresh, embeddingFingerprint(ge.tasks));
+    const skillGraph = loadSkillGraph(project.graphMemory, fresh, embeddingFingerprint(ge.skills));
 
     const embedFns = buildEmbedFns(id);
     const sessionCtx: McpSessionContext = { projectId: id };
@@ -288,16 +275,16 @@ program
       await indexer.drain();
 
       if (docGraph) {
-        saveGraph(docGraph, project.graphMemory, models[`${id}:docs`]);
+        saveGraph(docGraph, project.graphMemory, embeddingFingerprint(ge.docs));
         process.stderr.write(`[mcp] Docs indexed. ${docGraph.order} nodes, ${docGraph.size} edges.\n`);
       }
 
       if (codeGraph) {
-        saveCodeGraph(codeGraph, project.graphMemory, models[`${id}:code`]);
+        saveCodeGraph(codeGraph, project.graphMemory, embeddingFingerprint(ge.code));
         process.stderr.write(`[mcp] Code indexed. ${codeGraph.order} nodes, ${codeGraph.size} edges.\n`);
       }
 
-      saveFileIndexGraph(fileIndexGraph, project.graphMemory, models[`${id}:files`]);
+      saveFileIndexGraph(fileIndexGraph, project.graphMemory, embeddingFingerprint(ge.files));
       process.stderr.write(`[mcp] File index done. ${fileIndexGraph.order} nodes, ${fileIndexGraph.size} edges.\n`);
     }
 
@@ -321,11 +308,11 @@ program
       try {
         if (watcher) await watcher.close();
         if (indexer) await indexer.drain();
-        if (docGraph) saveGraph(docGraph, project.graphMemory, models[`${id}:docs`]);
-        if (codeGraph) saveCodeGraph(codeGraph, project.graphMemory, models[`${id}:code`]);
-        saveKnowledgeGraph(knowledgeGraph, project.graphMemory, models[`${id}:knowledge`]);
-        saveFileIndexGraph(fileIndexGraph, project.graphMemory, models[`${id}:files`]);
-        saveTaskGraph(taskGraph, project.graphMemory, models[`${id}:tasks`]);
+        if (docGraph) saveGraph(docGraph, project.graphMemory, embeddingFingerprint(ge.docs));
+        if (codeGraph) saveCodeGraph(codeGraph, project.graphMemory, embeddingFingerprint(ge.code));
+        saveKnowledgeGraph(knowledgeGraph, project.graphMemory, embeddingFingerprint(ge.knowledge));
+        saveFileIndexGraph(fileIndexGraph, project.graphMemory, embeddingFingerprint(ge.files));
+        saveTaskGraph(taskGraph, project.graphMemory, embeddingFingerprint(ge.tasks));
       } catch { /* ignore */ }
       process.exit(0);
     }

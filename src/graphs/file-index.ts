@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { createFileIndexGraph, type FileIndexGraph, type FileIndexNodeAttributes } from '@/graphs/file-index-types';
 import { getLanguage, getMimeType } from '@/graphs/file-lang';
-import type { EmbedFn, ExternalGraphs, IncomingCrossLink } from '@/graphs/manager-types';
+import type { EmbedFns, ExternalGraphs, IncomingCrossLink } from '@/graphs/manager-types';
 import { findIncomingCrossLinks } from '@/graphs/manager-types';
 import { searchFileIndex, type FileIndexSearchResult } from '@/lib/search/file-index';
 
@@ -258,15 +258,15 @@ export function rebuildDirectoryStats(graph: FileIndexGraph): void {
 // Persistence
 // ---------------------------------------------------------------------------
 
-export function saveFileIndexGraph(graph: FileIndexGraph, graphMemory: string, embeddingModel?: string): void {
+export function saveFileIndexGraph(graph: FileIndexGraph, graphMemory: string, embeddingFingerprint?: string): void {
   fs.mkdirSync(graphMemory, { recursive: true });
   const file = path.join(graphMemory, 'file-index.json');
   const tmp = file + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify({ embeddingModel, graph: graph.export() }));
+  fs.writeFileSync(tmp, JSON.stringify({ embeddingModel: embeddingFingerprint, graph: graph.export() }));
   fs.renameSync(tmp, file);
 }
 
-export function loadFileIndexGraph(graphMemory: string, fresh = false, embeddingModel?: string): FileIndexGraph {
+export function loadFileIndexGraph(graphMemory: string, fresh = false, embeddingFingerprint?: string): FileIndexGraph {
   const graph = createFileIndexGraph();
   if (fresh) return graph;
   const file = path.join(graphMemory, 'file-index.json');
@@ -275,10 +275,10 @@ export function loadFileIndexGraph(graphMemory: string, fresh = false, embedding
 
   try {
     const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
-    const storedModel = data.embeddingModel as string | undefined;
+    const stored = data.embeddingModel as string | undefined;
 
-    if (embeddingModel && storedModel !== embeddingModel) {
-      process.stderr.write(`[file-index] Embedding model changed (${storedModel ?? 'unknown'} → ${embeddingModel}), re-indexing file index\n`);
+    if (embeddingFingerprint && stored !== embeddingFingerprint) {
+      process.stderr.write(`[file-index] Embedding config changed, re-indexing file index\n`);
       return graph;
     }
 
@@ -298,7 +298,7 @@ export function loadFileIndexGraph(graphMemory: string, fresh = false, embedding
 export class FileIndexGraphManager {
   constructor(
     private _graph: FileIndexGraph,
-    private embedFn: EmbedFn,
+    private embedFns: EmbedFns,
     private ext: ExternalGraphs = {},
   ) {}
 
@@ -340,7 +340,7 @@ export class FileIndexGraphManager {
   async search(query: string, opts?: {
     topK?: number; minScore?: number;
   }): Promise<FileIndexSearchResult[]> {
-    const embedding = await this.embedFn(query);
+    const embedding = await this.embedFns.query(query);
     return searchFileIndex(this._graph, embedding, opts);
   }
 }

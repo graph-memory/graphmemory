@@ -1,4 +1,4 @@
-// Mock for @xenova/transformers — avoids loading the real ESM-only package in Jest
+// Mock for @huggingface/transformers — avoids loading the real ESM-only package in Jest
 export const env = {
   localModelPath: '',
   cacheDir: '',

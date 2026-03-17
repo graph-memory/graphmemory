@@ -9,7 +9,7 @@ import { createTaskGraph } from '../graphs/task-types';
 import { noopContext } from '../graphs/manager-types';
 import { mirrorNoteCreate, mirrorTaskCreate } from '../lib/file-mirror';
 import { parseNoteDir, parseTaskDir } from '../lib/file-import';
-import { unitVec, DIM } from './helpers';
+import { unitVec, DIM, embedFnPair } from './helpers';
 
 const fakeEmbed = (_q: string) => Promise.resolve(unitVec(0, DIM));
 
@@ -61,7 +61,7 @@ describe('MirrorWriteTracker', () => {
 describe('KnowledgeGraphManager.importFromFile', () => {
   it('creates a new note from file', async () => {
     const graph = createKnowledgeGraph();
-    const mgr = new KnowledgeGraphManager(graph, fakeEmbed, noopContext());
+    const mgr = new KnowledgeGraphManager(graph, embedFnPair(fakeEmbed), noopContext());
 
     await mgr.importFromFile({
       id: 'imported-note',
@@ -87,7 +87,7 @@ describe('KnowledgeGraphManager.importFromFile', () => {
 
   it('updates an existing note from file', async () => {
     const graph = createKnowledgeGraph();
-    const mgr = new KnowledgeGraphManager(graph, fakeEmbed, noopContext());
+    const mgr = new KnowledgeGraphManager(graph, embedFnPair(fakeEmbed), noopContext());
 
     // Create initial note
     await mgr.createNote('Existing Note', 'Old content', ['old']);
@@ -120,7 +120,7 @@ describe('KnowledgeGraphManager.importFromFile', () => {
 
   it('syncs relations from file', async () => {
     const graph = createKnowledgeGraph();
-    const mgr = new KnowledgeGraphManager(graph, fakeEmbed, noopContext());
+    const mgr = new KnowledgeGraphManager(graph, embedFnPair(fakeEmbed), noopContext());
 
     // Create two notes
     await mgr.createNote('Note A', 'Content A', []);
@@ -149,7 +149,7 @@ describe('KnowledgeGraphManager.importFromFile', () => {
 describe('KnowledgeGraphManager.deleteFromFile', () => {
   it('deletes a note', async () => {
     const graph = createKnowledgeGraph();
-    const mgr = new KnowledgeGraphManager(graph, fakeEmbed, noopContext());
+    const mgr = new KnowledgeGraphManager(graph, embedFnPair(fakeEmbed), noopContext());
 
     await mgr.createNote('To Delete', 'Content', []);
     expect(graph.hasNode('to-delete')).toBe(true);
@@ -160,7 +160,7 @@ describe('KnowledgeGraphManager.deleteFromFile', () => {
 
   it('ignores non-existent note', () => {
     const graph = createKnowledgeGraph();
-    const mgr = new KnowledgeGraphManager(graph, fakeEmbed, noopContext());
+    const mgr = new KnowledgeGraphManager(graph, embedFnPair(fakeEmbed), noopContext());
     // Should not throw
     mgr.deleteFromFile('nonexistent');
   });
@@ -173,7 +173,7 @@ describe('KnowledgeGraphManager.deleteFromFile', () => {
 describe('TaskGraphManager.importFromFile', () => {
   it('creates a new task from file', async () => {
     const graph = createTaskGraph();
-    const mgr = new TaskGraphManager(graph, fakeEmbed, noopContext());
+    const mgr = new TaskGraphManager(graph, embedFnPair(fakeEmbed), noopContext());
 
     await mgr.importFromFile({
       id: 'imported-task',
@@ -205,7 +205,7 @@ describe('TaskGraphManager.importFromFile', () => {
 
   it('updates an existing task with file values (no auto completedAt)', async () => {
     const graph = createTaskGraph();
-    const mgr = new TaskGraphManager(graph, fakeEmbed, noopContext());
+    const mgr = new TaskGraphManager(graph, embedFnPair(fakeEmbed), noopContext());
 
     await mgr.createTask('My Task', 'Desc', 'todo', 'medium', []);
 
@@ -239,7 +239,7 @@ describe('TaskGraphManager.importFromFile', () => {
 describe('TaskGraphManager.deleteFromFile', () => {
   it('deletes a task', async () => {
     const graph = createTaskGraph();
-    const mgr = new TaskGraphManager(graph, fakeEmbed, noopContext());
+    const mgr = new TaskGraphManager(graph, embedFnPair(fakeEmbed), noopContext());
 
     await mgr.createTask('Delete Me', 'Desc', 'todo', 'medium', []);
     expect(graph.hasNode('delete-me')).toBe(true);
@@ -278,7 +278,7 @@ describe('round-trip note create → parseNoteDir → importFromFile', () => {
 
     // Import into graph
     const graph = createKnowledgeGraph();
-    const mgr = new KnowledgeGraphManager(graph, fakeEmbed, noopContext());
+    const mgr = new KnowledgeGraphManager(graph, embedFnPair(fakeEmbed), noopContext());
     await mgr.importFromFile(parsed!);
 
     expect(graph.hasNode('round-trip')).toBe(true);
@@ -315,7 +315,7 @@ describe('round-trip task create → parseTaskDir → importFromFile', () => {
     expect(parsed!.estimate).toBe(8);
 
     const graph = createTaskGraph();
-    const mgr = new TaskGraphManager(graph, fakeEmbed, noopContext());
+    const mgr = new TaskGraphManager(graph, embedFnPair(fakeEmbed), noopContext());
     await mgr.importFromFile(parsed!);
 
     const attrs = graph.getNodeAttributes('rt-task');

@@ -8,6 +8,12 @@ import type { SkillGraph } from '@/graphs/skill-types';
 
 export type EmbedFn = (query: string) => Promise<number[]>;
 
+/** Document (indexing) and query (search) embed functions. */
+export interface EmbedFns {
+  document: EmbedFn;
+  query: EmbedFn;
+}
+
 export interface GraphManagerContext {
   markDirty: () => void;
   emit: (event: string, data: unknown) => void;

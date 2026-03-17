@@ -30,7 +30,7 @@ import {
 } from '@/graphs/skill';
 import { findIncomingCrossLinks, noopContext, type ExternalGraphs } from '@/graphs/manager-types';
 import { PromiseQueue } from '@/lib/promise-queue';
-import { unitVec } from './helpers';
+import { unitVec, embedFnPair } from './helpers';
 
 // ---------------------------------------------------------------------------
 // Proxy ID formatting
@@ -248,20 +248,20 @@ describe('workspace shared graphs', () => {
   };
 
   // Shared managers (workspace-level, used by both projects)
-  const sharedKnowledgeManager = new KnowledgeGraphManager(sharedKnowledgeGraph, fakeEmbed, wsCtx, wsExt);
-  const sharedTaskManager = new TaskGraphManager(sharedTaskGraph, fakeEmbed, wsCtx, wsExt);
-  const sharedSkillManager = new SkillGraphManager(sharedSkillGraph, fakeEmbed, wsCtx, wsExt);
+  const sharedKnowledgeManager = new KnowledgeGraphManager(sharedKnowledgeGraph, embedFnPair(fakeEmbed), wsCtx, wsExt);
+  const sharedTaskManager = new TaskGraphManager(sharedTaskGraph, embedFnPair(fakeEmbed), wsCtx, wsExt);
+  const sharedSkillManager = new SkillGraphManager(sharedSkillGraph, embedFnPair(fakeEmbed), wsCtx, wsExt);
 
   // Standalone managers
   const standaloneCtx = noopContext('standalone');
   const standaloneKnowledgeManager = new KnowledgeGraphManager(
-    standaloneKnowledgeGraph, fakeEmbed, standaloneCtx,
+    standaloneKnowledgeGraph, embedFnPair(fakeEmbed), standaloneCtx,
   );
   const standaloneTaskManager = new TaskGraphManager(
-    standaloneTaskGraph, fakeEmbed, standaloneCtx,
+    standaloneTaskGraph, embedFnPair(fakeEmbed), standaloneCtx,
   );
   const standaloneSkillManager = new SkillGraphManager(
-    standaloneSkillGraph, fakeEmbed, standaloneCtx,
+    standaloneSkillGraph, embedFnPair(fakeEmbed), standaloneCtx,
   );
 
   it('two workspace projects share the same knowledgeGraph instance', () => {

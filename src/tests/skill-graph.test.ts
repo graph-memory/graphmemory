@@ -11,7 +11,7 @@ import type { GraphManagerContext } from '@/graphs/manager-types';
 import { slugify } from '@/graphs/knowledge-types';
 import { DirectedGraph } from 'graphology';
 import { searchSkills } from '@/lib/search/skills';
-import { unitVec, DIM } from '@/tests/helpers';
+import { unitVec, DIM, embedFnPair } from '@/tests/helpers';
 
 const STORE = '/tmp/skill-graph-test';
 
@@ -751,7 +751,7 @@ describe('persistence round-trip (skills)', () => {
       projectId: 'test',
       author: '',
     };
-    const manager = new SkillGraphManager(loaded, fakeEmbed, ctx, {});
+    const manager = new SkillGraphManager(loaded, embedFnPair(fakeEmbed), ctx, {});
 
     // 5. Verify: list returns all items (3 skills, no proxies)
     const skills = listSkills(loaded);
@@ -832,7 +832,7 @@ describe('Attachments (SkillGraphManager)', () => {
       projectDir: tmpDir,
       author: '',
     };
-    manager = new SkillGraphManager(graph, embedFn, ctx, {});
+    manager = new SkillGraphManager(graph, embedFnPair(embedFn), ctx, {});
     skillId = await manager.createSkill('Test Skill', 'A skill for attachment tests', [], [], [], [], []);
   });
 
@@ -944,7 +944,7 @@ describe('SkillGraphManager BM25', () => {
       projectId: 'test',
       author: '',
     };
-    manager = new SkillGraphManager(graph, embedFn, ctx, {});
+    manager = new SkillGraphManager(graph, embedFnPair(embedFn), ctx, {});
     await manager.createSkill('REST Endpoint', 'Create REST endpoints', [], ['add endpoint'], [], [], ['api']);
     await manager.createSkill('GraphQL Query', 'Create GraphQL resolvers', [], ['add query'], [], [], ['graphql']);
   });

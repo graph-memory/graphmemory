@@ -11,7 +11,7 @@ import {
 import { slugify } from '@/graphs/knowledge-types';
 import { DirectedGraph } from 'graphology';
 import { searchKnowledge } from '@/lib/search/knowledge';
-import { unitVec, DIM } from '@/tests/helpers';
+import { unitVec, DIM, embedFnPair } from '@/tests/helpers';
 import type { GraphManagerContext } from '@/graphs/manager-types';
 
 const STORE = '/tmp/knowledge-graph-test';
@@ -768,7 +768,7 @@ describe('persistence round-trip (knowledge)', () => {
       projectId: 'test',
       author: '',
     };
-    const manager = new KnowledgeGraphManager(loaded, fakeEmbed, ctx, {});
+    const manager = new KnowledgeGraphManager(loaded, embedFnPair(fakeEmbed), ctx, {});
 
     // 5. Verify: list returns all items (3 notes, no proxies)
     const notes = listNotes(loaded);
@@ -837,7 +837,7 @@ describe('Attachments (KnowledgeGraphManager)', () => {
       projectDir: tmpDir,
       author: '',
     };
-    manager = new KnowledgeGraphManager(graph, fakeEmbed, ctx, {});
+    manager = new KnowledgeGraphManager(graph, embedFnPair(fakeEmbed), ctx, {});
     noteId = await manager.createNote('Test Note', 'Some content', ['tag']);
   });
 
@@ -974,7 +974,7 @@ describe('Attachments (KnowledgeGraphManager)', () => {
         author: '',
         // no projectDir
       };
-      const mgr = new KnowledgeGraphManager(graph, fakeEmbed, ctx, {});
+      const mgr = new KnowledgeGraphManager(graph, embedFnPair(fakeEmbed), ctx, {});
       expect(mgr.removeAttachment('any', 'file.txt')).toBe(false);
     });
   });
@@ -1040,7 +1040,7 @@ describe('Attachments (KnowledgeGraphManager)', () => {
         author: '',
         // no projectDir
       };
-      const mgr = new KnowledgeGraphManager(graph, fakeEmbed, ctx, {});
+      const mgr = new KnowledgeGraphManager(graph, embedFnPair(fakeEmbed), ctx, {});
       expect(mgr.getAttachmentPath('any', 'file.txt')).toBeNull();
     });
   });

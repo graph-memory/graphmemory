@@ -3,7 +3,7 @@ import path from 'path';
 import type { KnowledgeGraph, KnowledgeNodeAttributes, KnowledgeEdgeAttributes, CrossGraphType } from '@/graphs/knowledge-types';
 import { createKnowledgeGraph, slugify } from '@/graphs/knowledge-types';
 import type { DirectedGraph } from 'graphology';
-import type { EmbedFn, GraphManagerContext, ExternalGraphs } from '@/graphs/manager-types';
+import type { EmbedFns, GraphManagerContext, ExternalGraphs } from '@/graphs/manager-types';
 import { resolveExternalGraph, VersionConflictError } from '@/graphs/manager-types';
 import { searchKnowledge, type KnowledgeSearchResult } from '@/lib/search/knowledge';
 import { BM25Index } from '@/lib/search/bm25';
@@ -400,15 +400,15 @@ export function deleteCrossRelation(
 // Persistence
 // ---------------------------------------------------------------------------
 
-export function saveKnowledgeGraph(graph: KnowledgeGraph, graphMemory: string, embeddingModel?: string): void {
+export function saveKnowledgeGraph(graph: KnowledgeGraph, graphMemory: string, embeddingFingerprint?: string): void {
   fs.mkdirSync(graphMemory, { recursive: true });
   const file = path.join(graphMemory, 'knowledge.json');
   const tmp = file + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify({ embeddingModel, graph: graph.export() }));
+  fs.writeFileSync(tmp, JSON.stringify({ embeddingModel: embeddingFingerprint, graph: graph.export() }));
   fs.renameSync(tmp, file);
 }
 
-export function loadKnowledgeGraph(graphMemory: string, fresh = false, embeddingModel?: string): KnowledgeGraph {
+export function loadKnowledgeGraph(graphMemory: string, fresh = false, embeddingFingerprint?: string): KnowledgeGraph {
   const graph = createKnowledgeGraph();
   if (fresh) return graph;
   const file = path.join(graphMemory, 'knowledge.json');
@@ -417,10 +417,10 @@ export function loadKnowledgeGraph(graphMemory: string, fresh = false, embedding
 
   try {
     const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
-    const storedModel = data.embeddingModel as string | undefined;
+    const stored = data.embeddingModel as string | undefined;
 
-    if (embeddingModel && storedModel !== embeddingModel) {
-      process.stderr.write(`[knowledge-graph] Embedding model changed (${storedModel ?? 'unknown'} → ${embeddingModel}), re-indexing knowledge graph\n`);
+    if (embeddingFingerprint && stored !== embeddingFingerprint) {
+      process.stderr.write(`[knowledge-graph] Embedding config changed, re-indexing knowledge graph\n`);
       return graph;
     }
 
@@ -507,7 +507,7 @@ export class KnowledgeGraphManager {
 
   constructor(
     private _graph: KnowledgeGraph,
-    private embedFn: EmbedFn,
+    private embedFns: EmbedFns,
     private ctx: GraphManagerContext,
     private ext: ExternalGraphs = {},
   ) {
@@ -558,7 +558,7 @@ export class KnowledgeGraphManager {
   // -- Write (mutations with embed + dirty + emit + cross-graph cleanup) --
 
   async createNote(title: string, content: string, tags: string[] = []): Promise<string> {
-    const embedding = await this.embedFn(`${title} ${content}`);
+    const embedding = await this.embedFns.document(`${title} ${content}`);
     const noteId = createNote(this._graph, title, content, tags, embedding, this.ctx.author);
     this._bm25Index.addDocument(noteId, this._graph.getNodeAttributes(noteId));
     this.ctx.markDirty();
@@ -577,7 +577,7 @@ export class KnowledgeGraphManager {
     if (!existing) return false;
 
     const embedText = `${patch.title ?? existing.title} ${patch.content ?? existing.content}`;
-    const embedding = await this.embedFn(embedText);
+    const embedding = await this.embedFns.document(embedText);
     updateNote(this._graph, noteId, patch, embedding, this.ctx.author, expectedVersion);
     this._bm25Index.updateDocument(noteId, this._graph.getNodeAttributes(noteId));
     this.ctx.markDirty();
@@ -745,7 +745,7 @@ export class KnowledgeGraphManager {
 
   async importFromFile(parsed: ParsedNoteFile): Promise<void> {
     const exists = this._graph.hasNode(parsed.id) && !isProxy(this._graph, parsed.id);
-    const embedding = await this.embedFn(`${parsed.title} ${parsed.content}`);
+    const embedding = await this.embedFns.document(`${parsed.title} ${parsed.content}`);
     const now = Date.now();
 
     if (exists) {
@@ -867,7 +867,7 @@ export class KnowledgeGraphManager {
     topK?: number; bfsDepth?: number; maxResults?: number; minScore?: number; bfsDecay?: number;
     searchMode?: 'hybrid' | 'vector' | 'keyword'; rrfK?: number;
   }): Promise<KnowledgeSearchResult[]> {
-    const embedding = opts?.searchMode === 'keyword' ? [] : await this.embedFn(query);
+    const embedding = opts?.searchMode === 'keyword' ? [] : await this.embedFns.query(query);
     return searchKnowledge(this._graph, embedding, { ...opts, queryText: query, bm25Index: this._bm25Index });
   }
 

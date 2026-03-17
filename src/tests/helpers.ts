@@ -7,6 +7,7 @@ import type { KnowledgeGraph } from '@/graphs/knowledge-types';
 import type { FileIndexGraph } from '@/graphs/file-index-types';
 import type { TaskGraph } from '@/graphs/task-types';
 import type { SkillGraph } from '@/graphs/skill-types';
+import type { EmbedFn, EmbedFns } from '@/graphs/manager-types';
 
 // ---------------------------------------------------------------------------
 // Fake embeddings
@@ -31,6 +32,11 @@ export function createFakeEmbed(
     }
     return Promise.resolve(new Array<number>(dim).fill(0));
   };
+}
+
+/** Wrap a single EmbedFn into an EmbedFns pair (same fn for document and query). */
+export function embedFnPair(fn: EmbedFn): EmbedFns {
+  return { document: fn, query: fn };
 }
 
 // ---------------------------------------------------------------------------

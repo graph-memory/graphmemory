@@ -2,7 +2,7 @@ import { DirectedGraph } from 'graphology';
 import fs from 'fs';
 import path from 'path';
 import type { Chunk } from '@/lib/parsers/docs';
-import type { EmbedFn, ExternalGraphs, IncomingCrossLink } from '@/graphs/manager-types';
+import type { EmbedFns, ExternalGraphs, IncomingCrossLink } from '@/graphs/manager-types';
 import { findIncomingCrossLinks } from '@/graphs/manager-types';
 import { search, type SearchResult } from '@/lib/search/docs';
 import { searchDocFiles, type DocFileSearchResult } from '@/lib/search/files';
@@ -119,15 +119,15 @@ export function listFiles(
   return result.slice(0, limit);
 }
 
-export function saveGraph(graph: DocGraph, graphMemory: string, embeddingModel?: string): void {
+export function saveGraph(graph: DocGraph, graphMemory: string, embeddingFingerprint?: string): void {
   fs.mkdirSync(graphMemory, { recursive: true });
   const file = path.join(graphMemory, 'docs.json');
   const tmp = file + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify({ embeddingModel, graph: graph.export() }));
+  fs.writeFileSync(tmp, JSON.stringify({ embeddingModel: embeddingFingerprint, graph: graph.export() }));
   fs.renameSync(tmp, file);
 }
 
-export function loadGraph(graphMemory: string, fresh = false, embeddingModel?: string): DocGraph {
+export function loadGraph(graphMemory: string, fresh = false, embeddingFingerprint?: string): DocGraph {
   const graph = createGraph();
   if (fresh) return graph;
   const file = path.join(graphMemory, 'docs.json');
@@ -136,10 +136,10 @@ export function loadGraph(graphMemory: string, fresh = false, embeddingModel?: s
 
   try {
     const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
-    const storedModel = data.embeddingModel as string | undefined;
+    const stored = data.embeddingModel as string | undefined;
 
-    if (embeddingModel && storedModel !== embeddingModel) {
-      process.stderr.write(`[graph] Embedding model changed (${storedModel ?? 'unknown'} → ${embeddingModel}), re-indexing docs graph\n`);
+    if (embeddingFingerprint && stored !== embeddingFingerprint) {
+      process.stderr.write(`[graph] Embedding config changed, re-indexing docs graph\n`);
       return graph;
     }
 
@@ -161,7 +161,7 @@ export class DocGraphManager {
 
   constructor(
     private _graph: DocGraph,
-    private embedFn: EmbedFn,
+    private embedFns: EmbedFns,
     private ext: ExternalGraphs = {},
   ) {
     _graph.forEachNode((id, attrs) => {
@@ -223,14 +223,14 @@ export class DocGraphManager {
     topK?: number; bfsDepth?: number; maxResults?: number; minScore?: number; bfsDecay?: number;
     searchMode?: SearchMode;
   }): Promise<SearchResult[]> {
-    const embedding = opts?.searchMode === 'keyword' ? [] : await this.embedFn(query);
+    const embedding = opts?.searchMode === 'keyword' ? [] : await this.embedFns.query(query);
     return search(this._graph, embedding, { ...opts, queryText: query, bm25Index: this._bm25Index });
   }
 
   async searchFiles(query: string, opts?: {
     topK?: number; minScore?: number;
   }): Promise<DocFileSearchResult[]> {
-    const embedding = await this.embedFn(query);
+    const embedding = await this.embedFns.query(query);
     return searchDocFiles(this._graph, embedding, opts);
   }
 }

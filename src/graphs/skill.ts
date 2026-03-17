@@ -5,7 +5,7 @@ import type { AttachmentMeta } from '@/graphs/attachment-types';
 import { createSkillGraph } from '@/graphs/skill-types';
 import { slugify } from '@/graphs/knowledge-types';
 import type { DirectedGraph } from 'graphology';
-import type { EmbedFn, GraphManagerContext, ExternalGraphs } from '@/graphs/manager-types';
+import type { EmbedFns, GraphManagerContext, ExternalGraphs } from '@/graphs/manager-types';
 import { resolveExternalGraph, VersionConflictError } from '@/graphs/manager-types';
 import { searchSkills, type SkillSearchResult } from '@/lib/search/skills';
 import { BM25Index } from '@/lib/search/bm25';
@@ -584,15 +584,15 @@ export function deleteCrossRelation(
 // Persistence
 // ---------------------------------------------------------------------------
 
-export function saveSkillGraph(graph: SkillGraph, graphMemory: string, embeddingModel?: string): void {
+export function saveSkillGraph(graph: SkillGraph, graphMemory: string, embeddingFingerprint?: string): void {
   fs.mkdirSync(graphMemory, { recursive: true });
   const file = path.join(graphMemory, 'skills.json');
   const tmp = file + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify({ embeddingModel, graph: graph.export() }));
+  fs.writeFileSync(tmp, JSON.stringify({ embeddingModel: embeddingFingerprint, graph: graph.export() }));
   fs.renameSync(tmp, file);
 }
 
-export function loadSkillGraph(graphMemory: string, fresh = false, embeddingModel?: string): SkillGraph {
+export function loadSkillGraph(graphMemory: string, fresh = false, embeddingFingerprint?: string): SkillGraph {
   const graph = createSkillGraph();
   if (fresh) return graph;
   const file = path.join(graphMemory, 'skills.json');
@@ -601,10 +601,10 @@ export function loadSkillGraph(graphMemory: string, fresh = false, embeddingMode
 
   try {
     const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
-    const storedModel = data.embeddingModel as string | undefined;
+    const stored = data.embeddingModel as string | undefined;
 
-    if (embeddingModel && storedModel !== embeddingModel) {
-      process.stderr.write(`[skill-graph] Embedding model changed (${storedModel ?? 'unknown'} → ${embeddingModel}), re-indexing skill graph\n`);
+    if (embeddingFingerprint && stored !== embeddingFingerprint) {
+      process.stderr.write(`[skill-graph] Embedding config changed, re-indexing skill graph\n`);
       return graph;
     }
 
@@ -732,7 +732,7 @@ export class SkillGraphManager {
 
   constructor(
     private _graph: SkillGraph,
-    private embedFn: EmbedFn,
+    private embedFns: EmbedFns,
     private ctx: GraphManagerContext,
     private ext: ExternalGraphs = {},
   ) {
@@ -794,7 +794,7 @@ export class SkillGraphManager {
     source: SkillSource = 'user',
     confidence: number = 1,
   ): Promise<string> {
-    const embedding = await this.embedFn(`${title} ${description}`);
+    const embedding = await this.embedFns.document(`${title} ${description}`);
     const skillId = createSkill(this._graph, title, description, steps, triggers, inputHints, filePatterns, tags, source, confidence, embedding, this.ctx.author);
     this._bm25Index.addDocument(skillId, this._graph.getNodeAttributes(skillId));
     this.ctx.markDirty();
@@ -817,7 +817,7 @@ export class SkillGraphManager {
     if (!existing) return false;
 
     const embedText = `${patch.title ?? existing.title} ${patch.description ?? existing.description}`;
-    const embedding = await this.embedFn(embedText);
+    const embedding = await this.embedFns.document(embedText);
     updateSkill(this._graph, skillId, patch, embedding, this.ctx.author, expectedVersion);
     this._bm25Index.updateDocument(skillId, this._graph.getNodeAttributes(skillId));
     this.ctx.markDirty();
@@ -1041,7 +1041,7 @@ export class SkillGraphManager {
 
   async importFromFile(parsed: ParsedSkillFile): Promise<void> {
     const exists = this._graph.hasNode(parsed.id) && !isProxy(this._graph, parsed.id);
-    const embedding = await this.embedFn(`${parsed.title} ${parsed.description}`);
+    const embedding = await this.embedFns.document(`${parsed.title} ${parsed.description}`);
     const now = Date.now();
 
     if (exists) {
@@ -1186,7 +1186,7 @@ export class SkillGraphManager {
     topK?: number; bfsDepth?: number; maxResults?: number; minScore?: number; bfsDecay?: number;
     searchMode?: 'hybrid' | 'vector' | 'keyword'; rrfK?: number;
   }): Promise<SkillSearchResult[]> {
-    const embedding = opts?.searchMode === 'keyword' ? [] : await this.embedFn(query);
+    const embedding = opts?.searchMode === 'keyword' ? [] : await this.embedFns.query(query);
     return searchSkills(this._graph, embedding, { ...opts, queryText: query, bm25Index: this._bm25Index });
   }
 

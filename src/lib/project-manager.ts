@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import { loadModel, embed } from '@/lib/embedder';
+import { loadModel, embed, embedQuery } from '@/lib/embedder';
 import { loadGraph, saveGraph, type DocGraph, DocGraphManager } from '@/graphs/docs';
 import { loadCodeGraph, saveCodeGraph, type CodeGraph, CodeGraphManager } from '@/graphs/code';
 import { loadKnowledgeGraph, saveKnowledgeGraph, KnowledgeGraphManager } from '@/graphs/knowledge';
@@ -8,8 +8,8 @@ import { loadTaskGraph, saveTaskGraph, TaskGraphManager } from '@/graphs/task';
 import { loadSkillGraph, saveSkillGraph, SkillGraphManager } from '@/graphs/skill';
 import { createProjectIndexer, type ProjectIndexer } from '@/cli/indexer';
 import { PromiseQueue } from '@/lib/promise-queue';
-import type { ProjectConfig, ServerConfig, WorkspaceConfig } from '@/lib/multi-config';
-import { formatAuthor } from '@/lib/multi-config';
+import type { ProjectConfig, ServerConfig, WorkspaceConfig, GraphName } from '@/lib/multi-config';
+import { GRAPH_NAMES, formatAuthor, embeddingFingerprint } from '@/lib/multi-config';
 import type { KnowledgeGraph } from '@/graphs/knowledge-types';
 import type { FileIndexGraph } from '@/graphs/file-index-types';
 import type { TaskGraph } from '@/graphs/task-types';
@@ -98,14 +98,11 @@ export class ProjectManager extends EventEmitter {
       throw new Error(`Workspace "${id}" already exists`);
     }
 
-    const globalModel = config.embeddingModel;
-    const knowledgeModel = config.knowledgeModel ?? globalModel;
-    const taskModel = config.taskModel ?? globalModel;
-    const skillsModel = config.skillsModel ?? globalModel;
+    const ge = config.graphEmbeddings;
 
-    const knowledgeGraph = loadKnowledgeGraph(config.graphMemory, reindex, knowledgeModel);
-    const taskGraph = loadTaskGraph(config.graphMemory, reindex, taskModel);
-    const skillGraph = loadSkillGraph(config.graphMemory, reindex, skillsModel);
+    const knowledgeGraph = loadKnowledgeGraph(config.graphMemory, reindex, embeddingFingerprint(ge.knowledge));
+    const taskGraph = loadTaskGraph(config.graphMemory, reindex, embeddingFingerprint(ge.tasks));
+    const skillGraph = loadSkillGraph(config.graphMemory, reindex, embeddingFingerprint(ge.skills));
 
     const mutationQueue = new PromiseQueue();
     const mirrorTracker = new MirrorWriteTracker();
@@ -137,13 +134,22 @@ export class ProjectManager extends EventEmitter {
       projectGraphs: new Map(),
     };
 
-    const knowledgeEmbedFn = (q: string) => embed(q, '', `${id}:knowledge`);
-    const taskEmbedFn = (q: string) => embed(q, '', `${id}:tasks`);
-    const skillEmbedFn = (q: string) => embed(q, '', `${id}:skills`);
+    const knowledgeEmbedFns = {
+      document: (q: string) => embed(q, '', `${id}:knowledge`),
+      query:    (q: string) => embedQuery(q, `${id}:knowledge`),
+    };
+    const taskEmbedFns = {
+      document: (q: string) => embed(q, '', `${id}:tasks`),
+      query:    (q: string) => embedQuery(q, `${id}:tasks`),
+    };
+    const skillEmbedFns = {
+      document: (q: string) => embed(q, '', `${id}:skills`),
+      query:    (q: string) => embedQuery(q, `${id}:skills`),
+    };
 
-    wsInstance.knowledgeManager = new KnowledgeGraphManager(knowledgeGraph, knowledgeEmbedFn, ctx, ext);
-    wsInstance.taskManager = new TaskGraphManager(taskGraph, taskEmbedFn, ctx, ext);
-    wsInstance.skillManager = new SkillGraphManager(skillGraph, skillEmbedFn, ctx, ext);
+    wsInstance.knowledgeManager = new KnowledgeGraphManager(knowledgeGraph, knowledgeEmbedFns, ctx, ext);
+    wsInstance.taskManager = new TaskGraphManager(taskGraph, taskEmbedFns, ctx, ext);
+    wsInstance.skillManager = new SkillGraphManager(skillGraph, skillEmbedFns, ctx, ext);
 
     wsInstance.knowledgeManager.setMirrorTracker(mirrorTracker);
     wsInstance.taskManager.setMirrorTracker(mirrorTracker);
@@ -160,15 +166,10 @@ export class ProjectManager extends EventEmitter {
     const ws = this.workspaces.get(id);
     if (!ws) throw new Error(`Workspace "${id}" not found`);
 
-    const globalModel = ws.config.embeddingModel;
-    const models: Record<string, string> = {
-      [`${id}:knowledge`]: ws.config.knowledgeModel ?? globalModel,
-      [`${id}:tasks`]:     ws.config.taskModel      ?? globalModel,
-      [`${id}:skills`]:    ws.config.skillsModel    ?? globalModel,
-    };
-    for (const [name, model] of Object.entries(models)) {
-      await loadModel(model, this.serverConfig.modelsDir, 2000, name);
-    }
+    const ge = ws.config.graphEmbeddings;
+    await loadModel(ge.knowledge, this.serverConfig.modelsDir, 2000, `${id}:knowledge`);
+    await loadModel(ge.tasks, this.serverConfig.modelsDir, 2000, `${id}:tasks`);
+    await loadModel(ge.skills, this.serverConfig.modelsDir, 2000, `${id}:skills`);
   }
 
   /**
@@ -216,18 +217,17 @@ export class ProjectManager extends EventEmitter {
     const ws = workspaceId ? this.workspaces.get(workspaceId) : undefined;
     if (workspaceId && !ws) throw new Error(`Workspace "${workspaceId}" not found`);
 
-    // Resolve per-graph model names for model-change detection
-    const models = this.resolveModels(id, config);
+    const ge = config.graphEmbeddings;
 
     // Load per-project graphs (docs, code, file-index are always per-project)
-    const docGraph  = config.docsPattern ? loadGraph(config.graphMemory, reindex, models[`${id}:docs`]) : undefined;
-    const codeGraph = config.codePattern ? loadCodeGraph(config.graphMemory, reindex, models[`${id}:code`]) : undefined;
-    const fileIndexGraph = loadFileIndexGraph(config.graphMemory, reindex, models[`${id}:files`]);
+    const docGraph  = config.docsPattern ? loadGraph(config.graphMemory, reindex, embeddingFingerprint(ge.docs)) : undefined;
+    const codeGraph = config.codePattern ? loadCodeGraph(config.graphMemory, reindex, embeddingFingerprint(ge.code)) : undefined;
+    const fileIndexGraph = loadFileIndexGraph(config.graphMemory, reindex, embeddingFingerprint(ge.files));
 
     // Knowledge/tasks/skills: shared from workspace or per-project
-    const knowledgeGraph = ws ? ws.knowledgeGraph : loadKnowledgeGraph(config.graphMemory, reindex, models[`${id}:knowledge`]);
-    const taskGraph = ws ? ws.taskGraph : loadTaskGraph(config.graphMemory, reindex, models[`${id}:tasks`]);
-    const skillGraph = ws ? ws.skillGraph : loadSkillGraph(config.graphMemory, reindex, models[`${id}:skills`]);
+    const knowledgeGraph = ws ? ws.knowledgeGraph : loadKnowledgeGraph(config.graphMemory, reindex, embeddingFingerprint(ge.knowledge));
+    const taskGraph = ws ? ws.taskGraph : loadTaskGraph(config.graphMemory, reindex, embeddingFingerprint(ge.tasks));
+    const skillGraph = ws ? ws.skillGraph : loadSkillGraph(config.graphMemory, reindex, embeddingFingerprint(ge.skills));
 
     // Build embed functions (project-scoped model names)
     const embedFns = this.buildEmbedFns(id);
@@ -302,15 +302,15 @@ export class ProjectManager extends EventEmitter {
     const instance = this.projects.get(id);
     if (!instance) throw new Error(`Project "${id}" not found`);
 
-    const models = this.resolveModels(id, instance.config);
+    const ge = instance.config.graphEmbeddings;
     // Skip knowledge/tasks/skills models for workspace projects (loaded by workspace)
-    const skip = instance.workspaceId
-      ? new Set([`${id}:knowledge`, `${id}:tasks`, `${id}:skills`])
-      : new Set<string>();
+    const skipGraphs = instance.workspaceId
+      ? new Set<GraphName>(['knowledge', 'tasks', 'skills'])
+      : new Set<GraphName>();
 
-    for (const [name, model] of Object.entries(models)) {
-      if (skip.has(name)) continue;
-      await loadModel(model, this.serverConfig.modelsDir, instance.config.embedMaxChars, name);
+    for (const gn of GRAPH_NAMES) {
+      if (skipGraphs.has(gn)) continue;
+      await loadModel(ge[gn], this.serverConfig.modelsDir, instance.config.embedMaxChars, `${id}:${gn}`);
     }
   }
 
@@ -471,45 +471,33 @@ export class ProjectManager extends EventEmitter {
   // ---------------------------------------------------------------------------
 
   private saveProject(instance: ProjectInstance): void {
-    const models = this.resolveModels(instance.id, instance.config);
-    if (instance.docGraph) saveGraph(instance.docGraph, instance.config.graphMemory, models[`${instance.id}:docs`]);
-    if (instance.codeGraph) saveCodeGraph(instance.codeGraph, instance.config.graphMemory, models[`${instance.id}:code`]);
-    saveFileIndexGraph(instance.fileIndexGraph, instance.config.graphMemory, models[`${instance.id}:files`]);
+    const ge = instance.config.graphEmbeddings;
+    if (instance.docGraph) saveGraph(instance.docGraph, instance.config.graphMemory, embeddingFingerprint(ge.docs));
+    if (instance.codeGraph) saveCodeGraph(instance.codeGraph, instance.config.graphMemory, embeddingFingerprint(ge.code));
+    saveFileIndexGraph(instance.fileIndexGraph, instance.config.graphMemory, embeddingFingerprint(ge.files));
     // Skip knowledge/tasks/skills for workspace projects (saved by workspace)
     if (!instance.workspaceId) {
-      saveKnowledgeGraph(instance.knowledgeGraph, instance.config.graphMemory, models[`${instance.id}:knowledge`]);
-      saveTaskGraph(instance.taskGraph, instance.config.graphMemory, models[`${instance.id}:tasks`]);
-      saveSkillGraph(instance.skillGraph, instance.config.graphMemory, models[`${instance.id}:skills`]);
+      saveKnowledgeGraph(instance.knowledgeGraph, instance.config.graphMemory, embeddingFingerprint(ge.knowledge));
+      saveTaskGraph(instance.taskGraph, instance.config.graphMemory, embeddingFingerprint(ge.tasks));
+      saveSkillGraph(instance.skillGraph, instance.config.graphMemory, embeddingFingerprint(ge.skills));
     }
   }
 
   private saveWorkspace(ws: WorkspaceInstance): void {
-    const model = ws.config.embeddingModel;
-    saveKnowledgeGraph(ws.knowledgeGraph, ws.config.graphMemory, ws.config.knowledgeModel ?? model);
-    saveTaskGraph(ws.taskGraph, ws.config.graphMemory, ws.config.taskModel ?? model);
-    saveSkillGraph(ws.skillGraph, ws.config.graphMemory, ws.config.skillsModel ?? model);
-  }
-
-  private resolveModels(projectId: string, config: ProjectConfig): Record<string, string> {
-    const fallback = config.embeddingModel;
-    return {
-      [`${projectId}:docs`]:      config.docsModel      ?? fallback,
-      [`${projectId}:code`]:      config.codeModel      ?? fallback,
-      [`${projectId}:knowledge`]: config.knowledgeModel ?? fallback,
-      [`${projectId}:tasks`]:     config.taskModel      ?? fallback,
-      [`${projectId}:files`]:     config.filesModel     ?? fallback,
-      [`${projectId}:skills`]:    config.skillsModel    ?? fallback,
-    };
+    const ge = ws.config.graphEmbeddings;
+    saveKnowledgeGraph(ws.knowledgeGraph, ws.config.graphMemory, embeddingFingerprint(ge.knowledge));
+    saveTaskGraph(ws.taskGraph, ws.config.graphMemory, embeddingFingerprint(ge.tasks));
+    saveSkillGraph(ws.skillGraph, ws.config.graphMemory, embeddingFingerprint(ge.skills));
   }
 
   private buildEmbedFns(projectId: string): EmbedFnMap {
+    const pair = (gn: GraphName) => ({
+      document: (q: string) => embed(q, '', `${projectId}:${gn}`),
+      query:    (q: string) => embedQuery(q, `${projectId}:${gn}`),
+    });
     return {
-      docs:      (q: string) => embed(q, '', `${projectId}:docs`),
-      code:      (q: string) => embed(q, '', `${projectId}:code`),
-      knowledge: (q: string) => embed(q, '', `${projectId}:knowledge`),
-      tasks:     (q: string) => embed(q, '', `${projectId}:tasks`),
-      files:     (q: string) => embed(q, '', `${projectId}:files`),
-      skills:    (q: string) => embed(q, '', `${projectId}:skills`),
+      docs: pair('docs'), code: pair('code'), knowledge: pair('knowledge'),
+      tasks: pair('tasks'), files: pair('files'), skills: pair('skills'),
     };
   }
 }

@@ -13,7 +13,7 @@ import { createTaskGraph } from '@/graphs/task-types';
 import { KnowledgeGraphManager } from '@/graphs/knowledge';
 import { TaskGraphManager } from '@/graphs/task';
 import { noopContext } from '@/graphs/manager-types';
-import { unitVec, DIM } from './helpers';
+import { unitVec, DIM, embedFnPair } from './helpers';
 
 // ---------------------------------------------------------------------------
 // Frontmatter round-trip
@@ -219,7 +219,7 @@ describe('KnowledgeGraphManager file mirror', () => {
   it('createNote writes .notes/<id>/note.md + events.jsonl + content.md', async () => {
     const graph = createKnowledgeGraph();
     const ctx = { ...noopContext(), projectDir: tmpDir };
-    const mgr = new KnowledgeGraphManager(graph, fakeEmbed, ctx);
+    const mgr = new KnowledgeGraphManager(graph, embedFnPair(fakeEmbed), ctx);
 
     const noteId = await mgr.createNote('Test Note', 'Body text', ['tag1']);
 
@@ -235,7 +235,7 @@ describe('KnowledgeGraphManager file mirror', () => {
   it('updateNote updates the .md file', async () => {
     const graph = createKnowledgeGraph();
     const ctx = { ...noopContext(), projectDir: tmpDir };
-    const mgr = new KnowledgeGraphManager(graph, fakeEmbed, ctx);
+    const mgr = new KnowledgeGraphManager(graph, embedFnPair(fakeEmbed), ctx);
 
     const noteId = await mgr.createNote('Original', 'Old content');
     await mgr.updateNote(noteId, { title: 'Updated', content: 'New content' });
@@ -249,7 +249,7 @@ describe('KnowledgeGraphManager file mirror', () => {
   it('deleteNote removes the .md file', async () => {
     const graph = createKnowledgeGraph();
     const ctx = { ...noopContext(), projectDir: tmpDir };
-    const mgr = new KnowledgeGraphManager(graph, fakeEmbed, ctx);
+    const mgr = new KnowledgeGraphManager(graph, embedFnPair(fakeEmbed), ctx);
 
     const noteId = await mgr.createNote('Doomed', 'Will be deleted');
     const noteDir = path.join(tmpDir, '.notes', noteId);
@@ -262,7 +262,7 @@ describe('KnowledgeGraphManager file mirror', () => {
   it('createRelation updates frontmatter with relation', async () => {
     const graph = createKnowledgeGraph();
     const ctx = { ...noopContext(), projectDir: tmpDir };
-    const mgr = new KnowledgeGraphManager(graph, fakeEmbed, ctx);
+    const mgr = new KnowledgeGraphManager(graph, embedFnPair(fakeEmbed), ctx);
 
     const noteA = await mgr.createNote('Note A', 'Content A');
     const noteB = await mgr.createNote('Note B', 'Content B');
@@ -296,7 +296,7 @@ describe('TaskGraphManager file mirror', () => {
   it('createTask writes .tasks/<id>/task.md + events.jsonl + description.md', async () => {
     const graph = createTaskGraph();
     const ctx = { ...noopContext(), projectDir: tmpDir };
-    const mgr = new TaskGraphManager(graph, fakeEmbed, ctx);
+    const mgr = new TaskGraphManager(graph, embedFnPair(fakeEmbed), ctx);
 
     const taskId = await mgr.createTask('Fix Bug', 'Fix the auth bug', 'todo', 'high', ['auth']);
 
@@ -314,7 +314,7 @@ describe('TaskGraphManager file mirror', () => {
   it('moveTask updates the .md file status', async () => {
     const graph = createTaskGraph();
     const ctx = { ...noopContext(), projectDir: tmpDir };
-    const mgr = new TaskGraphManager(graph, fakeEmbed, ctx);
+    const mgr = new TaskGraphManager(graph, embedFnPair(fakeEmbed), ctx);
 
     const taskId = await mgr.createTask('Task', 'Desc', 'backlog');
     mgr.moveTask(taskId, 'done');
@@ -330,7 +330,7 @@ describe('TaskGraphManager file mirror', () => {
   it('deleteTask removes the .md file', async () => {
     const graph = createTaskGraph();
     const ctx = { ...noopContext(), projectDir: tmpDir };
-    const mgr = new TaskGraphManager(graph, fakeEmbed, ctx);
+    const mgr = new TaskGraphManager(graph, embedFnPair(fakeEmbed), ctx);
 
     const taskId = await mgr.createTask('Temp', 'Will delete');
     const taskDir = path.join(tmpDir, '.tasks', taskId);
@@ -343,7 +343,7 @@ describe('TaskGraphManager file mirror', () => {
   it('linkTasks updates both files with relation', async () => {
     const graph = createTaskGraph();
     const ctx = { ...noopContext(), projectDir: tmpDir };
-    const mgr = new TaskGraphManager(graph, fakeEmbed, ctx);
+    const mgr = new TaskGraphManager(graph, embedFnPair(fakeEmbed), ctx);
 
     const taskA = await mgr.createTask('Task A', 'Desc A');
     const taskB = await mgr.createTask('Task B', 'Desc B');
@@ -359,7 +359,7 @@ describe('TaskGraphManager file mirror', () => {
 
   it('no file written when projectDir is undefined', async () => {
     const graph = createTaskGraph();
-    const mgr = new TaskGraphManager(graph, fakeEmbed, noopContext());
+    const mgr = new TaskGraphManager(graph, embedFnPair(fakeEmbed), noopContext());
 
     const taskId = await mgr.createTask('No File', 'Should not create file');
     // No .tasks directory should exist anywhere specific

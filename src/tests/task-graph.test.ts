@@ -11,7 +11,7 @@ import type { GraphManagerContext } from '@/graphs/manager-types';
 import { slugify } from '@/graphs/knowledge-types';
 import { DirectedGraph } from 'graphology';
 import { searchTasks } from '@/lib/search/tasks';
-import { unitVec, DIM } from '@/tests/helpers';
+import { unitVec, DIM, embedFnPair } from '@/tests/helpers';
 
 const STORE = '/tmp/task-graph-test';
 
@@ -728,7 +728,7 @@ describe('persistence round-trip (tasks)', () => {
       projectId: 'test',
       author: '',
     };
-    const manager = new TaskGraphManager(loaded, fakeEmbed, ctx, {});
+    const manager = new TaskGraphManager(loaded, embedFnPair(fakeEmbed), ctx, {});
 
     // 5. Verify: list returns all items (3 tasks, no proxies)
     const tasks = listTasks(loaded);
@@ -804,7 +804,7 @@ describe('Attachments (TaskGraphManager)', () => {
       projectDir: tmpDir,
       author: '',
     };
-    manager = new TaskGraphManager(graph, embedFn, ctx, {});
+    manager = new TaskGraphManager(graph, embedFnPair(embedFn), ctx, {});
     taskId = await manager.createTask('Test Task', 'A task for attachment tests', 'todo', 'medium', []);
   });
 

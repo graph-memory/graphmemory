@@ -1,5 +1,5 @@
 # Workspace shared graphs + mirror files
-.workspace-*/
+.workspace-*
 
 # Per-project persisted graphs
 */.graph-memory/

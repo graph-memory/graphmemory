@@ -90,8 +90,26 @@ program
   .action((opts: { config: string; project?: string; reindex?: boolean }) => {
     (async () => {
       const mc = loadMultiConfig(opts.config);
-      const ids = opts.project ? [opts.project] : Array.from(mc.projects.keys());
+      const reindex = !!opts.reindex;
+      if (reindex) process.stderr.write('[index] Re-indexing from scratch\n');
 
+      const manager = new ProjectManager(mc.server);
+
+      // Build workspace membership lookup
+      const projectWorkspace = new Map<string, string>();
+      for (const [wsId, wsConfig] of mc.workspaces) {
+        for (const projId of wsConfig.projects) {
+          projectWorkspace.set(projId, wsId);
+        }
+      }
+
+      // Add workspaces first
+      for (const [wsId, wsConfig] of mc.workspaces) {
+        await manager.addWorkspace(wsId, wsConfig, reindex);
+      }
+
+      // Add projects (workspace projects share knowledge/task/skill graphs)
+      const ids = opts.project ? [opts.project] : Array.from(mc.projects.keys());
       if (ids.length === 0) {
         process.stderr.write('[index] No projects defined in config\n');
         process.exit(1);
@@ -103,52 +121,38 @@ program
           process.stderr.write(`[index] Project "${id}" not found in config. Available: ${Array.from(mc.projects.keys()).join(', ')}\n`);
           process.exit(1);
         }
-
-        const fresh = !!opts.reindex;
-        if (fresh) process.stderr.write(`[index] Re-indexing project "${id}" from scratch...\n`);
-        else process.stderr.write(`[index] Indexing project "${id}"...\n`);
-        const projectDir = path.resolve(project.projectDir);
-        await loadAllModels(id, project, mc.server.modelsDir);
-
-        const models = resolveModels(id, project);
-        const docGraph  = project.docsPattern ? loadGraph(project.graphMemory, fresh, models[`${id}:docs`]) : undefined;
-        const codeGraph = project.codePattern ? loadCodeGraph(project.graphMemory, fresh, models[`${id}:code`]) : undefined;
-        const knowledgeGraph = loadKnowledgeGraph(project.graphMemory, fresh, models[`${id}:knowledge`]);
-        const fileIndexGraph = loadFileIndexGraph(project.graphMemory, fresh, models[`${id}:files`]);
-        const taskGraph = loadTaskGraph(project.graphMemory, fresh, models[`${id}:tasks`]);
-        const skillGraph = loadSkillGraph(project.graphMemory, fresh, models[`${id}:skills`]);
-
-        const indexer = createProjectIndexer(docGraph, codeGraph, {
-          projectDir,
-          docsPattern:    project.docsPattern || undefined,
-          codePattern:    project.codePattern || undefined,
-          excludePattern: project.excludePattern || undefined,
-          chunkDepth:     project.chunkDepth,
-          tsconfig:       project.tsconfig,
-          docsModelName:  `${id}:docs`,
-          codeModelName:  `${id}:code`,
-          filesModelName: `${id}:files`,
-        }, knowledgeGraph, fileIndexGraph, taskGraph, skillGraph);
-
-        indexer.scan();
-        await indexer.drain();
-
-        if (docGraph) {
-          saveGraph(docGraph, project.graphMemory, models[`${id}:docs`]);
-          process.stderr.write(`[index] "${id}" docs: ${docGraph.order} nodes, ${docGraph.size} edges\n`);
-        }
-
-        if (codeGraph) {
-          saveCodeGraph(codeGraph, project.graphMemory, models[`${id}:code`]);
-          process.stderr.write(`[index] "${id}" code: ${codeGraph.order} nodes, ${codeGraph.size} edges\n`);
-        }
-
-        saveKnowledgeGraph(knowledgeGraph, project.graphMemory, models[`${id}:knowledge`]);
-        saveFileIndexGraph(fileIndexGraph, project.graphMemory, models[`${id}:files`]);
-        saveTaskGraph(taskGraph, project.graphMemory, models[`${id}:tasks`]);
-        process.stderr.write(`[index] "${id}" files: ${fileIndexGraph.order} nodes, ${fileIndexGraph.size} edges\n`);
+        await manager.addProject(id, project, reindex, projectWorkspace.get(id));
       }
 
+      // Load models (workspaces first, then projects)
+      for (const wsId of manager.listWorkspaces()) {
+        await manager.loadWorkspaceModels(wsId);
+      }
+      for (const id of ids) {
+        await manager.loadModels(id);
+      }
+
+      // Index all projects
+      for (const id of ids) {
+        process.stderr.write(`[index] Indexing project "${id}"...\n`);
+        await manager.startIndexing(id);
+        const instance = manager.getProject(id)!;
+        if (instance.docGraph) {
+          process.stderr.write(`[index] "${id}" docs: ${instance.docGraph.order} nodes, ${instance.docGraph.size} edges\n`);
+        }
+        if (instance.codeGraph) {
+          process.stderr.write(`[index] "${id}" code: ${instance.codeGraph.order} nodes, ${instance.codeGraph.size} edges\n`);
+        }
+        process.stderr.write(`[index] "${id}" files: ${instance.fileIndexGraph.order} nodes, ${instance.fileIndexGraph.size} edges\n`);
+      }
+
+      // Save workspaces
+      for (const wsId of manager.listWorkspaces()) {
+        const ws = manager.getWorkspace(wsId)!;
+        process.stderr.write(`[index] Workspace "${wsId}" knowledge: ${ws.knowledgeGraph.order} nodes, tasks: ${ws.taskGraph.order} nodes, skills: ${ws.skillGraph.order} nodes\n`);
+      }
+
+      await manager.shutdown();
       process.stderr.write(`[index] Done. Indexed ${ids.length} project${ids.length > 1 ? 's' : ''}.\n`);
     })().catch((err: unknown) => {
       process.stderr.write(`[index] Fatal: ${err}\n`);

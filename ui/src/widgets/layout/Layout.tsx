@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation, useParams } from 'react-router-dom';
 import {
-  AppBar, Box, Drawer, IconButton, List, ListItemButton, ListItemIcon,
-  ListItemText, Toolbar, Typography, Select, MenuItem,
+  AppBar, Box, Chip, Drawer, IconButton, List, ListItemButton, ListItemIcon,
+  ListItemText, ListSubheader, Toolbar, Typography, Select, MenuItem,
   Divider, useTheme,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
@@ -19,7 +19,7 @@ import PsychologyIcon from '@mui/icons-material/Psychology';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import BuildIcon from '@mui/icons-material/Build';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
-import { useProjects } from '@/entities/project/index.ts';
+import { useProjects, type WorkspaceInfo } from '@/entities/project/index.ts';
 import { useThemeMode } from '@/shared/lib/ThemeModeContext.tsx';
 import { WsProvider } from '@/shared/lib/useWebSocket.ts';
 
@@ -73,14 +73,53 @@ function buildDocumentTitle(pathname: string): string {
   return parts.join(' :: ');
 }
 
+/** Build grouped menu items: workspace subheaders + project items, then standalone projects. */
+function buildGroupedItems(
+  projects: { id: string; workspaceId: string | null }[],
+  workspaces: WorkspaceInfo[],
+): React.ReactNode[] {
+  const items: React.ReactNode[] = [];
+  const placed = new Set<string>();
+
+  for (const ws of workspaces) {
+    const wsProjects = projects.filter(p => p.workspaceId === ws.id);
+    if (wsProjects.length === 0) continue;
+    items.push(
+      <ListSubheader key={`ws-${ws.id}`} sx={{ lineHeight: '32px', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        {ws.id}
+      </ListSubheader>
+    );
+    for (const p of wsProjects) {
+      items.push(<MenuItem key={p.id} value={p.id}>{p.id}</MenuItem>);
+      placed.add(p.id);
+    }
+  }
+
+  const standalone = projects.filter(p => !placed.has(p.id));
+  if (standalone.length > 0 && workspaces.length > 0) {
+    items.push(
+      <ListSubheader key="ws-standalone" sx={{ lineHeight: '32px', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        Standalone
+      </ListSubheader>
+    );
+  }
+  for (const p of standalone) {
+    items.push(<MenuItem key={p.id} value={p.id}>{p.id}</MenuItem>);
+  }
+
+  return items;
+}
+
 export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { projects, loading } = useProjects();
+  const { projects, workspaces, loading } = useProjects();
   const navigate = useNavigate();
   const location = useLocation();
   const { projectId } = useParams();
   const { mode, toggle } = useThemeMode();
   const { palette } = useTheme();
+
+  const currentProject = projects.find(p => p.id === projectId);
 
   const pageTitle = getPageTitle(location.pathname);
   const documentTitle = buildDocumentTitle(location.pathname);
@@ -117,9 +156,7 @@ export default function Layout() {
             </Typography>
           )}
         >
-          {projects.map((p) => (
-            <MenuItem key={p.id} value={p.id}>{p.id}</MenuItem>
-          ))}
+          {buildGroupedItems(projects, workspaces)}
         </Select>
       </Box>
       <Divider />
@@ -187,9 +224,20 @@ export default function Layout() {
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" noWrap sx={{ flexGrow: 1 }}>
-            {pageTitle}
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexGrow: 1 }}>
+            <Typography variant="h6" noWrap>
+              {pageTitle}
+            </Typography>
+            {currentProject?.workspaceId && (
+              <Chip
+                label={currentProject.workspaceId}
+                size="small"
+                variant="outlined"
+                color="primary"
+                sx={{ fontWeight: 600 }}
+              />
+            )}
+          </Box>
           <IconButton color="inherit" onClick={toggle} title={`Switch to ${mode === 'dark' ? 'light' : 'dark'} mode`}>
             {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
           </IconButton>

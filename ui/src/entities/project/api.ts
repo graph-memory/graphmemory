@@ -3,7 +3,13 @@ import { request, unwrapList, type ListResponse } from '@/shared/api/client.ts';
 export interface ProjectInfo {
   id: string;
   projectDir: string;
+  workspaceId: string | null;
   stats: { docs: number; code: number; knowledge: number; files: number; tasks: number };
+}
+
+export interface WorkspaceInfo {
+  id: string;
+  projects: string[];
 }
 
 export interface ProjectDetailedStats {
@@ -17,6 +23,10 @@ export interface ProjectDetailedStats {
 
 export function listProjects(): Promise<ProjectInfo[]> {
   return request<ListResponse<ProjectInfo>>('/projects').then(unwrapList);
+}
+
+export function listWorkspaces(): Promise<WorkspaceInfo[]> {
+  return request<ListResponse<WorkspaceInfo>>('/workspaces').then(unwrapList);
 }
 
 export function getProjectStats(projectId: string) {

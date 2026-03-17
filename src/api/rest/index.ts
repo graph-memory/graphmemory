@@ -38,6 +38,7 @@ export function createRestApp(projectManager: ProjectManager): express.Express {
       return {
         id,
         projectDir: p.config.projectDir,
+        workspaceId: p.workspaceId ?? null,
         stats: {
           docs:      p.docGraph      ? p.docGraph.order      : 0,
           code:      p.codeGraph     ? p.codeGraph.order      : 0,
@@ -49,6 +50,18 @@ export function createRestApp(projectManager: ProjectManager): express.Express {
       };
     });
     res.json({ results: projects });
+  });
+
+  // List workspaces
+  app.get('/api/workspaces', (_req, res) => {
+    const workspaces = projectManager.listWorkspaces().map(id => {
+      const ws = projectManager.getWorkspace(id)!;
+      return {
+        id,
+        projects: ws.config.projects,
+      };
+    });
+    res.json({ results: workspaces });
   });
 
   // Project stats

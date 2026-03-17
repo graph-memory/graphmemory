@@ -40,10 +40,6 @@ export async function loadModel(
 
   const pipeOpts: Record<string, unknown> = {};
   if (config.dtype) pipeOpts.dtype = config.dtype;
-  // Use per-session threads (intraOpNumThreads: 1) instead of the global ONNX thread pool.
-  // The global thread pool destructor crashes on macOS (libc++ mutex Invalid argument) during
-  // process exit. With intraOpNumThreads: 1 the global pool is never created.
-  pipeOpts.session_options = { intraOpNumThreads: 1, interOpNumThreads: 1 };
 
   const pipe = await pipeline('feature-extraction', config.model, pipeOpts);
   _pipeCache.set(cacheKey, pipe);
@@ -96,15 +92,6 @@ export async function embedBatch(
 }
 
 export function resetEmbedder(): void {
-  _models.clear();
-  _pipeCache.clear();
-}
-
-/** Dispose all loaded ONNX pipelines. Call before process.exit() to avoid macOS mutex crash. */
-export async function disposeModels(): Promise<void> {
-  for (const pipe of _pipeCache.values()) {
-    try { await pipe.dispose(); } catch { /* ignore */ }
-  }
   _models.clear();
   _pipeCache.clear();
 }

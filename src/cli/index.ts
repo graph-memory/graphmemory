@@ -222,9 +222,9 @@ program
         shuttingDown = true;
         process.stderr.write('[mcp] Shutting down...\n');
         const forceTimer = setTimeout(() => { process.stderr.write('[mcp] Shutdown timeout, force exit\n'); process.exit(1); }, 5000);
-        forceTimer.unref();
         try { await manager.shutdown(); } catch { /* ignore */ }
-        process.exit(0);
+        clearTimeout(forceTimer);
+        // Let event loop drain naturally — avoids ONNX global thread pool destructor crash on macOS
       }
 
       process.on('SIGINT',  () => { void shutdown(); });
@@ -304,7 +304,6 @@ program
         process.stderr.write('[mcp] Shutdown timeout, force exit\n');
         process.exit(1);
       }, 5000);
-      forceTimer.unref();
       try {
         if (watcher) await watcher.close();
         if (indexer) await indexer.drain();
@@ -314,7 +313,8 @@ program
         saveFileIndexGraph(fileIndexGraph, project.graphMemory, embeddingFingerprint(ge.files));
         saveTaskGraph(taskGraph, project.graphMemory, embeddingFingerprint(ge.tasks));
       } catch { /* ignore */ }
-      process.exit(0);
+      clearTimeout(forceTimer);
+      // Let event loop drain naturally — avoids ONNX global thread pool destructor crash on macOS
     }
 
     process.on('SIGINT',  () => { void shutdown(); });
@@ -479,7 +479,6 @@ program
         process.stderr.write('[serve] Shutdown timeout, force exit\n');
         process.exit(1);
       }, 5000);
-      forceTimer.unref();
       try {
         httpServer.close();
         // Destroy all open connections (including WebSocket) so the server can close
@@ -490,7 +489,8 @@ program
         await configWatcher.close();
         await manager.shutdown();
       } catch { /* ignore */ }
-      process.exit(0);
+      clearTimeout(forceTimer);
+      // Let event loop drain naturally — avoids ONNX global thread pool destructor crash on macOS
     }
 
     process.on('SIGINT',  () => { void shutdown(); });

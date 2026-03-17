@@ -12,7 +12,7 @@ and a **skill graph** for reusable recipes/procedures with steps, triggers, and 
 Supports **multi-project** operation via YAML config — one process manages multiple projects
 with independent graphs, indexers, and watchers.
 
-LLM clients can discover, browse, and search the indexed content through **57 MCP tools**.
+LLM clients can discover, browse, and search the indexed content through **58 MCP tools**.
 A **REST API** and **web UI** provide browser-based access to all graphs.
 
 ---
@@ -458,7 +458,7 @@ Knowledge, task, and skill search additionally skip proxy nodes (they have empty
 
 ---
 
-## MCP tools (57)
+## MCP tools (58)
 
 ### Docs tools (10, registered only when `docsPattern` is non-empty)
 
@@ -536,6 +536,13 @@ Returns full content of a specific code symbol.
 Semantic file-level search over code (by file path).
 - **Input**: `query` (required) + optional `topK`, `minScore`
 - **Returns**: `Array<{ fileId, score }>`
+
+### Context tools (1, always registered)
+
+#### `get_context`
+Returns current project and workspace context.
+- **Input**: none
+- **Returns**: `{ projectId, workspaceId?, workspaceProjects?, availableGraphs }`
 
 ### File index tools (3, always registered)
 

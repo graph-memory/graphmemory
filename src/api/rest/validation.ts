@@ -26,15 +26,15 @@ export function validateQuery(schema: ZodSchema) {
 // ---------------------------------------------------------------------------
 
 export const createNoteSchema = z.object({
-  title:   z.string().min(1),
-  content: z.string(),
-  tags:    z.array(z.string()).optional().default([]),
+  title:   z.string().min(1).max(500),
+  content: z.string().max(1_000_000),
+  tags:    z.array(z.string().max(100)).max(100).optional().default([]),
 });
 
 export const updateNoteSchema = z.object({
-  title:   z.string().min(1).optional(),
-  content: z.string().optional(),
-  tags:    z.array(z.string()).optional(),
+  title:   z.string().min(1).max(500).optional(),
+  content: z.string().max(1_000_000).optional(),
+  tags:    z.array(z.string().max(100)).max(100).optional(),
   version: z.number().int().positive().optional(),
 });
 
@@ -47,8 +47,8 @@ export const createRelationSchema = z.object({
 });
 
 export const noteSearchSchema = z.object({
-  q:          z.string().min(1),
-  topK:       z.coerce.number().int().positive().optional(),
+  q:          z.string().min(1).max(2000),
+  topK:       z.coerce.number().int().positive().max(500).optional(),
   minScore:   z.coerce.number().min(0).max(1).optional(),
   searchMode: z.enum(['hybrid', 'vector', 'keyword']).optional(),
 });
@@ -64,21 +64,21 @@ export const noteListSchema = z.object({
 // ---------------------------------------------------------------------------
 
 export const createTaskSchema = z.object({
-  title:       z.string().min(1),
-  description: z.string().default(''),
+  title:       z.string().min(1).max(500),
+  description: z.string().max(500_000).default(''),
   status:      z.enum(['backlog', 'todo', 'in_progress', 'review', 'done', 'cancelled']).default('todo'),
   priority:    z.enum(['critical', 'high', 'medium', 'low']).default('medium'),
-  tags:        z.array(z.string()).optional().default([]),
+  tags:        z.array(z.string().max(100)).max(100).optional().default([]),
   dueDate:     z.number().nullable().optional(),
   estimate:    z.number().nullable().optional(),
 });
 
 export const updateTaskSchema = z.object({
-  title:       z.string().min(1).optional(),
-  description: z.string().optional(),
+  title:       z.string().min(1).max(500).optional(),
+  description: z.string().max(500_000).optional(),
   status:      z.enum(['backlog', 'todo', 'in_progress', 'review', 'done', 'cancelled']).optional(),
   priority:    z.enum(['critical', 'high', 'medium', 'low']).optional(),
-  tags:        z.array(z.string()).optional(),
+  tags:        z.array(z.string().max(100)).max(100).optional(),
   dueDate:     z.number().nullable().optional(),
   estimate:    z.number().nullable().optional(),
   version:     z.number().int().positive().optional(),
@@ -98,8 +98,8 @@ export const createTaskLinkSchema = z.object({
 });
 
 export const taskSearchSchema = z.object({
-  q:          z.string().min(1),
-  topK:       z.coerce.number().int().positive().optional(),
+  q:          z.string().min(1).max(2000),
+  topK:       z.coerce.number().int().positive().max(500).optional(),
   minScore:   z.coerce.number().min(0).max(1).optional(),
   searchMode: z.enum(['hybrid', 'vector', 'keyword']).optional(),
 });
@@ -117,8 +117,8 @@ export const taskListSchema = z.object({
 // ---------------------------------------------------------------------------
 
 export const searchQuerySchema = z.object({
-  q:          z.string().min(1),
-  topK:       z.coerce.number().int().positive().optional(),
+  q:          z.string().min(1).max(2000),
+  topK:       z.coerce.number().int().positive().max(500).optional(),
   minScore:   z.coerce.number().min(0).max(1).optional(),
   searchMode: z.enum(['hybrid', 'vector', 'keyword']).optional(),
 });
@@ -149,25 +149,25 @@ export const fileListSchema = z.object({
 // ---------------------------------------------------------------------------
 
 export const createSkillSchema = z.object({
-  title:        z.string().min(1),
-  description:  z.string().default(''),
-  steps:        z.array(z.string()).optional().default([]),
-  triggers:     z.array(z.string()).optional().default([]),
-  inputHints:   z.array(z.string()).optional().default([]),
-  filePatterns: z.array(z.string()).optional().default([]),
-  tags:         z.array(z.string()).optional().default([]),
+  title:        z.string().min(1).max(500),
+  description:  z.string().max(500_000).default(''),
+  steps:        z.array(z.string().max(10_000)).max(100).optional().default([]),
+  triggers:     z.array(z.string().max(500)).max(50).optional().default([]),
+  inputHints:   z.array(z.string().max(500)).max(50).optional().default([]),
+  filePatterns: z.array(z.string().max(500)).max(50).optional().default([]),
+  tags:         z.array(z.string().max(100)).max(100).optional().default([]),
   source:       z.enum(['user', 'learned']).default('user'),
   confidence:   z.number().min(0).max(1).default(1),
 });
 
 export const updateSkillSchema = z.object({
-  title:        z.string().min(1).optional(),
-  description:  z.string().optional(),
-  steps:        z.array(z.string()).optional(),
-  triggers:     z.array(z.string()).optional(),
-  inputHints:   z.array(z.string()).optional(),
-  filePatterns: z.array(z.string()).optional(),
-  tags:         z.array(z.string()).optional(),
+  title:        z.string().min(1).max(500).optional(),
+  description:  z.string().max(500_000).optional(),
+  steps:        z.array(z.string().max(10_000)).max(100).optional(),
+  triggers:     z.array(z.string().max(500)).max(50).optional(),
+  inputHints:   z.array(z.string().max(500)).max(50).optional(),
+  filePatterns: z.array(z.string().max(500)).max(50).optional(),
+  tags:         z.array(z.string().max(100)).max(100).optional(),
   source:       z.enum(['user', 'learned']).optional(),
   confidence:   z.number().min(0).max(1).optional(),
   version:      z.number().int().positive().optional(),
@@ -182,8 +182,8 @@ export const createSkillLinkSchema = z.object({
 });
 
 export const skillSearchSchema = z.object({
-  q:          z.string().min(1),
-  topK:       z.coerce.number().int().positive().optional(),
+  q:          z.string().min(1).max(2000),
+  topK:       z.coerce.number().int().positive().max(500).optional(),
   minScore:   z.coerce.number().min(0).max(1).optional(),
   searchMode: z.enum(['hybrid', 'vector', 'keyword']).optional(),
 });
@@ -197,6 +197,21 @@ export const skillListSchema = z.object({
 
 export const graphExportSchema = z.object({
   scope: z.enum(['all', 'docs', 'code', 'knowledge', 'tasks', 'files', 'skills']).default('all'),
+});
+
+// ---------------------------------------------------------------------------
+// Attachment schemas
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Linked query schema (cross-graph reverse lookup)
+// ---------------------------------------------------------------------------
+
+export const linkedQuerySchema = z.object({
+  targetGraph:  z.enum(['docs', 'code', 'files', 'knowledge', 'tasks', 'skills']),
+  targetNodeId: z.string().min(1).max(500),
+  kind:         z.string().max(100).optional(),
+  projectId:    z.string().max(200).optional(),
 });
 
 // ---------------------------------------------------------------------------

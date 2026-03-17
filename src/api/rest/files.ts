@@ -1,3 +1,4 @@
+import path from 'path';
 import { Router } from 'express';
 import type { ProjectInstance } from '@/lib/project-manager';
 import { validateQuery, fileListSchema, searchQuerySchema } from '@/api/rest/validation';
@@ -38,7 +39,12 @@ export function createFilesRouter(): Router {
       const p = getProject(req);
       const filePath = req.query.path as string;
       if (!filePath) return res.status(400).json({ error: 'path query parameter required' });
-      const info = p.fileIndexManager.getFileInfo(filePath);
+      // Prevent path traversal
+      const normalized = path.normalize(filePath);
+      if (normalized.startsWith('..') || path.isAbsolute(normalized)) {
+        return res.status(400).json({ error: 'Invalid path' });
+      }
+      const info = p.fileIndexManager.getFileInfo(normalized);
       if (!info) return res.status(404).json({ error: 'File not found' });
       res.json(info);
     } catch (err) { next(err); }

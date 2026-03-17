@@ -3,7 +3,7 @@ import mime from 'mime';
 import { Router } from 'express';
 import multer from 'multer';
 import type { ProjectInstance } from '@/lib/project-manager';
-import { validateBody, validateQuery, createTaskSchema, updateTaskSchema, moveTaskSchema, createTaskLinkSchema, taskSearchSchema, taskListSchema, attachmentFilenameSchema } from '@/api/rest/validation';
+import { validateBody, validateQuery, createTaskSchema, updateTaskSchema, moveTaskSchema, createTaskLinkSchema, taskSearchSchema, taskListSchema, linkedQuerySchema, attachmentFilenameSchema } from '@/api/rest/validation';
 import { VersionConflictError } from '@/graphs/manager-types';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
@@ -40,13 +40,10 @@ export function createTasksRouter(): Router {
   });
 
   // Find tasks linked to an external entity
-  router.get('/linked', (req, res, next) => {
+  router.get('/linked', validateQuery(linkedQuerySchema), (req, res, next) => {
     try {
       const p = getProject(req);
-      const { targetGraph, targetNodeId, kind, projectId } = req.query as any;
-      if (!targetGraph || !targetNodeId) {
-        return res.status(400).json({ error: 'targetGraph and targetNodeId are required' });
-      }
+      const { targetGraph, targetNodeId, kind, projectId } = (req as any).validatedQuery;
       const tasks = p.taskManager.findLinkedTasks(targetGraph, targetNodeId, kind, projectId ?? (req.params as any).projectId);
       res.json({ results: tasks });
     } catch (err) { next(err); }
@@ -208,7 +205,9 @@ export function createTasksRouter(): Router {
       if (!filePath) return res.status(404).json({ error: 'Attachment not found' });
       const mimeType = mime.getType(filePath) ?? 'application/octet-stream';
       res.setHeader('Content-Type', mimeType);
-      fs.createReadStream(filePath).pipe(res);
+      const stream = fs.createReadStream(filePath);
+      stream.on('error', (err) => next(err));
+      stream.pipe(res);
     } catch (err) { next(err); }
   });
 

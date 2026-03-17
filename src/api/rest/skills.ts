@@ -79,10 +79,10 @@ export function createSkillsRouter(): Router {
     try {
       const p = getProject(req);
       const { title, description, steps, triggers, inputHints, filePatterns, tags, source, confidence } = req.body;
-      const skillId = await p.mutationQueue.enqueue(async () => {
-        return p.skillManager.createSkill(title, description, steps, triggers, inputHints, filePatterns, tags, source, confidence);
+      const created = await p.mutationQueue.enqueue(async () => {
+        const skillId = await p.skillManager.createSkill(title, description, steps, triggers, inputHints, filePatterns, tags, source, confidence);
+        return p.skillManager.getSkill(skillId);
       });
-      const created = p.skillManager.getSkill(skillId);
       res.status(201).json(created);
     } catch (err) { next(err); }
   });
@@ -93,12 +93,13 @@ export function createSkillsRouter(): Router {
       const p = getProject(req);
       const skillId = req.params.skillId as string;
       const { version, ...patch } = req.body;
-      const ok = await p.mutationQueue.enqueue(async () => {
-        return p.skillManager.updateSkill(skillId, patch, version);
+      const result = await p.mutationQueue.enqueue(async () => {
+        const ok = await p.skillManager.updateSkill(skillId, patch, version);
+        if (!ok) return null;
+        return p.skillManager.getSkill(skillId);
       });
-      if (!ok) return res.status(404).json({ error: 'Skill not found' });
-      const updated = p.skillManager.getSkill(skillId);
-      res.json(updated);
+      if (!result) return res.status(404).json({ error: 'Skill not found' });
+      res.json(result);
     } catch (err) {
       if (err instanceof VersionConflictError) {
         return res.status(409).json({ error: 'version_conflict', current: err.current, expected: err.expected });
@@ -112,12 +113,13 @@ export function createSkillsRouter(): Router {
     try {
       const p = getProject(req);
       const skillId = req.params.skillId as string;
-      const ok = await p.mutationQueue.enqueue(async () => {
-        return p.skillManager.bumpUsage(skillId);
+      const result = await p.mutationQueue.enqueue(async () => {
+        const ok = p.skillManager.bumpUsage(skillId);
+        if (!ok) return null;
+        return p.skillManager.getSkill(skillId);
       });
-      if (!ok) return res.status(404).json({ error: 'Skill not found' });
-      const updated = p.skillManager.getSkill(skillId);
-      res.json(updated);
+      if (!result) return res.status(404).json({ error: 'Skill not found' });
+      res.json(result);
     } catch (err) { next(err); }
   });
 

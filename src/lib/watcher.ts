@@ -15,7 +15,7 @@ export interface WatcherHandlers {
 }
 
 /** Directories that are always excluded from watching (heavy, never useful). */
-const ALWAYS_IGNORED = ['.git', 'node_modules', '.next', '.nuxt', '.turbo', 'dist', 'build', '.graph-memory', '.notes', '.tasks'];
+const ALWAYS_IGNORED = ['.git', 'node_modules', '.next', '.nuxt', '.turbo', 'dist', 'build', '.graph-memory', '.notes', '.tasks', '.skills'];
 
 // chokidar 5: watch the directory directly — glob patterns don't fire 'add' for existing files
 export function startWatcher(

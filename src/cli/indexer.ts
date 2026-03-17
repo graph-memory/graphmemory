@@ -52,6 +52,11 @@ export function createProjectIndexer(
   let codeQueue: Promise<void> = Promise.resolve();
   let fileQueue: Promise<void> = Promise.resolve();
 
+  // Error tracking
+  let docErrors = 0;
+  let codeErrors = 0;
+  let fileErrors = 0;
+
   let project: Project | undefined =
     codeGraph && config.codePattern
       ? getProject(config.projectDir, config.tsconfig)
@@ -62,18 +67,21 @@ export function createProjectIndexer(
 
   function enqueueDoc(fn: () => Promise<void>): void {
     docsQueue = docsQueue.then(fn).catch((err: unknown) => {
+      docErrors++;
       process.stderr.write(`[indexer] Doc error: ${err}\n`);
     });
   }
 
   function enqueueCode(fn: () => Promise<void>): void {
     codeQueue = codeQueue.then(fn).catch((err: unknown) => {
+      codeErrors++;
       process.stderr.write(`[indexer] Code error: ${err}\n`);
     });
   }
 
   function enqueueFile(fn: () => Promise<void>): void {
     fileQueue = fileQueue.then(fn).catch((err: unknown) => {
+      fileErrors++;
       process.stderr.write(`[indexer] File index error: ${err}\n`);
     });
   }
@@ -88,7 +96,15 @@ export function createProjectIndexer(
     try {
       stat = fs.statSync(absolutePath);
     } catch {
-      return; // disappeared between event and processing
+      // File disappeared — remove stale node from graph if present
+      const fileId = path.relative(config.projectDir, absolutePath);
+      if (docGraph.hasNode(fileId)) {
+        removeFile(docGraph, fileId);
+        if (knowledgeGraph) cleanupKnowledgeProxies(knowledgeGraph, 'docs', docGraph);
+        if (taskGraph) cleanupTaskProxies(taskGraph, 'docs', docGraph);
+        if (skillGraph) cleanupSkillProxies(skillGraph, 'docs', docGraph);
+      }
+      return;
     }
     const mtime = stat.mtimeMs;
     const fileId = path.relative(config.projectDir, absolutePath);
@@ -119,6 +135,13 @@ export function createProjectIndexer(
     try {
       stat = fs.statSync(absolutePath);
     } catch {
+      const fileId = path.relative(config.projectDir, absolutePath);
+      if (codeGraph.hasNode(fileId)) {
+        removeCodeFile(codeGraph, fileId);
+        if (knowledgeGraph) cleanupKnowledgeProxies(knowledgeGraph, 'code', codeGraph);
+        if (taskGraph) cleanupTaskProxies(taskGraph, 'code', codeGraph);
+        if (skillGraph) cleanupSkillProxies(skillGraph, 'code', codeGraph);
+      }
       return;
     }
     const mtime = stat.mtimeMs;
@@ -145,6 +168,13 @@ export function createProjectIndexer(
     try {
       stat = fs.statSync(absolutePath);
     } catch {
+      const filePath = path.relative(config.projectDir, absolutePath);
+      if (fileIndexGraph.hasNode(filePath)) {
+        removeFileEntry(fileIndexGraph, filePath);
+        if (knowledgeGraph) cleanupKnowledgeProxies(knowledgeGraph, 'files', fileIndexGraph);
+        if (taskGraph) cleanupTaskProxies(taskGraph, 'files', fileIndexGraph);
+        if (skillGraph) cleanupSkillProxies(skillGraph, 'files', fileIndexGraph);
+      }
       return;
     }
     const mtime = stat.mtimeMs;
@@ -262,6 +292,10 @@ export function createProjectIndexer(
   async function drain(): Promise<void> {
     await Promise.all([docsQueue, codeQueue, fileQueue]);
     if (fileIndexGraph) rebuildDirectoryStats(fileIndexGraph);
+    const totalErrors = docErrors + codeErrors + fileErrors;
+    if (totalErrors > 0) {
+      process.stderr.write(`[indexer] Completed with ${totalErrors} error(s): docs=${docErrors}, code=${codeErrors}, files=${fileErrors}\n`);
+    }
   }
 
   return { scan, watch, drain };

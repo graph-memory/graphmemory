@@ -403,7 +403,9 @@ export function deleteCrossRelation(
 export function saveKnowledgeGraph(graph: KnowledgeGraph, graphMemory: string, embeddingModel?: string): void {
   fs.mkdirSync(graphMemory, { recursive: true });
   const file = path.join(graphMemory, 'knowledge.json');
-  fs.writeFileSync(file, JSON.stringify({ embeddingModel, graph: graph.export() }));
+  const tmp = file + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify({ embeddingModel, graph: graph.export() }));
+  fs.renameSync(tmp, file);
 }
 
 export function loadKnowledgeGraph(graphMemory: string, fresh = false, embeddingModel?: string): KnowledgeGraph {
@@ -417,8 +419,8 @@ export function loadKnowledgeGraph(graphMemory: string, fresh = false, embedding
     const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
     const storedModel = data.embeddingModel as string | undefined;
 
-    if (embeddingModel && storedModel && storedModel !== embeddingModel) {
-      process.stderr.write(`[knowledge-graph] Embedding model changed (${storedModel} → ${embeddingModel}), re-indexing knowledge graph\n`);
+    if (embeddingModel && storedModel !== embeddingModel) {
+      process.stderr.write(`[knowledge-graph] Embedding model changed (${storedModel ?? 'unknown'} → ${embeddingModel}), re-indexing knowledge graph\n`);
       return graph;
     }
 
@@ -789,6 +791,7 @@ export class KnowledgeGraphManager {
     if (!this._graph.hasNode(noteId) || isProxy(this._graph, noteId)) return;
     this._graph.setNodeAttribute(noteId, 'content', content);
     this._graph.setNodeAttribute(noteId, 'updatedAt', Date.now());
+    this._graph.setNodeAttribute(noteId, 'version', (this._graph.getNodeAttribute(noteId, 'version') ?? 0) + 1);
     this.ctx.markDirty();
     this.ctx.emit('note:updated', { projectId: this.ctx.projectId, noteId });
   }
@@ -864,7 +867,7 @@ export class KnowledgeGraphManager {
     topK?: number; bfsDepth?: number; maxResults?: number; minScore?: number; bfsDecay?: number;
     searchMode?: 'hybrid' | 'vector' | 'keyword'; rrfK?: number;
   }): Promise<KnowledgeSearchResult[]> {
-    const embedding = await this.embedFn(query);
+    const embedding = opts?.searchMode === 'keyword' ? [] : await this.embedFn(query);
     return searchKnowledge(this._graph, embedding, { ...opts, queryText: query, bm25Index: this._bm25Index });
   }
 

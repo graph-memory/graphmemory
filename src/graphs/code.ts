@@ -92,7 +92,9 @@ export function listCodeFiles(
 export function saveCodeGraph(graph: CodeGraph, graphMemory: string, embeddingModel?: string): void {
   fs.mkdirSync(graphMemory, { recursive: true });
   const file = path.join(graphMemory, 'code.json');
-  fs.writeFileSync(file, JSON.stringify({ embeddingModel, graph: graph.export() }));
+  const tmp = file + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify({ embeddingModel, graph: graph.export() }));
+  fs.renameSync(tmp, file);
 }
 
 export function loadCodeGraph(graphMemory: string, fresh = false, embeddingModel?: string): CodeGraph {
@@ -106,8 +108,8 @@ export function loadCodeGraph(graphMemory: string, fresh = false, embeddingModel
     const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
     const storedModel = data.embeddingModel as string | undefined;
 
-    if (embeddingModel && storedModel && storedModel !== embeddingModel) {
-      process.stderr.write(`[code-graph] Embedding model changed (${storedModel} → ${embeddingModel}), re-indexing code graph\n`);
+    if (embeddingModel && storedModel !== embeddingModel) {
+      process.stderr.write(`[code-graph] Embedding model changed (${storedModel ?? 'unknown'} → ${embeddingModel}), re-indexing code graph\n`);
       return graph;
     }
 
@@ -185,7 +187,7 @@ export class CodeGraphManager {
     topK?: number; bfsDepth?: number; maxResults?: number; minScore?: number; bfsDecay?: number;
     searchMode?: SearchMode;
   }): Promise<CodeSearchResult[]> {
-    const embedding = await this.embedFn(query);
+    const embedding = opts?.searchMode === 'keyword' ? [] : await this.embedFn(query);
     return searchCode(this._graph, embedding, { ...opts, queryText: query, bm25Index: this._bm25Index });
   }
 

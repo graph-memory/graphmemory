@@ -65,10 +65,10 @@ export function createTasksRouter(): Router {
     try {
       const p = getProject(req);
       const { title, description, status, priority, tags, dueDate, estimate } = req.body;
-      const taskId = await p.mutationQueue.enqueue(async () => {
-        return p.taskManager.createTask(title, description, status, priority, tags, dueDate, estimate);
+      const created = await p.mutationQueue.enqueue(async () => {
+        const taskId = await p.taskManager.createTask(title, description, status, priority, tags, dueDate, estimate);
+        return p.taskManager.getTask(taskId);
       });
-      const created = p.taskManager.getTask(taskId);
       res.status(201).json(created);
     } catch (err) { next(err); }
   });
@@ -79,12 +79,13 @@ export function createTasksRouter(): Router {
       const p = getProject(req);
       const taskId = req.params.taskId as string;
       const { version, ...patch } = req.body;
-      const ok = await p.mutationQueue.enqueue(async () => {
-        return p.taskManager.updateTask(taskId, patch, version);
+      const result = await p.mutationQueue.enqueue(async () => {
+        const ok = await p.taskManager.updateTask(taskId, patch, version);
+        if (!ok) return null;
+        return p.taskManager.getTask(taskId);
       });
-      if (!ok) return res.status(404).json({ error: 'Task not found' });
-      const updated = p.taskManager.getTask(taskId);
-      res.json(updated);
+      if (!result) return res.status(404).json({ error: 'Task not found' });
+      res.json(result);
     } catch (err) {
       if (err instanceof VersionConflictError) {
         return res.status(409).json({ error: 'version_conflict', current: err.current, expected: err.expected });
@@ -99,12 +100,13 @@ export function createTasksRouter(): Router {
       const p = getProject(req);
       const taskId = req.params.taskId as string;
       const { status, version } = req.body;
-      const ok = await p.mutationQueue.enqueue(async () => {
-        return p.taskManager.moveTask(taskId, status, version);
+      const result = await p.mutationQueue.enqueue(async () => {
+        const ok = p.taskManager.moveTask(taskId, status, version);
+        if (!ok) return null;
+        return p.taskManager.getTask(taskId);
       });
-      if (!ok) return res.status(404).json({ error: 'Task not found' });
-      const updated = p.taskManager.getTask(taskId);
-      res.json(updated);
+      if (!result) return res.status(404).json({ error: 'Task not found' });
+      res.json(result);
     } catch (err) {
       if (err instanceof VersionConflictError) {
         return res.status(409).json({ error: 'version_conflict', current: err.current, expected: err.expected });

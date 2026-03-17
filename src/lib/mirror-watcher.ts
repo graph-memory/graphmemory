@@ -19,6 +19,8 @@ import type { SkillSource } from '../graphs/skill-types';
  */
 export class MirrorWriteTracker {
   private recentWrites = new Map<string, number>();
+  private static readonly STALE_MS = 10_000; // entries older than 10s are stale
+  private static readonly MAX_ENTRIES = 10_000;
 
   /** Called by mirrorNote/mirrorTask after writing a file. */
   recordWrite(filePath: string): void {
@@ -26,6 +28,8 @@ export class MirrorWriteTracker {
       const stat = fs.statSync(filePath, { throwIfNoEntry: false } as fs.StatSyncOptions);
       if (stat) this.recentWrites.set(filePath, (stat as fs.Stats).mtimeMs);
     } catch { /* ignore */ }
+    // Prevent unbounded growth — evict stale entries periodically
+    if (this.recentWrites.size > MirrorWriteTracker.MAX_ENTRIES) this.evictStale();
   }
 
   /** Called by watcher before importing. Returns true if this was our own write. */
@@ -42,6 +46,13 @@ export class MirrorWriteTracker {
     } catch { /* ignore */ }
     this.recentWrites.delete(filePath);
     return false;
+  }
+
+  private evictStale(): void {
+    const now = Date.now();
+    for (const [filePath, mtime] of this.recentWrites) {
+      if (now - mtime > MirrorWriteTracker.STALE_MS) this.recentWrites.delete(filePath);
+    }
   }
 }
 

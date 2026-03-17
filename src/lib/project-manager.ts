@@ -373,11 +373,20 @@ export class ProjectManager extends EventEmitter {
     if (instance.mcpClientCleanup) await instance.mcpClientCleanup();
     this.saveProject(instance);
 
-    // Clean up workspace projectGraphs reference
+    // Clean up workspace shared graphs: remove projectGraphs reference and orphaned proxies
     if (instance.workspaceId) {
       const ws = this.workspaces.get(instance.workspaceId);
       if (ws) {
         ws.knowledgeManager.externalGraphs?.projectGraphs?.delete(id);
+        // Remove orphaned proxy nodes that reference this project
+        for (const graph of [ws.knowledgeManager.graph, ws.taskManager?.graph, ws.skillManager?.graph]) {
+          if (!graph) continue;
+          const toRemove: string[] = [];
+          graph.forEachNode((nodeId: string, attrs: any) => {
+            if (attrs.proxyFor?.projectId === id) toRemove.push(nodeId);
+          });
+          for (const nodeId of toRemove) graph.dropNode(nodeId);
+        }
       }
     }
 
@@ -405,14 +414,22 @@ export class ProjectManager extends EventEmitter {
     this.autoSaveInterval = setInterval(() => {
       for (const instance of this.projects.values()) {
         if (instance.dirty) {
-          this.saveProject(instance);
-          instance.dirty = false;
+          try {
+            this.saveProject(instance);
+            instance.dirty = false;
+          } catch (err) {
+            process.stderr.write(`[project-manager] Auto-save error for "${instance.id}": ${err}\n`);
+          }
         }
       }
       for (const ws of this.workspaces.values()) {
         if (ws.dirty) {
-          this.saveWorkspace(ws);
-          ws.dirty = false;
+          try {
+            this.saveWorkspace(ws);
+            ws.dirty = false;
+          } catch (err) {
+            process.stderr.write(`[project-manager] Auto-save error for workspace "${ws.id}": ${err}\n`);
+          }
         }
       }
     }, intervalMs);
@@ -426,15 +443,23 @@ export class ProjectManager extends EventEmitter {
     if (this.autoSaveInterval) clearInterval(this.autoSaveInterval);
 
     for (const instance of this.projects.values()) {
-      if (instance.mirrorWatcher) await instance.mirrorWatcher.close();
-      if (instance.watcher) await instance.watcher.close();
-      if (instance.indexer) await instance.indexer.drain();
-      if (instance.mcpClientCleanup) await instance.mcpClientCleanup();
-      this.saveProject(instance);
+      try {
+        if (instance.mirrorWatcher) await instance.mirrorWatcher.close();
+        if (instance.watcher) await instance.watcher.close();
+        if (instance.indexer) await instance.indexer.drain();
+        if (instance.mcpClientCleanup) await instance.mcpClientCleanup();
+        this.saveProject(instance);
+      } catch (err) {
+        process.stderr.write(`[project-manager] Shutdown error for "${instance.id}": ${err}\n`);
+      }
     }
     for (const ws of this.workspaces.values()) {
-      if (ws.mirrorWatcher) await ws.mirrorWatcher.close();
-      this.saveWorkspace(ws);
+      try {
+        if (ws.mirrorWatcher) await ws.mirrorWatcher.close();
+        this.saveWorkspace(ws);
+      } catch (err) {
+        process.stderr.write(`[project-manager] Shutdown error for workspace "${ws.id}": ${err}\n`);
+      }
     }
     this.projects.clear();
     this.workspaces.clear();

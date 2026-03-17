@@ -122,7 +122,9 @@ export function listFiles(
 export function saveGraph(graph: DocGraph, graphMemory: string, embeddingModel?: string): void {
   fs.mkdirSync(graphMemory, { recursive: true });
   const file = path.join(graphMemory, 'docs.json');
-  fs.writeFileSync(file, JSON.stringify({ embeddingModel, graph: graph.export() }));
+  const tmp = file + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify({ embeddingModel, graph: graph.export() }));
+  fs.renameSync(tmp, file);
 }
 
 export function loadGraph(graphMemory: string, fresh = false, embeddingModel?: string): DocGraph {
@@ -136,8 +138,8 @@ export function loadGraph(graphMemory: string, fresh = false, embeddingModel?: s
     const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
     const storedModel = data.embeddingModel as string | undefined;
 
-    if (embeddingModel && storedModel && storedModel !== embeddingModel) {
-      process.stderr.write(`[graph] Embedding model changed (${storedModel} → ${embeddingModel}), re-indexing docs graph\n`);
+    if (embeddingModel && storedModel !== embeddingModel) {
+      process.stderr.write(`[graph] Embedding model changed (${storedModel ?? 'unknown'} → ${embeddingModel}), re-indexing docs graph\n`);
       return graph;
     }
 
@@ -221,7 +223,7 @@ export class DocGraphManager {
     topK?: number; bfsDepth?: number; maxResults?: number; minScore?: number; bfsDecay?: number;
     searchMode?: SearchMode;
   }): Promise<SearchResult[]> {
-    const embedding = await this.embedFn(query);
+    const embedding = opts?.searchMode === 'keyword' ? [] : await this.embedFn(query);
     return search(this._graph, embedding, { ...opts, queryText: query, bm25Index: this._bm25Index });
   }
 

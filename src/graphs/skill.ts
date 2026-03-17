@@ -587,7 +587,9 @@ export function deleteCrossRelation(
 export function saveSkillGraph(graph: SkillGraph, graphMemory: string, embeddingModel?: string): void {
   fs.mkdirSync(graphMemory, { recursive: true });
   const file = path.join(graphMemory, 'skills.json');
-  fs.writeFileSync(file, JSON.stringify({ embeddingModel, graph: graph.export() }));
+  const tmp = file + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify({ embeddingModel, graph: graph.export() }));
+  fs.renameSync(tmp, file);
 }
 
 export function loadSkillGraph(graphMemory: string, fresh = false, embeddingModel?: string): SkillGraph {
@@ -601,8 +603,8 @@ export function loadSkillGraph(graphMemory: string, fresh = false, embeddingMode
     const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
     const storedModel = data.embeddingModel as string | undefined;
 
-    if (embeddingModel && storedModel && storedModel !== embeddingModel) {
-      process.stderr.write(`[skill-graph] Embedding model changed (${storedModel} → ${embeddingModel}), re-indexing skill graph\n`);
+    if (embeddingModel && storedModel !== embeddingModel) {
+      process.stderr.write(`[skill-graph] Embedding model changed (${storedModel ?? 'unknown'} → ${embeddingModel}), re-indexing skill graph\n`);
       return graph;
     }
 
@@ -1099,6 +1101,7 @@ export class SkillGraphManager {
     if (!this._graph.hasNode(skillId) || isProxy(this._graph, skillId)) return;
     this._graph.setNodeAttribute(skillId, 'description', description);
     this._graph.setNodeAttribute(skillId, 'updatedAt', Date.now());
+    this._graph.setNodeAttribute(skillId, 'version', (this._graph.getNodeAttribute(skillId, 'version') ?? 0) + 1);
     this.ctx.markDirty();
     this.ctx.emit('skill:updated', { projectId: this.ctx.projectId, skillId });
   }
@@ -1183,7 +1186,7 @@ export class SkillGraphManager {
     topK?: number; bfsDepth?: number; maxResults?: number; minScore?: number; bfsDecay?: number;
     searchMode?: 'hybrid' | 'vector' | 'keyword'; rrfK?: number;
   }): Promise<SkillSearchResult[]> {
-    const embedding = await this.embedFn(query);
+    const embedding = opts?.searchMode === 'keyword' ? [] : await this.embedFn(query);
     return searchSkills(this._graph, embedding, { ...opts, queryText: query, bm25Index: this._bm25Index });
   }
 

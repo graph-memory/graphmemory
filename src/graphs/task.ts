@@ -599,7 +599,9 @@ export function deleteCrossRelation(
 export function saveTaskGraph(graph: TaskGraph, graphMemory: string, embeddingModel?: string): void {
   fs.mkdirSync(graphMemory, { recursive: true });
   const file = path.join(graphMemory, 'tasks.json');
-  fs.writeFileSync(file, JSON.stringify({ embeddingModel, graph: graph.export() }));
+  const tmp = file + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify({ embeddingModel, graph: graph.export() }));
+  fs.renameSync(tmp, file);
 }
 
 export function loadTaskGraph(graphMemory: string, fresh = false, embeddingModel?: string): TaskGraph {
@@ -613,8 +615,8 @@ export function loadTaskGraph(graphMemory: string, fresh = false, embeddingModel
     const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
     const storedModel = data.embeddingModel as string | undefined;
 
-    if (embeddingModel && storedModel && storedModel !== embeddingModel) {
-      process.stderr.write(`[task-graph] Embedding model changed (${storedModel} → ${embeddingModel}), re-indexing task graph\n`);
+    if (embeddingModel && storedModel !== embeddingModel) {
+      process.stderr.write(`[task-graph] Embedding model changed (${storedModel ?? 'unknown'} → ${embeddingModel}), re-indexing task graph\n`);
       return graph;
     }
 
@@ -1043,6 +1045,7 @@ export class TaskGraphManager {
     if (!this._graph.hasNode(taskId) || isProxy(this._graph, taskId)) return;
     this._graph.setNodeAttribute(taskId, 'description', description);
     this._graph.setNodeAttribute(taskId, 'updatedAt', Date.now());
+    this._graph.setNodeAttribute(taskId, 'version', (this._graph.getNodeAttribute(taskId, 'version') ?? 0) + 1);
     this.ctx.markDirty();
     this.ctx.emit('task:updated', { projectId: this.ctx.projectId, taskId });
   }
@@ -1116,7 +1119,7 @@ export class TaskGraphManager {
     topK?: number; bfsDepth?: number; maxResults?: number; minScore?: number; bfsDecay?: number;
     searchMode?: 'hybrid' | 'vector' | 'keyword'; rrfK?: number;
   }): Promise<TaskSearchResult[]> {
-    const embedding = await this.embedFn(query);
+    const embedding = opts?.searchMode === 'keyword' ? [] : await this.embedFn(query);
     return searchTasks(this._graph, embedding, { ...opts, queryText: query, bm25Index: this._bm25Index });
   }
 

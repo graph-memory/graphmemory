@@ -261,7 +261,9 @@ export function rebuildDirectoryStats(graph: FileIndexGraph): void {
 export function saveFileIndexGraph(graph: FileIndexGraph, graphMemory: string, embeddingModel?: string): void {
   fs.mkdirSync(graphMemory, { recursive: true });
   const file = path.join(graphMemory, 'file-index.json');
-  fs.writeFileSync(file, JSON.stringify({ embeddingModel, graph: graph.export() }));
+  const tmp = file + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify({ embeddingModel, graph: graph.export() }));
+  fs.renameSync(tmp, file);
 }
 
 export function loadFileIndexGraph(graphMemory: string, fresh = false, embeddingModel?: string): FileIndexGraph {
@@ -275,8 +277,8 @@ export function loadFileIndexGraph(graphMemory: string, fresh = false, embedding
     const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
     const storedModel = data.embeddingModel as string | undefined;
 
-    if (embeddingModel && storedModel && storedModel !== embeddingModel) {
-      process.stderr.write(`[file-index] Embedding model changed (${storedModel} → ${embeddingModel}), re-indexing file index\n`);
+    if (embeddingModel && storedModel !== embeddingModel) {
+      process.stderr.write(`[file-index] Embedding model changed (${storedModel ?? 'unknown'} → ${embeddingModel}), re-indexing file index\n`);
       return graph;
     }
 

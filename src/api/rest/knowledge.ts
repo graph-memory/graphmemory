@@ -54,10 +54,10 @@ export function createKnowledgeRouter(): Router {
     try {
       const p = getProject(req);
       const { title, content, tags } = req.body;
-      const noteId = await p.mutationQueue.enqueue(async () => {
-        return p.knowledgeManager.createNote(title, content, tags);
+      const created = await p.mutationQueue.enqueue(async () => {
+        const noteId = await p.knowledgeManager.createNote(title, content, tags);
+        return p.knowledgeManager.getNote(noteId);
       });
-      const created = p.knowledgeManager.getNote(noteId);
       res.status(201).json(created);
     } catch (err) { next(err); }
   });
@@ -68,12 +68,13 @@ export function createKnowledgeRouter(): Router {
       const p = getProject(req);
       const noteId = req.params.noteId as string;
       const { version, ...patch } = req.body;
-      const ok = await p.mutationQueue.enqueue(async () => {
-        return p.knowledgeManager.updateNote(noteId, patch, version);
+      const result = await p.mutationQueue.enqueue(async () => {
+        const ok = await p.knowledgeManager.updateNote(noteId, patch, version);
+        if (!ok) return null;
+        return p.knowledgeManager.getNote(noteId);
       });
-      if (!ok) return res.status(404).json({ error: 'Note not found' });
-      const updated = p.knowledgeManager.getNote(noteId);
-      res.json(updated);
+      if (!result) return res.status(404).json({ error: 'Note not found' });
+      res.json(result);
     } catch (err) {
       if (err instanceof VersionConflictError) {
         return res.status(409).json({ error: 'version_conflict', current: err.current, expected: err.expected });

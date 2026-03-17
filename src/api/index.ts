@@ -330,6 +330,9 @@ export async function startHttpServer(
   fileIndexGraph?: FileIndexGraph,
   taskGraph?: TaskGraph,
   embedFn?: EmbedFn | Partial<EmbedFnMap>,
+  projectDir?: string,
+  skillGraph?: SkillGraph,
+  sessionContext?: McpSessionContext,
 ): Promise<http.Server> {
   const sessions = new Map<string, HttpSession>();
 
@@ -381,7 +384,7 @@ export async function startHttpServer(
       const sid = transport.sessionId;
       if (sid) sessions.delete(sid);
     };
-    const mcpServer = createMcpServer(docGraph, codeGraph, knowledgeGraph, fileIndexGraph, taskGraph, embedFn);
+    const mcpServer = createMcpServer(docGraph, codeGraph, knowledgeGraph, fileIndexGraph, taskGraph, embedFn, undefined, projectDir, skillGraph, sessionContext);
     await mcpServer.connect(transport);
     await transport.handleRequest(req, res, body);
   });

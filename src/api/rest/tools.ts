@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import type { ProjectInstance } from '@/lib/project-manager';
-import { createMcpServer } from '@/api/index';
+import type { ProjectInstance, ProjectManager } from '@/lib/project-manager';
+import { createMcpServer, type McpSessionContext } from '@/api/index';
 
 // Tool category detection based on tool name
 const TOOL_CATEGORIES: Record<string, string> = {
+  get_context: 'context',
   list_topics: 'docs', get_toc: 'docs', search: 'docs', get_node: 'docs',
   search_topic_files: 'docs', find_examples: 'docs', search_snippets: 'docs',
   list_snippets: 'docs', explain_symbol: 'docs', cross_references: 'cross-graph',
@@ -16,23 +17,40 @@ const TOOL_CATEGORIES: Record<string, string> = {
   get_note: 'knowledge', list_notes: 'knowledge', search_notes: 'knowledge',
   create_relation: 'knowledge', delete_relation: 'knowledge',
   list_relations: 'knowledge', find_linked_notes: 'knowledge',
+  add_note_attachment: 'knowledge', remove_note_attachment: 'knowledge',
   create_task: 'tasks', update_task: 'tasks', delete_task: 'tasks',
   get_task: 'tasks', list_tasks: 'tasks', search_tasks: 'tasks',
   move_task: 'tasks', link_task: 'tasks', create_task_link: 'tasks',
   delete_task_link: 'tasks', find_linked_tasks: 'tasks',
+  add_task_attachment: 'tasks', remove_task_attachment: 'tasks',
+  create_skill: 'skills', update_skill: 'skills', delete_skill: 'skills',
+  get_skill: 'skills', list_skills: 'skills', search_skills: 'skills',
+  recall_skills: 'skills', bump_skill_usage: 'skills',
+  link_skill: 'skills', create_skill_link: 'skills', delete_skill_link: 'skills',
+  find_linked_skills: 'skills',
+  add_skill_attachment: 'skills', remove_skill_attachment: 'skills',
 };
 
 /**
  * Get or create a lazy MCP client for a project instance.
  * The client is cached on the instance for reuse.
  */
-async function getClient(p: ProjectInstance): Promise<Client> {
+async function getClient(p: ProjectInstance, pm: ProjectManager): Promise<Client> {
   if (p.mcpClient) return p.mcpClient;
+
+  // Build session context for get_context tool
+  const ws = p.workspaceId ? pm.getWorkspace(p.workspaceId) : undefined;
+  const sessionCtx: McpSessionContext = {
+    projectId: p.id,
+    workspaceId: ws?.id,
+    workspaceProjects: ws?.config.projects,
+  };
 
   const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
   const server = createMcpServer(
     p.docGraph, p.codeGraph, p.knowledgeGraph, p.fileIndexGraph,
     p.taskGraph, p.embedFns, p.mutationQueue,
+    p.config.projectDir, p.skillGraph, sessionCtx,
   );
   await server.connect(serverTransport);
 
@@ -49,7 +67,7 @@ async function getClient(p: ProjectInstance): Promise<Client> {
   return client;
 }
 
-export function createToolsRouter(): Router {
+export function createToolsRouter(projectManager: ProjectManager): Router {
   const router = Router({ mergeParams: true });
 
   function getProject(req: any): ProjectInstance {
@@ -60,7 +78,7 @@ export function createToolsRouter(): Router {
   router.get('/', async (req, res, next) => {
     try {
       const p = getProject(req);
-      const client = await getClient(p);
+      const client = await getClient(p, projectManager);
       const { tools } = await client.listTools();
       const results = tools.map(t => ({
         name: t.name,
@@ -76,7 +94,7 @@ export function createToolsRouter(): Router {
   router.get('/:toolName', async (req, res, next) => {
     try {
       const p = getProject(req);
-      const client = await getClient(p);
+      const client = await getClient(p, projectManager);
       const { tools } = await client.listTools();
       const tool = tools.find(t => t.name === req.params.toolName);
       if (!tool) return res.status(404).json({ error: `Tool "${req.params.toolName}" not found` });
@@ -93,7 +111,7 @@ export function createToolsRouter(): Router {
   router.post('/:toolName/call', async (req, res, next) => {
     try {
       const p = getProject(req);
-      const client = await getClient(p);
+      const client = await getClient(p, projectManager);
       const start = Date.now();
       const result = await client.callTool({
         name: req.params.toolName,

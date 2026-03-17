@@ -92,7 +92,7 @@ export function createRestApp(projectManager: ProjectManager): express.Express {
   app.use('/api/projects/:projectId/code', createCodeRouter());
   app.use('/api/projects/:projectId/files', createFilesRouter());
   app.use('/api/projects/:projectId/graph', createGraphRouter());
-  app.use('/api/projects/:projectId/tools', createToolsRouter());
+  app.use('/api/projects/:projectId/tools', createToolsRouter(projectManager));
 
   // Serve UI static files (ui/dist)
   const uiDist = path.resolve(__dirname, '../../../ui/dist');

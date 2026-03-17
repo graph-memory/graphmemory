@@ -39,6 +39,20 @@ export function createSkillsRouter(): Router {
     } catch (err) { next(err); }
   });
 
+  // Recall skills (higher recall search for task contexts)
+  router.get('/recall', validateQuery(skillSearchSchema), async (req, res, next) => {
+    try {
+      const p = getProject(req);
+      const q = (req as any).validatedQuery;
+      const results = await p.skillManager.searchSkills(q.q, {
+        topK: q.topK,
+        minScore: q.minScore ?? 0.3,
+        searchMode: q.searchMode,
+      });
+      res.json({ results });
+    } catch (err) { next(err); }
+  });
+
   // Find skills linked to an external entity
   router.get('/linked', validateQuery(linkedQuerySchema), (req, res, next) => {
     try {

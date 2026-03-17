@@ -438,6 +438,7 @@ GET    /api/projects/:id/skills/:skillId              → get skill
 PUT    /api/projects/:id/skills/:skillId              → update skill
 DELETE /api/projects/:id/skills/:skillId              → delete skill (204)
 GET    /api/projects/:id/skills/search?q=...          → search skills
+GET    /api/projects/:id/skills/recall?q=...          → recall skills (lower minScore for higher recall)
 POST   /api/projects/:id/skills/links                 → create skill link
 DELETE /api/projects/:id/skills/links                 → delete skill link (204)
 GET    /api/projects/:id/skills/:skillId/relations    → list skill relations

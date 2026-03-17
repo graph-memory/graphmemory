@@ -96,6 +96,15 @@ export function resetEmbedder(): void {
   _pipeCache.clear();
 }
 
+/** Dispose all loaded ONNX pipelines. Call before process.exit() to avoid macOS mutex crash. */
+export async function disposeModels(): Promise<void> {
+  for (const pipe of _pipeCache.values()) {
+    try { await pipe.dispose(); } catch { /* ignore */ }
+  }
+  _models.clear();
+  _pipeCache.clear();
+}
+
 // Vectors are L2-normalized → dot product = cosine similarity
 export function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length) return 0;

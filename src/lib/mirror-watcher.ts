@@ -498,7 +498,7 @@ export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
   watcher.on('add', handleAddOrChange);
   watcher.on('change', handleAddOrChange);
   watcher.on('unlink', handleUnlink);
-  watcher.on('ready', () => {
+  watcher.once('ready', () => {
     const watched = ['.notes/', '.tasks/'];
     if (config.skillManager) watched.push('.skills/');
     process.stderr.write(`[mirror-watcher] Watching ${watched.join(', ')} in ${config.projectDir}\n`);

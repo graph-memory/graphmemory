@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import { loadModel, embed, embedQuery } from '@/lib/embedder';
+import { loadModel, embed, embedQuery, disposeModels } from '@/lib/embedder';
 import { loadGraph, saveGraph, type DocGraph, DocGraphManager } from '@/graphs/docs';
 import { loadCodeGraph, saveCodeGraph, type CodeGraph, CodeGraphManager } from '@/graphs/code';
 import { loadKnowledgeGraph, saveKnowledgeGraph, KnowledgeGraphManager } from '@/graphs/knowledge';
@@ -463,6 +463,7 @@ export class ProjectManager extends EventEmitter {
     }
     this.projects.clear();
     this.workspaces.clear();
+    await disposeModels();
     process.stderr.write('[project-manager] Shutdown complete\n');
   }
 

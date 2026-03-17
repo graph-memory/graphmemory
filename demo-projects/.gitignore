@@ -1,0 +1,10 @@
+# Workspace shared graphs + mirror files
+.workspace-*/
+
+# Per-project persisted graphs
+*/.graph-memory/
+
+# Per-project mirror files
+*/.notes/
+*/.tasks/
+*/.skills/

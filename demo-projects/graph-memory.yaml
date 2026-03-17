@@ -1,0 +1,68 @@
+author:
+  name: ShopFlow Team
+  email: team@shopflow.dev
+
+server:
+  host: "0.0.0.0"
+  port: 3000
+  sessionTimeout: 1800
+  embeddingModel: "Xenova/all-MiniLM-L6-v2"
+
+projects:
+  api-gateway:
+    projectDir: "./api-gateway"
+    docsPattern: "docs/**/*.md"
+    codePattern: "src/**/*.ts"
+    excludePattern: "node_modules/**"
+    tsconfig: "tsconfig.json"
+
+  catalog-service:
+    projectDir: "./catalog-service"
+    docsPattern: "docs/**/*.md"
+    codePattern: "src/**/*.ts"
+    excludePattern: "node_modules/**"
+    tsconfig: "tsconfig.json"
+
+  order-service:
+    projectDir: "./order-service"
+    docsPattern: "docs/**/*.md"
+    codePattern: "src/**/*.ts"
+    excludePattern: "node_modules/**"
+    tsconfig: "tsconfig.json"
+
+  web-store:
+    projectDir: "./web-store"
+    docsPattern: "docs/**/*.md"
+    codePattern: "src/**/*.ts"
+    excludePattern: "node_modules/**"
+    tsconfig: "tsconfig.json"
+
+  admin-panel:
+    projectDir: "./admin-panel"
+    docsPattern: "docs/**/*.md"
+    codePattern: "src/**/*.ts"
+    excludePattern: "node_modules/**"
+    tsconfig: "tsconfig.json"
+
+  infra:
+    projectDir: "./infra"
+    docsPattern: "docs/**/*.md"
+    codePattern: ""
+    excludePattern: "node_modules/**"
+
+workspaces:
+  backend:
+    projects: [api-gateway, catalog-service, order-service]
+    graphMemory: "./.workspace-backend"
+    mirrorDir: "./.workspace-backend"
+    author:
+      name: Backend Team
+      email: backend@shopflow.dev
+
+  frontend:
+    projects: [web-store, admin-panel]
+    graphMemory: "./.workspace-frontend"
+    mirrorDir: "./.workspace-frontend"
+    author:
+      name: Frontend Team
+      email: frontend@shopflow.dev

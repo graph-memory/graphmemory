@@ -5,4 +5,4 @@ data
 .graph-memory
 .cache
 models/
-graph-memory.yaml
+/graph-memory.yaml

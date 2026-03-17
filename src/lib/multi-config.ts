@@ -101,8 +101,11 @@ export interface EmbeddingConfig {
 }
 
 /**
- * Build a stable fingerprint string from embedding config fields that affect embeddings.
+ * Build a stable fingerprint string from embedding config fields that affect stored vectors.
  * Used to detect config changes that require re-indexing.
+ *
+ * queryPrefix is intentionally excluded: it only affects query-time embeddings,
+ * not the stored document vectors — so changing it does not require re-indexing.
  */
 export function embeddingFingerprint(config: EmbeddingConfig): string {
   return `${config.model}|${config.pooling}|${config.normalize}|${config.dtype ?? ''}|${config.documentPrefix}`;

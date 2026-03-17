@@ -119,13 +119,13 @@ export function listFiles(
   return result.slice(0, limit);
 }
 
-export function saveGraph(graph: DocGraph, graphMemory: string): void {
+export function saveGraph(graph: DocGraph, graphMemory: string, embeddingModel?: string): void {
   fs.mkdirSync(graphMemory, { recursive: true });
   const file = path.join(graphMemory, 'docs.json');
-  fs.writeFileSync(file, JSON.stringify(graph.export()));
+  fs.writeFileSync(file, JSON.stringify({ embeddingModel, graph: graph.export() }));
 }
 
-export function loadGraph(graphMemory: string, fresh = false): DocGraph {
+export function loadGraph(graphMemory: string, fresh = false, embeddingModel?: string): DocGraph {
   const graph = createGraph();
   if (fresh) return graph;
   const file = path.join(graphMemory, 'docs.json');
@@ -134,7 +134,14 @@ export function loadGraph(graphMemory: string, fresh = false): DocGraph {
 
   try {
     const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
-    graph.import(data);
+    const storedModel = data.embeddingModel as string | undefined;
+
+    if (embeddingModel && storedModel && storedModel !== embeddingModel) {
+      process.stderr.write(`[graph] Embedding model changed (${storedModel} → ${embeddingModel}), re-indexing docs graph\n`);
+      return graph;
+    }
+
+    graph.import(data.graph);
     process.stderr.write(`[graph] Loaded ${graph.order} nodes, ${graph.size} edges\n`);
   } catch (err) {
     process.stderr.write(`[graph] Failed to load graph, starting fresh: ${err}\n`);

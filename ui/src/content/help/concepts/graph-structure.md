@@ -1,6 +1,6 @@
 # Graph Structure
 
-Graph Memory organizes project knowledge into five interconnected graphs. Each graph is a set of **nodes** (entities) connected by **edges** (relationships).
+Graph Memory organizes project knowledge into six interconnected graphs. Each graph is a set of **nodes** (entities) connected by **edges** (relationships).
 
 ## DocGraph
 
@@ -68,11 +68,29 @@ Task management with kanban workflow. Also manually curated.
 - `related_to` — loose associations
 - **Cross-graph links** — can link to any other graph
 
+## SkillGraph
+
+Stores reusable recipes and procedures. Also manually curated.
+
+**Nodes:**
+- **Skills** — title, description, steps[], triggers[], source (learned|manual|imported), tags, usageCount, lastUsedAt, embedding
+
+**Edges:**
+- `depends_on` — skill requires another skill
+- `related_to` — loose associations
+- `variant_of` — alternative approaches to the same goal
+- **Cross-graph links** — can link to docs, code, files, knowledge, or tasks via proxy nodes
+
+**Node IDs:** slug from title (`"add-rest-endpoint"`), dedup with suffix (`"add-rest-endpoint::2"`).
+
+**Persistence:** `skills.json` in the graphMemory directory, mirrored to `.skills/{id}/skill.md`.
+
 ## Cross-graph links
 
-KnowledgeGraph and TaskGraph can create edges to nodes in other graphs using **proxy nodes**. A proxy is a lightweight placeholder node (e.g., `@docs::guide.md::Setup`) that represents an external entity.
+KnowledgeGraph, TaskGraph, and SkillGraph can create edges to nodes in other graphs using **proxy nodes**. A proxy is a lightweight placeholder node (e.g., `@docs::guide.md::Setup`) that represents an external entity.
 
 This lets you create connections like:
 - Note "Auth architecture" → links to `auth.ts::AuthService` in CodeGraph
 - Task "Update auth docs" → links to `guide.md` in DocGraph
 - Note "Config format" → links to `src/config.ts` in FileIndexGraph
+- Skill "Add REST endpoint" → links to `auth.ts::AuthService` in CodeGraph

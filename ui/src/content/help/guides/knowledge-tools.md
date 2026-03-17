@@ -121,7 +121,7 @@ Create a directed edge from a note to another note or to an external graph node.
 | `fromId` | string | Yes | Source note ID |
 | `toId` | string | Yes | Target note ID, or target node ID in external graph |
 | `kind` | string | Yes | Relation type: `"relates_to"`, `"depends_on"`, `"contradicts"`, `"supports"`, `"part_of"`, `"references"`, etc. |
-| `targetGraph` | `"docs"` \| `"code"` \| `"files"` \| `"tasks"` | No | Set to create a cross-graph link instead of note-to-note |
+| `targetGraph` | `"docs"` \| `"code"` \| `"files"` \| `"tasks"` \| `"skills"` | No | Set to create a cross-graph link instead of note-to-note |
 
 **Returns:** `{ fromId, toId, kind, targetGraph, created: true }`
 
@@ -141,7 +141,7 @@ Remove a directed edge.
 |-----------|------|----------|-------------|
 | `fromId` | string | Yes | Source note ID |
 | `toId` | string | Yes | Target note ID or external node ID |
-| `targetGraph` | `"docs"` \| `"code"` \| `"files"` \| `"tasks"` | No | Set when deleting a cross-graph link |
+| `targetGraph` | `"docs"` \| `"code"` \| `"files"` \| `"tasks"` \| `"skills"` | No | Set when deleting a cross-graph link |
 
 **Returns:** `{ fromId, toId, targetGraph, deleted: true }`
 
@@ -162,7 +162,7 @@ Reverse lookup: given a node in an external graph, find all notes that link to i
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `targetId` | string | Yes | Target node ID in the external graph, e.g. `"src/config.ts"`, `"auth.ts::login"`, `"api.md::Setup"` |
-| `targetGraph` | `"docs"` \| `"code"` \| `"files"` \| `"tasks"` | Yes | Which graph the target belongs to |
+| `targetGraph` | `"docs"` \| `"code"` \| `"files"` \| `"tasks"` \| `"skills"` | Yes | Which graph the target belongs to |
 | `kind` | string | No | Filter by relation kind. If omitted, returns all relations |
 
 **Returns:** `[{ noteId, title, kind, tags }]`

@@ -70,13 +70,16 @@ export class ProjectManager extends EventEmitter {
       throw new Error(`Project "${id}" already exists`);
     }
 
-    // Load persisted graphs (or create fresh ones if reindexing)
-    const docGraph  = config.docsPattern ? loadGraph(config.graphMemory, reindex) : undefined;
-    const codeGraph = config.codePattern ? loadCodeGraph(config.graphMemory, reindex) : undefined;
-    const knowledgeGraph = loadKnowledgeGraph(config.graphMemory, reindex);
-    const fileIndexGraph = loadFileIndexGraph(config.graphMemory, reindex);
-    const taskGraph = loadTaskGraph(config.graphMemory, reindex);
-    const skillGraph = loadSkillGraph(config.graphMemory, reindex);
+    // Resolve per-graph model names for model-change detection
+    const models = this.resolveModels(id, config);
+
+    // Load persisted graphs (or create fresh ones if reindexing / model changed)
+    const docGraph  = config.docsPattern ? loadGraph(config.graphMemory, reindex, models[`${id}:docs`]) : undefined;
+    const codeGraph = config.codePattern ? loadCodeGraph(config.graphMemory, reindex, models[`${id}:code`]) : undefined;
+    const knowledgeGraph = loadKnowledgeGraph(config.graphMemory, reindex, models[`${id}:knowledge`]);
+    const fileIndexGraph = loadFileIndexGraph(config.graphMemory, reindex, models[`${id}:files`]);
+    const taskGraph = loadTaskGraph(config.graphMemory, reindex, models[`${id}:tasks`]);
+    const skillGraph = loadSkillGraph(config.graphMemory, reindex, models[`${id}:skills`]);
 
     // Build embed functions (project-scoped model names)
     const embedFns = this.buildEmbedFns(id);
@@ -250,12 +253,13 @@ export class ProjectManager extends EventEmitter {
   // ---------------------------------------------------------------------------
 
   private saveProject(instance: ProjectInstance): void {
-    if (instance.docGraph) saveGraph(instance.docGraph, instance.config.graphMemory);
-    if (instance.codeGraph) saveCodeGraph(instance.codeGraph, instance.config.graphMemory);
-    saveKnowledgeGraph(instance.knowledgeGraph, instance.config.graphMemory);
-    saveFileIndexGraph(instance.fileIndexGraph, instance.config.graphMemory);
-    saveTaskGraph(instance.taskGraph, instance.config.graphMemory);
-    saveSkillGraph(instance.skillGraph, instance.config.graphMemory);
+    const models = this.resolveModels(instance.id, instance.config);
+    if (instance.docGraph) saveGraph(instance.docGraph, instance.config.graphMemory, models[`${instance.id}:docs`]);
+    if (instance.codeGraph) saveCodeGraph(instance.codeGraph, instance.config.graphMemory, models[`${instance.id}:code`]);
+    saveKnowledgeGraph(instance.knowledgeGraph, instance.config.graphMemory, models[`${instance.id}:knowledge`]);
+    saveFileIndexGraph(instance.fileIndexGraph, instance.config.graphMemory, models[`${instance.id}:files`]);
+    saveTaskGraph(instance.taskGraph, instance.config.graphMemory, models[`${instance.id}:tasks`]);
+    saveSkillGraph(instance.skillGraph, instance.config.graphMemory, models[`${instance.id}:skills`]);
   }
 
   private resolveModels(projectId: string, config: ProjectConfig): Record<string, string> {

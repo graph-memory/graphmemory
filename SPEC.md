@@ -6,12 +6,13 @@ An MCP (Model Context Protocol) server that turns a project directory into a que
 Indexes **markdown documentation** and **TypeScript/JavaScript source code** into separate graph structures,
 plus a **knowledge graph** for user/LLM-created facts and notes with cross-graph links,
 a **file index graph** for all project files with directory hierarchy and metadata,
-and a **task graph** for task tracking with kanban workflow, priorities, and cross-graph links.
+a **task graph** for task tracking with kanban workflow, priorities, and cross-graph links,
+and a **skill graph** for reusable recipes/procedures with steps, triggers, and usage tracking.
 
 Supports **multi-project** operation via YAML config — one process manages multiple projects
 with independent graphs, indexers, and watchers.
 
-LLM clients can discover, browse, and search the indexed content through **39 MCP tools**.
+LLM clients can discover, browse, and search the indexed content through **57 MCP tools**.
 A **REST API** and **web UI** provide browser-based access to all graphs.
 
 ---
@@ -89,7 +90,7 @@ Unit of the knowledge graph. Notes are created by users or LLMs, not by file ind
 | `embedding` | `number[]` | L2-normalized vector; `[]` until embedded |
 | `createdAt` | `number` | Epoch ms |
 | `updatedAt` | `number` | Epoch ms |
-| `proxyFor?` | `{ graph: 'docs' \| 'code' \| 'files' \| 'tasks'; nodeId: string }` | Present only on phantom proxy nodes (cross-graph links) |
+| `proxyFor?` | `{ graph: 'docs' \| 'code' \| 'files' \| 'tasks' \| 'skills'; nodeId: string }` | Present only on phantom proxy nodes (cross-graph links) |
 
 ### Knowledge — KnowledgeGraph
 
@@ -97,7 +98,7 @@ Unit of the knowledge graph. Notes are created by users or LLMs, not by file ind
 
 **Note-to-note edges**: directed relation with free-form `kind` (e.g. `depends_on`, `relates_to`).
 
-**Cross-graph edges**: note → phantom proxy node. Proxy nodes represent external targets (doc chunk, code symbol, file/directory, or task). Proxy ID format: `@docs::guide.md::Setup`, `@code::auth.ts::Foo`, `@files::src/config.ts`, or `@tasks::my-task`. Proxies are created on-demand, cleaned up when orphaned (0 edges), and bulk-cleaned by the indexer when files are removed.
+**Cross-graph edges**: note → phantom proxy node. Proxy nodes represent external targets (doc chunk, code symbol, file/directory, task, or skill). Proxy ID format: `@docs::guide.md::Setup`, `@code::auth.ts::Foo`, `@files::src/config.ts`, `@tasks::my-task`, or `@skills::add-rest-endpoint`. Proxies are created on-demand, cleaned up when orphaned (0 edges), and bulk-cleaned by the indexer when files are removed.
 
 **Knowledge node IDs**: `"auth-uses-jwt"` (slug from title), `"auth-uses-jwt::2"` (dedup suffix)
 
@@ -146,7 +147,7 @@ Unit of the task graph. Tasks are created by users or LLMs, not by file indexing
 | `embedding` | `number[]` | L2-normalized vector; `[]` until embedded |
 | `createdAt` | `number` | Epoch ms |
 | `updatedAt` | `number` | Epoch ms |
-| `proxyFor?` | `{ graph: 'docs' \| 'code' \| 'files' \| 'knowledge'; nodeId: string }` | Present only on phantom proxy nodes |
+| `proxyFor?` | `{ graph: 'docs' \| 'code' \| 'files' \| 'knowledge' \| 'skills'; nodeId: string }` | Present only on phantom proxy nodes |
 
 ### Task — TaskGraph
 
@@ -155,29 +156,63 @@ Unit of the task graph. Tasks are created by users or LLMs, not by file indexing
 - **`blocks`**: task → blocked task
 - **`related_to`**: free-form relation
 
-**Cross-graph links**: same proxy system as KnowledgeGraph. `create_task_link` supports `targetGraph: "docs"|"code"|"files"|"knowledge"`.
+**Cross-graph links**: same proxy system as KnowledgeGraph. `create_task_link` supports `targetGraph: "docs"|"code"|"files"|"knowledge"|"skills"`.
 
 **Task node IDs**: `"implement-auth"` (slug from title), `"implement-auth::2"` (dedup suffix)
 
+### Skill — SkillNode
+
+Unit of the skill graph. Skills are reusable recipes/procedures created by users or LLMs, not by file indexing.
+
+| Field | Type | Description |
+|---|---|---|
+| `title` | `string` | Skill title |
+| `description` | `string` | Skill description (markdown) |
+| `steps` | `string[]` | Ordered steps to execute the skill |
+| `triggers` | `string[]` | Phrases/conditions that trigger this skill |
+| `source` | `SkillSource` | `learned`, `manual`, or `imported` |
+| `tags` | `string[]` | Free-form tags for filtering |
+| `usageCount` | `number` | How many times this skill has been used |
+| `lastUsedAt` | `number \| null` | Epoch ms of last usage |
+| `embedding` | `number[]` | L2-normalized vector; `[]` until embedded |
+| `createdAt` | `number` | Epoch ms |
+| `updatedAt` | `number` | Epoch ms |
+| `proxyFor?` | `{ graph: 'docs' \| 'code' \| 'files' \| 'knowledge' \| 'tasks'; nodeId: string }` | Present only on phantom proxy nodes |
+
+### Skill — SkillGraph
+
+`DirectedGraph<SkillNodeAttributes, SkillEdgeAttributes>` (graphology). Edge kinds:
+- **`depends_on`**: skill → prerequisite skill
+- **`related_to`**: free-form relation
+- **`variant_of`**: skill → alternate version
+
+**Cross-graph links**: same proxy system as KnowledgeGraph/TaskGraph. `create_skill_link` supports `targetGraph: "docs"|"code"|"files"|"knowledge"|"tasks"`.
+
+**Skill node IDs**: `"add-rest-endpoint"` (slug from title), `"add-rest-endpoint::2"` (dedup suffix)
+
 ### Persistence
 
-Five graph files, stored in `graphMemory` directory:
+Six graph files, stored in `graphMemory` directory:
 - `docs.json` — DocGraph
 - `code.json` — CodeGraph
 - `knowledge.json` — KnowledgeGraph
 - `file-index.json` — FileIndexGraph
 - `tasks.json` — TaskGraph
+- `skills.json` — SkillGraph
 
-Serialized via graphology's `export()`/`import()`.
+Serialized via graphology's `export()`/`import()`. Each graph JSON file stores the embedding model name used to create it; when the configured model changes, graphs are automatically re-indexed.
 
 ### File Mirror
 
-Notes and tasks are additionally mirrored as markdown files with YAML frontmatter:
-- `{projectDir}/.notes/{noteId}.md` — knowledge notes
-- `{projectDir}/.tasks/{taskId}.md` — tasks
+Notes, tasks, and skills are additionally mirrored as markdown files with YAML frontmatter:
+- `{projectDir}/.notes/{noteId}/note.md` — knowledge notes
+- `{projectDir}/.tasks/{taskId}/task.md` — tasks
+- `{projectDir}/.skills/{skillId}/skill.md` — skills
 
 Files are written synchronously on every mutation (create, update, delete, move, link/unlink).
 Graph remains the primary data store; files are a persistent mirror for git tracking, IDE editing, and portability.
+
+A separate chokidar watcher on `.notes/`, `.tasks/`, and `.skills/` detects external file edits (e.g. from an IDE) and syncs them back to the graph, enabling round-trip editing without data loss.
 
 **Note format**:
 ```markdown
@@ -220,9 +255,28 @@ relations:
 Description here...
 ```
 
+**Skill format**:
+```markdown
+---
+id: add-rest-endpoint
+source: manual
+tags: [api]
+triggers: [new endpoint, new API route]
+createdAt: 2026-03-16T10:00:00.000Z
+updatedAt: 2026-03-16T10:05:00.000Z
+relations:
+  - to: debug-authentication-issues
+    kind: related_to
+---
+
+# Add REST Endpoint
+
+Description here...
+```
+
 Relations in frontmatter include only outgoing edges. The `graph` field is omitted for same-graph relations. Empty relations array omits the key entirely.
 
-`.notes/` and `.tasks/` directories are excluded from the file watcher and indexer.
+`.notes/`, `.tasks/`, and `.skills/` directories are excluded from the file watcher and indexer.
 
 ---
 
@@ -256,6 +310,7 @@ projects:
     # knowledgeModel: "..."
     # taskModel: "..."
     # filesModel: "..."
+    # skillsModel: "..."
 ```
 
 ### Config fields
@@ -286,6 +341,7 @@ projects:
 | `knowledgeModel` | — | Embedding model for knowledge graph |
 | `taskModel` | — | Embedding model for task graph |
 | `filesModel` | — | Embedding model for file index graph |
+| `skillsModel` | — | Embedding model for skill graph |
 | `chunkDepth` | `4` | Max heading depth to create chunk boundaries at |
 | `maxTokensDefault` | `4000` | Default max tokens for responses |
 | `embedMaxChars` | `2000` | Max characters fed to embedding model per node |
@@ -380,7 +436,7 @@ Fenced code blocks (`` ```lang ... ``` ``) in markdown are extracted as child ch
 
 ## Search algorithm
 
-All search tools (`search` for docs, `search_code` for code, `search_notes` for knowledge, `search_tasks` for tasks) use the same algorithm:
+All search tools (`search` for docs, `search_code` for code, `search_notes` for knowledge, `search_tasks` for tasks, `search_skills` for skills) use the same algorithm:
 
 1. **Score all nodes** — cosine similarity between query embedding and each node's embedding (skip nodes with empty embedding)
 2. **Filter + seed** — discard nodes below `minScore`, take top `topK`
@@ -390,19 +446,19 @@ All search tools (`search` for docs, `search_code` for code, `search_notes` for 
 
 Default parameters:
 
-| Parameter | Docs | Code | Knowledge | Tasks |
-|---|---|---|---|---|
-| `topK` | 5 | 5 | 5 | 5 |
-| `bfsDepth` | 1 | 1 | 1 | 1 |
-| `maxResults` | 20 | 20 | 20 | 20 |
-| `minScore` | 0.5 | 0.5 | 0.5 | 0.5 |
-| `bfsDecay` | 0.8 | 0.8 | 0.8 | 0.8 |
+| Parameter | Docs | Code | Knowledge | Tasks | Skills |
+|---|---|---|---|---|---|
+| `topK` | 5 | 5 | 5 | 5 | 5 |
+| `bfsDepth` | 1 | 1 | 1 | 1 | 1 |
+| `maxResults` | 20 | 20 | 20 | 20 | 20 |
+| `minScore` | 0.5 | 0.5 | 0.5 | 0.5 | 0.5 |
+| `bfsDecay` | 0.8 | 0.8 | 0.8 | 0.8 | 0.8 |
 
-Knowledge and task search additionally skip proxy nodes (they have empty embeddings and are excluded from results).
+Knowledge, task, and skill search additionally skip proxy nodes (they have empty embeddings and are excluded from results).
 
 ---
 
-## MCP tools (39)
+## MCP tools (57)
 
 ### Docs tools (10, registered only when `docsPattern` is non-empty)
 
@@ -498,7 +554,7 @@ Get full metadata for a specific file or directory.
 - **Input**: `filePath`
 - **Returns**: `{ filePath, kind, fileName, directory, extension, language, mimeType, size, fileCount, mtime }`
 
-### Knowledge tools (10, always registered)
+### Knowledge tools (12, always registered)
 
 #### `create_note`
 Create a note with title, content, and tags.
@@ -531,8 +587,8 @@ Semantic search over notes with BFS graph expansion. Excludes proxy nodes.
 - **Returns**: `Array<{ id, title, content, tags, score }>`
 
 #### `create_relation`
-Create a directed relation between notes, or from a note to a doc/code/files/task node.
-- **Input**: `fromId`, `toId`, `kind` + optional `targetGraph` (`"docs"`, `"code"`, `"files"`, or `"tasks"`)
+Create a directed relation between notes, or from a note to a doc/code/files/task/skill node.
+- **Input**: `fromId`, `toId`, `kind` + optional `targetGraph` (`"docs"`, `"code"`, `"files"`, `"tasks"`, or `"skills"`)
 - **Returns**: `{ fromId, toId, kind, targetGraph?, created }`
 - When `targetGraph` is set, creates a cross-graph link via phantom proxy node; validates target exists in the external graph
 
@@ -547,11 +603,21 @@ List all relations for a note (incoming and outgoing). Resolves proxy IDs to ori
 - **Returns**: `Array<{ fromId, toId, kind, targetGraph? }>`
 
 #### `find_linked_notes`
-Reverse lookup: find all notes that link to a doc/code/file/task node.
+Reverse lookup: find all notes that link to a doc/code/file/task/skill node.
 - **Input**: `targetId`, `targetGraph`
 - **Returns**: `Array<{ noteId, kind }>`
 
-### Task tools (11, always registered)
+#### `add_note_attachment`
+Add a file attachment to a note (stored in `.notes/{noteId}/`).
+- **Input**: `noteId`, `filename`, `content` (base64)
+- **Returns**: `{ noteId, filename, added }`
+
+#### `remove_note_attachment`
+Remove a file attachment from a note.
+- **Input**: `noteId`, `filename`
+- **Returns**: `{ noteId, filename, removed }`
+
+### Task tools (13, always registered)
 
 #### `create_task`
 Create a task with title, description, priority, tags, status, dueDate, estimate.
@@ -595,8 +661,8 @@ Create task↔task relations (subtask_of, blocks, related_to).
 - **Returns**: `{ fromId, toId, kind, created }`
 
 #### `create_task_link`
-Link a task to a doc/code/file/knowledge node via cross-graph proxy.
-- **Input**: `taskId`, `targetId`, `targetGraph` (`"docs"`, `"code"`, `"files"`, or `"knowledge"`)
+Link a task to a doc/code/file/knowledge/skill node via cross-graph proxy.
+- **Input**: `taskId`, `targetId`, `targetGraph` (`"docs"`, `"code"`, `"files"`, `"knowledge"`, or `"skills"`)
 - **Returns**: `{ taskId, targetId, targetGraph, created }`
 
 #### `delete_task_link`
@@ -608,6 +674,88 @@ Remove a cross-graph link from a task.
 Reverse lookup: find all tasks that link to a target node.
 - **Input**: `targetId`, `targetGraph`
 - **Returns**: `Array<{ taskId, kind }>`
+
+#### `add_task_attachment`
+Add a file attachment to a task (stored in `.tasks/{taskId}/`).
+- **Input**: `taskId`, `filename`, `content` (base64)
+- **Returns**: `{ taskId, filename, added }`
+
+#### `remove_task_attachment`
+Remove a file attachment from a task.
+- **Input**: `taskId`, `filename`
+- **Returns**: `{ taskId, filename, removed }`
+
+### Skill tools (14, always registered)
+
+#### `create_skill`
+Create a skill with title, description, steps, triggers, source, and tags.
+- **Input**: `title` (required) + optional `description`, `steps`, `triggers`, `source`, `tags`
+- **Returns**: `{ skillId }`
+
+#### `update_skill`
+Partial update of any skill fields.
+- **Input**: `skillId` + optional `title`, `description`, `steps`, `triggers`, `source`, `tags`
+- **Returns**: `{ skillId, updated }`
+
+#### `delete_skill`
+Delete a skill, its relations, and orphaned cross-graph proxies.
+- **Input**: `skillId`
+- **Returns**: `{ skillId, deleted }`
+
+#### `get_skill`
+Fetch a skill with enriched data: dependsOn, dependedBy, related, variants.
+- **Input**: `skillId`
+- **Returns**: `{ id, title, description, steps, triggers, source, tags, usageCount, lastUsedAt, createdAt, updatedAt, dependsOn, dependedBy, related, variants }`
+
+#### `list_skills`
+List skills with optional filters.
+- **Input**: optional `source`, `tag`, `filter`, `limit`
+- **Returns**: `Array<{ id, title, source, tags, usageCount, lastUsedAt }>`
+
+#### `search_skills`
+Semantic search over skills with BFS graph expansion.
+- **Input**: `query` (required) + optional `topK`, `bfsDepth`, `maxResults`, `minScore`, `bfsDecay`
+- **Returns**: `Array<{ id, title, description, source, tags, score }>`
+
+#### `recall_skills`
+Search skills with lower minScore (0.3) for higher recall in task contexts.
+- **Input**: `query` (required) + optional `topK`, `maxResults`
+- **Returns**: `Array<{ id, title, description, steps, triggers, source, tags, score }>`
+
+#### `bump_skill_usage`
+Increment usageCount and set lastUsedAt on a skill.
+- **Input**: `skillId`
+- **Returns**: `{ skillId, usageCount, lastUsedAt }`
+
+#### `link_skill`
+Create skill-to-skill relations (depends_on, related_to, variant_of).
+- **Input**: `fromId`, `toId`, `kind`
+- **Returns**: `{ fromId, toId, kind, created }`
+
+#### `create_skill_link`
+Link a skill to a doc/code/file/knowledge/task node via cross-graph proxy.
+- **Input**: `skillId`, `targetId`, `targetGraph` (`"docs"`, `"code"`, `"files"`, `"knowledge"`, or `"tasks"`)
+- **Returns**: `{ skillId, targetId, targetGraph, created }`
+
+#### `delete_skill_link`
+Remove a cross-graph link from a skill.
+- **Input**: `skillId`, `targetId`, `targetGraph`
+- **Returns**: `{ skillId, targetId, deleted }`
+
+#### `find_linked_skills`
+Reverse lookup: find all skills that link to a target node.
+- **Input**: `targetId`, `targetGraph`
+- **Returns**: `Array<{ skillId, kind }>`
+
+#### `add_skill_attachment`
+Add a file attachment to a skill (stored in `.skills/{skillId}/`).
+- **Input**: `skillId`, `filename`, `content` (base64)
+- **Returns**: `{ skillId, filename, added }`
+
+#### `remove_skill_attachment`
+Remove a file attachment from a skill.
+- **Input**: `skillId`, `filename`
+- **Returns**: `{ skillId, filename, removed }`
 
 ---
 
@@ -656,7 +804,7 @@ All three commands support `--reindex` to discard persisted graph JSON files and
 ### ProjectManager
 
 Manages multiple project instances from a single process:
-- Each project has its own 5 graphs, embedFns, indexer, watcher, and mutation queue
+- Each project has its own 6 graphs, embedFns, indexer, watcher, and mutation queue
 - `addProject(id, config, reindex?)` loads graphs from disk (or fresh if reindex)
 - `loadModels()` loads embedding models (async, can be deferred)
 - `startIndexing()` creates indexer + watcher, initial scan
@@ -710,6 +858,17 @@ DELETE /api/projects/:id/tasks/links              → delete task link (204)
 GET    /api/projects/:id/tasks/:taskId/relations  → list task relations
 GET    /api/projects/:id/tasks/linked?targetGraph=...&targetNodeId=... → find linked tasks
 
+GET    /api/projects/:id/skills                    → list skills
+POST   /api/projects/:id/skills                    → create skill
+GET    /api/projects/:id/skills/:skillId           → get skill
+PUT    /api/projects/:id/skills/:skillId           → update skill
+DELETE /api/projects/:id/skills/:skillId           → delete skill (204)
+GET    /api/projects/:id/skills/search?q=...       → search skills
+POST   /api/projects/:id/skills/links              → create skill link
+DELETE /api/projects/:id/skills/links              → delete skill link (204)
+GET    /api/projects/:id/skills/:skillId/relations → list skill relations
+GET    /api/projects/:id/skills/linked?targetGraph=...&targetNodeId=... → find linked skills
+
 GET    /api/projects/:id/docs/search?q=...        → search docs
 GET    /api/projects/:id/code/search?q=...        → search code
 GET    /api/projects/:id/files                    → list files
@@ -738,6 +897,10 @@ Single endpoint at `/api/ws`. Broadcasts real-time events to all connected clien
 Events include `projectId` — UI filters client-side:
 - `note:created|updated|deleted` — knowledge mutations
 - `task:created|updated|deleted|moved` — task mutations
+- `skill:created|updated|deleted` — skill mutations
+- `note:attachment:added|deleted` — note attachment changes
+- `task:attachment:added|deleted` — task attachment changes
+- `skill:attachment:added|deleted` — skill attachment changes
 - `graph:updated` — indexer processed a file
 
 ---
@@ -753,9 +916,10 @@ React 19 + Vite + MUI 7 in `ui/` directory. Feature-Sliced Design architecture.
 | `/:projectId/dashboard` | Dashboard | Stats cards (notes, tasks, docs, code, files) + recent activity |
 | `/:projectId/knowledge` | Knowledge | Notes CRUD, detail/edit/new, semantic search, relations |
 | `/:projectId/tasks` | Tasks | Kanban board, drag-drop, priority badges, detail/edit/new |
+| `/:projectId/skills` | Skills | Skill/recipe management, triggers, usage tracking, detail/edit/new |
 | `/:projectId/docs` | Docs | Browse indexed documentation, TOC, detail view |
 | `/:projectId/files` | Files | File browser, directory navigation, metadata, search |
-| `/:projectId/search` | Search | Cross-graph search across all 5 graphs |
+| `/:projectId/search` | Search | Cross-graph search across all 6 graphs |
 | `/:projectId/graph` | Graph | Cytoscape.js force-directed graph, scope filter, node inspector |
 | `/:projectId/tools` | Tools | MCP tools explorer, input schemas, live execution |
 | `/:projectId/help` | Help | Searchable documentation on all tools and concepts |
@@ -768,7 +932,7 @@ Default route redirects to `/dashboard`. Light/dark theme toggle. Built output s
 
 Uses chokidar. Events:
 - `add` / `change` → dispatched to docs, code, and/or file index serial queues based on pattern match
-- `unlink` → synchronously removes file's nodes from the relevant graph(s) + cleans up orphaned proxy nodes in knowledge and task graphs pointing to removed targets
+- `unlink` → synchronously removes file's nodes from the relevant graph(s) + cleans up orphaned proxy nodes in knowledge, task, and skill graphs pointing to removed targets
 
 The watcher uses pattern `**/*`; pattern filtering is done in the dispatcher (micromatch).
 

@@ -4,6 +4,88 @@ An MCP server that builds a **semantic graph memory** from a project directory.
 It indexes markdown documentation and TypeScript/JavaScript source code into graph structures,
 then exposes them as MCP tools that any AI assistant can use to navigate and search the project.
 
+## Quick start with Docker
+
+### 1. Create a config file
+
+Create `graph-memory.yaml` — paths must be relative to the container filesystem:
+
+```yaml
+server:
+  host: "0.0.0.0"
+  port: 3000
+  modelsDir: "/data/models"
+
+projects:
+  my-app:
+    projectDir: "/data/projects/my-app"
+    docsPattern: "docs/**/*.md"
+    codePattern: "src/**/*.{ts,tsx}"
+    excludePattern: "node_modules/**,dist/**"
+```
+
+### 2. Run with Docker
+
+```bash
+docker run -d \
+  --name graph-memory \
+  -p 3000:3000 \
+  -v $(pwd)/graph-memory.yaml:/data/config/graph-memory.yaml:ro \
+  -v /path/to/my-app:/data/projects/my-app:ro \
+  -v graph-memory-models:/data/models \
+  ghcr.io/prih/mcp-graph-memory
+```
+
+Three mounts:
+| Mount | Container path | Description |
+|-------|---------------|-------------|
+| **Config** | `/data/config/graph-memory.yaml` | Your config file (read-only) |
+| **Projects** | `/data/projects/` | Project directories to index (read-only, unless you use knowledge/tasks/skills — then remove `:ro`) |
+| **Models** | `/data/models/` | Embedding model cache — use a named volume so models persist across container restarts |
+
+The embedding model (`Xenova/all-MiniLM-L6-v2`, ~90MB) is downloaded on first startup. Subsequent starts use the cached model from the volume.
+
+### 3. Run with Docker Compose
+
+```yaml
+# docker-compose.yaml
+services:
+  graph-memory:
+    image: ghcr.io/prih/mcp-graph-memory
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./graph-memory.yaml:/data/config/graph-memory.yaml:ro
+      - /path/to/my-app:/data/projects/my-app
+      - models:/data/models
+    restart: unless-stopped
+
+volumes:
+  models:
+```
+
+```bash
+docker compose up -d
+```
+
+### 4. Connect
+
+- **Web UI**: `http://localhost:3000`
+- **MCP (Streamable HTTP)**: `http://localhost:3000/mcp/my-app`
+- **REST API**: `http://localhost:3000/api/projects`
+
+To force re-index all projects from scratch:
+
+```bash
+docker run --rm \
+  -v $(pwd)/graph-memory.yaml:/data/config/graph-memory.yaml:ro \
+  -v /path/to/my-app:/data/projects/my-app \
+  -v graph-memory-models:/data/models \
+  ghcr.io/prih/mcp-graph-memory serve --config /data/config/graph-memory.yaml --reindex
+```
+
+> **Multiple projects**: mount each project directory separately and add entries to `graph-memory.yaml`. The config file is watched for changes — add or remove projects without restarting the container.
+
 ## What it does
 
 - Parses **markdown files** into heading-based chunks, links related files via graph edges
@@ -117,7 +199,7 @@ then exposes them as MCP tools that any AI assistant can use to navigate and sea
 | `recall_skills`    | Recall relevant skills for a task context (lower minScore for higher recall) |
 | `bump_skill_usage` | Increment skill usage counter + set lastUsedAt                 |
 
-## Installation
+## Installation (from source)
 
 ```bash
 npm install
@@ -281,12 +363,13 @@ Pass these IDs to `get_node`, `get_symbol`, or `get_note` to fetch full content.
 
 The `serve` command starts a web UI at `http://localhost:3000` with:
 
-- **Dashboard** — project stats (notes, tasks, docs, code, files) + recent activity
+- **Dashboard** — project stats (notes, tasks, skills, docs, code, files) + recent activity
 - **Knowledge** — notes CRUD, semantic search, relations, cross-graph links
 - **Tasks** — kanban board with configurable columns, drag-drop with drop-zone highlights, inline task creation, filter bar (search/priority/tags), due date and estimate badges, quick actions on hover, scrollable columns
+- **Skills** — skill/recipe management with triggers, steps, and usage tracking
 - **Docs** — browse and search indexed markdown documentation
 - **Files** — file browser with directory navigation, metadata, search
-- **Skills** — skill/recipe management with triggers, steps, and usage tracking
+- **Prompts** — AI prompt generator with scenario presets, role/style/graph selection, live preview, copy & export as skill
 - **Search** — unified semantic search across all 6 graphs
 - **Graph** — interactive force-directed graph visualization (Cytoscape.js)
 - **Tools** — MCP tools explorer with live execution from the browser

@@ -1,6 +1,6 @@
 # Architecture
 
-MCP server that builds a **semantic graph memory** from a project directory — indexing markdown docs, TypeScript/JavaScript source code, and all project files. Provides 43 MCP tools + REST API + web UI for graph visualization and management.
+MCP server that builds a **semantic graph memory** from a project directory — indexing markdown docs, TypeScript/JavaScript source code, and all project files. Provides 57 MCP tools + REST API + web UI for graph visualization and management.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
@@ -35,17 +35,18 @@ MCP server that builds a **semantic graph memory** from a project directory — 
                         │
                         ▼
      ┌──────────────────────────────────────────┐
-     │           5 Graphs (Graphology)          │
+     │           6 Graphs (Graphology)          │
      │                                          │
      │   DocGraph ────── markdown chunks        │
      │   CodeGraph ───── AST symbols            │
      │   KnowledgeGraph  user notes + facts     │
      │   FileIndexGraph  all project files      │
      │   TaskGraph ───── tasks + kanban          │
+     │   SkillGraph ──── reusable recipes       │
      └──────────────────┬───────────────────────┘
                         │
      ┌──────────────────┴───────────────────────┐
-     │        5 Graph Managers (unified API)     │
+     │        6 Graph Managers (unified API)     │
      │                                          │
      │   embed + CRUD + dirty + events          │
      │   + cross-graph cleanup                  │
@@ -56,7 +57,7 @@ MCP server that builds a **semantic graph memory** from a project directory — 
      ┌────────┐   ┌──────────┐   ┌──────────┐
      │  MCP   │   │ REST API │   │    UI    │
      │ Tools  │   │ Express  │   │  React   │
-     │ (43)   │   │ + WS     │   │  + Vite  │
+     │ (57)   │   │ + WS     │   │  + Vite  │
      └────────┘   └──────────┘   └──────────┘
 ```
 
@@ -106,6 +107,10 @@ Use case: team server, web UI, multiple projects from one process.
 
 All three commands support `--reindex` to discard persisted graph JSON files and re-create from scratch. When set, `load*()` functions return fresh empty graphs (skip disk read), and the indexer re-indexes all files since no mtime data exists.
 
+### Automatic re-index on model change
+
+Each graph JSON file stores the embedding model name used to generate it. On load, if the configured model doesn't match the stored model, the graph is automatically discarded and re-indexed from scratch — no `--reindex` needed.
+
 ---
 
 ## 2. Configuration
@@ -139,9 +144,9 @@ Validated with **Zod** schemas. All fields optional with sensible defaults.
 
 ---
 
-## 3. Five Graphs
+## 3. Six Graphs
 
-All graphs use **Graphology** (directed graph in memory). Persisted as JSON via `export()`/`import()`.
+All graphs use **Graphology** (directed graph in memory). Persisted as JSON with embedding model metadata — if the configured model changes, the graph is automatically re-indexed from scratch.
 
 ### DocGraph — `docs.json`
 
@@ -198,7 +203,21 @@ Task tracking with kanban workflow. CRUD-only (like KnowledgeGraph).
 - **Priorities**: `critical` (0) → `high` → `medium` → `low` (3)
 - **Edge kinds**: `subtask_of`, `blocks`, `related_to`
 - **Automations**: `move_task` auto-sets `completedAt` on done/cancelled, clears on reopen
-- **Cross-graph links**: same proxy system as KnowledgeGraph
+- **Cross-graph links**: same proxy system as KnowledgeGraph — `create_task_link` supports `targetGraph: "docs"|"code"|"files"|"knowledge"|"skills"`
+
+### SkillGraph — `skills.json`
+
+**File**: `src/graphs/skill.ts`
+
+Reusable recipes, procedures, and troubleshooting guides. CRUD-only (like KnowledgeGraph/TaskGraph).
+
+- **Nodes**: `title`, `description`, `steps[]`, `triggers[]`, `source` (`learned`|`manual`|`imported`), `tags[]`, `usageCount`, `lastUsedAt`, `embedding`
+- **Node IDs**: slug from title — `"add-rest-endpoint"`, duplicates get `"add-rest-endpoint::2"`
+- **Edge kinds**: `depends_on`, `related_to`, `variant_of`
+- **Features**: `recall_skills` uses lower `minScore` (0.3) for higher recall; `bump_skill_usage` increments counter + sets `lastUsedAt`; BM25 includes triggers in text extraction
+- **Cross-graph links**: same proxy system — `create_skill_link` supports `targetGraph: "docs"|"code"|"files"|"knowledge"|"tasks"`
+- **File mirror**: mutations write `.skills/{id}/skill.md` with YAML frontmatter
+- **Attachments**: stored in `.skills/{id}/` directory
 
 ### Graph Managers — Unified API
 
@@ -211,7 +230,7 @@ GraphManagerContext
   ├── markDirty()      → sets project.dirty = true
   ├── emit(event, data) → broadcasts via ProjectManager (EventEmitter)
   ├── projectId        → used in event payloads
-  └── projectDir?      → enables file mirror (.notes/ .tasks/)
+  └── projectDir?      → enables file mirror (.notes/ .tasks/ .skills/)
 ```
 
 | Manager | Key Responsibilities |
@@ -219,8 +238,9 @@ GraphManagerContext
 | `DocGraphManager` | Read: listFiles, getFileChunks, search. Write: updateFile, removeFile (used by indexer) |
 | `CodeGraphManager` | Read: listFiles, getFileSymbols, search. Write: updateFile, removeFile (used by indexer) |
 | `FileIndexGraphManager` | Read: listAllFiles, getFileInfo, search. Write: updateFileEntry, removeFileEntry (used by indexer) |
-| `KnowledgeGraphManager` | Full cycle: embed → CRUD → dirty → emit → file mirror (.notes/) → cross-graph proxy cleanup in TaskGraph |
-| `TaskGraphManager` | Full cycle: embed → CRUD → dirty → emit → file mirror (.tasks/) → cross-graph proxy cleanup in KnowledgeGraph |
+| `KnowledgeGraphManager` | Full cycle: embed → CRUD → dirty → emit → file mirror (.notes/) → cross-graph proxy cleanup |
+| `TaskGraphManager` | Full cycle: embed → CRUD → dirty → emit → file mirror (.tasks/) → cross-graph proxy cleanup |
+| `SkillGraphManager` | Full cycle: embed → CRUD → dirty → emit → file mirror (.skills/) → cross-graph proxy cleanup |
 
 Managers are created in `ProjectManager.addProject()` with real context (dirty, events). For tests and single-project stdio mode, `noopContext()` provides no-op callbacks.
 
@@ -262,7 +282,7 @@ Each queue is a Promise chain — `queue = queue.then(fn).catch(log)`. Errors ar
 
 ### Cleanup
 
-On file removal (`unlink`): removes nodes from all graphs + `cleanupProxies()` removes orphaned cross-graph proxy nodes in KnowledgeGraph and TaskGraph.
+On file removal (`unlink`): removes nodes from all graphs + `cleanupProxies()` removes orphaned cross-graph proxy nodes in KnowledgeGraph, TaskGraph, and SkillGraph.
 
 ---
 
@@ -297,7 +317,7 @@ Two-level cache:
 
 **Directory**: `src/lib/search/`
 
-Each graph has its own search module: `docs.ts`, `code.ts`, `knowledge.ts`, `tasks.ts`, `files.ts`, `file-index.ts`. All BFS-based modules use hybrid search (BM25 + vector) by default. A standalone `bm25.ts` module provides the `BM25Index` class and RRF fusion.
+Each graph has its own search module: `docs.ts`, `code.ts`, `knowledge.ts`, `tasks.ts`, `skills.ts`, `files.ts`, `file-index.ts`. All BFS-based modules use hybrid search (BM25 + vector) by default. A standalone `bm25.ts` module provides the `BM25Index` class and RRF fusion.
 
 ### Algorithm: Hybrid Search (BM25 + Vector) with BFS
 
@@ -324,7 +344,7 @@ Supports `searchMode` parameter: `hybrid` (default, BM25 + vector), `vector` (em
 
 ---
 
-## 7. MCP Server — 43 Tools
+## 7. MCP Server — 57 Tools
 
 **File**: `src/api/index.ts` — `createMcpServer()`
 
@@ -336,6 +356,7 @@ Supports `searchMode` parameter: `hybrid` (default, BM25 + vector), `vector` (em
 | Code | 5 | `codePattern` set | `list_files`, `get_file_symbols`, `search_code`, `get_symbol`, `search_files` |
 | Knowledge | 12 | always | `create_note`, `update_note`, `delete_note`, `get_note`, `list_notes`, `search_notes`, `create_relation`, `delete_relation`, `list_relations`, `find_linked_notes`, `add_note_attachment`, `remove_note_attachment` |
 | Tasks | 13 | always | `create_task`, `update_task`, `delete_task`, `get_task`, `list_tasks`, `search_tasks`, `move_task`, `link_task`, `create_task_link`, `delete_task_link`, `find_linked_tasks`, `add_task_attachment`, `remove_task_attachment` |
+| Skills | 14 | always | `create_skill`, `update_skill`, `delete_skill`, `get_skill`, `list_skills`, `search_skills`, `recall_skills`, `bump_skill_usage`, `link_skill`, `create_skill_link`, `delete_skill_link`, `find_linked_skills`, `add_skill_attachment`, `remove_skill_attachment` |
 | Files | 3 | always | `list_all_files`, `search_all_files`, `get_file_info` |
 
 \* `cross_references` requires both docGraph AND codeGraph.
@@ -410,15 +431,30 @@ GET    /api/projects/:id/tasks/:taskId/attachments    → list attachments
 GET    /api/projects/:id/tasks/:taskId/attachments/:filename → download
 DELETE /api/projects/:id/tasks/:taskId/attachments/:filename → delete
 
-GET    /api/projects/:id/docs/search?q=...        → search docs
-GET    /api/projects/:id/code/search?q=...        → search code symbols
-GET    /api/projects/:id/files                    → list files
-GET    /api/projects/:id/files/search?q=...       → search files
-GET    /api/projects/:id/graph?scope=...          → export graph for visualization
+GET    /api/projects/:id/skills                       → list skills
+POST   /api/projects/:id/skills                       → create skill
+GET    /api/projects/:id/skills/:skillId              → get skill
+PUT    /api/projects/:id/skills/:skillId              → update skill
+DELETE /api/projects/:id/skills/:skillId              → delete skill (204)
+GET    /api/projects/:id/skills/search?q=...          → search skills
+POST   /api/projects/:id/skills/links                 → create skill link
+DELETE /api/projects/:id/skills/links                 → delete skill link (204)
+GET    /api/projects/:id/skills/:skillId/relations    → list skill relations
+GET    /api/projects/:id/skills/linked?targetGraph=...&targetNodeId=... → find linked skills
+POST   /api/projects/:id/skills/:skillId/attachments  → upload attachment
+GET    /api/projects/:id/skills/:skillId/attachments  → list attachments
+GET    /api/projects/:id/skills/:skillId/attachments/:filename → download
+DELETE /api/projects/:id/skills/:skillId/attachments/:filename → delete
 
-GET    /api/projects/:id/tools                    → list available MCP tools
-GET    /api/projects/:id/tools/:toolName          → get tool details + input schema
-POST   /api/projects/:id/tools/:toolName/call     → call a tool with arguments
+GET    /api/projects/:id/docs/search?q=...            → search docs
+GET    /api/projects/:id/code/search?q=...            → search code symbols
+GET    /api/projects/:id/files                        → list files
+GET    /api/projects/:id/files/search?q=...           → search files
+GET    /api/projects/:id/graph?scope=...              → export graph for visualization
+
+GET    /api/projects/:id/tools                        → list available MCP tools
+GET    /api/projects/:id/tools/:toolName              → get tool details + input schema
+POST   /api/projects/:id/tools/:toolName/call         → call a tool with arguments
 ```
 
 Response format: `{ results: [...] }` for lists, direct object for single items. DELETE returns 204.
@@ -451,7 +487,7 @@ Single WebSocket endpoint at `/api/ws`. Broadcasts real-time events to all conne
 { "projectId": "my-app", "type": "graph:updated", "data": { "file": "...", "graph": "docs" } }
 ```
 
-Event types: `note:created|updated|deleted`, `task:created|updated|deleted|moved`, `note:attachment:added|deleted`, `task:attachment:added|deleted`, `graph:updated`.
+Event types: `note:created|updated|deleted`, `task:created|updated|deleted|moved`, `skill:created|updated|deleted`, `note:attachment:added|deleted`, `task:attachment:added|deleted`, `skill:attachment:added|deleted`, `graph:updated`.
 
 The UI filters events by current `projectId` client-side.
 
@@ -484,8 +520,10 @@ ui/src/
 │   ├── dashboard/                # Project stats cards + recent activity
 │   ├── knowledge/                # Notes CRUD + semantic search + detail/edit/new
 │   ├── tasks/                    # Kanban board + drag & drop + detail/edit/new
+│   ├── skills/                   # Skill/recipe management + triggers + usage tracking
 │   ├── docs/                     # Browse indexed documentation + detail view
 │   ├── files/                    # File browser + search + detail view
+│   ├── prompts/                  # AI prompt generator (scenarios, roles, styles)
 │   ├── search/                   # Cross-graph unified search
 │   ├── graph/                    # Interactive graph visualization (Cytoscape.js)
 │   ├── tools/                    # MCP tools explorer + live execution
@@ -494,20 +532,23 @@ ui/src/
 │   └── layout/                   # Sidebar + project selector + theme toggle
 ├── features/
 │   ├── note-crud/                # useNotes hook, NoteDialog, RelationsDialog
-│   └── task-crud/                # TaskDialog
+│   ├── task-crud/                # TaskDialog
+│   └── skill-crud/               # SkillDialog
 ├── entities/
 │   ├── project/                  # listProjects API
 │   ├── note/                     # Note type, API functions, NoteCard
 │   ├── task/                     # Task type, statuses, priorities, API
+│   ├── skill/                    # Skill type, API
 │   ├── file/                     # FileInfo type, API
 │   ├── doc/                      # searchDocs API
 │   ├── code/                     # searchCode API
 │   └── graph/                    # GraphNode, GraphEdge, exportGraph API
 ├── content/
-│   └── help/                     # Help articles (markdown, bundled via ?raw)
-│       ├── getting-started.md
-│       ├── concepts/             # how-search-works, graph-structure, cross-graph
-│       └── guides/               # docs-tools, code-tools, knowledge-tools, task-tools, files-tools, cross-references
+│   ├── help/                     # Help articles (markdown, bundled via ?raw)
+│   │   ├── getting-started.md
+│   │   ├── concepts/             # how-search-works, graph-structure, cross-graph
+│   │   └── guides/               # docs-tools, code-tools, knowledge-tools, task-tools, skill-tools, files-tools, cross-references
+│   └── prompts/                  # Prompt generator content (roles, styles, graphs, scenarios, template)
 └── shared/
     ├── api/client.ts             # Base HTTP: get(), post(), put(), del()
     ├── lib/useWebSocket.ts       # WebSocket hook with auto-reconnect
@@ -520,11 +561,13 @@ All routes are scoped to a project: `/:projectId/...`
 
 | Route | Page | Description |
 |-------|------|-------------|
-| `/:projectId/dashboard` | DashboardPage | Stats cards (notes, tasks, docs, code, files) + recent activity |
+| `/:projectId/dashboard` | DashboardPage | Stats cards (notes, tasks, skills, docs, code, files) + recent activity |
 | `/:projectId/knowledge` | KnowledgePage | Note list, detail, create/edit, semantic search, relations |
 | `/:projectId/tasks` | TasksPage | Kanban board: configurable column visibility (localStorage), drag-drop with drop-zone highlights, inline task creation, filter bar (search/priority/tags), due date & estimate badges, quick actions on hover, scrollable columns |
+| `/:projectId/skills` | SkillsPage | Skill/recipe management with triggers, steps, usage tracking, cross-graph links |
 | `/:projectId/docs` | DocsPage | Browse indexed documentation, TOC, detail view |
 | `/:projectId/files` | FilesPage | File browser with directory navigation, metadata, search |
+| `/:projectId/prompts` | PromptsPage | AI prompt generator: scenario presets, graph/role/style selection, live preview, copy & export as skill |
 | `/:projectId/search` | SearchPage | Unified search across all 6 graphs, faceted results |
 | `/:projectId/graph` | GraphPage | Cytoscape force-directed graph, scope filter, node inspector |
 | `/:projectId/tools` | ToolsPage | MCP tools explorer, input schemas, live execution |
@@ -554,18 +597,20 @@ interface ProjectInstance {
   knowledgeGraph: KnowledgeGraph;
   fileIndexGraph: FileIndexGraph;
   taskGraph: TaskGraph;
+  skillGraph: SkillGraph;
   docManager?: DocGraphManager;
   codeManager?: CodeGraphManager;
   knowledgeManager: KnowledgeGraphManager;
   fileIndexManager: FileIndexGraphManager;
   taskManager: TaskGraphManager;
+  skillManager: SkillGraphManager;
   embedFns: EmbedFnMap;
   mutationQueue: PromiseQueue;
   dirty: boolean;
 }
 ```
 
-Each manager wraps its graph and provides a unified API for all operations. Managers for KnowledgeGraph and TaskGraph receive a `GraphManagerContext` with `markDirty()` and `emit()` callbacks, plus references to neighboring graphs for cross-graph cleanup.
+Each manager wraps its graph and provides a unified API for all operations. Managers for KnowledgeGraph, TaskGraph, and SkillGraph receive a `GraphManagerContext` with `markDirty()` and `emit()` callbacks, plus references to neighboring graphs for cross-graph cleanup.
 
 ### Lifecycle
 
@@ -662,17 +707,17 @@ When target file is removed from docs graph:
 ### File Mirror Flow
 
 ```
-KnowledgeGraphManager / TaskGraphManager mutation
+KnowledgeGraphManager / TaskGraphManager / SkillGraphManager mutation
   → graph updated (CRUD)
   → markDirty() + emit()
-  → mirrorNote(id) / mirrorTask(id)
+  → mirrorNote(id) / mirrorTask(id) / mirrorSkill(id)
       → read attrs + relations from graph
       → serialize to markdown with YAML frontmatter
-      → writeFileSync to .notes/{id}/note.md or .tasks/{id}/task.md
+      → writeFileSync to .notes/{id}/note.md, .tasks/{id}/task.md, or .skills/{id}/skill.md
   → deleteMirrorDir() on delete (removes directory + attachments)
 
 Attachment flow (addAttachment / removeAttachment):
-  → sanitize filename → write/delete file in .notes/{id}/ or .tasks/{id}/
+  → sanitize filename → write/delete file in .notes/{id}/, .tasks/{id}/, or .skills/{id}/
   → scanAttachments() rebuilds metadata from directory contents
   → update graph node attrs → markDirty() + emit()
 ```
@@ -696,9 +741,15 @@ relations:
 Content here...
 ```
 
-**Location**: `{projectDir}/.notes/` and `{projectDir}/.tasks/`. Excluded from watcher and indexer.
+**Location**: `{projectDir}/.notes/`, `{projectDir}/.tasks/`, and `{projectDir}/.skills/`. Excluded from the project indexer watcher.
 
 **Files**: `src/lib/frontmatter.ts` (serialize/parse), `src/lib/file-mirror.ts` (write/delete helpers).
+
+### Reverse Import (IDE → Graph)
+
+A separate chokidar watcher on `.notes/`, `.tasks/`, and `.skills/` detects external file edits (e.g. from an IDE) and syncs them back to the graph. `MirrorWriteTracker` prevents feedback loops by comparing file mtime after our own writes. On startup, `scanMirrorDirs()` imports any files newer than the graph's `updatedAt`. Manager methods `importFromFile()` and `deleteFromFile()` update the graph without re-writing the mirror file. Relation changes in frontmatter are diffed and applied via `diffRelations()`.
+
+**Files**: `src/lib/file-import.ts` (parsers + diff), `src/lib/mirror-watcher.ts` (tracker + watcher).
 
 ---
 
@@ -719,6 +770,8 @@ src/
     attachment-types.ts      # AttachmentMeta interface + scanAttachments() helper
     task.ts                  # TaskGraph CRUD + proxies + TaskGraphManager
     task-types.ts            # TaskGraph type definitions
+    skill.ts                 # SkillGraph CRUD + proxies + SkillGraphManager
+    skill-types.ts           # SkillGraph type definitions
   cli/
     index.ts                 # Commander CLI (3 commands)
     indexer.ts               # ProjectIndexer (3 queues, scan, watch, drain)
@@ -729,7 +782,9 @@ src/
     project-manager.ts       # Multi-project lifecycle + creates managers
     promise-queue.ts         # Serial PromiseQueue
     frontmatter.ts           # YAML frontmatter + markdown serialization/parsing
-    file-mirror.ts           # File mirror helpers (write/delete .notes/ .tasks/ files)
+    file-mirror.ts           # File mirror helpers (write/delete .notes/ .tasks/ .skills/ files)
+    file-import.ts           # Reverse import from mirror files (parseNoteFile, parseTaskFile, parseSkillFile)
+    mirror-watcher.ts        # MirrorWriteTracker + watcher for reverse import from IDE edits
     parsers/
       docs.ts                # Markdown → Chunk[] (headings, code blocks)
       code.ts                # TS/JS → ParsedFile (ts-morph AST)
@@ -740,6 +795,7 @@ src/
       code.ts                # Hybrid search over CodeGraph
       knowledge.ts           # Hybrid search over KnowledgeGraph
       tasks.ts               # Hybrid search over TaskGraph
+      skills.ts              # Hybrid search over SkillGraph
       files.ts               # File-level cosine search (docs/code)
       file-index.ts          # Cosine search over FileIndexGraph
   api/
@@ -749,6 +805,7 @@ src/
       validation.ts          # Zod schemas + validation middleware
       knowledge.ts           # Knowledge REST routes (via KnowledgeGraphManager)
       tasks.ts               # Task REST routes (via TaskGraphManager)
+      skills.ts              # Skills REST routes (via SkillGraphManager)
       docs.ts                # Docs search routes (via DocGraphManager)
       code.ts                # Code search routes (via CodeGraphManager)
       files.ts               # Files REST routes (via FileIndexGraphManager)
@@ -760,9 +817,10 @@ src/
       code/                  # 5 MCP code tools (via CodeGraphManager)
       knowledge/             # 12 MCP knowledge tools (via KnowledgeGraphManager)
       tasks/                 # 13 MCP task tools (via TaskGraphManager)
+      skills/                # 14 MCP skill tools (via SkillGraphManager)
       file-index/            # 3 MCP file index tools (via FileIndexGraphManager)
   tests/
-    *.test.ts                # Jest test suites (21 suites)
+    *.test.ts                # Jest test suites (24 suites, 1116 tests)
     helpers.ts               # Test utilities (fakeEmbed, setupMcpClient)
     __mocks__/               # Jest mocks for ESM-only packages (chokidar, @xenova/transformers, mime)
     fixtures/                # Test fixtures (markdown, TypeScript)
@@ -787,12 +845,14 @@ ui/
 | `chokidar` | File system watching |
 | `commander` | CLI argument parsing |
 | `express` + `cors` | REST API |
+| `multer` | Multipart file upload (attachments) |
 | `ws` | WebSocket server |
 | `yaml` | YAML config parsing |
 | `zod` | Schema validation |
 | `micromatch` | Glob pattern matching |
 | `mime` | IANA MIME type lookup (file index) |
 | `ts-morph` | TypeScript AST parsing |
+| `dotenv` | Environment variable loading |
 
 ### Frontend
 
@@ -802,4 +862,6 @@ ui/
 | `react-router-dom` | Client-side routing |
 | `@mui/material` + `@mui/icons-material` | Component library |
 | `cytoscape` | Graph visualization |
+| `react-markdown` + `remark-gfm` | Markdown rendering |
+| `@uiw/react-md-editor` | Markdown editor |
 | `vite` | Build tool + dev server |

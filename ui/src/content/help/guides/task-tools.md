@@ -189,7 +189,7 @@ Link a task to a node in another graph (docs, code, files, or knowledge).
 |-----------|------|----------|-------------|
 | `taskId` | string | Yes | Source task ID |
 | `targetId` | string | Yes | Target node ID in the external graph |
-| `targetGraph` | enum | Yes | `"docs"`, `"code"`, `"files"`, `"knowledge"` |
+| `targetGraph` | enum | Yes | `"docs"`, `"code"`, `"files"`, `"knowledge"`, `"skills"` |
 | `kind` | string | Yes | Relation type: `"references"`, `"fixes"`, `"implements"`, `"documents"`, etc. |
 
 **Returns:** `{ taskId, targetId, targetGraph, kind, created: true }`
@@ -210,7 +210,7 @@ Remove a cross-graph link from a task. Orphaned proxy nodes cleaned up automatic
 |-----------|------|----------|-------------|
 | `taskId` | string | Yes | Source task ID |
 | `targetId` | string | Yes | Target node ID in the external graph |
-| `targetGraph` | enum | Yes | `"docs"`, `"code"`, `"files"`, `"knowledge"` |
+| `targetGraph` | enum | Yes | `"docs"`, `"code"`, `"files"`, `"knowledge"`, `"skills"` |
 
 **Returns:** `{ taskId, targetId, targetGraph, deleted: true }`
 
@@ -221,7 +221,7 @@ Reverse lookup: given a node in an external graph, find all tasks that link to i
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `targetId` | string | Yes | Target node ID, e.g. `"src/auth.ts"`, `"guide.md::Setup"`, `"my-note"` |
-| `targetGraph` | enum | Yes | `"docs"`, `"code"`, `"files"`, `"knowledge"` |
+| `targetGraph` | enum | Yes | `"docs"`, `"code"`, `"files"`, `"knowledge"`, `"skills"` |
 | `kind` | string | No | Filter by relation kind. Omit for all relations |
 
 **Returns:** `[{ taskId, title, kind, status, priority, tags }]`

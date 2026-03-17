@@ -1,0 +1,17 @@
+node_modules
+ui/node_modules
+dist
+ui/dist
+.graph-memory
+.cache
+models/
+data
+.env
+graph-memory.yaml
+demo-project/.graph-memory
+demo-project/.notes
+demo-project/.tasks
+demo-project/.skills
+.git
+*.md
+!README.md

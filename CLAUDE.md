@@ -156,12 +156,12 @@ src/
 ui/                  # React web UI (Feature-Sliced Design)
   src/
     app/             # App.tsx (routes), theme.ts, styles.css
-    pages/           # dashboard, knowledge, tasks, skills, docs, files, search, graph, tools, help
+    pages/           # dashboard, knowledge, tasks, skills, docs, files, prompts, search, graph, tools, help
     widgets/         # layout (sidebar + project selector + theme toggle)
     features/        # note-crud, task-crud, skill-crud
     entities/        # project, note, task, skill, file, doc, code, graph
     shared/          # api/client.ts, lib/useWebSocket.ts, lib/ThemeModeContext.tsx
-    content/         # help articles (markdown) bundled into the UI
+    content/         # help articles + prompt templates (markdown) bundled into the UI
 demo-project/        # Demo "TaskFlow" project for testing and demonstration
   src/               # 18 TypeScript files (models, services, controllers, middleware, utils)
   docs/              # 11 markdown docs (architecture, API, guides, changelog)
@@ -251,8 +251,11 @@ demo-project/        # Demo "TaskFlow" project for testing and demonstration
   and by the indexer when files are removed (`cleanupProxies`)
 - **Cross-graph tools**: `cross_references` is the only tool that requires both `docGraph` and
   `codeGraph`; registered only when both are available; bridges definitions (code) ↔ examples (docs)
-- **Graph persistence**: graphology `export()`/`import()` serialized as JSON;
-  filenames: `docs.json`, `code.json`, `knowledge.json`, `file-index.json`, `tasks.json`, and `skills.json` in `graphMemory` directory
+- **Graph persistence**: graphology `export()`/`import()` serialized as JSON with embedding
+  model metadata; filenames: `docs.json`, `code.json`, `knowledge.json`, `file-index.json`,
+  `tasks.json`, and `skills.json` in `graphMemory` directory. Each JSON file wraps the
+  graphology export with `{ embeddingModel: "...", graph: {...} }`. On load, if the configured
+  model differs from the stored model, the graph is automatically discarded and re-indexed
 - **File mirror (write)**: `KnowledgeGraphManager`, `TaskGraphManager`, and `SkillGraphManager` write markdown files to
   `{projectDir}/.notes/{id}/note.md`, `{projectDir}/.tasks/{id}/task.md`, and `{projectDir}/.skills/{id}/skill.md` on every mutation.
   Files use YAML frontmatter (id, tags, timestamps, relations) + markdown body (`# Title\n\nContent`).
@@ -301,8 +304,8 @@ demo-project/        # Demo "TaskFlow" project for testing and demonstration
   Each project has its own 6 graphs, embedFns, indexer, watcher, and mutation queue.
   YAML config hot-reload (add/remove/change projects without restart). Auto-save every 30s.
   `PromiseQueue` serializes mutation tool handlers per project to prevent race conditions
-- **REST API**: Express app on the same HTTP server (`/api/*`). CRUD endpoints for knowledge
-  and tasks, search endpoints for docs/code/files, graph export for visualization, tools
+- **REST API**: Express app on the same HTTP server (`/api/*`). CRUD endpoints for knowledge,
+  tasks, and skills; search endpoints for docs/code/files; graph export for visualization; tools
   explorer (list/get/call MCP tools via HTTP). Zod validation on all request bodies and
   query params. Response format: `{ results: [...] }` for lists, direct object for singles,
   204 for DELETEs
@@ -316,7 +319,9 @@ demo-project/        # Demo "TaskFlow" project for testing and demonstration
   with configurable column visibility, drag-drop with drop-zone highlights, inline creation,
   filter bar, due date/estimate badges, quick actions on hover, scrollable columns),
   Skills (skill/recipe management with triggers and usage tracking),
-  Docs (browse indexed documentation), Files (browser), Search (cross-graph),
+  Docs (browse indexed documentation), Files (browser),
+  Prompts (AI prompt generator with scenarios, roles, styles, live preview, export as skill),
+  Search (cross-graph),
   Graph (cytoscape.js visualization), Tools (MCP tools explorer with live execution),
   Help (built-in searchable documentation). Light/dark theme toggle. Built output served as
   static files from HTTP server with SPA fallback. Dev server: Vite on :5173, proxies `/api` to :3000
@@ -324,6 +329,11 @@ demo-project/        # Demo "TaskFlow" project for testing and demonstration
   to discard persisted graphs and re-create them from scratch. When set, `load*()` functions
   return fresh empty graphs (skip disk read), and the indexer re-indexes all files since
   no mtime data exists in the fresh graphs
+- **Docker**: multi-stage Dockerfile (node:24-alpine). Build stage: `npm run build` (server + UI).
+  Runtime stage: production deps + dist/ + ui/dist/. Entry: `node dist/cli/index.js serve`.
+  Three volume mounts: `/data/config/graph-memory.yaml` (config), `/data/projects/` (project dirs),
+  `/data/models/` (embedding model cache). GitHub Actions workflow builds and pushes to
+  `ghcr.io/prih/mcp-graph-memory` on push to `main` or version tags
 
 ## Configuration
 

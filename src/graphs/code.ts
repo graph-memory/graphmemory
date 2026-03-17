@@ -89,13 +89,13 @@ export function listCodeFiles(
 // Persistence
 // ---------------------------------------------------------------------------
 
-export function saveCodeGraph(graph: CodeGraph, graphMemory: string): void {
+export function saveCodeGraph(graph: CodeGraph, graphMemory: string, embeddingModel?: string): void {
   fs.mkdirSync(graphMemory, { recursive: true });
   const file = path.join(graphMemory, 'code.json');
-  fs.writeFileSync(file, JSON.stringify(graph.export()));
+  fs.writeFileSync(file, JSON.stringify({ embeddingModel, graph: graph.export() }));
 }
 
-export function loadCodeGraph(graphMemory: string, fresh = false): CodeGraph {
+export function loadCodeGraph(graphMemory: string, fresh = false, embeddingModel?: string): CodeGraph {
   const graph = createCodeGraph();
   if (fresh) return graph;
   const file = path.join(graphMemory, 'code.json');
@@ -104,7 +104,14 @@ export function loadCodeGraph(graphMemory: string, fresh = false): CodeGraph {
 
   try {
     const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
-    graph.import(data);
+    const storedModel = data.embeddingModel as string | undefined;
+
+    if (embeddingModel && storedModel && storedModel !== embeddingModel) {
+      process.stderr.write(`[code-graph] Embedding model changed (${storedModel} → ${embeddingModel}), re-indexing code graph\n`);
+      return graph;
+    }
+
+    graph.import(data.graph);
     process.stderr.write(`[code-graph] Loaded ${graph.order} nodes, ${graph.size} edges\n`);
   } catch (err) {
     process.stderr.write(`[code-graph] Failed to load graph, starting fresh: ${err}\n`);

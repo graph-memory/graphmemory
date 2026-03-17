@@ -258,13 +258,13 @@ export function rebuildDirectoryStats(graph: FileIndexGraph): void {
 // Persistence
 // ---------------------------------------------------------------------------
 
-export function saveFileIndexGraph(graph: FileIndexGraph, graphMemory: string): void {
+export function saveFileIndexGraph(graph: FileIndexGraph, graphMemory: string, embeddingModel?: string): void {
   fs.mkdirSync(graphMemory, { recursive: true });
   const file = path.join(graphMemory, 'file-index.json');
-  fs.writeFileSync(file, JSON.stringify(graph.export()));
+  fs.writeFileSync(file, JSON.stringify({ embeddingModel, graph: graph.export() }));
 }
 
-export function loadFileIndexGraph(graphMemory: string, fresh = false): FileIndexGraph {
+export function loadFileIndexGraph(graphMemory: string, fresh = false, embeddingModel?: string): FileIndexGraph {
   const graph = createFileIndexGraph();
   if (fresh) return graph;
   const file = path.join(graphMemory, 'file-index.json');
@@ -273,7 +273,14 @@ export function loadFileIndexGraph(graphMemory: string, fresh = false): FileInde
 
   try {
     const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
-    graph.import(data);
+    const storedModel = data.embeddingModel as string | undefined;
+
+    if (embeddingModel && storedModel && storedModel !== embeddingModel) {
+      process.stderr.write(`[file-index] Embedding model changed (${storedModel} → ${embeddingModel}), re-indexing file index\n`);
+      return graph;
+    }
+
+    graph.import(data.graph);
     process.stderr.write(`[file-index] Loaded ${graph.order} nodes, ${graph.size} edges\n`);
   } catch (err) {
     process.stderr.write(`[file-index] Failed to load graph, starting fresh: ${err}\n`);

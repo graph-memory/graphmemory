@@ -551,13 +551,13 @@ export function deleteCrossRelation(
 // Persistence
 // ---------------------------------------------------------------------------
 
-export function saveSkillGraph(graph: SkillGraph, graphMemory: string): void {
+export function saveSkillGraph(graph: SkillGraph, graphMemory: string, embeddingModel?: string): void {
   fs.mkdirSync(graphMemory, { recursive: true });
   const file = path.join(graphMemory, 'skills.json');
-  fs.writeFileSync(file, JSON.stringify(graph.export()));
+  fs.writeFileSync(file, JSON.stringify({ embeddingModel, graph: graph.export() }));
 }
 
-export function loadSkillGraph(graphMemory: string, fresh = false): SkillGraph {
+export function loadSkillGraph(graphMemory: string, fresh = false, embeddingModel?: string): SkillGraph {
   const graph = createSkillGraph();
   if (fresh) return graph;
   const file = path.join(graphMemory, 'skills.json');
@@ -566,7 +566,14 @@ export function loadSkillGraph(graphMemory: string, fresh = false): SkillGraph {
 
   try {
     const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
-    graph.import(data);
+    const storedModel = data.embeddingModel as string | undefined;
+
+    if (embeddingModel && storedModel && storedModel !== embeddingModel) {
+      process.stderr.write(`[skill-graph] Embedding model changed (${storedModel} → ${embeddingModel}), re-indexing skill graph\n`);
+      return graph;
+    }
+
+    graph.import(data.graph);
     process.stderr.write(`[skill-graph] Loaded ${graph.order} nodes, ${graph.size} edges\n`);
   } catch (err) {
     process.stderr.write(`[skill-graph] Failed to load graph, starting fresh: ${err}\n`);

@@ -110,12 +110,13 @@ program
         const projectDir = path.resolve(project.projectDir);
         await loadAllModels(id, project, mc.server.modelsDir);
 
-        const docGraph  = project.docsPattern ? loadGraph(project.graphMemory, fresh) : undefined;
-        const codeGraph = project.codePattern ? loadCodeGraph(project.graphMemory, fresh) : undefined;
-        const knowledgeGraph = loadKnowledgeGraph(project.graphMemory, fresh);
-        const fileIndexGraph = loadFileIndexGraph(project.graphMemory, fresh);
-        const taskGraph = loadTaskGraph(project.graphMemory, fresh);
-        const skillGraph = loadSkillGraph(project.graphMemory, fresh);
+        const models = resolveModels(id, project);
+        const docGraph  = project.docsPattern ? loadGraph(project.graphMemory, fresh, models[`${id}:docs`]) : undefined;
+        const codeGraph = project.codePattern ? loadCodeGraph(project.graphMemory, fresh, models[`${id}:code`]) : undefined;
+        const knowledgeGraph = loadKnowledgeGraph(project.graphMemory, fresh, models[`${id}:knowledge`]);
+        const fileIndexGraph = loadFileIndexGraph(project.graphMemory, fresh, models[`${id}:files`]);
+        const taskGraph = loadTaskGraph(project.graphMemory, fresh, models[`${id}:tasks`]);
+        const skillGraph = loadSkillGraph(project.graphMemory, fresh, models[`${id}:skills`]);
 
         const indexer = createProjectIndexer(docGraph, codeGraph, {
           projectDir,
@@ -133,18 +134,18 @@ program
         await indexer.drain();
 
         if (docGraph) {
-          saveGraph(docGraph, project.graphMemory);
+          saveGraph(docGraph, project.graphMemory, models[`${id}:docs`]);
           process.stderr.write(`[index] "${id}" docs: ${docGraph.order} nodes, ${docGraph.size} edges\n`);
         }
 
         if (codeGraph) {
-          saveCodeGraph(codeGraph, project.graphMemory);
+          saveCodeGraph(codeGraph, project.graphMemory, models[`${id}:code`]);
           process.stderr.write(`[index] "${id}" code: ${codeGraph.order} nodes, ${codeGraph.size} edges\n`);
         }
 
-        saveKnowledgeGraph(knowledgeGraph, project.graphMemory);
-        saveFileIndexGraph(fileIndexGraph, project.graphMemory);
-        saveTaskGraph(taskGraph, project.graphMemory);
+        saveKnowledgeGraph(knowledgeGraph, project.graphMemory, models[`${id}:knowledge`]);
+        saveFileIndexGraph(fileIndexGraph, project.graphMemory, models[`${id}:files`]);
+        saveTaskGraph(taskGraph, project.graphMemory, models[`${id}:tasks`]);
         process.stderr.write(`[index] "${id}" files: ${fileIndexGraph.order} nodes, ${fileIndexGraph.size} edges\n`);
       }
 
@@ -171,13 +172,15 @@ program
     const fresh = !!opts.reindex;
     if (fresh) process.stderr.write(`[mcp] Re-indexing project "${id}" from scratch\n`);
 
-    // Load persisted graphs (or create fresh ones if reindexing) and start MCP server immediately
-    const docGraph  = project.docsPattern ? loadGraph(project.graphMemory, fresh) : undefined;
-    const codeGraph = project.codePattern ? loadCodeGraph(project.graphMemory, fresh) : undefined;
-    const knowledgeGraph = loadKnowledgeGraph(project.graphMemory, fresh);
-    const fileIndexGraph = loadFileIndexGraph(project.graphMemory, fresh);
-    const taskGraph = loadTaskGraph(project.graphMemory, fresh);
-    const skillGraph = loadSkillGraph(project.graphMemory, fresh);
+    const models = resolveModels(id, project);
+
+    // Load persisted graphs (or create fresh ones if reindexing / model changed) and start MCP server immediately
+    const docGraph  = project.docsPattern ? loadGraph(project.graphMemory, fresh, models[`${id}:docs`]) : undefined;
+    const codeGraph = project.codePattern ? loadCodeGraph(project.graphMemory, fresh, models[`${id}:code`]) : undefined;
+    const knowledgeGraph = loadKnowledgeGraph(project.graphMemory, fresh, models[`${id}:knowledge`]);
+    const fileIndexGraph = loadFileIndexGraph(project.graphMemory, fresh, models[`${id}:files`]);
+    const taskGraph = loadTaskGraph(project.graphMemory, fresh, models[`${id}:tasks`]);
+    const skillGraph = loadSkillGraph(project.graphMemory, fresh, models[`${id}:skills`]);
 
     const embedFns = buildEmbedFns(id);
     await startStdioServer(docGraph, codeGraph, knowledgeGraph, fileIndexGraph, taskGraph, embedFns, project.projectDir, skillGraph);
@@ -206,16 +209,16 @@ program
       await indexer.drain();
 
       if (docGraph) {
-        saveGraph(docGraph, project.graphMemory);
+        saveGraph(docGraph, project.graphMemory, models[`${id}:docs`]);
         process.stderr.write(`[mcp] Docs indexed. ${docGraph.order} nodes, ${docGraph.size} edges.\n`);
       }
 
       if (codeGraph) {
-        saveCodeGraph(codeGraph, project.graphMemory);
+        saveCodeGraph(codeGraph, project.graphMemory, models[`${id}:code`]);
         process.stderr.write(`[mcp] Code indexed. ${codeGraph.order} nodes, ${codeGraph.size} edges.\n`);
       }
 
-      saveFileIndexGraph(fileIndexGraph, project.graphMemory);
+      saveFileIndexGraph(fileIndexGraph, project.graphMemory, models[`${id}:files`]);
       process.stderr.write(`[mcp] File index done. ${fileIndexGraph.order} nodes, ${fileIndexGraph.size} edges.\n`);
     }
 
@@ -239,11 +242,11 @@ program
       try {
         if (watcher) await watcher.close();
         if (indexer) await indexer.drain();
-        if (docGraph) saveGraph(docGraph, project.graphMemory);
-        if (codeGraph) saveCodeGraph(codeGraph, project.graphMemory);
-        saveKnowledgeGraph(knowledgeGraph, project.graphMemory);
-        saveFileIndexGraph(fileIndexGraph, project.graphMemory);
-        saveTaskGraph(taskGraph, project.graphMemory);
+        if (docGraph) saveGraph(docGraph, project.graphMemory, models[`${id}:docs`]);
+        if (codeGraph) saveCodeGraph(codeGraph, project.graphMemory, models[`${id}:code`]);
+        saveKnowledgeGraph(knowledgeGraph, project.graphMemory, models[`${id}:knowledge`]);
+        saveFileIndexGraph(fileIndexGraph, project.graphMemory, models[`${id}:files`]);
+        saveTaskGraph(taskGraph, project.graphMemory, models[`${id}:tasks`]);
       } catch { /* ignore */ }
       process.exit(0);
     }

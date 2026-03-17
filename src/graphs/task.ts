@@ -557,13 +557,13 @@ export function deleteCrossRelation(
 // Persistence
 // ---------------------------------------------------------------------------
 
-export function saveTaskGraph(graph: TaskGraph, graphMemory: string): void {
+export function saveTaskGraph(graph: TaskGraph, graphMemory: string, embeddingModel?: string): void {
   fs.mkdirSync(graphMemory, { recursive: true });
   const file = path.join(graphMemory, 'tasks.json');
-  fs.writeFileSync(file, JSON.stringify(graph.export()));
+  fs.writeFileSync(file, JSON.stringify({ embeddingModel, graph: graph.export() }));
 }
 
-export function loadTaskGraph(graphMemory: string, fresh = false): TaskGraph {
+export function loadTaskGraph(graphMemory: string, fresh = false, embeddingModel?: string): TaskGraph {
   const graph = createTaskGraph();
   if (fresh) return graph;
   const file = path.join(graphMemory, 'tasks.json');
@@ -572,7 +572,14 @@ export function loadTaskGraph(graphMemory: string, fresh = false): TaskGraph {
 
   try {
     const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
-    graph.import(data);
+    const storedModel = data.embeddingModel as string | undefined;
+
+    if (embeddingModel && storedModel && storedModel !== embeddingModel) {
+      process.stderr.write(`[task-graph] Embedding model changed (${storedModel} → ${embeddingModel}), re-indexing task graph\n`);
+      return graph;
+    }
+
+    graph.import(data.graph);
     process.stderr.write(`[task-graph] Loaded ${graph.order} nodes, ${graph.size} edges\n`);
   } catch (err) {
     process.stderr.write(`[task-graph] Failed to load graph, starting fresh: ${err}\n`);

@@ -9,6 +9,8 @@ import taskTools from './guides/task-tools.md?raw';
 import skillTools from './guides/skill-tools.md?raw';
 import filesTools from './guides/files-tools.md?raw';
 import crossReferences from './guides/cross-references.md?raw';
+import mcpSetup from './guides/mcp-setup.md?raw';
+import configuration from './guides/configuration.md?raw';
 
 export interface HelpArticle {
   id: string;
@@ -54,6 +56,24 @@ export const helpArticles: HelpArticle[] = [
     category: 'concept',
     relatedTools: ['create_relation', 'delete_relation', 'list_relations', 'create_task_link', 'delete_task_link', 'create_skill_link', 'delete_skill_link', 'find_linked_notes', 'find_linked_tasks', 'find_linked_skills'],
     content: crossGraph,
+  },
+
+  // Setup
+  {
+    id: 'mcp-setup',
+    title: 'Connecting MCP Clients',
+    summary: 'How to connect Claude Desktop, Cursor, Windsurf, and other MCP clients via stdio or HTTP.',
+    category: 'guide',
+    relatedTools: ['get_context'],
+    content: mcpSetup,
+  },
+  {
+    id: 'configuration',
+    title: 'Configuration Guide',
+    summary: 'All graph-memory.yaml settings: server, projects, workspaces, embedding models, and patterns.',
+    category: 'guide',
+    relatedTools: [],
+    content: configuration,
   },
 
   // Guides

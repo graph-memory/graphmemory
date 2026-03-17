@@ -5,7 +5,8 @@
 MCP server that builds a semantic graph memory from a project directory — indexing both
 **markdown docs** and **TypeScript/JavaScript source code**.
 
-Exposes up to 57 tools over stdio MCP and HTTP (Streamable HTTP) transports:
+Exposes up to 58 tools over stdio MCP and HTTP (Streamable HTTP) transports:
+- Context: `get_context`
 - Docs: `list_topics`, `get_toc`, `search`, `get_node`, `search_topic_files`
 - Code blocks: `find_examples`, `search_snippets`, `list_snippets`, `explain_symbol`
 - Cross-graph: `cross_references` (requires both docs + code)
@@ -15,6 +16,7 @@ Exposes up to 57 tools over stdio MCP and HTTP (Streamable HTTP) transports:
 - Tasks: `create_task`, `update_task`, `delete_task`, `get_task`, `list_tasks`, `search_tasks`, `move_task`, `link_task`, `create_task_link`, `delete_task_link`, `find_linked_tasks`, `add_task_attachment`, `remove_task_attachment`
 - Skills: `create_skill`, `update_skill`, `delete_skill`, `get_skill`, `list_skills`, `search_skills`, `link_skill`, `create_skill_link`, `delete_skill_link`, `find_linked_skills`, `add_skill_attachment`, `remove_skill_attachment`, `recall_skills`, `bump_skill_usage`
 
+Context tool is always registered.
 Docs tools are only registered when `docsPattern` is set.
 Code tools are only registered when `codePattern` is set.
 File index tools, knowledge tools, task tools, and skill tools are always registered.
@@ -29,7 +31,7 @@ npm run cli:dev        # tsx src/cli/index.ts (no build needed)
 
 Run tests with Jest:
 ```bash
-npm test                               # run all tests (1116 tests across 24 suites)
+npm test                               # run all tests (1152 tests across 26 suites)
 npm test -- --testPathPatterns=search   # run a specific test file
 npm run test:watch                     # watch mode
 npx tsx src/tests/embedder.test.ts     # embedding model (loads real model — slow, excluded from Jest)
@@ -60,6 +62,9 @@ Test suites:
 - `file-mirror.test.ts` — frontmatter serialization + file mirror helpers + manager integration
 - `file-import.test.ts` — reverse import parsing (parseNoteFile, parseTaskFile, diffRelations)
 - `mirror-watcher.test.ts` — MirrorWriteTracker + importFromFile/deleteFromFile integration + round-trip tests
+- `bm25.test.ts` — BM25 search algorithm, tokenizer, and Reciprocal Rank Fusion unit test
+- `workspace.test.ts` — workspace context + proxy ID formatting with projectId
+- `mcp-context.test.ts` — MCP get_context tool integration (returns project/workspace context)
 
 CLI commands (after build) — all require `--config graph-memory.yaml`:
 ```bash
@@ -145,8 +150,9 @@ src/
       knowledge/     # create-note.ts, update-note.ts, delete-note.ts, get-note.ts, list-notes.ts, search-notes.ts, create-relation.ts, delete-relation.ts, list-relations.ts, find-linked-notes.ts, add-attachment.ts, remove-attachment.ts
       tasks/         # create-task.ts, update-task.ts, delete-task.ts, get-task.ts, list-tasks.ts, search-tasks.ts, move-task.ts, link-task.ts, create-task-link.ts, delete-task-link.ts, find-linked-tasks.ts, add-attachment.ts, remove-attachment.ts
       skills/        # create-skill.ts, update-skill.ts, delete-skill.ts, get-skill.ts, list-skills.ts, search-skills.ts, link-skill.ts, create-skill-link.ts, delete-skill-link.ts, find-linked-skills.ts, add-attachment.ts, remove-attachment.ts, recall-skills.ts, bump-skill-usage.ts
+      context/       # get-context.ts
   tests/
-    *.test.ts        # Jest test suites (1116 tests across 24 suites)
+    *.test.ts        # Jest test suites (1152 tests across 26 suites)
     helpers.ts       # shared test utilities (unitVec, fakeEmbed, setupMcpClient, text/json)
     __mocks__/       # Jest mocks for ESM-only packages (chokidar, @xenova/transformers, mime)
     fixtures/
@@ -162,11 +168,20 @@ ui/                  # React web UI (Feature-Sliced Design)
     entities/        # project, note, task, skill, file, doc, code, graph
     shared/          # api/client.ts, lib/useWebSocket.ts, lib/ThemeModeContext.tsx
     content/         # help articles + prompt templates (markdown) bundled into the UI
-demo-project/        # Demo "TaskFlow" project for testing and demonstration
+demo-project/        # Demo "TaskFlow" single-project for testing and demonstration
   src/               # 18 TypeScript files (models, services, controllers, middleware, utils)
   docs/              # 11 markdown docs (architecture, API, guides, changelog)
   scripts/seed.sh    # Seeds 15 notes + 20 tasks + 10 skills + relations via REST API
   tsconfig.json      # TypeScript config for ts-morph code indexing
+demo-projects/       # Demo "ShopFlow" multi-project workspace for testing workspaces
+  api-gateway/       # API gateway project
+  catalog-service/   # Catalog microservice
+  order-service/     # Order microservice
+  web-store/         # Web storefront
+  admin-panel/       # Admin dashboard
+  infra/             # Infrastructure (standalone, no workspace)
+  scripts/           # seed.sh, clean.sh
+  graph-memory.yaml  # Multi-project config with workspaces (backend, frontend)
 ```
 
 ## Key design decisions
@@ -339,9 +354,13 @@ demo-project/        # Demo "TaskFlow" project for testing and demonstration
 
 All configuration is via `graph-memory.yaml` (multi-project YAML). See `graph-memory.yaml.example` for full reference.
 
+**Author settings** (`author:`): `name`, `email` — used as createdBy/updatedBy in notes/tasks/skills; git-style format `"Name <email>"` in mirror files. Can be overridden per project or per workspace
+
 **Server settings** (`server:`): `host`, `port`, `sessionTimeout`, `modelsDir`, `embeddingModel`
 
-**Per-project settings** (`projects.<id>:`): `projectDir` (required), `graphMemory`, `docsPattern`, `codePattern`, `excludePattern`, `tsconfig`, `embeddingModel`, `docsModel`, `codeModel`, `knowledgeModel`, `taskModel`, `filesModel`, `skillsModel`, `chunkDepth`, `maxTokensDefault`, `embedMaxChars`
+**Per-project settings** (`projects.<id>:`): `projectDir` (required), `graphMemory`, `docsPattern`, `codePattern`, `excludePattern`, `tsconfig`, `embeddingModel`, `docsModel`, `codeModel`, `knowledgeModel`, `taskModel`, `filesModel`, `skillsModel`, `chunkDepth`, `maxTokensDefault`, `embedMaxChars`, `author`
+
+**Workspace settings** (`workspaces.<id>:`): `projects` (list of project IDs), `graphMemory`, `mirrorDir`, `author` — shared knowledge/tasks/skills graphs across member projects
 
 ## Conventions
 

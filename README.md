@@ -100,7 +100,13 @@ docker run --rm \
 - Answers search queries via **hybrid search** (BM25 keyword + vector cosine similarity) with BFS graph expansion
 - Watches for file changes and re-indexes incrementally
 
-## MCP tools (57)
+## MCP tools (58)
+
+### Context tool (always enabled)
+
+| Tool               | Description                                                    |
+|--------------------|----------------------------------------------------------------|
+| `get_context`      | Returns current project and workspace context (project ID, workspace ID, workspace projects, available graphs) |
 
 ### Docs tools (enabled when `--docs-pattern` is set)
 
@@ -472,7 +478,7 @@ cd ui && npm run dev   # Vite dev server on :5173, proxies /api → :3000
 
 Run tests:
 ```bash
-npm test                                   # all tests (24 suites)
+npm test                                   # all tests (26 suites)
 npm test -- --testPathPatterns=search       # run a specific test file
 npm run test:watch                         # watch mode
 ```

@@ -1,6 +1,6 @@
 # Architecture
 
-MCP server that builds a **semantic graph memory** from a project directory — indexing markdown docs, TypeScript/JavaScript source code, and all project files. Provides 57 MCP tools + REST API + web UI for graph visualization and management.
+MCP server that builds a **semantic graph memory** from a project directory — indexing markdown docs, TypeScript/JavaScript source code, and all project files. Provides 58 MCP tools + REST API + web UI for graph visualization and management.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
@@ -57,7 +57,7 @@ MCP server that builds a **semantic graph memory** from a project directory — 
      ┌────────┐   ┌──────────┐   ┌──────────┐
      │  MCP   │   │ REST API │   │    UI    │
      │ Tools  │   │ Express  │   │  React   │
-     │ (57)   │   │ + WS     │   │  + Vite  │
+     │ (58)   │   │ + WS     │   │  + Vite  │
      └────────┘   └──────────┘   └──────────┘
 ```
 
@@ -344,7 +344,7 @@ Supports `searchMode` parameter: `hybrid` (default, BM25 + vector), `vector` (em
 
 ---
 
-## 7. MCP Server — 57 Tools
+## 7. MCP Server — 58 Tools
 
 **File**: `src/api/index.ts` — `createMcpServer()`
 
@@ -358,6 +358,7 @@ Supports `searchMode` parameter: `hybrid` (default, BM25 + vector), `vector` (em
 | Tasks | 13 | always | `create_task`, `update_task`, `delete_task`, `get_task`, `list_tasks`, `search_tasks`, `move_task`, `link_task`, `create_task_link`, `delete_task_link`, `find_linked_tasks`, `add_task_attachment`, `remove_task_attachment` |
 | Skills | 14 | always | `create_skill`, `update_skill`, `delete_skill`, `get_skill`, `list_skills`, `search_skills`, `recall_skills`, `bump_skill_usage`, `link_skill`, `create_skill_link`, `delete_skill_link`, `find_linked_skills`, `add_skill_attachment`, `remove_skill_attachment` |
 | Files | 3 | always | `list_all_files`, `search_all_files`, `get_file_info` |
+| Context | 1 | always | `get_context` |
 
 \* `cross_references` requires both docGraph AND codeGraph.
 
@@ -819,8 +820,9 @@ src/
       tasks/                 # 13 MCP task tools (via TaskGraphManager)
       skills/                # 14 MCP skill tools (via SkillGraphManager)
       file-index/            # 3 MCP file index tools (via FileIndexGraphManager)
+      context/               # 1 MCP context tool (get_context — project/workspace discovery)
   tests/
-    *.test.ts                # Jest test suites (24 suites, 1116 tests)
+    *.test.ts                # Jest test suites (26 suites, 1152 tests)
     helpers.ts               # Test utilities (fakeEmbed, setupMcpClient)
     __mocks__/               # Jest mocks for ESM-only packages (chokidar, @xenova/transformers, mime)
     fixtures/                # Test fixtures (markdown, TypeScript)

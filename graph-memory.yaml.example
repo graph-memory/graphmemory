@@ -28,7 +28,7 @@ server:
   #   model: "Xenova/bge-m3"                    # Default model (1024 dims, multilingual, 8K tokens)
   #   pooling: "cls"                            # Pooling strategy: "mean" or "cls"
   #   normalize: true                           # L2-normalize output vectors
-  #   dtype: "fp32"                             # Quantization: fp32, fp16, q8, q4
+  #   dtype: "q8"                               # Quantization: fp32, fp16, q8, q4
   #   queryPrefix: ""                           # Prefix prepended to search queries
   #   documentPrefix: ""                        # Prefix prepended to documents during indexing
 

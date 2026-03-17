@@ -8,6 +8,10 @@ server:
   sessionTimeout: 1800
   embedding:
     model: "Xenova/bge-m3"
+    pooling: "cls"
+    dtype: "q8"
+    queryPrefix: ""
+    documentPrefix: ""
 
 projects:
   api-gateway:

@@ -51,15 +51,23 @@ export function search(
 
   if (useBm25) {
     const bm25Scores = bm25Index!.score(queryText!);
-    if (useVector && scored.length > 0) {
+    // Only include vector results with positive scores for fusion
+    const positiveScored = useVector ? scored.filter(s => s.score > 0) : [];
+    if (positiveScored.length > 0) {
       // RRF fusion
-      const vectorMap = new Map(scored.map(s => [s.id, s.score]));
+      const vectorMap = new Map(positiveScored.map(s => [s.id, s.score]));
       const fused = rrfFuse(vectorMap, bm25Scores, rrfK);
       scored.length = 0;
       for (const [id, score] of fused) scored.push({ id, score });
-    } else if (!useVector) {
-      // BM25-only mode
+    } else {
+      // BM25-only or vector returned nothing — use BM25 as fallback
+      scored.length = 0;
       for (const [id, score] of bm25Scores) scored.push({ id, score });
+    }
+    // Normalize scores to 0–1 so minScore threshold works uniformly
+    const maxScore = scored.reduce((m, s) => Math.max(m, s.score), 0);
+    if (maxScore > 0) {
+      for (const s of scored) s.score /= maxScore;
     }
   }
 
@@ -68,7 +76,7 @@ export function search(
   scored.sort((a, b) => b.score - a.score);
 
   // --- 2. Filter seeds by minScore, then take topK ---
-  const minS = useBm25 && !useVector ? 0 : minScore; // keyword-only: no minScore (BM25 scores are unbounded)
+  const minS = minScore;
   const seeds = scored.filter(s => s.score >= minS).slice(0, topK);
   if (seeds.length === 0) return [];
 
@@ -92,7 +100,7 @@ export function search(
       if (item.score > prev) scoreMap.set(item.id, item.score);
 
       if (item.depth >= bfsDepth) continue;
-      if (item.score * bfsDecay < minScore) continue; // prune: deeper hops won't pass minScore
+      if (item.score * bfsDecay < minS) continue; // prune: deeper hops won't pass threshold
 
       const nextScore = item.score * bfsDecay;
       graph.outNeighbors(item.id).forEach(n => queue.push({ id: n, depth: item.depth + 1, score: nextScore }));
@@ -106,7 +114,7 @@ export function search(
 
   // --- 4. Build results from scoreMap, apply minScore filter, sort, cap ---
   return [...scoreMap.entries()]
-    .filter(([, score]) => score >= minScore)
+    .filter(([, score]) => score >= minS)
     .map(([id, score]) => {
       const attrs = graph.getNodeAttributes(id);
       return {

@@ -51,13 +51,20 @@ export function searchCode(
 
   if (useBm25) {
     const bm25Scores = bm25Index!.score(queryText!);
-    if (useVector && scored.length > 0) {
-      const vectorMap = new Map(scored.map(s => [s.id, s.score]));
+    const positiveScored = useVector ? scored.filter(s => s.score > 0) : [];
+    if (positiveScored.length > 0) {
+      const vectorMap = new Map(positiveScored.map(s => [s.id, s.score]));
       const fused = rrfFuse(vectorMap, bm25Scores, rrfK);
       scored.length = 0;
       for (const [id, score] of fused) scored.push({ id, score });
-    } else if (!useVector) {
+    } else {
+      scored.length = 0;
       for (const [id, score] of bm25Scores) scored.push({ id, score });
+    }
+    // Normalize scores to 0–1 so minScore threshold works uniformly
+    const maxScore = scored.reduce((m, s) => Math.max(m, s.score), 0);
+    if (maxScore > 0) {
+      for (const s of scored) s.score /= maxScore;
     }
   }
 
@@ -66,7 +73,7 @@ export function searchCode(
   scored.sort((a, b) => b.score - a.score);
 
   // --- 2. Filter seeds ---
-  const minS = useBm25 && !useVector ? 0 : minScore;
+  const minS = minScore;
   const seeds = scored.filter(s => s.score >= minS).slice(0, topK);
   if (seeds.length === 0) return [];
 
@@ -88,7 +95,7 @@ export function searchCode(
       if (item.score > prev) scoreMap.set(item.id, item.score);
 
       if (item.depth >= bfsDepth) continue;
-      if (item.score * bfsDecay < minScore) continue;
+      if (item.score * bfsDecay < minS) continue;
 
       const nextScore = item.score * bfsDecay;
       graph.outNeighbors(item.id).forEach(n => queue.push({ id: n, depth: item.depth + 1, score: nextScore }));
@@ -102,7 +109,7 @@ export function searchCode(
 
   // --- 4. Build results ---
   return [...scoreMap.entries()]
-    .filter(([, score]) => score >= minScore)
+    .filter(([, score]) => score >= minS)
     .map(([id, score]) => {
       const attrs = graph.getNodeAttributes(id);
       return {

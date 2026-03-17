@@ -762,7 +762,7 @@ describe('Attachments (KnowledgeGraphManager)', () => {
     it('writes the file to disk', () => {
       const data = Buffer.from('hello world');
       manager.addAttachment(noteId, 'file.txt', data);
-      const filePath = path.join(tmpDir, '.notes', noteId, 'file.txt');
+      const filePath = path.join(tmpDir, '.notes', noteId, 'attachments', 'file.txt');
       expect(fs.existsSync(filePath)).toBe(true);
       expect(fs.readFileSync(filePath, 'utf-8')).toBe('hello world');
     });
@@ -850,7 +850,7 @@ describe('Attachments (KnowledgeGraphManager)', () => {
     it('deletes the file from disk', () => {
       manager.addAttachment(noteId, 'file.txt', Buffer.from('data'));
       manager.removeAttachment(noteId, 'file.txt');
-      const filePath = path.join(tmpDir, '.notes', noteId, 'file.txt');
+      const filePath = path.join(tmpDir, '.notes', noteId, 'attachments', 'file.txt');
       expect(fs.existsSync(filePath)).toBe(false);
     });
 
@@ -887,10 +887,10 @@ describe('Attachments (KnowledgeGraphManager)', () => {
 
   describe('syncAttachments', () => {
     it('updates graph from disk state', () => {
-      // Manually write a file to the note directory (bypassing manager)
-      const noteDir = path.join(tmpDir, '.notes', noteId);
-      fs.mkdirSync(noteDir, { recursive: true });
-      fs.writeFileSync(path.join(noteDir, 'manual.txt'), 'external content');
+      // Manually write a file to the attachments/ subdirectory (bypassing manager)
+      const attDir = path.join(tmpDir, '.notes', noteId, 'attachments');
+      fs.mkdirSync(attDir, { recursive: true });
+      fs.writeFileSync(path.join(attDir, 'manual.txt'), 'external content');
 
       manager.syncAttachments(noteId);
       const attachments = manager.listAttachments(noteId);
@@ -898,12 +898,13 @@ describe('Attachments (KnowledgeGraphManager)', () => {
       expect(attachments[0].filename).toBe('manual.txt');
     });
 
-    it('excludes note.md from attachment list', () => {
-      // The note.md file (mirror file) should be excluded
+    it('only includes files from attachments/ subdir (not entity root)', () => {
+      // Files at root of entity dir (note.md, events.jsonl) should NOT appear
       const noteDir = path.join(tmpDir, '.notes', noteId);
-      fs.mkdirSync(noteDir, { recursive: true });
+      const attDir = path.join(noteDir, 'attachments');
+      fs.mkdirSync(attDir, { recursive: true });
       fs.writeFileSync(path.join(noteDir, 'note.md'), '---\nid: test\n---\n# Test');
-      fs.writeFileSync(path.join(noteDir, 'image.png'), 'PNG');
+      fs.writeFileSync(path.join(attDir, 'image.png'), 'PNG');
 
       manager.syncAttachments(noteId);
       const attachments = manager.listAttachments(noteId);
@@ -928,7 +929,7 @@ describe('Attachments (KnowledgeGraphManager)', () => {
       manager.addAttachment(noteId, 'file.txt', Buffer.from('data'));
       const result = manager.getAttachmentPath(noteId, 'file.txt');
       expect(result).not.toBeNull();
-      expect(result).toBe(path.join(tmpDir, '.notes', noteId, 'file.txt'));
+      expect(result).toBe(path.join(tmpDir, '.notes', noteId, 'attachments', 'file.txt'));
     });
 
     it('returns null for nonexistent attachment', () => {

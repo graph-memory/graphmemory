@@ -7,8 +7,8 @@ import { TaskGraphManager } from '../graphs/task';
 import { createKnowledgeGraph } from '../graphs/knowledge-types';
 import { createTaskGraph } from '../graphs/task-types';
 import { noopContext } from '../graphs/manager-types';
-import { writeNoteFile, writeTaskFile } from '../lib/file-mirror';
-import { parseNoteFile, parseTaskFile } from '../lib/file-import';
+import { mirrorNoteCreate, mirrorTaskCreate } from '../lib/file-mirror';
+import { parseNoteDir, parseTaskDir } from '../lib/file-import';
 import { unitVec, DIM } from './helpers';
 
 const fakeEmbed = (_q: string) => Promise.resolve(unitVec(0, DIM));
@@ -250,17 +250,17 @@ describe('TaskGraphManager.deleteFromFile', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Round-trip: writeNoteFile → parseNoteFile → importFromFile
+// Round-trip: mirrorNoteCreate → parseNoteDir → importFromFile
 // ---------------------------------------------------------------------------
 
-describe('round-trip note write → parse → import', () => {
+describe('round-trip note create → parseNoteDir → importFromFile', () => {
   it('produces identical graph state', async () => {
     const dir = tmpDir();
     const notesDir = path.join(dir, '.notes');
     fs.mkdirSync(notesDir, { recursive: true });
 
-    // Write a note file
-    writeNoteFile(notesDir, 'round-trip', {
+    // Write a note via event-sourced mirror
+    mirrorNoteCreate(notesDir, 'round-trip', {
       title: 'Round Trip Note',
       content: 'Test content for round trip.',
       tags: ['rt', 'test'],
@@ -269,8 +269,8 @@ describe('round-trip note write → parse → import', () => {
       version: 1,
     }, []);
 
-    // Parse it back
-    const parsed = parseNoteFile(path.join(notesDir, 'round-trip', 'note.md'));
+    // Parse it back from directory
+    const parsed = parseNoteDir(path.join(notesDir, 'round-trip'));
     expect(parsed).not.toBeNull();
     expect(parsed!.title).toBe('Round Trip Note');
     expect(parsed!.content).toBe('Test content for round trip.');
@@ -288,13 +288,13 @@ describe('round-trip note write → parse → import', () => {
   });
 });
 
-describe('round-trip task write → parse → import', () => {
+describe('round-trip task create → parseTaskDir → importFromFile', () => {
   it('produces identical graph state', async () => {
     const dir = tmpDir();
     const tasksDir = path.join(dir, '.tasks');
     fs.mkdirSync(tasksDir, { recursive: true });
 
-    writeTaskFile(tasksDir, 'rt-task', {
+    mirrorTaskCreate(tasksDir, 'rt-task', {
       title: 'Round Trip Task',
       description: 'Task description.',
       status: 'in_progress',
@@ -308,7 +308,7 @@ describe('round-trip task write → parse → import', () => {
       version: 1,
     }, []);
 
-    const parsed = parseTaskFile(path.join(tasksDir, 'rt-task', 'task.md'));
+    const parsed = parseTaskDir(path.join(tasksDir, 'rt-task'));
     expect(parsed).not.toBeNull();
     expect(parsed!.status).toBe('in_progress');
     expect(parsed!.priority).toBe('high');

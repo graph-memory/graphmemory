@@ -9,7 +9,7 @@ import type { EmbedFn, GraphManagerContext, ExternalGraphs } from '@/graphs/mana
 import { resolveExternalGraph, VersionConflictError } from '@/graphs/manager-types';
 import { searchTasks, type TaskSearchResult } from '@/lib/search/tasks';
 import { BM25Index } from '@/lib/search/bm25';
-import { writeTaskFile, deleteMirrorDir, writeAttachment, deleteAttachment, getAttachmentPath as getAttPath, sanitizeFilename } from '@/lib/file-mirror';
+import { mirrorTaskCreate, mirrorTaskUpdate, mirrorTaskRelation, mirrorAttachmentEvent, deleteMirrorDir, writeAttachment, deleteAttachment, getAttachmentPath as getAttPath, sanitizeFilename } from '@/lib/file-mirror';
 import type { MirrorWriteTracker } from '@/lib/mirror-watcher';
 import type { ParsedTaskFile } from '@/lib/file-import';
 import { scanAttachments } from '@/graphs/attachment-types';
@@ -718,14 +718,13 @@ export class TaskGraphManager {
     return this.ctx.projectDir ? path.join(this.ctx.projectDir, '.tasks') : undefined;
   }
 
-  private mirrorTask(taskId: string): void {
+  private recordMirrorWrites(taskId: string): void {
     const dir = this.tasksDir;
-    if (!dir) return;
-    const task = getTask(this._graph, taskId);
-    if (!task) return;
-    const relations = listTaskRelations(this._graph, taskId, this.ext);
-    writeTaskFile(dir, taskId, task, relations);
-    this.mirrorTracker?.recordWrite(path.join(dir, taskId, 'task.md'));
+    if (!dir || !this.mirrorTracker) return;
+    const entityDir = path.join(dir, taskId);
+    this.mirrorTracker.recordWrite(path.join(entityDir, 'events.jsonl'));
+    this.mirrorTracker.recordWrite(path.join(entityDir, 'task.md'));
+    this.mirrorTracker.recordWrite(path.join(entityDir, 'description.md'));
   }
 
   // -- Write (mutations with embed + dirty + emit + cross-graph cleanup) --
@@ -744,7 +743,12 @@ export class TaskGraphManager {
     this._bm25Index.addDocument(taskId, this._graph.getNodeAttributes(taskId));
     this.ctx.markDirty();
     this.ctx.emit('task:created', { projectId: this.ctx.projectId, taskId });
-    this.mirrorTask(taskId);
+    const dir = this.tasksDir;
+    if (dir) {
+      const attrs = this._graph.getNodeAttributes(taskId);
+      mirrorTaskCreate(dir, taskId, attrs, []);
+      this.recordMirrorWrites(taskId);
+    }
     return taskId;
   }
 
@@ -761,7 +765,13 @@ export class TaskGraphManager {
     this._bm25Index.updateDocument(taskId, this._graph.getNodeAttributes(taskId));
     this.ctx.markDirty();
     this.ctx.emit('task:updated', { projectId: this.ctx.projectId, taskId });
-    this.mirrorTask(taskId);
+    const dir = this.tasksDir;
+    if (dir) {
+      const attrs = this._graph.getNodeAttributes(taskId);
+      const relations = listTaskRelations(this._graph, taskId, this.ext);
+      mirrorTaskUpdate(dir, taskId, { ...patch, by: this.ctx.author }, attrs, relations);
+      this.recordMirrorWrites(taskId);
+    }
     return true;
   }
 
@@ -790,7 +800,13 @@ export class TaskGraphManager {
     if (!ok) return false;
     this.ctx.markDirty();
     this.ctx.emit('task:moved', { projectId: this.ctx.projectId, taskId, status });
-    this.mirrorTask(taskId);
+    const dir = this.tasksDir;
+    if (dir) {
+      const attrs = this._graph.getNodeAttributes(taskId);
+      const relations = listTaskRelations(this._graph, taskId, this.ext);
+      mirrorTaskUpdate(dir, taskId, { status, completedAt: attrs.completedAt, by: this.ctx.author }, attrs, relations);
+      this.recordMirrorWrites(taskId);
+    }
     return true;
   }
 
@@ -798,8 +814,13 @@ export class TaskGraphManager {
     const ok = createTaskRelation(this._graph, fromId, toId, kind);
     if (ok) {
       this.ctx.markDirty();
-      this.mirrorTask(fromId);
-      this.mirrorTask(toId);
+      const dir = this.tasksDir;
+      if (dir) {
+        const fromAttrs = this._graph.getNodeAttributes(fromId);
+        const fromRels = listTaskRelations(this._graph, fromId, this.ext);
+        mirrorTaskRelation(dir, fromId, 'add', kind, toId, fromAttrs, fromRels);
+        this.recordMirrorWrites(fromId);
+      }
     }
     return ok;
   }
@@ -813,12 +834,27 @@ export class TaskGraphManager {
     }
     if (ok) {
       this.ctx.markDirty();
-      this.mirrorTask(taskId);
+      const dir = this.tasksDir;
+      if (dir) {
+        const attrs = this._graph.getNodeAttributes(taskId);
+        const relations = listTaskRelations(this._graph, taskId, this.ext);
+        mirrorTaskRelation(dir, taskId, 'add', kind, targetId, attrs, relations, targetGraph);
+        this.recordMirrorWrites(taskId);
+      }
     }
     return ok;
   }
 
   deleteCrossLink(taskId: string, targetId: string, targetGraph: TaskCrossGraphType): boolean {
+    // Read edge kind before deleting
+    let kind = '';
+    try {
+      const proxyNodeId = `@${targetGraph}::${targetId}`;
+      if (this._graph.hasEdge(taskId, proxyNodeId)) {
+        kind = this._graph.getEdgeAttribute(this._graph.edge(taskId, proxyNodeId)!, 'kind') ?? '';
+      }
+    } catch { /* ignore */ }
+
     const ok = deleteCrossRelation(this._graph, taskId, targetGraph, targetId);
     // Bidirectional: remove mirror proxy from KnowledgeGraph
     if (ok && targetGraph === 'knowledge' && this.knowledgeGraph) {
@@ -826,17 +862,36 @@ export class TaskGraphManager {
     }
     if (ok) {
       this.ctx.markDirty();
-      this.mirrorTask(taskId);
+      const dir = this.tasksDir;
+      if (dir) {
+        const attrs = this._graph.getNodeAttributes(taskId);
+        const relations = listTaskRelations(this._graph, taskId, this.ext);
+        mirrorTaskRelation(dir, taskId, 'remove', kind, targetId, attrs, relations, targetGraph);
+        this.recordMirrorWrites(taskId);
+      }
     }
     return ok;
   }
 
   deleteTaskLink(fromId: string, toId: string): boolean {
+    // Read edge kind before deleting
+    let kind = '';
+    try {
+      if (this._graph.hasEdge(fromId, toId)) {
+        kind = this._graph.getEdgeAttribute(this._graph.edge(fromId, toId)!, 'kind') ?? '';
+      }
+    } catch { /* ignore */ }
+
     const ok = deleteTaskRelation(this._graph, fromId, toId);
     if (ok) {
       this.ctx.markDirty();
-      this.mirrorTask(fromId);
-      this.mirrorTask(toId);
+      const dir = this.tasksDir;
+      if (dir) {
+        const fromAttrs = this._graph.getNodeAttributes(fromId);
+        const fromRels = listTaskRelations(this._graph, fromId, this.ext);
+        mirrorTaskRelation(dir, fromId, 'remove', kind, toId, fromAttrs, fromRels);
+        this.recordMirrorWrites(fromId);
+      }
     }
     return ok;
   }
@@ -851,10 +906,13 @@ export class TaskGraphManager {
     const safe = sanitizeFilename(filename);
     if (!safe) return null;
 
+    const entityDir = path.join(dir, taskId);
     writeAttachment(dir, taskId, safe, data);
-    this.mirrorTracker?.recordWrite(path.join(dir, taskId, safe));
+    this.mirrorTracker?.recordWrite(path.join(entityDir, 'attachments', safe));
+    mirrorAttachmentEvent(entityDir, 'add', safe);
+    this.mirrorTracker?.recordWrite(path.join(entityDir, 'events.jsonl'));
 
-    const attachments = scanAttachments(path.join(dir, taskId), 'task.md');
+    const attachments = scanAttachments(entityDir);
     this._graph.setNodeAttribute(taskId, 'attachments', attachments);
     this._graph.setNodeAttribute(taskId, 'updatedAt', Date.now());
     this.ctx.markDirty();
@@ -869,12 +927,15 @@ export class TaskGraphManager {
     if (!this._graph.hasNode(taskId) || isProxy(this._graph, taskId)) return false;
 
     const safe = sanitizeFilename(filename);
+    const entityDir = path.join(dir, taskId);
     const deleted = deleteAttachment(dir, taskId, safe);
     if (!deleted) return false;
 
-    this.mirrorTracker?.recordWrite(path.join(dir, taskId, safe));
+    this.mirrorTracker?.recordWrite(path.join(entityDir, 'attachments', safe));
+    mirrorAttachmentEvent(entityDir, 'remove', safe);
+    this.mirrorTracker?.recordWrite(path.join(entityDir, 'events.jsonl'));
 
-    const attachments = scanAttachments(path.join(dir, taskId), 'task.md');
+    const attachments = scanAttachments(entityDir);
     this._graph.setNodeAttribute(taskId, 'attachments', attachments);
     this._graph.setNodeAttribute(taskId, 'updatedAt', Date.now());
     this.ctx.markDirty();
@@ -887,7 +948,7 @@ export class TaskGraphManager {
     if (!dir) return;
     if (!this._graph.hasNode(taskId) || isProxy(this._graph, taskId)) return;
 
-    const attachments = scanAttachments(path.join(dir, taskId), 'task.md');
+    const attachments = scanAttachments(path.join(dir, taskId));
     this._graph.setNodeAttribute(taskId, 'attachments', attachments);
     this.ctx.markDirty();
   }
@@ -922,6 +983,7 @@ export class TaskGraphManager {
         estimate: parsed.estimate,
         completedAt: parsed.completedAt,
         embedding,
+        attachments: parsed.attachments,
         updatedAt: now,
         createdAt: existing.createdAt,
         version: parsed.version ?? existing.version + 1,
@@ -954,6 +1016,14 @@ export class TaskGraphManager {
 
     this.ctx.markDirty();
     this.ctx.emit(exists ? 'task:updated' : 'task:created', { projectId: this.ctx.projectId, taskId: parsed.id });
+  }
+
+  updateDescriptionFromFile(taskId: string, description: string): void {
+    if (!this._graph.hasNode(taskId) || isProxy(this._graph, taskId)) return;
+    this._graph.setNodeAttribute(taskId, 'description', description);
+    this._graph.setNodeAttribute(taskId, 'updatedAt', Date.now());
+    this.ctx.markDirty();
+    this.ctx.emit('task:updated', { projectId: this.ctx.projectId, taskId });
   }
 
   deleteFromFile(taskId: string): void {

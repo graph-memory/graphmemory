@@ -6,6 +6,7 @@ import type { TaskStatus, TaskPriority } from '../graphs/task-types';
 import type { SkillSource } from '../graphs/skill-types';
 import type { AttachmentMeta } from '../graphs/attachment-types';
 import { scanAttachments } from '../graphs/attachment-types';
+import { readEvents, replayNoteEvents, replayTaskEvents, replaySkillEvents } from './events-log';
 
 const VALID_STATUSES: TaskStatus[] = ['backlog', 'todo', 'in_progress', 'review', 'done', 'cancelled'];
 const VALID_PRIORITIES: TaskPriority[] = ['critical', 'high', 'medium', 'low'];
@@ -106,9 +107,7 @@ export function parseNoteFile(filePath: string): ParsedNoteFile | null {
     const id = extractId(filePath);
     if (!title && !id) return null;
 
-    const dir = path.dirname(filePath);
-    const mdFile = path.basename(filePath);
-    const attachments = scanAttachments(dir, mdFile);
+    const attachments = scanAttachments(path.dirname(filePath));
 
     return {
       id,
@@ -143,9 +142,7 @@ export function parseTaskFile(filePath: string): ParsedTaskFile | null {
     const priority = VALID_PRIORITIES.includes(fm.priority as TaskPriority)
       ? (fm.priority as TaskPriority) : 'medium';
 
-    const dir = path.dirname(filePath);
-    const mdFile = path.basename(filePath);
-    const attachments = scanAttachments(dir, mdFile);
+    const attachments = scanAttachments(path.dirname(filePath));
 
     return {
       id,
@@ -245,9 +242,7 @@ export function parseSkillFile(filePath: string): ParsedSkillFile | null {
       ? (fm.source as SkillSource) : 'user';
     const confidence = typeof fm.confidence === 'number' ? Math.max(0, Math.min(1, fm.confidence)) : 1;
 
-    const dir = path.dirname(filePath);
-    const mdFile = path.basename(filePath);
-    const attachments = scanAttachments(dir, mdFile);
+    const attachments = scanAttachments(path.dirname(filePath));
 
     return {
       id,
@@ -272,6 +267,65 @@ export function parseSkillFile(filePath: string): ParsedSkillFile | null {
     };
   } catch (err) {
     process.stderr.write(`[file-import] failed to parse skill ${filePath}: ${err}\n`);
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Event-sourced directory parsers (new format)
+// ---------------------------------------------------------------------------
+
+/** Parse a note from its entity directory (events.jsonl + content.md). */
+export function parseNoteDir(dirPath: string): ParsedNoteFile | null {
+  try {
+    const eventsPath = path.join(dirPath, 'events.jsonl');
+    if (!fs.existsSync(eventsPath)) return null;
+    const events = readEvents(eventsPath);
+    const contentPath = path.join(dirPath, 'content.md');
+    const content = fs.existsSync(contentPath) ? fs.readFileSync(contentPath, 'utf-8') : '';
+    const parsed = replayNoteEvents(events, content);
+    if (!parsed) return null;
+    // Refresh attachments from disk (overrides event-derived list with accurate metadata)
+    parsed.attachments = scanAttachments(dirPath);
+    return parsed;
+  } catch (err) {
+    process.stderr.write(`[file-import] failed to parse note dir ${dirPath}: ${err}\n`);
+    return null;
+  }
+}
+
+/** Parse a task from its entity directory (events.jsonl + description.md). */
+export function parseTaskDir(dirPath: string): ParsedTaskFile | null {
+  try {
+    const eventsPath = path.join(dirPath, 'events.jsonl');
+    if (!fs.existsSync(eventsPath)) return null;
+    const events = readEvents(eventsPath);
+    const descPath = path.join(dirPath, 'description.md');
+    const description = fs.existsSync(descPath) ? fs.readFileSync(descPath, 'utf-8') : '';
+    const parsed = replayTaskEvents(events, description);
+    if (!parsed) return null;
+    parsed.attachments = scanAttachments(dirPath);
+    return parsed;
+  } catch (err) {
+    process.stderr.write(`[file-import] failed to parse task dir ${dirPath}: ${err}\n`);
+    return null;
+  }
+}
+
+/** Parse a skill from its entity directory (events.jsonl + description.md). */
+export function parseSkillDir(dirPath: string): ParsedSkillFile | null {
+  try {
+    const eventsPath = path.join(dirPath, 'events.jsonl');
+    if (!fs.existsSync(eventsPath)) return null;
+    const events = readEvents(eventsPath);
+    const descPath = path.join(dirPath, 'description.md');
+    const description = fs.existsSync(descPath) ? fs.readFileSync(descPath, 'utf-8') : '';
+    const parsed = replaySkillEvents(events, description);
+    if (!parsed) return null;
+    parsed.attachments = scanAttachments(dirPath);
+    return parsed;
+  } catch (err) {
+    process.stderr.write(`[file-import] failed to parse skill dir ${dirPath}: ${err}\n`);
     return null;
   }
 }

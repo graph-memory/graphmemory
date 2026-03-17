@@ -724,12 +724,12 @@ describe('Attachments (TaskGraphManager)', () => {
     });
 
     it('writes file to disk', () => {
-      const filePath = path.join(tmpDir, '.tasks', taskId, 'readme.txt');
+      const filePath = path.join(tmpDir, '.tasks', taskId, 'attachments', 'readme.txt');
       expect(fs.existsSync(filePath)).toBe(true);
     });
 
     it('file contents match', () => {
-      const filePath = path.join(tmpDir, '.tasks', taskId, 'readme.txt');
+      const filePath = path.join(tmpDir, '.tasks', taskId, 'attachments', 'readme.txt');
       expect(fs.readFileSync(filePath, 'utf-8')).toBe('hello world');
     });
 
@@ -861,7 +861,7 @@ describe('Attachments (TaskGraphManager)', () => {
     });
 
     it('file removed from disk', () => {
-      const p = path.join(tmpDir, '.tasks', taskId, 'to-delete.txt');
+      const p = path.join(tmpDir, '.tasks', taskId, 'attachments', 'to-delete.txt');
       expect(fs.existsSync(p)).toBe(false);
     });
 
@@ -881,9 +881,10 @@ describe('Attachments (TaskGraphManager)', () => {
 
   describe('syncAttachments', () => {
     it('picks up externally added file', () => {
-      // Write a file directly to the task directory (simulating external add)
-      const taskDir = path.join(tmpDir, '.tasks', taskId);
-      fs.writeFileSync(path.join(taskDir, 'external.txt'), 'added externally');
+      // Write a file to the attachments/ subdir (simulating external add)
+      const attDir = path.join(tmpDir, '.tasks', taskId, 'attachments');
+      fs.mkdirSync(attDir, { recursive: true });
+      fs.writeFileSync(path.join(attDir, 'external.txt'), 'added externally');
 
       manager.syncAttachments(taskId);
 
@@ -893,8 +894,8 @@ describe('Attachments (TaskGraphManager)', () => {
 
     it('reflects externally deleted file', () => {
       // Delete a file directly from disk
-      const taskDir = path.join(tmpDir, '.tasks', taskId);
-      const extPath = path.join(taskDir, 'external.txt');
+      const attDir = path.join(tmpDir, '.tasks', taskId, 'attachments');
+      const extPath = path.join(attDir, 'external.txt');
       if (fs.existsSync(extPath)) fs.unlinkSync(extPath);
 
       manager.syncAttachments(taskId);

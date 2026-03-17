@@ -742,12 +742,12 @@ describe('Attachments (SkillGraphManager)', () => {
     });
 
     it('writes file to disk', () => {
-      const filePath = path.join(tmpDir, '.skills', skillId, 'readme.txt');
+      const filePath = path.join(tmpDir, '.skills', skillId, 'attachments', 'readme.txt');
       expect(fs.existsSync(filePath)).toBe(true);
     });
 
     it('file contents match', () => {
-      const filePath = path.join(tmpDir, '.skills', skillId, 'readme.txt');
+      const filePath = path.join(tmpDir, '.skills', skillId, 'attachments', 'readme.txt');
       expect(fs.readFileSync(filePath, 'utf-8')).toBe('hello world');
     });
 
@@ -796,7 +796,7 @@ describe('Attachments (SkillGraphManager)', () => {
     });
 
     it('file removed from disk', () => {
-      const p = path.join(tmpDir, '.skills', skillId, 'to-delete.txt');
+      const p = path.join(tmpDir, '.skills', skillId, 'attachments', 'to-delete.txt');
       expect(fs.existsSync(p)).toBe(false);
     });
 
@@ -807,8 +807,9 @@ describe('Attachments (SkillGraphManager)', () => {
 
   describe('syncAttachments', () => {
     it('picks up externally added file', () => {
-      const skillDir = path.join(tmpDir, '.skills', skillId);
-      fs.writeFileSync(path.join(skillDir, 'external.txt'), 'added externally');
+      const attDir = path.join(tmpDir, '.skills', skillId, 'attachments');
+      fs.mkdirSync(attDir, { recursive: true });
+      fs.writeFileSync(path.join(attDir, 'external.txt'), 'added externally');
       manager.syncAttachments(skillId);
       const attachments = manager.listAttachments(skillId);
       expect(attachments.some((a: { filename: string }) => a.filename === 'external.txt')).toBe(true);

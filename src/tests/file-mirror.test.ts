@@ -3,7 +3,7 @@ import path from 'path';
 import os from 'os';
 import { serializeMarkdown, parseMarkdown } from '@/lib/frontmatter';
 import {
-  writeNoteFile, writeTaskFile, deleteMirrorDir,
+  mirrorNoteCreate, mirrorTaskCreate, deleteMirrorDir,
   sanitizeFilename, writeAttachment, deleteAttachment, getAttachmentPath,
 } from '@/lib/file-mirror';
 import { scanAttachments } from '@/graphs/attachment-types';
@@ -63,8 +63,8 @@ describe('file-mirror', () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  describe('writeNoteFile', () => {
-    it('creates .md file with correct frontmatter and body', () => {
+  describe('mirrorNoteCreate', () => {
+    it('creates events.jsonl, content.md, and note.md', () => {
       const notesDir = path.join(tmpDir, '.notes');
       const attrs = {
         title: 'My Note',
@@ -72,7 +72,7 @@ describe('file-mirror', () => {
         tags: ['test', 'demo'],
         createdAt: 1710000000000,
         updatedAt: 1710000060000,
-        version: 3,
+        version: 1,
       };
       const relations: RelationLike[] = [
         { fromId: 'my-note', toId: 'fix-bug', kind: 'relates_to', targetGraph: 'tasks' },
@@ -80,18 +80,29 @@ describe('file-mirror', () => {
         { fromId: 'incoming', toId: 'my-note', kind: 'blocks' }, // incoming — should be excluded
       ];
 
-      writeNoteFile(notesDir, 'my-note', attrs, relations);
+      mirrorNoteCreate(notesDir, 'my-note', attrs, relations);
 
-      const filePath = path.join(notesDir, 'my-note', 'note.md');
-      expect(fs.existsSync(filePath)).toBe(true);
+      const entityDir = path.join(notesDir, 'my-note');
+      expect(fs.existsSync(path.join(entityDir, 'events.jsonl'))).toBe(true);
+      expect(fs.existsSync(path.join(entityDir, 'content.md'))).toBe(true);
+      expect(fs.existsSync(path.join(entityDir, 'note.md'))).toBe(true);
 
-      const raw = fs.readFileSync(filePath, 'utf-8');
-      const parsed = parseMarkdown(raw);
+      // Verify events.jsonl has created event
+      const eventsRaw = fs.readFileSync(path.join(entityDir, 'events.jsonl'), 'utf-8');
+      const event = JSON.parse(eventsRaw.trim().split('\n')[0]);
+      expect(event.op).toBe('created');
+      expect(event.id).toBe('my-note');
+      expect(event.title).toBe('My Note');
 
+      // Verify content.md
+      const contentRaw = fs.readFileSync(path.join(entityDir, 'content.md'), 'utf-8');
+      expect(contentRaw).toBe('Some content here');
+
+      // Verify note.md snapshot
+      const snapshotRaw = fs.readFileSync(path.join(entityDir, 'note.md'), 'utf-8');
+      const parsed = parseMarkdown(snapshotRaw);
       expect(parsed.frontmatter.id).toBe('my-note');
       expect(parsed.frontmatter.tags).toEqual(['test', 'demo']);
-      expect(parsed.frontmatter.createdAt).toBeTruthy();
-      expect(parsed.frontmatter.updatedAt).toBeTruthy();
 
       // Only outgoing relations
       const rels = parsed.frontmatter.relations as Array<{ to: string; kind: string; graph?: string }>;
@@ -105,7 +116,7 @@ describe('file-mirror', () => {
 
     it('omits relations key when no outgoing relations', () => {
       const notesDir = path.join(tmpDir, '.notes');
-      writeNoteFile(notesDir, 'lonely', {
+      mirrorNoteCreate(notesDir, 'lonely', {
         title: 'Lonely', content: '', tags: [],
         createdAt: 1710000000000, updatedAt: 1710000000000, version: 1,
       }, []);
@@ -113,10 +124,21 @@ describe('file-mirror', () => {
       const raw = fs.readFileSync(path.join(notesDir, 'lonely', 'note.md'), 'utf-8');
       expect(raw).not.toContain('relations');
     });
+
+    it('does not create duplicate events.jsonl on second call', () => {
+      const notesDir = path.join(tmpDir, '.notes');
+      const attrs = { title: 'T', content: '', tags: [], createdAt: 1710000000000, updatedAt: 1710000000000, version: 1 };
+      mirrorNoteCreate(notesDir, 'idempotent', attrs, []);
+      mirrorNoteCreate(notesDir, 'idempotent', attrs, []);
+
+      const eventsRaw = fs.readFileSync(path.join(notesDir, 'idempotent', 'events.jsonl'), 'utf-8');
+      const lines = eventsRaw.trim().split('\n').filter(Boolean);
+      expect(lines).toHaveLength(1); // only one created event
+    });
   });
 
-  describe('writeTaskFile', () => {
-    it('creates .md file with all task fields in frontmatter', () => {
+  describe('mirrorTaskCreate', () => {
+    it('creates events.jsonl, description.md, and task.md', () => {
       const tasksDir = path.join(tmpDir, '.tasks');
       const attrs = {
         title: 'Fix Bug',
@@ -129,14 +151,27 @@ describe('file-mirror', () => {
         completedAt: null,
         createdAt: 1710000000000,
         updatedAt: 1710000060000,
-        version: 2,
+        version: 1,
       };
 
-      writeTaskFile(tasksDir, 'fix-bug', attrs, []);
+      mirrorTaskCreate(tasksDir, 'fix-bug', attrs, []);
 
-      const raw = fs.readFileSync(path.join(tasksDir, 'fix-bug', 'task.md'), 'utf-8');
+      const entityDir = path.join(tasksDir, 'fix-bug');
+      expect(fs.existsSync(path.join(entityDir, 'events.jsonl'))).toBe(true);
+      expect(fs.existsSync(path.join(entityDir, 'description.md'))).toBe(true);
+      expect(fs.existsSync(path.join(entityDir, 'task.md'))).toBe(true);
+
+      // Verify events.jsonl
+      const eventsRaw = fs.readFileSync(path.join(entityDir, 'events.jsonl'), 'utf-8');
+      const event = JSON.parse(eventsRaw.trim().split('\n')[0]);
+      expect(event.op).toBe('created');
+      expect(event.id).toBe('fix-bug');
+      expect(event.status).toBe('in_progress');
+      expect(event.priority).toBe('high');
+
+      // Verify task.md snapshot
+      const raw = fs.readFileSync(path.join(entityDir, 'task.md'), 'utf-8');
       const parsed = parseMarkdown(raw);
-
       expect(parsed.frontmatter.id).toBe('fix-bug');
       expect(parsed.frontmatter.status).toBe('in_progress');
       expect(parsed.frontmatter.priority).toBe('high');
@@ -181,16 +216,18 @@ describe('KnowledgeGraphManager file mirror', () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it('createNote writes .notes/<id>/note.md', async () => {
+  it('createNote writes .notes/<id>/note.md + events.jsonl + content.md', async () => {
     const graph = createKnowledgeGraph();
     const ctx = { ...noopContext(), projectDir: tmpDir };
     const mgr = new KnowledgeGraphManager(graph, fakeEmbed, ctx);
 
     const noteId = await mgr.createNote('Test Note', 'Body text', ['tag1']);
 
-    const filePath = path.join(tmpDir, '.notes', noteId, 'note.md');
-    expect(fs.existsSync(filePath)).toBe(true);
-    const raw = fs.readFileSync(filePath, 'utf-8');
+    const entityDir = path.join(tmpDir, '.notes', noteId);
+    expect(fs.existsSync(path.join(entityDir, 'note.md'))).toBe(true);
+    expect(fs.existsSync(path.join(entityDir, 'events.jsonl'))).toBe(true);
+    expect(fs.existsSync(path.join(entityDir, 'content.md'))).toBe(true);
+    const raw = fs.readFileSync(path.join(entityDir, 'note.md'), 'utf-8');
     expect(raw).toContain('# Test Note');
     expect(raw).toContain('Body text');
   });
@@ -256,16 +293,18 @@ describe('TaskGraphManager file mirror', () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it('createTask writes .tasks/<id>/task.md', async () => {
+  it('createTask writes .tasks/<id>/task.md + events.jsonl + description.md', async () => {
     const graph = createTaskGraph();
     const ctx = { ...noopContext(), projectDir: tmpDir };
     const mgr = new TaskGraphManager(graph, fakeEmbed, ctx);
 
     const taskId = await mgr.createTask('Fix Bug', 'Fix the auth bug', 'todo', 'high', ['auth']);
 
-    const filePath = path.join(tmpDir, '.tasks', taskId, 'task.md');
-    expect(fs.existsSync(filePath)).toBe(true);
-    const raw = fs.readFileSync(filePath, 'utf-8');
+    const entityDir = path.join(tmpDir, '.tasks', taskId);
+    expect(fs.existsSync(path.join(entityDir, 'task.md'))).toBe(true);
+    expect(fs.existsSync(path.join(entityDir, 'events.jsonl'))).toBe(true);
+    expect(fs.existsSync(path.join(entityDir, 'description.md'))).toBe(true);
+    const raw = fs.readFileSync(path.join(entityDir, 'task.md'), 'utf-8');
     expect(raw).toContain('# Fix Bug');
     expect(raw).toContain('Fix the auth bug');
     expect(raw).toContain('status: todo');
@@ -375,35 +414,35 @@ describe('Attachment helpers', () => {
   });
 
   describe('writeAttachment / deleteAttachment / getAttachmentPath', () => {
-    it('writes file to correct location', () => {
+    it('writes file to attachments/ subdirectory', () => {
       const data = Buffer.from('hello world');
       writeAttachment(tmpDir, 'note-1', 'readme.txt', data);
 
-      const filePath = path.join(tmpDir, 'note-1', 'readme.txt');
+      const filePath = path.join(tmpDir, 'note-1', 'attachments', 'readme.txt');
       expect(fs.existsSync(filePath)).toBe(true);
       expect(fs.readFileSync(filePath, 'utf-8')).toBe('hello world');
     });
 
-    it('creates directory if needed', () => {
-      const entityDir = path.join(tmpDir, 'new-entity');
-      expect(fs.existsSync(entityDir)).toBe(false);
+    it('creates attachments/ directory if needed', () => {
+      const attachmentsDir = path.join(tmpDir, 'new-entity', 'attachments');
+      expect(fs.existsSync(attachmentsDir)).toBe(false);
 
       writeAttachment(tmpDir, 'new-entity', 'file.bin', Buffer.from([1, 2, 3]));
-      expect(fs.existsSync(entityDir)).toBe(true);
+      expect(fs.existsSync(attachmentsDir)).toBe(true);
     });
 
     it('sanitizes filename on write', () => {
       writeAttachment(tmpDir, 'ent', '../evil.txt', Buffer.from('data'));
       // Should not write outside entity dir
       expect(fs.existsSync(path.join(tmpDir, 'evil.txt'))).toBe(false);
-      expect(fs.existsSync(path.join(tmpDir, 'ent', 'evil.txt'))).toBe(true);
+      expect(fs.existsSync(path.join(tmpDir, 'ent', 'attachments', 'evil.txt'))).toBe(true);
     });
 
     it('deleteAttachment removes file and returns true', () => {
       writeAttachment(tmpDir, 'ent', 'file.txt', Buffer.from('data'));
       const result = deleteAttachment(tmpDir, 'ent', 'file.txt');
       expect(result).toBe(true);
-      expect(fs.existsSync(path.join(tmpDir, 'ent', 'file.txt'))).toBe(false);
+      expect(fs.existsSync(path.join(tmpDir, 'ent', 'attachments', 'file.txt'))).toBe(false);
     });
 
     it('deleteAttachment returns false for non-existent file', () => {
@@ -411,10 +450,10 @@ describe('Attachment helpers', () => {
       expect(result).toBe(false);
     });
 
-    it('getAttachmentPath returns path when file exists', () => {
+    it('getAttachmentPath returns path in attachments/ when file exists', () => {
       writeAttachment(tmpDir, 'ent', 'pic.png', Buffer.from('png data'));
       const result = getAttachmentPath(tmpDir, 'ent', 'pic.png');
-      expect(result).toBe(path.join(tmpDir, 'ent', 'pic.png'));
+      expect(result).toBe(path.join(tmpDir, 'ent', 'attachments', 'pic.png'));
     });
 
     it('getAttachmentPath returns null when file does not exist', () => {
@@ -425,28 +464,54 @@ describe('Attachment helpers', () => {
 
   describe('scanAttachments', () => {
     it('returns empty array for non-existent directory', () => {
-      const result = scanAttachments(path.join(tmpDir, 'no-such-dir'), 'note.md');
+      const result = scanAttachments(path.join(tmpDir, 'no-such-dir'));
       expect(result).toEqual([]);
     });
 
-    it('scans directory and excludes specified file', () => {
+    it('returns empty array when no attachments/ subdir', () => {
       const dir = path.join(tmpDir, 'scan-ent');
       fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(path.join(dir, 'note.md'), '# Note');
-      fs.writeFileSync(path.join(dir, 'image.png'), Buffer.from([0x89, 0x50]));
+      fs.writeFileSync(path.join(dir, 'events.jsonl'), '{}');
 
-      const result = scanAttachments(dir, 'note.md');
+      // No attachments/ subdir → empty
+      const result = scanAttachments(dir);
+      expect(result).toEqual([]);
+    });
+
+    it('scans attachments/ subdir', () => {
+      const dir = path.join(tmpDir, 'scan-ent2');
+      const attDir = path.join(dir, 'attachments');
+      fs.mkdirSync(attDir, { recursive: true });
+      fs.writeFileSync(path.join(dir, 'note.md'), '# Note');
+      fs.writeFileSync(path.join(attDir, 'image.png'), Buffer.from([0x89, 0x50]));
+
+      const result = scanAttachments(dir);
+      expect(result).toHaveLength(1);
+      expect(result[0].filename).toBe('image.png');
+    });
+
+    it('does not include metadata files from entity dir root', () => {
+      const dir = path.join(tmpDir, 'scan-root');
+      const attDir = path.join(dir, 'attachments');
+      fs.mkdirSync(attDir, { recursive: true });
+      fs.writeFileSync(path.join(dir, 'note.md'), '# Note');
+      fs.writeFileSync(path.join(dir, 'events.jsonl'), '{}');
+      fs.writeFileSync(path.join(attDir, 'image.png'), Buffer.from([0x89, 0x50]));
+
+      const result = scanAttachments(dir);
       expect(result).toHaveLength(1);
       expect(result[0].filename).toBe('image.png');
     });
 
     it('returns correct metadata (filename, mimeType, size)', () => {
       const dir = path.join(tmpDir, 'meta-ent');
-      fs.mkdirSync(dir, { recursive: true });
+      const attDir = path.join(dir, 'attachments');
+      fs.mkdirSync(attDir, { recursive: true });
       const data = Buffer.from('test content');
-      fs.writeFileSync(path.join(dir, 'doc.pdf'), data);
+      fs.writeFileSync(path.join(attDir, 'doc.pdf'), data);
 
-      const result = scanAttachments(dir, 'note.md');
+      const result = scanAttachments(dir);
       expect(result).toHaveLength(1);
       expect(result[0].filename).toBe('doc.pdf');
       expect(result[0].mimeType).toBe('application/pdf');
@@ -457,25 +522,26 @@ describe('Attachment helpers', () => {
 
     it('handles multiple files', () => {
       const dir = path.join(tmpDir, 'multi-ent');
-      fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(path.join(dir, 'task.md'), '# Task');
-      fs.writeFileSync(path.join(dir, 'a.txt'), 'aaa');
-      fs.writeFileSync(path.join(dir, 'b.json'), '{}');
-      fs.writeFileSync(path.join(dir, 'c.png'), Buffer.from([1]));
+      const attDir = path.join(dir, 'attachments');
+      fs.mkdirSync(attDir, { recursive: true });
+      fs.writeFileSync(path.join(attDir, 'a.txt'), 'aaa');
+      fs.writeFileSync(path.join(attDir, 'b.json'), '{}');
+      fs.writeFileSync(path.join(attDir, 'c.png'), Buffer.from([1]));
 
-      const result = scanAttachments(dir, 'task.md');
+      const result = scanAttachments(dir);
       expect(result).toHaveLength(3);
       const names = result.map(r => r.filename).sort();
       expect(names).toEqual(['a.txt', 'b.json', 'c.png']);
     });
 
-    it('excludes subdirectories', () => {
+    it('excludes subdirectories inside attachments/', () => {
       const dir = path.join(tmpDir, 'subdir-ent');
-      fs.mkdirSync(path.join(dir, 'nested'), { recursive: true });
-      fs.writeFileSync(path.join(dir, 'file.txt'), 'ok');
-      fs.writeFileSync(path.join(dir, 'nested', 'deep.txt'), 'hidden');
+      const attDir = path.join(dir, 'attachments');
+      fs.mkdirSync(path.join(attDir, 'nested'), { recursive: true });
+      fs.writeFileSync(path.join(attDir, 'file.txt'), 'ok');
+      fs.writeFileSync(path.join(attDir, 'nested', 'deep.txt'), 'hidden');
 
-      const result = scanAttachments(dir, 'note.md');
+      const result = scanAttachments(dir);
       expect(result).toHaveLength(1);
       expect(result[0].filename).toBe('file.txt');
     });
@@ -484,9 +550,10 @@ describe('Attachment helpers', () => {
   describe('deleteMirrorDir for attachments', () => {
     it('removes entire directory with contents', () => {
       const dir = path.join(tmpDir, 'doomed');
-      fs.mkdirSync(dir, { recursive: true });
+      const attDir = path.join(dir, 'attachments');
+      fs.mkdirSync(attDir, { recursive: true });
       fs.writeFileSync(path.join(dir, 'note.md'), '# Note');
-      fs.writeFileSync(path.join(dir, 'att.png'), 'png');
+      fs.writeFileSync(path.join(attDir, 'att.png'), 'png');
 
       deleteMirrorDir(tmpDir, 'doomed');
       expect(fs.existsSync(dir)).toBe(false);

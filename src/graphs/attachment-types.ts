@@ -10,20 +10,20 @@ export interface AttachmentMeta {
 }
 
 /**
- * Scan a directory for attachment files (everything except the given exclude filename).
+ * Scan the attachments/ subdirectory of an entity directory.
  * Returns metadata for each file found.
  */
-export function scanAttachments(dir: string, exclude: string): AttachmentMeta[] {
+export function scanAttachments(entityDir: string): AttachmentMeta[] {
   try {
-    if (!fs.existsSync(dir)) return [];
-    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    const attachmentsDir = path.join(entityDir, 'attachments');
+    if (!fs.existsSync(attachmentsDir)) return [];
+    const entries = fs.readdirSync(attachmentsDir, { withFileTypes: true });
     const attachments: AttachmentMeta[] = [];
 
     for (const entry of entries) {
       if (!entry.isFile()) continue;
-      if (entry.name === exclude) continue;
 
-      const filePath = path.join(dir, entry.name);
+      const filePath = path.join(attachmentsDir, entry.name);
       try {
         const stat = fs.statSync(filePath);
         attachments.push({

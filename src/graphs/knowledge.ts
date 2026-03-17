@@ -7,7 +7,7 @@ import type { EmbedFn, GraphManagerContext, ExternalGraphs } from '@/graphs/mana
 import { resolveExternalGraph, VersionConflictError } from '@/graphs/manager-types';
 import { searchKnowledge, type KnowledgeSearchResult } from '@/lib/search/knowledge';
 import { BM25Index } from '@/lib/search/bm25';
-import { writeNoteFile, deleteMirrorDir, writeAttachment, deleteAttachment, getAttachmentPath as getAttPath, sanitizeFilename } from '@/lib/file-mirror';
+import { mirrorNoteCreate, mirrorNoteUpdate, mirrorNoteRelation, mirrorAttachmentEvent, deleteMirrorDir, writeAttachment, deleteAttachment, getAttachmentPath as getAttPath, sanitizeFilename } from '@/lib/file-mirror';
 import type { MirrorWriteTracker } from '@/lib/mirror-watcher';
 import type { ParsedNoteFile } from '@/lib/file-import';
 import type { AttachmentMeta } from '@/graphs/attachment-types';
@@ -524,14 +524,13 @@ export class KnowledgeGraphManager {
     return this.ctx.projectDir ? path.join(this.ctx.projectDir, '.notes') : undefined;
   }
 
-  private mirrorNote(noteId: string): void {
+  private recordMirrorWrites(noteId: string): void {
     const dir = this.notesDir;
-    if (!dir) return;
-    const note = getNote(this._graph, noteId);
-    if (!note) return;
-    const relations = listRelations(this._graph, noteId, this.ext);
-    writeNoteFile(dir, noteId, note, relations);
-    this.mirrorTracker?.recordWrite(path.join(dir, noteId, 'note.md'));
+    if (!dir || !this.mirrorTracker) return;
+    const entityDir = path.join(dir, noteId);
+    this.mirrorTracker.recordWrite(path.join(entityDir, 'events.jsonl'));
+    this.mirrorTracker.recordWrite(path.join(entityDir, 'note.md'));
+    this.mirrorTracker.recordWrite(path.join(entityDir, 'content.md'));
   }
 
   // -- Write (mutations with embed + dirty + emit + cross-graph cleanup) --
@@ -542,7 +541,12 @@ export class KnowledgeGraphManager {
     this._bm25Index.addDocument(noteId, this._graph.getNodeAttributes(noteId));
     this.ctx.markDirty();
     this.ctx.emit('note:created', { projectId: this.ctx.projectId, noteId });
-    this.mirrorNote(noteId);
+    const dir = this.notesDir;
+    if (dir) {
+      const attrs = this._graph.getNodeAttributes(noteId);
+      mirrorNoteCreate(dir, noteId, attrs, []);
+      this.recordMirrorWrites(noteId);
+    }
     return noteId;
   }
 
@@ -556,7 +560,13 @@ export class KnowledgeGraphManager {
     this._bm25Index.updateDocument(noteId, this._graph.getNodeAttributes(noteId));
     this.ctx.markDirty();
     this.ctx.emit('note:updated', { projectId: this.ctx.projectId, noteId });
-    this.mirrorNote(noteId);
+    const dir = this.notesDir;
+    if (dir) {
+      const attrs = this._graph.getNodeAttributes(noteId);
+      const relations = listRelations(this._graph, noteId, this.ext);
+      mirrorNoteUpdate(dir, noteId, { ...patch, by: this.ctx.author }, attrs, relations);
+      this.recordMirrorWrites(noteId);
+    }
     return true;
   }
 
@@ -594,13 +604,27 @@ export class KnowledgeGraphManager {
     }
     if (ok) {
       this.ctx.markDirty();
-      this.mirrorNote(fromId);
-      if (!targetGraph) this.mirrorNote(toId);
+      const dir = this.notesDir;
+      if (dir) {
+        const attrs = this._graph.getNodeAttributes(fromId);
+        const relations = listRelations(this._graph, fromId, this.ext);
+        mirrorNoteRelation(dir, fromId, 'add', kind, toId, attrs, relations, targetGraph);
+        this.recordMirrorWrites(fromId);
+      }
     }
     return ok;
   }
 
   deleteRelation(fromId: string, toId: string, targetGraph?: CrossGraphType): boolean {
+    // Read edge kind before deleting (for event log)
+    let kind = '';
+    try {
+      const actualToId = targetGraph ? proxyId(targetGraph, toId) : toId;
+      if (this._graph.hasEdge(fromId, actualToId)) {
+        kind = this._graph.getEdgeAttribute(this._graph.edge(fromId, actualToId)!, 'kind') ?? '';
+      }
+    } catch { /* ignore */ }
+
     let ok: boolean;
     if (targetGraph) {
       ok = deleteCrossRelation(this._graph, fromId, targetGraph, toId);
@@ -613,8 +637,13 @@ export class KnowledgeGraphManager {
     }
     if (ok) {
       this.ctx.markDirty();
-      this.mirrorNote(fromId);
-      if (!targetGraph && !isProxy(this._graph, toId)) this.mirrorNote(toId);
+      const dir = this.notesDir;
+      if (dir) {
+        const attrs = this._graph.getNodeAttributes(fromId);
+        const relations = listRelations(this._graph, fromId, this.ext);
+        mirrorNoteRelation(dir, fromId, 'remove', kind, toId, attrs, relations, targetGraph);
+        this.recordMirrorWrites(fromId);
+      }
     }
     return ok;
   }
@@ -630,9 +659,11 @@ export class KnowledgeGraphManager {
     if (!safe) return null;
 
     writeAttachment(dir, noteId, safe, data);
-    this.mirrorTracker?.recordWrite(path.join(dir, noteId, safe));
+    this.mirrorTracker?.recordWrite(path.join(dir, noteId, 'attachments', safe));
+    mirrorAttachmentEvent(path.join(dir, noteId), 'add', safe);
+    this.mirrorTracker?.recordWrite(path.join(dir, noteId, 'events.jsonl'));
 
-    const attachments = scanAttachments(path.join(dir, noteId), 'note.md');
+    const attachments = scanAttachments(path.join(dir, noteId));
     this._graph.setNodeAttribute(noteId, 'attachments', attachments);
     this._graph.setNodeAttribute(noteId, 'updatedAt', Date.now());
     this.ctx.markDirty();
@@ -650,9 +681,11 @@ export class KnowledgeGraphManager {
     const deleted = deleteAttachment(dir, noteId, safe);
     if (!deleted) return false;
 
-    this.mirrorTracker?.recordWrite(path.join(dir, noteId, safe));
+    this.mirrorTracker?.recordWrite(path.join(dir, noteId, 'attachments', safe));
+    mirrorAttachmentEvent(path.join(dir, noteId), 'remove', safe);
+    this.mirrorTracker?.recordWrite(path.join(dir, noteId, 'events.jsonl'));
 
-    const attachments = scanAttachments(path.join(dir, noteId), 'note.md');
+    const attachments = scanAttachments(path.join(dir, noteId));
     this._graph.setNodeAttribute(noteId, 'attachments', attachments);
     this._graph.setNodeAttribute(noteId, 'updatedAt', Date.now());
     this.ctx.markDirty();
@@ -665,7 +698,7 @@ export class KnowledgeGraphManager {
     if (!dir) return;
     if (!this._graph.hasNode(noteId) || isProxy(this._graph, noteId)) return;
 
-    const attachments = scanAttachments(path.join(dir, noteId), 'note.md');
+    const attachments = scanAttachments(path.join(dir, noteId));
     this._graph.setNodeAttribute(noteId, 'attachments', attachments);
     this.ctx.markDirty();
   }
@@ -695,6 +728,7 @@ export class KnowledgeGraphManager {
         content: parsed.content,
         tags: parsed.tags,
         embedding,
+        attachments: parsed.attachments,
         updatedAt: now,
         createdAt: existing.createdAt,
         version: parsed.version ?? existing.version + 1,
@@ -724,6 +758,14 @@ export class KnowledgeGraphManager {
 
     this.ctx.markDirty();
     this.ctx.emit(exists ? 'note:updated' : 'note:created', { projectId: this.ctx.projectId, noteId: parsed.id });
+  }
+
+  updateContentFromFile(noteId: string, content: string): void {
+    if (!this._graph.hasNode(noteId) || isProxy(this._graph, noteId)) return;
+    this._graph.setNodeAttribute(noteId, 'content', content);
+    this._graph.setNodeAttribute(noteId, 'updatedAt', Date.now());
+    this.ctx.markDirty();
+    this.ctx.emit('note:updated', { projectId: this.ctx.projectId, noteId });
   }
 
   deleteFromFile(noteId: string): void {

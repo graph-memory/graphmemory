@@ -9,7 +9,7 @@ import type { EmbedFn, GraphManagerContext, ExternalGraphs } from '@/graphs/mana
 import { resolveExternalGraph, VersionConflictError } from '@/graphs/manager-types';
 import { searchSkills, type SkillSearchResult } from '@/lib/search/skills';
 import { BM25Index } from '@/lib/search/bm25';
-import { writeSkillFile, deleteMirrorDir, writeAttachment, deleteAttachment, getAttachmentPath as getAttPath, sanitizeFilename } from '@/lib/file-mirror';
+import { mirrorSkillCreate, mirrorSkillUpdate, mirrorSkillRelation, mirrorAttachmentEvent, deleteMirrorDir, writeAttachment, deleteAttachment, getAttachmentPath as getAttPath, sanitizeFilename } from '@/lib/file-mirror';
 import type { MirrorWriteTracker } from '@/lib/mirror-watcher';
 import type { ParsedSkillFile } from '@/lib/file-import';
 import { scanAttachments } from '@/graphs/attachment-types';
@@ -754,14 +754,13 @@ export class SkillGraphManager {
     return this.ctx.projectDir ? path.join(this.ctx.projectDir, '.skills') : undefined;
   }
 
-  private mirrorSkill(skillId: string): void {
+  private recordMirrorWrites(skillId: string): void {
     const dir = this.skillsDir;
-    if (!dir) return;
-    const skill = getSkill(this._graph, skillId);
-    if (!skill) return;
-    const relations = listSkillRelations(this._graph, skillId, this.ext);
-    writeSkillFile(dir, skillId, skill, relations);
-    this.mirrorTracker?.recordWrite(path.join(dir, skillId, 'skill.md'));
+    if (!dir || !this.mirrorTracker) return;
+    const entityDir = path.join(dir, skillId);
+    this.mirrorTracker.recordWrite(path.join(entityDir, 'events.jsonl'));
+    this.mirrorTracker.recordWrite(path.join(entityDir, 'skill.md'));
+    this.mirrorTracker.recordWrite(path.join(entityDir, 'description.md'));
   }
 
   // -- Write (mutations with embed + dirty + emit + cross-graph cleanup) --
@@ -782,7 +781,12 @@ export class SkillGraphManager {
     this._bm25Index.addDocument(skillId, this._graph.getNodeAttributes(skillId));
     this.ctx.markDirty();
     this.ctx.emit('skill:created', { projectId: this.ctx.projectId, skillId });
-    this.mirrorSkill(skillId);
+    const dir = this.skillsDir;
+    if (dir) {
+      const attrs = this._graph.getNodeAttributes(skillId);
+      mirrorSkillCreate(dir, skillId, attrs, []);
+      this.recordMirrorWrites(skillId);
+    }
     return skillId;
   }
 
@@ -800,7 +804,13 @@ export class SkillGraphManager {
     this._bm25Index.updateDocument(skillId, this._graph.getNodeAttributes(skillId));
     this.ctx.markDirty();
     this.ctx.emit('skill:updated', { projectId: this.ctx.projectId, skillId });
-    this.mirrorSkill(skillId);
+    const dir = this.skillsDir;
+    if (dir) {
+      const attrs = this._graph.getNodeAttributes(skillId);
+      const relations = listSkillRelations(this._graph, skillId, this.ext);
+      mirrorSkillUpdate(dir, skillId, { ...patch, by: this.ctx.author }, attrs, relations);
+      this.recordMirrorWrites(skillId);
+    }
     return true;
   }
 
@@ -837,7 +847,13 @@ export class SkillGraphManager {
     if (!ok) return false;
     this.ctx.markDirty();
     this.ctx.emit('skill:updated', { projectId: this.ctx.projectId, skillId });
-    this.mirrorSkill(skillId);
+    const dir = this.skillsDir;
+    if (dir) {
+      const attrs = this._graph.getNodeAttributes(skillId);
+      const relations = listSkillRelations(this._graph, skillId, this.ext);
+      mirrorSkillUpdate(dir, skillId, { usageCount: attrs.usageCount, lastUsedAt: attrs.lastUsedAt, by: this.ctx.author }, attrs, relations);
+      this.recordMirrorWrites(skillId);
+    }
     return true;
   }
 
@@ -845,8 +861,13 @@ export class SkillGraphManager {
     const ok = createSkillRelation(this._graph, fromId, toId, kind);
     if (ok) {
       this.ctx.markDirty();
-      this.mirrorSkill(fromId);
-      this.mirrorSkill(toId);
+      const dir = this.skillsDir;
+      if (dir) {
+        const fromAttrs = this._graph.getNodeAttributes(fromId);
+        const fromRels = listSkillRelations(this._graph, fromId, this.ext);
+        mirrorSkillRelation(dir, fromId, 'add', kind, toId, fromAttrs, fromRels);
+        this.recordMirrorWrites(fromId);
+      }
     }
     return ok;
   }
@@ -864,12 +885,27 @@ export class SkillGraphManager {
     }
     if (ok) {
       this.ctx.markDirty();
-      this.mirrorSkill(skillId);
+      const dir = this.skillsDir;
+      if (dir) {
+        const attrs = this._graph.getNodeAttributes(skillId);
+        const relations = listSkillRelations(this._graph, skillId, this.ext);
+        mirrorSkillRelation(dir, skillId, 'add', kind, targetId, attrs, relations, targetGraph);
+        this.recordMirrorWrites(skillId);
+      }
     }
     return ok;
   }
 
   deleteCrossLink(skillId: string, targetId: string, targetGraph: SkillCrossGraphType): boolean {
+    // Read edge kind before deleting
+    let kind = '';
+    try {
+      const proxyNodeId = `@${targetGraph}::${targetId}`;
+      if (this._graph.hasEdge(skillId, proxyNodeId)) {
+        kind = this._graph.getEdgeAttribute(this._graph.edge(skillId, proxyNodeId)!, 'kind') ?? '';
+      }
+    } catch { /* ignore */ }
+
     const ok = deleteCrossRelation(this._graph, skillId, targetGraph, targetId);
     if (ok && targetGraph === 'knowledge' && this.knowledgeGraph) {
       deleteMirrorFromKnowledgeGraph(this.knowledgeGraph, skillId, targetId);
@@ -879,17 +915,36 @@ export class SkillGraphManager {
     }
     if (ok) {
       this.ctx.markDirty();
-      this.mirrorSkill(skillId);
+      const dir = this.skillsDir;
+      if (dir) {
+        const attrs = this._graph.getNodeAttributes(skillId);
+        const relations = listSkillRelations(this._graph, skillId, this.ext);
+        mirrorSkillRelation(dir, skillId, 'remove', kind, targetId, attrs, relations, targetGraph);
+        this.recordMirrorWrites(skillId);
+      }
     }
     return ok;
   }
 
   deleteSkillLink(fromId: string, toId: string): boolean {
+    // Read edge kind before deleting
+    let kind = '';
+    try {
+      if (this._graph.hasEdge(fromId, toId)) {
+        kind = this._graph.getEdgeAttribute(this._graph.edge(fromId, toId)!, 'kind') ?? '';
+      }
+    } catch { /* ignore */ }
+
     const ok = deleteSkillRelation(this._graph, fromId, toId);
     if (ok) {
       this.ctx.markDirty();
-      this.mirrorSkill(fromId);
-      this.mirrorSkill(toId);
+      const dir = this.skillsDir;
+      if (dir) {
+        const fromAttrs = this._graph.getNodeAttributes(fromId);
+        const fromRels = listSkillRelations(this._graph, fromId, this.ext);
+        mirrorSkillRelation(dir, fromId, 'remove', kind, toId, fromAttrs, fromRels);
+        this.recordMirrorWrites(fromId);
+      }
     }
     return ok;
   }
@@ -904,10 +959,13 @@ export class SkillGraphManager {
     const safe = sanitizeFilename(filename);
     if (!safe) return null;
 
+    const entityDir = path.join(dir, skillId);
     writeAttachment(dir, skillId, safe, data);
-    this.mirrorTracker?.recordWrite(path.join(dir, skillId, safe));
+    this.mirrorTracker?.recordWrite(path.join(entityDir, 'attachments', safe));
+    mirrorAttachmentEvent(entityDir, 'add', safe);
+    this.mirrorTracker?.recordWrite(path.join(entityDir, 'events.jsonl'));
 
-    const attachments = scanAttachments(path.join(dir, skillId), 'skill.md');
+    const attachments = scanAttachments(entityDir);
     this._graph.setNodeAttribute(skillId, 'attachments', attachments);
     this._graph.setNodeAttribute(skillId, 'updatedAt', Date.now());
     this.ctx.markDirty();
@@ -922,12 +980,15 @@ export class SkillGraphManager {
     if (!this._graph.hasNode(skillId) || isProxy(this._graph, skillId)) return false;
 
     const safe = sanitizeFilename(filename);
+    const entityDir = path.join(dir, skillId);
     const deleted = deleteAttachment(dir, skillId, safe);
     if (!deleted) return false;
 
-    this.mirrorTracker?.recordWrite(path.join(dir, skillId, safe));
+    this.mirrorTracker?.recordWrite(path.join(entityDir, 'attachments', safe));
+    mirrorAttachmentEvent(entityDir, 'remove', safe);
+    this.mirrorTracker?.recordWrite(path.join(entityDir, 'events.jsonl'));
 
-    const attachments = scanAttachments(path.join(dir, skillId), 'skill.md');
+    const attachments = scanAttachments(entityDir);
     this._graph.setNodeAttribute(skillId, 'attachments', attachments);
     this._graph.setNodeAttribute(skillId, 'updatedAt', Date.now());
     this.ctx.markDirty();
@@ -940,7 +1001,7 @@ export class SkillGraphManager {
     if (!dir) return;
     if (!this._graph.hasNode(skillId) || isProxy(this._graph, skillId)) return;
 
-    const attachments = scanAttachments(path.join(dir, skillId), 'skill.md');
+    const attachments = scanAttachments(path.join(dir, skillId));
     this._graph.setNodeAttribute(skillId, 'attachments', attachments);
     this.ctx.markDirty();
   }
@@ -975,7 +1036,10 @@ export class SkillGraphManager {
         tags: parsed.tags,
         source: parsed.source,
         confidence: parsed.confidence,
+        usageCount: parsed.usageCount ?? existing.usageCount,
+        lastUsedAt: parsed.lastUsedAt ?? existing.lastUsedAt,
         embedding,
+        attachments: parsed.attachments,
         updatedAt: now,
         createdAt: existing.createdAt,
         version: parsed.version ?? existing.version + 1,
@@ -1011,6 +1075,14 @@ export class SkillGraphManager {
 
     this.ctx.markDirty();
     this.ctx.emit(exists ? 'skill:updated' : 'skill:created', { projectId: this.ctx.projectId, skillId: parsed.id });
+  }
+
+  updateDescriptionFromFile(skillId: string, description: string): void {
+    if (!this._graph.hasNode(skillId) || isProxy(this._graph, skillId)) return;
+    this._graph.setNodeAttribute(skillId, 'description', description);
+    this._graph.setNodeAttribute(skillId, 'updatedAt', Date.now());
+    this.ctx.markDirty();
+    this.ctx.emit('skill:updated', { projectId: this.ctx.projectId, skillId });
   }
 
   deleteFromFile(skillId: string): void {

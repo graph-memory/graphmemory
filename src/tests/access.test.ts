@@ -32,6 +32,7 @@ function makeServerConfig(overrides?: Partial<ServerConfig>): ServerConfig {
   return {
     host: '127.0.0.1', port: 3000, sessionTimeout: 1800,
     modelsDir: '/tmp/models', embedding: EMBED, defaultAccess: 'rw',
+    accessTokenTtl: '15m', refreshTokenTtl: '7d',
     ...overrides,
   };
 }

@@ -1,4 +1,4 @@
-import { request, unwrapList, authHeaders, type ListResponse } from '@/shared/api/client.ts';
+import { request, unwrapList, type ListResponse } from '@/shared/api/client.ts';
 
 export interface GraphInfo {
   enabled: boolean;
@@ -57,6 +57,6 @@ export interface AuthStatus {
 }
 
 export async function checkAuthStatus(): Promise<AuthStatus> {
-  const res = await fetch('/api/auth/status', { headers: authHeaders() });
+  const res = await fetch('/api/auth/status', { credentials: 'include' });
   return res.json();
 }

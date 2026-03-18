@@ -1,18 +1,36 @@
 const BASE = '/api';
 
-let _apiKey: string | null = null;
+let _onAuthFailure: (() => void) | null = null;
 
-export function setApiKey(key: string | null) { _apiKey = key; }
-export function getApiKey(): string | null { return _apiKey; }
+/** Register a callback for when auth fails (refresh exhausted). Called by AuthGate. */
+export function onAuthFailure(cb: () => void) { _onAuthFailure = cb; }
 
-export function authHeaders(): Record<string, string> {
-  if (_apiKey) return { 'Authorization': `Bearer ${_apiKey}` };
-  return {};
+async function tryRefresh(): Promise<boolean> {
+  try {
+    const res = await fetch(`${BASE}/auth/refresh`, { method: 'POST', credentials: 'include' });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json', ...authHeaders(), ...init?.headers as any };
-  const res = await fetch(`${BASE}${path}`, { ...init, headers });
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', ...init?.headers as any };
+  const doFetch = () => fetch(`${BASE}${path}`, { ...init, headers, credentials: 'include' });
+
+  let res = await doFetch();
+
+  // On 401, try refresh once then retry
+  if (res.status === 401) {
+    const refreshed = await tryRefresh();
+    if (refreshed) {
+      res = await doFetch();
+    } else {
+      _onAuthFailure?.();
+      throw new Error('Session expired');
+    }
+  }
+
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(body.error || res.statusText);

@@ -1,34 +1,35 @@
 import { useState } from 'react';
 import { Box, Card, CardContent, TextField, Button, Typography, Alert } from '@mui/material';
-import { setApiKey } from '@/shared/api/client.ts';
-import { checkAuthStatus } from '@/entities/project/api.ts';
 
 interface LoginPageProps {
   onSuccess: () => void;
 }
 
 export default function LoginPage({ onSuccess }: LoginPageProps) {
-  const [key, setKey] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!key.trim()) return;
+    if (!email.trim() || !password) return;
     setLoading(true);
     setError('');
     try {
-      setApiKey(key.trim());
-      const status = await checkAuthStatus();
-      if (status.authenticated) {
-        localStorage.setItem('apiKey', key.trim());
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+      if (res.ok) {
         onSuccess();
       } else {
-        setApiKey(null);
-        setError('Invalid API key');
+        const body = await res.json().catch(() => ({ error: 'Login failed' }));
+        setError(body.error || 'Login failed');
       }
     } catch {
-      setApiKey(null);
       setError('Connection failed');
     } finally {
       setLoading(false);
@@ -41,21 +42,29 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
         <CardContent>
           <Typography variant="h5" gutterBottom align="center">Graph Memory</Typography>
           <Typography variant="body2" color="text.secondary" gutterBottom align="center">
-            Enter your API key to continue
+            Sign in to continue
           </Typography>
           <form onSubmit={handleSubmit}>
             <TextField
               fullWidth
-              label="API Key"
-              type="password"
-              value={key}
-              onChange={e => setKey(e.target.value)}
+              label="Email"
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
               margin="normal"
               autoFocus
             />
+            <TextField
+              fullWidth
+              label="Password"
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              margin="normal"
+            />
             {error && <Alert severity="error" sx={{ mt: 1 }}>{error}</Alert>}
-            <Button fullWidth variant="contained" type="submit" disabled={loading || !key.trim()} sx={{ mt: 2 }}>
-              {loading ? 'Checking...' : 'Sign In'}
+            <Button fullWidth variant="contained" type="submit" disabled={loading || !email.trim() || !password} sx={{ mt: 2 }}>
+              {loading ? 'Signing in...' : 'Sign In'}
             </Button>
           </form>
         </CardContent>

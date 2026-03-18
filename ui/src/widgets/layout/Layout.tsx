@@ -19,6 +19,7 @@ import PsychologyIcon from '@mui/icons-material/Psychology';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import BuildIcon from '@mui/icons-material/Build';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
+import LogoutIcon from '@mui/icons-material/Logout';
 import { useProjects, type WorkspaceInfo } from '@/entities/project/index.ts';
 import { useThemeMode } from '@/shared/lib/ThemeModeContext.tsx';
 import { WsProvider } from '@/shared/lib/useWebSocket.ts';
@@ -253,6 +254,16 @@ export default function Layout() {
           </Box>
           <IconButton color="inherit" onClick={toggle} title={`Switch to ${mode === 'dark' ? 'light' : 'dark'} mode`}>
             {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
+          </IconButton>
+          <IconButton
+            color="inherit"
+            title="Sign out"
+            onClick={async () => {
+              await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+              window.location.reload();
+            }}
+          >
+            <LogoutIcon />
           </IconButton>
         </Toolbar>
       </AppBar>

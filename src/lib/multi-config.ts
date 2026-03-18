@@ -31,9 +31,10 @@ const accessLevelSchema = z.enum(['deny', 'r', 'rw']);
 const accessMapSchema = z.record(z.string(), accessLevelSchema).optional();
 
 const userSchema = z.object({
-  name:   z.string(),
-  email:  z.string(),
-  apiKey: z.string(),
+  name:         z.string(),
+  email:        z.string(),
+  apiKey:       z.string(),
+  passwordHash: z.string().optional(),
 });
 
 const graphConfigSchema = z.object({
@@ -92,6 +93,9 @@ const serverSchema = z.object({
   embeddingApi:    embeddingApiSchema.optional(),
   defaultAccess:   accessLevelSchema.optional(),
   access:          accessMapSchema,
+  jwtSecret:       z.string().optional(),
+  accessTokenTtl:  z.string().optional(),
+  refreshTokenTtl: z.string().optional(),
 });
 
 const wsGraphConfigSchema = z.object({
@@ -146,6 +150,7 @@ export interface UserConfig {
   name: string;
   email: string;
   apiKey: string;
+  passwordHash?: string;
 }
 
 export interface AuthorConfig {
@@ -191,6 +196,9 @@ export interface ServerConfig {
   embeddingApi?: EmbeddingApiConfig;
   defaultAccess: AccessLevel;
   access?: AccessMap;
+  jwtSecret?: string;
+  accessTokenTtl: string;
+  refreshTokenTtl: string;
 }
 
 export interface GraphConfig {
@@ -264,12 +272,14 @@ const EMBEDDING_DEFAULTS: EmbeddingConfig = {
 };
 
 const SERVER_DEFAULTS: Omit<ServerConfig, 'embedding'> & { embedding: EmbeddingConfig } = {
-  host:           '127.0.0.1',
-  port:           3000,
-  sessionTimeout: 1800,
-  modelsDir:      path.join(HOME, '.graph-memory/models'),
-  embedding:      EMBEDDING_DEFAULTS,
-  defaultAccess:  'rw',
+  host:            '127.0.0.1',
+  port:            3000,
+  sessionTimeout:  1800,
+  modelsDir:       path.join(HOME, '.graph-memory/models'),
+  embedding:       EMBEDDING_DEFAULTS,
+  defaultAccess:   'rw',
+  accessTokenTtl:  '15m',
+  refreshTokenTtl: '7d',
 };
 
 const PROJECT_DEFAULTS = {
@@ -346,22 +356,25 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
   const globalEmbedding = resolveEmbeddingConfig(srv.embedding, EMBEDDING_DEFAULTS);
 
   const server: ServerConfig = {
-    host:           srv.host           ?? SERVER_DEFAULTS.host,
-    port:           srv.port           ?? SERVER_DEFAULTS.port,
-    sessionTimeout: srv.sessionTimeout ?? SERVER_DEFAULTS.sessionTimeout,
-    modelsDir:      path.resolve(srv.modelsDir ?? SERVER_DEFAULTS.modelsDir),
-    corsOrigins:    srv.corsOrigins,
-    embedding:      globalEmbedding,
-    embeddingApi:   srv.embeddingApi ? { enabled: !!srv.embeddingApi.enabled, apiKey: srv.embeddingApi.apiKey } : undefined,
-    defaultAccess:  srv.defaultAccess  ?? SERVER_DEFAULTS.defaultAccess,
-    access:         srv.access         ?? undefined,
+    host:            srv.host            ?? SERVER_DEFAULTS.host,
+    port:            srv.port            ?? SERVER_DEFAULTS.port,
+    sessionTimeout:  srv.sessionTimeout  ?? SERVER_DEFAULTS.sessionTimeout,
+    modelsDir:       path.resolve(srv.modelsDir ?? SERVER_DEFAULTS.modelsDir),
+    corsOrigins:     srv.corsOrigins,
+    embedding:       globalEmbedding,
+    embeddingApi:    srv.embeddingApi ? { enabled: !!srv.embeddingApi.enabled, apiKey: srv.embeddingApi.apiKey } : undefined,
+    defaultAccess:   srv.defaultAccess   ?? SERVER_DEFAULTS.defaultAccess,
+    access:          srv.access          ?? undefined,
+    jwtSecret:       srv.jwtSecret,
+    accessTokenTtl:  srv.accessTokenTtl  ?? SERVER_DEFAULTS.accessTokenTtl,
+    refreshTokenTtl: srv.refreshTokenTtl ?? SERVER_DEFAULTS.refreshTokenTtl,
   };
 
   // Users
   const users: Record<string, UserConfig> = {};
   if (validated.users) {
     for (const [id, raw] of Object.entries(validated.users)) {
-      users[id] = { name: raw.name, email: raw.email, apiKey: raw.apiKey };
+      users[id] = { name: raw.name, email: raw.email, apiKey: raw.apiKey, passwordHash: raw.passwordHash };
     }
   }
 

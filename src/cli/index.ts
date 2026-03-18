@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
 import path from 'path';
+import fs from 'fs';
+import crypto from 'crypto';
+import readline from 'readline';
 import { loadMultiConfig, GRAPH_NAMES, embeddingFingerprint, type ProjectConfig, type ServerConfig, type GraphName } from '@/lib/multi-config';
+import { hashPassword } from '@/lib/jwt';
 import { ProjectManager } from '@/lib/project-manager';
 import { loadModel, embed, embedQuery } from '@/lib/embedder';
 import { loadGraph, saveGraph } from '@/graphs/docs';
@@ -345,6 +349,12 @@ program
     const port = opts.port ?? mc.server.port;
     const sessionTimeoutMs = mc.server.sessionTimeout * 1000;
 
+    // Validate jwtSecret when users are defined
+    const hasUsers = Object.keys(mc.users).length > 0;
+    if (hasUsers && !mc.server.jwtSecret) {
+      process.stderr.write('[serve] Warning: users are defined but server.jwtSecret is not set. UI password login will not work (API key auth still works).\n');
+    }
+
     const reindex = !!opts.reindex;
     if (reindex) process.stderr.write('[serve] Re-indexing all projects from scratch\n');
 
@@ -519,6 +529,127 @@ program
 
     process.on('SIGINT',  () => { void shutdown(); });
     process.on('SIGTERM', () => { void shutdown(); });
+  });
+
+// ---------------------------------------------------------------------------
+// Command: users — manage users in config
+// ---------------------------------------------------------------------------
+
+const usersCmd = program
+  .command('users')
+  .description('Manage users in graph-memory.yaml');
+
+usersCmd
+  .command('add')
+  .description('Add a new user interactively')
+  .option('--config <path>', 'Path to graph-memory.yaml', 'graph-memory.yaml')
+  .action(async (opts: { config: string }) => {
+    const configPath = path.resolve(opts.config);
+
+    // Read raw YAML to preserve formatting
+    let yamlContent: string;
+    try {
+      yamlContent = fs.readFileSync(configPath, 'utf-8');
+    } catch {
+      process.stderr.write(`[users] Cannot read config: ${configPath}\n`);
+      process.exit(1);
+    }
+
+    // Validate config loads
+    const mc = loadMultiConfig(configPath);
+
+    const rl = readline.createInterface({ input: process.stdin, output: process.stderr });
+    const ask = (q: string): Promise<string> => new Promise(resolve => rl.question(q, resolve));
+    const askHidden = (q: string): Promise<string> => new Promise(resolve => {
+      process.stderr.write(q);
+      const stdin = process.stdin;
+      const wasRaw = stdin.isRaw;
+      if (stdin.isTTY) stdin.setRawMode(true);
+      let input = '';
+      const onData = (ch: Buffer) => {
+        const c = ch.toString();
+        if (c === '\n' || c === '\r') {
+          if (stdin.isTTY) stdin.setRawMode(wasRaw ?? false);
+          stdin.removeListener('data', onData);
+          process.stderr.write('\n');
+          resolve(input);
+        } else if (c === '\u0003') {
+          // Ctrl+C
+          if (stdin.isTTY) stdin.setRawMode(wasRaw ?? false);
+          process.exit(0);
+        } else if (c === '\u007f' || c === '\b') {
+          input = input.slice(0, -1);
+        } else {
+          input += c;
+        }
+      };
+      stdin.on('data', onData);
+    });
+
+    try {
+      const userId = await ask('User ID (e.g. "prih"): ');
+      if (!userId.trim()) { process.stderr.write('User ID is required\n'); process.exit(1); }
+      const id = userId.trim();
+
+      if (mc.users[id]) {
+        process.stderr.write(`[users] User "${id}" already exists in config\n`);
+        process.exit(1);
+      }
+
+      const name = (await ask('Name: ')).trim();
+      if (!name) { process.stderr.write('Name is required\n'); process.exit(1); }
+
+      const email = (await ask('Email: ')).trim();
+      if (!email) { process.stderr.write('Email is required\n'); process.exit(1); }
+
+      const password = await askHidden('Password: ');
+      if (!password) { process.stderr.write('Password is required\n'); process.exit(1); }
+
+      const password2 = await askHidden('Confirm password: ');
+      if (password !== password2) { process.stderr.write('Passwords do not match\n'); process.exit(1); }
+
+      const pwHash = await hashPassword(password);
+      const apiKey = `mgm-${crypto.randomBytes(24).toString('base64url')}`;
+
+      // Build YAML block for the new user
+      const userBlock = [
+        `  ${id}:`,
+        `    name: "${name}"`,
+        `    email: "${email}"`,
+        `    apiKey: "${apiKey}"`,
+        `    passwordHash: "${pwHash}"`,
+      ].join('\n');
+
+      // Insert into YAML — find existing `users:` section or add one
+      if (yamlContent.includes('\nusers:')) {
+        // Append under existing users: section
+        yamlContent = yamlContent.replace(/\nusers:\s*\n/, (match) => {
+          return match + userBlock + '\n';
+        });
+      } else if (yamlContent.startsWith('users:')) {
+        yamlContent = yamlContent.replace(/^users:\s*\n/, (match) => {
+          return match + userBlock + '\n';
+        });
+      } else {
+        // Add users section at the end
+        yamlContent = yamlContent.trimEnd() + '\n\nusers:\n' + userBlock + '\n';
+      }
+
+      fs.writeFileSync(configPath, yamlContent, 'utf-8');
+
+      // Validate the result
+      try {
+        loadMultiConfig(configPath);
+      } catch (err) {
+        process.stderr.write(`[users] Warning: config validation failed after edit: ${err}\n`);
+      }
+
+      process.stderr.write(`\nUser "${id}" added successfully.\n`);
+      process.stderr.write(`  API Key: ${apiKey}\n`);
+      process.stderr.write(`  (save this key — it cannot be recovered)\n`);
+    } finally {
+      rl.close();
+    }
   });
 
 program.parse();

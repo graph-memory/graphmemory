@@ -2,10 +2,16 @@ import fs from 'fs';
 import path from 'path';
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import type { ProjectManager } from '@/lib/project-manager';
 import type { ServerConfig, UserConfig, GraphName } from '@/lib/multi-config';
 import { GRAPH_NAMES } from '@/lib/multi-config';
 import { resolveAccess, resolveUserFromApiKey, canRead, canWrite } from '@/lib/access';
+import {
+  verifyPassword, signAccessToken, signRefreshToken,
+  verifyToken, setAuthCookies, clearAuthCookies,
+  getAccessToken, getRefreshToken, resolveUserByEmail,
+} from '@/lib/jwt';
 import { createKnowledgeRouter } from '@/api/rest/knowledge';
 import { createTasksRouter } from '@/api/rest/tasks';
 import { createSkillsRouter } from '@/api/rest/skills';
@@ -47,8 +53,9 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
   const hasUsers = Object.keys(users).length > 0;
 
   const corsOrigins = serverConfig?.corsOrigins;
-  app.use(cors(corsOrigins?.length ? { origin: corsOrigins } : undefined));
+  app.use(cors(corsOrigins?.length ? { origin: corsOrigins, credentials: true } : { credentials: true }));
   app.use(express.json({ limit: '10mb' }));
+  app.use(cookieParser());
 
   // Security headers
   app.use((_req, res, next) => {
@@ -57,20 +64,118 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
     next();
   });
 
-  // Auth status endpoint (before auth middleware — always accessible)
+  const jwtSecret = serverConfig?.jwtSecret;
+  const accessTokenTtl = serverConfig?.accessTokenTtl ?? '15m';
+  const refreshTokenTtl = serverConfig?.refreshTokenTtl ?? '7d';
+
+  // --- Auth endpoints (before auth middleware — always accessible) ---
+
+  // Auth status: check cookie JWT or Bearer apiKey
   app.get('/api/auth/status', (req, res) => {
     if (!hasUsers) return res.json({ required: false, authenticated: false });
+
+    // 1. Cookie JWT
+    if (jwtSecret) {
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        const payload = verifyToken(accessToken, jwtSecret);
+        if (payload?.type === 'access' && users[payload.userId]) {
+          const user = users[payload.userId];
+          return res.json({ required: true, authenticated: true, userId: payload.userId, name: user.name });
+        }
+      }
+    }
+
+    // 2. Bearer apiKey
     const auth = req.headers.authorization;
     if (auth?.startsWith('Bearer ')) {
       const result = resolveUserFromApiKey(auth.slice(7), users);
       if (result) return res.json({ required: true, authenticated: true, userId: result.userId, name: result.user.name });
     }
+
     return res.json({ required: true, authenticated: false });
   });
 
-  // Auth middleware: resolve user from Bearer token
+  // Login: email + password → set JWT cookies
+  app.post('/api/auth/login', async (req, res) => {
+    if (!hasUsers || !jwtSecret) {
+      return res.status(400).json({ error: 'Authentication not configured' });
+    }
+    const { email, password } = req.body ?? {};
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    const result = resolveUserByEmail(email, users);
+    if (!result || !result.user.passwordHash) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const valid = await verifyPassword(password, result.user.passwordHash);
+    if (!valid) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const accessToken = signAccessToken(result.userId, jwtSecret, accessTokenTtl);
+    const refreshToken = signRefreshToken(result.userId, jwtSecret, refreshTokenTtl);
+    setAuthCookies(res, accessToken, refreshToken, accessTokenTtl, refreshTokenTtl);
+
+    res.json({ userId: result.userId, name: result.user.name });
+  });
+
+  // Refresh: refresh cookie → new access cookie
+  app.post('/api/auth/refresh', (req, res) => {
+    if (!hasUsers || !jwtSecret) {
+      return res.status(400).json({ error: 'Authentication not configured' });
+    }
+
+    const refreshToken = getRefreshToken(req);
+    if (!refreshToken) {
+      return res.status(401).json({ error: 'No refresh token' });
+    }
+
+    const payload = verifyToken(refreshToken, jwtSecret);
+    if (!payload || payload.type !== 'refresh') {
+      return res.status(401).json({ error: 'Invalid refresh token' });
+    }
+
+    // Check user still exists
+    if (!users[payload.userId]) {
+      clearAuthCookies(res);
+      return res.status(401).json({ error: 'User no longer exists' });
+    }
+
+    const newAccessToken = signAccessToken(payload.userId, jwtSecret, accessTokenTtl);
+    const newRefreshToken = signRefreshToken(payload.userId, jwtSecret, refreshTokenTtl);
+    setAuthCookies(res, newAccessToken, newRefreshToken, accessTokenTtl, refreshTokenTtl);
+
+    res.json({ userId: payload.userId, name: users[payload.userId].name });
+  });
+
+  // Logout: clear cookies
+  app.post('/api/auth/logout', (_req, res) => {
+    clearAuthCookies(res);
+    res.json({ ok: true });
+  });
+
+  // --- Auth middleware: cookie JWT → Bearer apiKey → anonymous ---
   if (hasUsers) {
     app.use('/api/', (req, _res, next) => {
+      // 1. Cookie JWT (from UI login)
+      if (jwtSecret) {
+        const accessToken = getAccessToken(req);
+        if (accessToken) {
+          const payload = verifyToken(accessToken, jwtSecret);
+          if (payload?.type === 'access' && users[payload.userId]) {
+            (req as any).userId = payload.userId;
+            (req as any).user = users[payload.userId];
+            return next();
+          }
+          // Invalid/expired JWT cookie — don't reject, fall through to Bearer
+        }
+      }
+
+      // 2. Bearer apiKey (from MCP/API clients)
       const auth = req.headers.authorization;
       if (auth?.startsWith('Bearer ')) {
         const apiKey = auth.slice(7);
@@ -78,11 +183,12 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
         if (result) {
           (req as any).userId = result.userId;
           (req as any).user = result.user;
-        } else {
-          return _res.status(401).json({ error: 'Invalid API key' });
+          return next();
         }
+        return _res.status(401).json({ error: 'Invalid API key' });
       }
-      // No auth header = anonymous (uses defaultAccess)
+
+      // 3. No auth = anonymous (uses defaultAccess)
       next();
     });
   }

@@ -763,6 +763,7 @@ describe('REST API — Auth & ACL', () => {
         embedding: { ...TEST_EMBEDDING },
         defaultAccess: 'deny',
         access: { admin: 'rw' },
+        accessTokenTtl: '15m', refreshTokenTtl: '7d',
       },
       users: {
         admin: { name: 'Admin', email: 'admin@test.com', apiKey: 'key-admin' },
@@ -809,6 +810,7 @@ describe('REST API — Auth & ACL', () => {
         embedding: { ...TEST_EMBEDDING },
         defaultAccess: 'deny',
         access: { reader: 'r' },
+        accessTokenTtl: '15m', refreshTokenTtl: '7d',
       },
       users: {
         reader: { name: 'Reader', email: 'reader@test.com', apiKey: 'key-reader' },
@@ -873,6 +875,7 @@ describe('REST API — Embedding API', () => {
         embedding: { ...TEST_EMBEDDING },
         embeddingApi: { enabled: true, apiKey: 'emb-secret' },
         defaultAccess: 'rw',
+        accessTokenTtl: '15m', refreshTokenTtl: '7d',
       },
       embeddingApiModelName: EMBED_MODEL_NAME,
     });
@@ -940,9 +943,173 @@ describe('REST API — Embedding API', () => {
         modelsDir: '/tmp/models',
         embedding: { ...TEST_EMBEDDING },
         defaultAccess: 'rw',
+        accessTokenTtl: '15m', refreshTokenTtl: '7d',
       },
     });
     const res = await request(noEmbedApp).post('/api/embed').send({ texts: ['test'] });
     expect(res.status).toBe(404);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// JWT Cookie Auth tests
+// ---------------------------------------------------------------------------
+
+import { hashPassword } from '@/lib/jwt';
+
+describe('REST API — JWT Cookie Auth', () => {
+  let app: ReturnType<typeof createRestApp>;
+  const JWT_SECRET = 'test-jwt-secret-key';
+  let adminPasswordHash: string;
+
+  beforeAll(async () => {
+    adminPasswordHash = await hashPassword('admin-pass');
+  });
+
+  beforeEach(() => {
+    const project = createTestProject();
+    const manager = {
+      getProject: (id: string) => id === 'test' ? project : undefined,
+      listProjects: () => ['test'],
+      listWorkspaces: () => [],
+      getWorkspace: () => undefined,
+    } as unknown as ProjectManager;
+
+    app = createRestApp(manager, {
+      serverConfig: {
+        host: '127.0.0.1', port: 3000, sessionTimeout: 1800,
+        modelsDir: '/tmp/models',
+        embedding: { ...TEST_EMBEDDING },
+        defaultAccess: 'deny',
+        access: { admin: 'rw' },
+        jwtSecret: JWT_SECRET,
+        accessTokenTtl: '15m', refreshTokenTtl: '7d',
+      },
+      users: {
+        admin: { name: 'Admin', email: 'admin@test.com', apiKey: 'key-admin', passwordHash: adminPasswordHash },
+        nopass: { name: 'NoPass', email: 'nopass@test.com', apiKey: 'key-nopass' },
+      },
+    });
+  });
+
+  it('login with valid email+password returns 200 and sets cookies', async () => {
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'admin@test.com', password: 'admin-pass' });
+    expect(res.status).toBe(200);
+    expect(res.body.userId).toBe('admin');
+    expect(res.body.name).toBe('Admin');
+    // Should have Set-Cookie headers
+    const cookies: string[] = Array.isArray(res.headers['set-cookie'])
+      ? res.headers['set-cookie'] : [res.headers['set-cookie']].filter(Boolean);
+    expect(cookies.length).toBeGreaterThan(0);
+    expect(cookies.some(c => c.startsWith('mgm_access='))).toBe(true);
+    expect(cookies.some(c => c.startsWith('mgm_refresh='))).toBe(true);
+  });
+
+  it('login with wrong password returns 401', async () => {
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'admin@test.com', password: 'wrong' });
+    expect(res.status).toBe(401);
+    expect(res.body.error).toMatch(/Invalid credentials/);
+  });
+
+  it('login with unknown email returns 401', async () => {
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'unknown@test.com', password: 'test' });
+    expect(res.status).toBe(401);
+  });
+
+  it('login with user without passwordHash returns 401', async () => {
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'nopass@test.com', password: 'test' });
+    expect(res.status).toBe(401);
+  });
+
+  it('login with missing fields returns 400', async () => {
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({});
+    expect(res.status).toBe(400);
+  });
+
+  it('cookie auth grants access to protected endpoints', async () => {
+    // Login first
+    const loginRes = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'admin@test.com', password: 'admin-pass' });
+    const rawCookies = loginRes.headers['set-cookie'];
+    const cookies: string[] = Array.isArray(rawCookies) ? rawCookies : [rawCookies].filter(Boolean);
+
+    // Use cookies to access protected endpoint
+    const res = await request(app)
+      .get('/api/projects/test/knowledge/notes')
+      .set('Cookie', cookies);
+    expect(res.status).toBe(200);
+  });
+
+  it('auth/status returns authenticated with valid cookie', async () => {
+    const loginRes = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'admin@test.com', password: 'admin-pass' });
+    const rawCookies = loginRes.headers['set-cookie'];
+    const cookies: string[] = Array.isArray(rawCookies) ? rawCookies : [rawCookies].filter(Boolean);
+
+    const res = await request(app)
+      .get('/api/auth/status')
+      .set('Cookie', cookies);
+    expect(res.status).toBe(200);
+    expect(res.body.authenticated).toBe(true);
+    expect(res.body.userId).toBe('admin');
+  });
+
+  it('auth/status returns unauthenticated without cookie', async () => {
+    const res = await request(app).get('/api/auth/status');
+    expect(res.status).toBe(200);
+    expect(res.body.required).toBe(true);
+    expect(res.body.authenticated).toBe(false);
+  });
+
+  it('refresh endpoint renews access token', async () => {
+    const loginRes = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'admin@test.com', password: 'admin-pass' });
+    const rawCookies = loginRes.headers['set-cookie'];
+    const cookies: string[] = Array.isArray(rawCookies) ? rawCookies : [rawCookies].filter(Boolean);
+
+    // Extract refresh cookie only
+    const refreshCookie = cookies.find(c => c.startsWith('mgm_refresh='))!;
+
+    const res = await request(app)
+      .post('/api/auth/refresh')
+      .set('Cookie', [refreshCookie]);
+    expect(res.status).toBe(200);
+    expect(res.body.userId).toBe('admin');
+    // Should set new cookies
+    expect(res.headers['set-cookie']).toBeDefined();
+  });
+
+  it('refresh rejects without refresh cookie', async () => {
+    const res = await request(app).post('/api/auth/refresh');
+    expect(res.status).toBe(401);
+  });
+
+  it('logout clears cookies', async () => {
+    const res = await request(app).post('/api/auth/logout');
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    const cookies = res.headers['set-cookie'];
+    // Cookies should be cleared (empty value or expired)
+    expect(cookies).toBeDefined();
+  });
+
+  it('Bearer apiKey still works alongside cookie auth', async () => {
+    const res = await request(app)
+      .get('/api/projects/test/knowledge/notes')
+      .set('Authorization', 'Bearer key-admin');
+    expect(res.status).toBe(200);
   });
 });

@@ -133,10 +133,9 @@ export function listSkillAttachments(projectId: string, skillId: string) {
 export async function uploadSkillAttachment(projectId: string, skillId: string, file: File): Promise<AttachmentMeta> {
   const form = new FormData();
   form.append('file', file);
-  const { authHeaders } = await import('@/shared/api/client');
   const res = await fetch(`/api/projects/${projectId}/skills/${skillId}/attachments`, {
     method: 'POST',
-    headers: authHeaders(),
+    credentials: 'include',
     body: form,
   });
   if (!res.ok) {

@@ -424,6 +424,7 @@ export async function startMultiProjectHttpServer(
   port: number,
   sessionTimeoutMs: number,
   projectManager: ProjectManager,
+  restOptions?: import('@/api/rest/index').RestAppOptions,
 ): Promise<http.Server> {
   const sessions = new Map<string, MultiProjectHttpSession>();
 
@@ -441,7 +442,7 @@ export async function startMultiProjectHttpServer(
   sweepInterval.unref();
 
   // Express app handles /api/* routes
-  const restApp = createRestApp(projectManager);
+  const restApp = createRestApp(projectManager, restOptions);
 
   const httpServer = http.createServer(async (req, res) => {
     // Route /api/* to Express

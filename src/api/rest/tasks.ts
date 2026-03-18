@@ -4,6 +4,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import type { ProjectInstance } from '@/lib/project-manager';
 import { validateBody, validateQuery, createTaskSchema, updateTaskSchema, moveTaskSchema, createTaskLinkSchema, taskSearchSchema, taskListSchema, linkedQuerySchema, attachmentFilenameSchema } from '@/api/rest/validation';
+import { requireWriteAccess } from '@/api/rest/index';
 import { VersionConflictError } from '@/graphs/manager-types';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
@@ -61,7 +62,7 @@ export function createTasksRouter(): Router {
   });
 
   // Create task
-  router.post('/', validateBody(createTaskSchema), async (req, res, next) => {
+  router.post('/', requireWriteAccess, validateBody(createTaskSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
       const { title, description, status, priority, tags, dueDate, estimate } = req.body;
@@ -74,7 +75,7 @@ export function createTasksRouter(): Router {
   });
 
   // Update task
-  router.put('/:taskId', validateBody(updateTaskSchema), async (req, res, next) => {
+  router.put('/:taskId', requireWriteAccess, validateBody(updateTaskSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
       const taskId = req.params.taskId as string;
@@ -95,7 +96,7 @@ export function createTasksRouter(): Router {
   });
 
   // Move task (change status) — action, so POST
-  router.post('/:taskId/move', validateBody(moveTaskSchema), async (req, res, next) => {
+  router.post('/:taskId/move', requireWriteAccess, validateBody(moveTaskSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
       const taskId = req.params.taskId as string;
@@ -116,7 +117,7 @@ export function createTasksRouter(): Router {
   });
 
   // Delete task
-  router.delete('/:taskId', async (req, res, next) => {
+  router.delete('/:taskId', requireWriteAccess, async (req, res, next) => {
     try {
       const p = getProject(req);
       const taskId = req.params.taskId as string;
@@ -129,7 +130,7 @@ export function createTasksRouter(): Router {
   });
 
   // Create task link (task-to-task or cross-graph)
-  router.post('/links', validateBody(createTaskLinkSchema), async (req, res, next) => {
+  router.post('/links', requireWriteAccess, validateBody(createTaskLinkSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
       const { fromId, toId, kind, targetGraph, projectId } = req.body;
@@ -146,7 +147,7 @@ export function createTasksRouter(): Router {
   });
 
   // Delete task link
-  router.delete('/links', validateBody(createTaskLinkSchema.pick({ fromId: true, toId: true, targetGraph: true, projectId: true })), async (req, res, next) => {
+  router.delete('/links', requireWriteAccess, validateBody(createTaskLinkSchema.pick({ fromId: true, toId: true, targetGraph: true, projectId: true })), async (req, res, next) => {
     try {
       const p = getProject(req);
       const { fromId, toId, targetGraph, projectId } = req.body;
@@ -174,7 +175,7 @@ export function createTasksRouter(): Router {
   // -- Attachments --
 
   // Upload attachment
-  router.post('/:taskId/attachments', upload.single('file'), async (req, res, next) => {
+  router.post('/:taskId/attachments', requireWriteAccess, upload.single('file'), async (req, res, next) => {
     try {
       const p = getProject(req);
       const taskId = req.params.taskId as string;
@@ -216,7 +217,7 @@ export function createTasksRouter(): Router {
   });
 
   // Delete attachment
-  router.delete('/:taskId/attachments/:filename', async (req, res, next) => {
+  router.delete('/:taskId/attachments/:filename', requireWriteAccess, async (req, res, next) => {
     try {
       const p = getProject(req);
       const taskId = req.params.taskId as string;

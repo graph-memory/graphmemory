@@ -3,6 +3,9 @@ import path from 'path';
 import express from 'express';
 import cors from 'cors';
 import type { ProjectManager } from '@/lib/project-manager';
+import type { ServerConfig, UserConfig, GraphName } from '@/lib/multi-config';
+import { GRAPH_NAMES } from '@/lib/multi-config';
+import { resolveAccess, resolveUserFromApiKey, canRead, canWrite } from '@/lib/access';
 import { createKnowledgeRouter } from '@/api/rest/knowledge';
 import { createTasksRouter } from '@/api/rest/tasks';
 import { createSkillsRouter } from '@/api/rest/skills';
@@ -12,12 +15,33 @@ import { createFilesRouter } from '@/api/rest/files';
 import { createGraphRouter } from '@/api/rest/graph';
 import { createToolsRouter } from '@/api/rest/tools';
 
+export interface RestAppOptions {
+  serverConfig?: ServerConfig;
+  users?: Record<string, UserConfig>;
+}
+
+/**
+ * Express middleware: reject if accessLevel (set by requireGraphAccess) is not 'rw'.
+ * Use on POST/PUT/DELETE routes inside domain routers.
+ */
+export function requireWriteAccess(req: express.Request, res: express.Response, next: express.NextFunction): void {
+  const level = (req as any).accessLevel;
+  if (level && level !== 'rw') {
+    res.status(403).json({ error: 'Read-only access' });
+    return;
+  }
+  next();
+}
+
 /**
  * Create an Express app with all REST routes mounted.
  * Each route uses the ProjectManager to look up project-specific graphs.
  */
-export function createRestApp(projectManager: ProjectManager): express.Express {
+export function createRestApp(projectManager: ProjectManager, options?: RestAppOptions): express.Express {
   const app = express();
+  const serverConfig = options?.serverConfig;
+  const users = options?.users ?? {};
+  const hasUsers = Object.keys(users).length > 0;
 
   app.use(cors());
   app.use(express.json({ limit: '10mb' }));
@@ -28,6 +52,25 @@ export function createRestApp(projectManager: ProjectManager): express.Express {
     res.setHeader('X-Frame-Options', 'DENY');
     next();
   });
+
+  // Auth middleware: resolve user from Bearer token
+  if (hasUsers) {
+    app.use('/api/', (req, _res, next) => {
+      const auth = req.headers.authorization;
+      if (auth?.startsWith('Bearer ')) {
+        const apiKey = auth.slice(7);
+        const result = resolveUserFromApiKey(apiKey, users);
+        if (result) {
+          (req as any).userId = result.userId;
+          (req as any).user = result.user;
+        } else {
+          return _res.status(401).json({ error: 'Invalid API key' });
+        }
+      }
+      // No auth header = anonymous (uses defaultAccess)
+      next();
+    });
+  }
 
   // Project resolution middleware — injects project instance into req
   app.param('projectId', (req, _res, next, projectId: string) => {
@@ -41,21 +84,26 @@ export function createRestApp(projectManager: ProjectManager): express.Express {
 
   // List projects
   app.get('/api/projects', (_req, res) => {
+    const userId = (_req as any).userId as string | undefined;
     const projects = projectManager.listProjects().map(id => {
       const p = projectManager.getProject(id)!;
       const gc = p.config.graphConfigs;
+      const ws = p.workspaceId ? projectManager.getWorkspace(p.workspaceId) : undefined;
+
+      // Per-graph info: enabled + access level for current user
+      const graphs: Record<string, { enabled: boolean; access: string | null }> = {};
+      for (const gn of GRAPH_NAMES) {
+        const access = serverConfig
+          ? resolveAccess(userId, gn, p.config, serverConfig, ws?.config)
+          : 'rw';
+        graphs[gn] = { enabled: gc[gn].enabled, access: gc[gn].enabled ? access : null };
+      }
+
       return {
         id,
         projectDir: p.config.projectDir,
         workspaceId: p.workspaceId ?? null,
-        graphs: {
-          docs:      { enabled: gc.docs.enabled },
-          code:      { enabled: gc.code.enabled },
-          knowledge: { enabled: gc.knowledge.enabled },
-          files:     { enabled: gc.files.enabled },
-          tasks:     { enabled: gc.tasks.enabled },
-          skills:    { enabled: gc.skills.enabled },
-        },
+        graphs,
         stats: {
           docs:      p.docGraph      ? p.docGraph.order      : 0,
           code:      p.codeGraph     ? p.codeGraph.order      : 0,
@@ -105,13 +153,39 @@ export function createRestApp(projectManager: ProjectManager): express.Express {
     };
   }
 
-  // Mount domain routers (gated by manager existence)
-  app.use('/api/projects/:projectId/knowledge', requireManager('knowledgeManager'), createKnowledgeRouter());
-  app.use('/api/projects/:projectId/tasks', requireManager('taskManager'), createTasksRouter());
-  app.use('/api/projects/:projectId/skills', requireManager('skillManager'), createSkillsRouter());
-  app.use('/api/projects/:projectId/docs', requireManager('docManager'), createDocsRouter());
-  app.use('/api/projects/:projectId/code', requireManager('codeManager'), createCodeRouter());
-  app.use('/api/projects/:projectId/files', requireManager('fileIndexManager'), createFilesRouter());
+  // Middleware: check access level for a graph (read or read-write)
+  function requireGraphAccess(graphName: GraphName, level: 'r' | 'rw') {
+    return (req: express.Request, _res: express.Response, next: express.NextFunction) => {
+      if (!serverConfig) return next(); // no config = no auth enforcement
+      const p = (req as any).project;
+      if (!p) return next();
+      const userId = (req as any).userId as string | undefined;
+      const ws = p.workspaceId ? projectManager.getWorkspace(p.workspaceId) : undefined;
+      const access = resolveAccess(userId, graphName, p.config, serverConfig, ws?.config);
+      if (!canRead(access)) {
+        return _res.status(403).json({ error: 'Access denied' });
+      }
+      if (level === 'rw' && !canWrite(access)) {
+        return _res.status(403).json({ error: 'Read-only access' });
+      }
+      (req as any).accessLevel = access;
+      next();
+    };
+  }
+
+  // Helper: combine requireManager + read access check
+  function graphMiddleware(managerKey: keyof import('@/lib/project-manager').ProjectInstance, graphName: GraphName) {
+    return [requireManager(managerKey), requireGraphAccess(graphName, 'r')];
+  }
+
+  // Mount domain routers (gated by manager existence + read access)
+  // Mutation endpoints (POST/PUT/DELETE) inside routers check req.accessLevel for write access
+  app.use('/api/projects/:projectId/knowledge', ...graphMiddleware('knowledgeManager', 'knowledge'), createKnowledgeRouter());
+  app.use('/api/projects/:projectId/tasks', ...graphMiddleware('taskManager', 'tasks'), createTasksRouter());
+  app.use('/api/projects/:projectId/skills', ...graphMiddleware('skillManager', 'skills'), createSkillsRouter());
+  app.use('/api/projects/:projectId/docs', ...graphMiddleware('docManager', 'docs'), createDocsRouter());
+  app.use('/api/projects/:projectId/code', ...graphMiddleware('codeManager', 'code'), createCodeRouter());
+  app.use('/api/projects/:projectId/files', ...graphMiddleware('fileIndexManager', 'files'), createFilesRouter());
   app.use('/api/projects/:projectId/graph', createGraphRouter());
   app.use('/api/projects/:projectId/tools', createToolsRouter(projectManager));
 

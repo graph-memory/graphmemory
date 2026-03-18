@@ -375,4 +375,65 @@ workspaces:
     expect(ws.graphMemory).toBe('/tmp/a/.graph-memory/workspace');
     expect(ws.mirrorDir).toBe(ws.graphMemory);
   });
+
+  it('parses users and access config', () => {
+    const yamlPath = tmpYaml(`
+users:
+  alice:
+    name: "Alice"
+    email: "alice@example.com"
+    apiKey: "key-alice"
+  bob:
+    name: "Bob"
+    email: "bob@example.com"
+    apiKey: "key-bob"
+server:
+  defaultAccess: deny
+  access:
+    alice: rw
+projects:
+  a:
+    projectDir: /tmp/a
+    access:
+      bob: r
+    graphs:
+      knowledge:
+        access:
+          bob: rw
+workspaces:
+  ws:
+    projects: [a]
+    access:
+      bob: r
+`);
+    const mc = loadMultiConfig(yamlPath);
+    // Users
+    expect(Object.keys(mc.users)).toEqual(['alice', 'bob']);
+    expect(mc.users.alice.name).toBe('Alice');
+    expect(mc.users.alice.apiKey).toBe('key-alice');
+    // Server
+    expect(mc.server.defaultAccess).toBe('deny');
+    expect(mc.server.access).toEqual({ alice: 'rw' });
+    // Project
+    const p = mc.projects.get('a')!;
+    expect(p.access).toEqual({ bob: 'r' });
+    // Graph
+    expect(p.graphConfigs.knowledge.access).toEqual({ bob: 'rw' });
+    expect(p.graphConfigs.docs.access).toBeUndefined();
+    // Workspace
+    const ws = mc.workspaces.get('ws')!;
+    expect(ws.access).toEqual({ bob: 'r' });
+  });
+
+  it('defaults to rw when no access config', () => {
+    const yamlPath = tmpYaml(`
+projects:
+  a:
+    projectDir: /tmp/a
+`);
+    const mc = loadMultiConfig(yamlPath);
+    expect(mc.server.defaultAccess).toBe('rw');
+    expect(mc.server.access).toBeUndefined();
+    expect(mc.users).toEqual({});
+  });
 });

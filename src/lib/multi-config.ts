@@ -25,11 +25,21 @@ const embeddingConfigSchema = z.object({
   batchSize:       z.number().int().positive().optional(),
 });
 
+const accessLevelSchema = z.enum(['deny', 'r', 'rw']);
+const accessMapSchema = z.record(z.string(), accessLevelSchema).optional();
+
+const userSchema = z.object({
+  name:   z.string(),
+  email:  z.string(),
+  apiKey: z.string(),
+});
+
 const graphConfigSchema = z.object({
   enabled:        z.boolean().optional(),
   pattern:        z.string().optional(),
   excludePattern: z.string().optional(),
   embedding:      embeddingConfigSchema.optional(),
+  access:         accessMapSchema,
   // Legacy: flat partial embedding overrides (e.g. graphs.docs.model)
   model:          z.string().optional(),
   pooling:        z.enum(['mean', 'cls']).optional(),
@@ -62,6 +72,7 @@ const projectSchema = z.object({
   embedding:       embeddingConfigSchema.optional(),
   graphs:          graphsConfigSchema.optional(),
   author:          authorSchema.optional(),
+  access:          accessMapSchema,
 });
 
 const serverSchema = z.object({
@@ -70,6 +81,8 @@ const serverSchema = z.object({
   sessionTimeout:  z.number().int().positive().optional(),
   modelsDir:       z.string().optional(),
   embedding:       embeddingConfigSchema.optional(),
+  defaultAccess:   accessLevelSchema.optional(),
+  access:          accessMapSchema,
 });
 
 const wsGraphConfigSchema = z.object({
@@ -98,11 +111,13 @@ const workspaceSchema = z.object({
   embedding:      embeddingConfigSchema.optional(),
   graphs:         wsGraphsConfigSchema.optional(),
   author:         authorSchema.optional(),
+  access:         accessMapSchema,
 });
 
 const configFileSchema = z.object({
   author:     authorSchema.optional(),
   server:     serverSchema.optional(),
+  users:      z.record(z.string(), userSchema).optional(),
   projects:   z.record(z.string(), projectSchema),
   workspaces: z.record(z.string(), workspaceSchema).optional(),
 });
@@ -114,6 +129,15 @@ const configFileSchema = z.object({
 export type GraphName = 'docs' | 'code' | 'knowledge' | 'tasks' | 'files' | 'skills';
 
 export const GRAPH_NAMES: GraphName[] = ['docs', 'code', 'knowledge', 'tasks', 'files', 'skills'];
+
+export type AccessLevel = 'deny' | 'r' | 'rw';
+export type AccessMap = Record<string, AccessLevel>;
+
+export interface UserConfig {
+  name: string;
+  email: string;
+  apiKey: string;
+}
 
 export interface AuthorConfig {
   name: string;
@@ -147,6 +171,8 @@ export interface ServerConfig {
   sessionTimeout: number;
   modelsDir: string;
   embedding: EmbeddingConfig;
+  defaultAccess: AccessLevel;
+  access?: AccessMap;
 }
 
 export interface GraphConfig {
@@ -154,6 +180,7 @@ export interface GraphConfig {
   pattern?: string;
   excludePattern?: string;
   embedding: EmbeddingConfig;
+  access?: AccessMap;
 }
 
 export interface ProjectConfig {
@@ -167,6 +194,7 @@ export interface ProjectConfig {
   embedding: EmbeddingConfig;
   graphConfigs: Record<GraphName, GraphConfig>;
   author: AuthorConfig;
+  access?: AccessMap;
 }
 
 export type WsGraphName = 'knowledge' | 'tasks' | 'skills';
@@ -178,11 +206,13 @@ export interface WorkspaceConfig {
   embedding: EmbeddingConfig;
   graphConfigs: Record<WsGraphName, GraphConfig>;
   author: AuthorConfig;
+  access?: AccessMap;
 }
 
 export interface MultiConfig {
   author: AuthorConfig;
   server: ServerConfig;
+  users: Record<string, UserConfig>;
   projects: Map<string, ProjectConfig>;
   workspaces: Map<string, WorkspaceConfig>;
 }
@@ -221,6 +251,7 @@ const SERVER_DEFAULTS: Omit<ServerConfig, 'embedding'> & { embedding: EmbeddingC
   sessionTimeout: 1800,
   modelsDir:      path.join(HOME, '.graph-memory/models'),
   embedding:      EMBEDDING_DEFAULTS,
+  defaultAccess:  'rw',
 };
 
 const PROJECT_DEFAULTS = {
@@ -300,7 +331,17 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
     sessionTimeout: srv.sessionTimeout ?? SERVER_DEFAULTS.sessionTimeout,
     modelsDir:      path.resolve(srv.modelsDir ?? SERVER_DEFAULTS.modelsDir),
     embedding:      globalEmbedding,
+    defaultAccess:  srv.defaultAccess  ?? SERVER_DEFAULTS.defaultAccess,
+    access:         srv.access         ?? undefined,
   };
+
+  // Users
+  const users: Record<string, UserConfig> = {};
+  if (validated.users) {
+    for (const [id, raw] of Object.entries(validated.users)) {
+      users[id] = { name: raw.name, email: raw.email, apiKey: raw.apiKey };
+    }
+  }
 
   const projects = new Map<string, ProjectConfig>();
 
@@ -359,6 +400,7 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
         pattern: gc?.pattern ?? (gn === 'docs' ? PROJECT_DEFAULTS.docsPattern : gn === 'code' ? PROJECT_DEFAULTS.codePattern : undefined),
         excludePattern: gc?.excludePattern,
         embedding: graphEmbedding ?? projectEmbedding,
+        access: gc?.access ?? undefined,
       };
     }
 
@@ -373,6 +415,7 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
       embedding:       projectEmbedding,
       graphConfigs,
       author:          raw.author          ?? globalAuthor,
+      access:          raw.access          ?? undefined,
     });
   }
 
@@ -431,9 +474,10 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
         embedding:      wsEmbedding,
         graphConfigs,
         author:         raw.author ?? globalAuthor,
+        access:         raw.access ?? undefined,
       });
     }
   }
 
-  return { author: globalAuthor, server, projects, workspaces };
+  return { author: globalAuthor, server, users, projects, workspaces };
 }

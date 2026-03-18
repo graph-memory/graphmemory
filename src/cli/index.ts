@@ -369,7 +369,10 @@ program
     }
 
     // Start HTTP server immediately (before models are loaded)
-    const httpServer = await startMultiProjectHttpServer(host, port, sessionTimeoutMs, manager);
+    const httpServer = await startMultiProjectHttpServer(host, port, sessionTimeoutMs, manager, {
+      serverConfig: mc.server,
+      users: mc.users,
+    });
 
     // Track open connections for graceful shutdown
     const openSockets = new Set<import('net').Socket>();

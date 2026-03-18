@@ -4,6 +4,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import type { ProjectInstance } from '@/lib/project-manager';
 import { validateBody, validateQuery, createSkillSchema, updateSkillSchema, createSkillLinkSchema, skillSearchSchema, skillListSchema, linkedQuerySchema, attachmentFilenameSchema } from '@/api/rest/validation';
+import { requireWriteAccess } from '@/api/rest/index';
 import { VersionConflictError } from '@/graphs/manager-types';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
@@ -75,7 +76,7 @@ export function createSkillsRouter(): Router {
   });
 
   // Create skill
-  router.post('/', validateBody(createSkillSchema), async (req, res, next) => {
+  router.post('/', requireWriteAccess, validateBody(createSkillSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
       const { title, description, steps, triggers, inputHints, filePatterns, tags, source, confidence } = req.body;
@@ -88,7 +89,7 @@ export function createSkillsRouter(): Router {
   });
 
   // Update skill
-  router.put('/:skillId', validateBody(updateSkillSchema), async (req, res, next) => {
+  router.put('/:skillId', requireWriteAccess, validateBody(updateSkillSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
       const skillId = req.params.skillId as string;
@@ -109,7 +110,7 @@ export function createSkillsRouter(): Router {
   });
 
   // Bump usage
-  router.post('/:skillId/bump', async (req, res, next) => {
+  router.post('/:skillId/bump', requireWriteAccess, async (req, res, next) => {
     try {
       const p = getProject(req);
       const skillId = req.params.skillId as string;
@@ -124,7 +125,7 @@ export function createSkillsRouter(): Router {
   });
 
   // Delete skill
-  router.delete('/:skillId', async (req, res, next) => {
+  router.delete('/:skillId', requireWriteAccess, async (req, res, next) => {
     try {
       const p = getProject(req);
       const skillId = req.params.skillId as string;
@@ -137,7 +138,7 @@ export function createSkillsRouter(): Router {
   });
 
   // Create skill link (skill-to-skill or cross-graph)
-  router.post('/links', validateBody(createSkillLinkSchema), async (req, res, next) => {
+  router.post('/links', requireWriteAccess, validateBody(createSkillLinkSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
       const { fromId, toId, kind, targetGraph, projectId } = req.body;
@@ -154,7 +155,7 @@ export function createSkillsRouter(): Router {
   });
 
   // Delete skill link
-  router.delete('/links', validateBody(createSkillLinkSchema.pick({ fromId: true, toId: true, targetGraph: true, projectId: true })), async (req, res, next) => {
+  router.delete('/links', requireWriteAccess, validateBody(createSkillLinkSchema.pick({ fromId: true, toId: true, targetGraph: true, projectId: true })), async (req, res, next) => {
     try {
       const p = getProject(req);
       const { fromId, toId, targetGraph, projectId } = req.body;
@@ -182,7 +183,7 @@ export function createSkillsRouter(): Router {
   // -- Attachments --
 
   // Upload attachment
-  router.post('/:skillId/attachments', upload.single('file'), async (req, res, next) => {
+  router.post('/:skillId/attachments', requireWriteAccess, upload.single('file'), async (req, res, next) => {
     try {
       const p = getProject(req);
       const skillId = req.params.skillId as string;
@@ -224,7 +225,7 @@ export function createSkillsRouter(): Router {
   });
 
   // Delete attachment
-  router.delete('/:skillId/attachments/:filename', async (req, res, next) => {
+  router.delete('/:skillId/attachments/:filename', requireWriteAccess, async (req, res, next) => {
     try {
       const p = getProject(req);
       const skillId = req.params.skillId as string;

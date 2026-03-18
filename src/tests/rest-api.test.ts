@@ -739,3 +739,104 @@ describe('Attachment REST endpoints', () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Auth & ACL tests
+// ---------------------------------------------------------------------------
+
+describe('REST API — Auth & ACL', () => {
+  let app: ReturnType<typeof createRestApp>;
+
+  beforeEach(() => {
+    const project = createTestProject();
+    const manager = {
+      getProject: (id: string) => id === 'test' ? project : undefined,
+      listProjects: () => ['test'],
+      listWorkspaces: () => [],
+      getWorkspace: () => undefined,
+    } as unknown as ProjectManager;
+
+    app = createRestApp(manager, {
+      serverConfig: {
+        host: '127.0.0.1', port: 3000, sessionTimeout: 1800,
+        modelsDir: '/tmp/models',
+        embedding: { ...TEST_EMBEDDING },
+        defaultAccess: 'deny',
+        access: { admin: 'rw' },
+      },
+      users: {
+        admin: { name: 'Admin', email: 'admin@test.com', apiKey: 'key-admin' },
+        reader: { name: 'Reader', email: 'reader@test.com', apiKey: 'key-reader' },
+      },
+    });
+  });
+
+  it('rejects invalid API key with 401', async () => {
+    const res = await request(app)
+      .get('/api/projects')
+      .set('Authorization', 'Bearer bad-key');
+    expect(res.status).toBe(401);
+    expect(res.body.error).toMatch(/Invalid API key/);
+  });
+
+  it('allows anonymous when no Bearer header (uses defaultAccess)', async () => {
+    // defaultAccess is deny, so anonymous gets denied on graph endpoints
+    const res = await request(app).get('/api/projects/test/knowledge/notes');
+    expect(res.status).toBe(403);
+  });
+
+  it('allows authenticated user with rw access', async () => {
+    const res = await request(app)
+      .get('/api/projects/test/knowledge/notes')
+      .set('Authorization', 'Bearer key-admin');
+    expect(res.status).toBe(200);
+  });
+
+  it('allows read for user with r access, blocks write', async () => {
+    // Give reader read access at server level
+    const project = createTestProject();
+    const manager = {
+      getProject: (id: string) => id === 'test' ? project : undefined,
+      listProjects: () => ['test'],
+      listWorkspaces: () => [],
+      getWorkspace: () => undefined,
+    } as unknown as ProjectManager;
+
+    const authApp = createRestApp(manager, {
+      serverConfig: {
+        host: '127.0.0.1', port: 3000, sessionTimeout: 1800,
+        modelsDir: '/tmp/models',
+        embedding: { ...TEST_EMBEDDING },
+        defaultAccess: 'deny',
+        access: { reader: 'r' },
+      },
+      users: {
+        reader: { name: 'Reader', email: 'reader@test.com', apiKey: 'key-reader' },
+      },
+    });
+
+    // Read should work
+    const readRes = await request(authApp)
+      .get('/api/projects/test/knowledge/notes')
+      .set('Authorization', 'Bearer key-reader');
+    expect(readRes.status).toBe(200);
+
+    // Write should be denied
+    const writeRes = await request(authApp)
+      .post('/api/projects/test/knowledge/notes')
+      .set('Authorization', 'Bearer key-reader')
+      .send({ title: 'Test', content: 'test' });
+    expect(writeRes.status).toBe(403);
+    expect(writeRes.body.error).toMatch(/Read-only/);
+  });
+
+  it('includes access info in projects list', async () => {
+    const res = await request(app)
+      .get('/api/projects')
+      .set('Authorization', 'Bearer key-admin');
+    expect(res.status).toBe(200);
+    const proj = res.body.results[0];
+    expect(proj.graphs.knowledge.access).toBe('rw');
+    expect(proj.graphs.knowledge.enabled).toBe(true);
+  });
+});

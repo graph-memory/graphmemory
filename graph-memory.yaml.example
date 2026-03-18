@@ -14,6 +14,22 @@
 #   email: "you@example.com"
 
 # ---------------------------------------------------------------------------
+# Users (optional — for REST API authentication and access control)
+# ---------------------------------------------------------------------------
+# Each key is the user ID. apiKey is used with "Authorization: Bearer <apiKey>".
+# MCP stdio mode does not use authentication — identity comes from the author config.
+#
+# users:
+#   alice:
+#     name: "Alice"
+#     email: "alice@example.com"
+#     apiKey: "mgm-key-abc123"
+#   bob:
+#     name: "Bob"
+#     email: "bob@example.com"
+#     apiKey: "mgm-key-def456"
+
+# ---------------------------------------------------------------------------
 # Server settings (shared across all projects)
 # ---------------------------------------------------------------------------
 server:
@@ -21,6 +37,10 @@ server:
   # port: 3000                                  # HTTP server port
   # sessionTimeout: 1800                        # Idle session timeout (seconds)
   # modelsDir: "~/.graph-memory/models"         # Local model cache directory
+  # defaultAccess: rw                           # Default access for unknown users: deny | r | rw
+  # access:                                     # Server-level per-user access
+  #   alice: rw
+  #   bob: r
 
   # Default embedding config (fallback for all graphs in all projects).
   # All embedding fields are optional — shown values are defaults.
@@ -63,6 +83,10 @@ projects:
     #   name: "Project Bot"
     #   email: "bot@example.com"
 
+    # Per-project access (overrides server.access for this project)
+    # access:
+    #   bob: rw                                  # bob gets rw on this project
+
     # Per-graph configuration
     # Each graph can be enabled/disabled, have its own pattern, excludePattern, and embedding.
     # Embedding resolution: graph.embedding ?? project.embedding ?? server.embedding
@@ -82,6 +106,8 @@ projects:
     #     excludePattern: "dist/**"
     #   knowledge:
     #     enabled: true
+    #     access:                                # Per-graph access (overrides project.access)
+    #       bob: rw                              # bob gets rw on knowledge even if project says r
     #   tasks:
     #     enabled: true
     #   files:

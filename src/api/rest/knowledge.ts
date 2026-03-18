@@ -4,6 +4,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import type { ProjectInstance } from '@/lib/project-manager';
 import { validateBody, validateQuery, createNoteSchema, updateNoteSchema, createRelationSchema, noteSearchSchema, noteListSchema, linkedQuerySchema, attachmentFilenameSchema } from '@/api/rest/validation';
+import { requireWriteAccess } from '@/api/rest/index';
 import { VersionConflictError } from '@/graphs/manager-types';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
@@ -50,7 +51,7 @@ export function createKnowledgeRouter(): Router {
   });
 
   // Create note
-  router.post('/notes', validateBody(createNoteSchema), async (req, res, next) => {
+  router.post('/notes', requireWriteAccess, validateBody(createNoteSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
       const { title, content, tags } = req.body;
@@ -63,7 +64,7 @@ export function createKnowledgeRouter(): Router {
   });
 
   // Update note
-  router.put('/notes/:noteId', validateBody(updateNoteSchema), async (req, res, next) => {
+  router.put('/notes/:noteId', requireWriteAccess, validateBody(updateNoteSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
       const noteId = req.params.noteId as string;
@@ -84,7 +85,7 @@ export function createKnowledgeRouter(): Router {
   });
 
   // Delete note
-  router.delete('/notes/:noteId', async (req, res, next) => {
+  router.delete('/notes/:noteId', requireWriteAccess, async (req, res, next) => {
     try {
       const p = getProject(req);
       const noteId = req.params.noteId as string;
@@ -97,7 +98,7 @@ export function createKnowledgeRouter(): Router {
   });
 
   // Create relation
-  router.post('/relations', validateBody(createRelationSchema), async (req, res, next) => {
+  router.post('/relations', requireWriteAccess, validateBody(createRelationSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
       const { fromId, toId, kind, targetGraph, projectId } = req.body;
@@ -110,7 +111,7 @@ export function createKnowledgeRouter(): Router {
   });
 
   // Delete relation
-  router.delete('/relations', validateBody(createRelationSchema.pick({ fromId: true, toId: true, targetGraph: true, projectId: true })), async (req, res, next) => {
+  router.delete('/relations', requireWriteAccess, validateBody(createRelationSchema.pick({ fromId: true, toId: true, targetGraph: true, projectId: true })), async (req, res, next) => {
     try {
       const p = getProject(req);
       const { fromId, toId, targetGraph, projectId } = req.body;
@@ -144,7 +145,7 @@ export function createKnowledgeRouter(): Router {
   // -- Attachments --
 
   // Upload attachment
-  router.post('/notes/:noteId/attachments', upload.single('file'), async (req, res, next) => {
+  router.post('/notes/:noteId/attachments', requireWriteAccess, upload.single('file'), async (req, res, next) => {
     try {
       const p = getProject(req);
       const noteId = req.params.noteId as string;
@@ -186,7 +187,7 @@ export function createKnowledgeRouter(): Router {
   });
 
   // Delete attachment
-  router.delete('/notes/:noteId/attachments/:filename', async (req, res, next) => {
+  router.delete('/notes/:noteId/attachments/:filename', requireWriteAccess, async (req, res, next) => {
     try {
       const p = getProject(req);
       const noteId = req.params.noteId as string;

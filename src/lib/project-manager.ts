@@ -358,7 +358,6 @@ export class ProjectManager extends EventEmitter {
       codeExcludePattern:  gc.code.excludePattern ?? instance.config.excludePattern ?? undefined,
       filesExcludePattern: gc.files.excludePattern ?? instance.config.excludePattern ?? undefined,
       chunkDepth:          instance.config.chunkDepth,
-      tsconfig:            instance.config.tsconfig,
       docsModelName:       `${id}:docs`,
       codeModelName:       `${id}:code`,
       filesModelName:      `${id}:files`,

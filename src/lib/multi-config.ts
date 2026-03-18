@@ -68,7 +68,6 @@ const projectSchema = z.object({
   docsPattern:     z.string().optional(),     // deprecated → graphs.docs.pattern
   codePattern:     z.string().optional(),     // deprecated → graphs.code.pattern
   excludePattern:  z.string().optional(),
-  tsconfig:        z.string().optional(),
   chunkDepth:      z.number().int().positive().optional(),
   maxTokensDefault: z.number().int().positive().optional(),
   embedMaxChars:   z.number().int().positive().optional(),
@@ -213,7 +212,6 @@ export interface ProjectConfig {
   projectDir: string;
   graphMemory: string;
   excludePattern: string;
-  tsconfig?: string;
   chunkDepth: number;
   maxTokensDefault: number;
   embedMaxChars: number;
@@ -443,7 +441,6 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
       projectDir,
       graphMemory,
       excludePattern:  raw.excludePattern  ?? PROJECT_DEFAULTS.excludePattern,
-      tsconfig:        raw.tsconfig,
       chunkDepth:      raw.chunkDepth      ?? PROJECT_DEFAULTS.chunkDepth,
       maxTokensDefault: raw.maxTokensDefault ?? PROJECT_DEFAULTS.maxTokensDefault,
       embedMaxChars:   raw.embedMaxChars   ?? PROJECT_DEFAULTS.embedMaxChars,

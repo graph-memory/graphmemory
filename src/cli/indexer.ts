@@ -4,7 +4,7 @@ import micromatch from 'micromatch';
 import { embed, embedBatch } from '@/lib/embedder';
 import { parseFile } from '@/lib/parsers/docs';
 import { updateFile, removeFile, getFileMtime, type DocGraph } from '@/graphs/docs';
-import { parseCodeFile, getProject, resetProject } from '@/lib/parsers/code';
+import { parseCodeFile } from '@/lib/parsers/code';
 import { updateCodeFile, removeCodeFile, getCodeFileMtime, type CodeGraph } from '@/graphs/code';
 import { startWatcher, type WatcherHandle } from '@/lib/watcher';
 import type { KnowledgeGraph } from '@/graphs/knowledge-types';
@@ -15,7 +15,6 @@ import type { SkillGraph } from '@/graphs/skill-types';
 import { cleanupProxies as cleanupSkillProxies } from '@/graphs/skill';
 import type { FileIndexGraph } from '@/graphs/file-index-types';
 import { updateFileEntry, removeFileEntry, getFileEntryMtime, rebuildDirectoryStats } from '@/graphs/file-index';
-import type { Project } from 'ts-morph';
 
 export interface ProjectIndexerConfig {
   projectDir: string;
@@ -25,7 +24,6 @@ export interface ProjectIndexerConfig {
   codeExcludePattern?: string;
   filesExcludePattern?: string;
   chunkDepth: number;
-  tsconfig?: string;
   docsModelName?: string;
   codeModelName?: string;
   filesModelName?: string;
@@ -58,14 +56,6 @@ export function createProjectIndexer(
   let docErrors = 0;
   let codeErrors = 0;
   let fileErrors = 0;
-
-  let project: Project | undefined =
-    codeGraph && config.codePattern
-      ? getProject(config.projectDir, config.tsconfig)
-      : undefined;
-
-  // Resolve the tsconfig path the indexer watches for changes
-  const tsconfigPath = config.tsconfig ?? path.join(config.projectDir, 'tsconfig.json');
 
   function enqueueDoc(fn: () => Promise<void>): void {
     docsQueue = docsQueue.then(fn).catch((err: unknown) => {
@@ -132,7 +122,7 @@ export function createProjectIndexer(
   }
 
   async function indexCodeFile(absolutePath: string): Promise<void> {
-    if (!codeGraph || !project) return;
+    if (!codeGraph) return;
     let stat: fs.Stats;
     try {
       stat = fs.statSync(absolutePath);
@@ -149,7 +139,7 @@ export function createProjectIndexer(
     const mtime = stat.mtimeMs;
     const fileId = path.relative(config.projectDir, absolutePath);
     if (getCodeFileMtime(codeGraph, fileId) === mtime) return;
-    const parsed = parseCodeFile(absolutePath, config.projectDir, mtime, project);
+    const parsed = parseCodeFile(absolutePath, config.projectDir, mtime);
     // Batch-embed all symbols + file-level in one forward pass
     const batchInputs = parsed.nodes.map(({ attrs }) => ({ title: attrs.signature, content: attrs.docComment }));
     batchInputs.push({ title: fileId, content: '' });
@@ -211,22 +201,6 @@ export function createProjectIndexer(
   }
 
   function dispatchAdd(absolutePath: string): void {
-    // tsconfig change — reset ts-morph project and re-index all code files
-    if (codeGraph && project && absolutePath === tsconfigPath) {
-      process.stderr.write(`[indexer] tsconfig changed, re-indexing code\n`);
-      resetProject(config.projectDir);
-      project = getProject(config.projectDir, config.tsconfig);
-      codeGraph.forEachNode((nodeId, attrs) => {
-        if (attrs.kind === 'file') {
-          const abs = path.join(config.projectDir, attrs.fileId);
-          // Reset mtime to force re-index
-          codeGraph!.setNodeAttribute(nodeId, 'mtime', 0);
-          enqueueCode(() => indexCodeFile(abs));
-        }
-      });
-      return;
-    }
-
     const rel = path.relative(config.projectDir, absolutePath);
     if (config.docsPattern && !isDocsExcluded(rel) && micromatch.isMatch(rel, config.docsPattern)) {
       enqueueDoc(() => indexDocFile(absolutePath));

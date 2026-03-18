@@ -1,6 +1,8 @@
+import fs from 'fs';
 import path from 'path';
-import { Project, SourceFile, Node, SyntaxKind } from 'ts-morph';
-import type { CodeNodeAttributes, CodeEdgeAttributes, CodeNodeKind } from '@/graphs/code-types';
+import type { CodeNodeAttributes, CodeEdgeAttributes } from '@/graphs/code-types';
+import { parseSource, getMapper, isLanguageSupported } from '@/lib/parsers/languages';
+import { getLanguage } from '@/graphs/file-lang';
 
 export interface ParsedFile {
   fileId: string;
@@ -9,214 +11,179 @@ export interface ParsedFile {
   edges: Array<{ from: string; to: string; attrs: CodeEdgeAttributes }>;
 }
 
-// Keyed cache: one ts-morph Project per codeDir — avoids re-parsing tsconfig
-const _projects = new Map<string, Project>();
+// ---------------------------------------------------------------------------
+// Import resolution — replaces ts-morph's getModuleSpecifierSourceFile()
+// ---------------------------------------------------------------------------
 
-export function getProject(codeDir: string, tsconfig?: string): Project {
-  const existing = _projects.get(codeDir);
-  if (existing) return existing;
+const RESOLVE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mts', '.cts', '.mjs', '.cjs'];
 
-  const tsconfigPath = tsconfig ?? path.join(codeDir, 'tsconfig.json');
-  let project: Project;
+/** Resolve a relative import specifier to an absolute file path, or null. */
+function resolveRelativeImport(fromFile: string, specifier: string): string | null {
+  const dir = path.dirname(fromFile);
+  const base = path.resolve(dir, specifier);
 
+  // Exact match (e.g. './foo.ts')
+  if (hasFile(base)) return base;
+
+  // Try adding extensions (e.g. './foo' → './foo.ts')
+  for (const ext of RESOLVE_EXTENSIONS) {
+    const candidate = base + ext;
+    if (hasFile(candidate)) return candidate;
+  }
+
+  // Try index files (e.g. './foo' → './foo/index.ts')
+  for (const ext of RESOLVE_EXTENSIONS) {
+    const candidate = path.join(base, 'index' + ext);
+    if (hasFile(candidate)) return candidate;
+  }
+
+  return null;
+}
+
+function hasFile(p: string): boolean {
   try {
-    project = new Project({
-      tsConfigFilePath: tsconfigPath,
-      skipAddingFilesFromTsConfig: true, // we add files manually
-      skipFileDependencyResolution: false,
-    });
+    return fs.statSync(p).isFile();
   } catch {
-    // No tsconfig — use minimal compiler options
-    project = new Project({
-      compilerOptions: { allowJs: true, strict: false },
-      skipFileDependencyResolution: true,
-    });
-  }
-
-  _projects.set(codeDir, project);
-  return project;
-}
-
-/** Reset cached project for a specific codeDir, or all if omitted. */
-export function resetProject(codeDir?: string): void {
-  if (codeDir) {
-    _projects.delete(codeDir);
-  } else {
-    _projects.clear();
+    return false;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Main parser
+// ---------------------------------------------------------------------------
 
 export function parseCodeFile(
   absolutePath: string,
   codeDir: string,
   mtime: number,
-  project: Project,
 ): ParsedFile {
   const fileId = path.relative(codeDir, absolutePath);
 
-  // Add or refresh the source file in the project
-  let sourceFile: SourceFile | undefined = project.getSourceFile(absolutePath);
-  if (sourceFile) {
-    sourceFile.refreshFromFileSystemSync();
-  } else {
-    sourceFile = project.addSourceFileAtPath(absolutePath);
+  // Determine language from file extension
+  const ext = path.extname(absolutePath);
+  const language = getLanguage(ext);
+
+  if (!language || !isLanguageSupported(language)) {
+    // Unsupported language — return file-only node, no symbols
+    return {
+      fileId,
+      mtime,
+      nodes: [{
+        id: fileId,
+        attrs: makeFileAttrs(fileId, '', '', 1, mtime),
+      }],
+      edges: [],
+    };
   }
+
+  const source = fs.readFileSync(absolutePath, 'utf-8');
+  const rootNode = parseSource(source, language);
+
+  if (!rootNode) {
+    return {
+      fileId,
+      mtime,
+      nodes: [{
+        id: fileId,
+        attrs: makeFileAttrs(fileId, '', '', 1, mtime),
+      }],
+      edges: [],
+    };
+  }
+
+  const mapper = getMapper(language)!;
+  const symbols = mapper.extractSymbols(rootNode);
+  const edgeInfos = mapper.extractEdges(rootNode);
+  const imports = mapper.extractImports(rootNode);
 
   const nodes: ParsedFile['nodes'] = [];
   const edges: ParsedFile['edges'] = [];
   const fileNodeId = fileId;
 
   // --- File root node ---
-  const fileDocComment = extractFileDocComment(sourceFile);
-  const importSummary = buildImportSummary(sourceFile);
+  const fileDocComment = extractFileDocComment(rootNode);
+  const importSummary = buildImportSummary(rootNode);
+  const lastLine = (rootNode.endPosition?.row ?? 0) + 1;
+
   nodes.push({
     id: fileNodeId,
-    attrs: {
-      kind: 'file',
-      fileId,
-      name: path.basename(fileId),
-      signature: fileId,
-      docComment: fileDocComment,
-      body: importSummary,
-      startLine: 1,
-      endLine: sourceFile.getEndLineNumber(),
-      isExported: false,
-      embedding: [],
-      fileEmbedding: [],
-      mtime,
-    },
+    attrs: makeFileAttrs(fileId, fileDocComment, importSummary, lastLine, mtime),
   });
 
-  // --- Top-level declarations ---
-  for (const decl of sourceFile.getStatements()) {
-    processStatement(decl, fileId, fileNodeId, mtime, nodes, edges);
+  // --- Symbols ---
+  for (const sym of symbols) {
+    if (!sym.name) continue;
+    const symbolId = makeId(fileId, sym.name);
+
+    nodes.push({
+      id: symbolId,
+      attrs: {
+        kind: sym.kind,
+        fileId,
+        name: sym.name,
+        signature: sym.signature,
+        docComment: sym.docComment,
+        body: sym.body,
+        startLine: sym.startLine,
+        endLine: sym.endLine,
+        isExported: sym.isExported,
+        embedding: [],
+        fileEmbedding: [],
+        mtime,
+      },
+    });
+    edges.push({ from: fileNodeId, to: symbolId, attrs: { kind: 'contains' } });
+
+    // Child symbols (e.g. methods)
+    if (sym.children) {
+      for (const child of sym.children) {
+        if (!child.name) continue;
+        const childId = makeId(fileId, sym.name, child.name);
+        nodes.push({
+          id: childId,
+          attrs: {
+            kind: child.kind,
+            fileId,
+            name: child.name,
+            signature: child.signature,
+            docComment: child.docComment,
+            body: child.body,
+            startLine: child.startLine,
+            endLine: child.endLine,
+            isExported: child.isExported,
+            embedding: [],
+            fileEmbedding: [],
+            mtime,
+          },
+        });
+        edges.push({ from: symbolId, to: childId, attrs: { kind: 'contains' } });
+      }
+    }
+  }
+
+  // --- Extends / implements edges ---
+  for (const edge of edgeInfos) {
+    const fromId = makeId(fileId, edge.fromName);
+    const toId = makeId(fileId, edge.toName);
+    edges.push({ from: fromId, to: toId, attrs: { kind: edge.kind } });
   }
 
   // --- Import edges: file → imported file ---
-  for (const imp of sourceFile.getImportDeclarations()) {
-    const moduleSpecifier = imp.getModuleSpecifierValue();
-    if (!isRelative(moduleSpecifier)) continue;
-
-    const resolved = imp.getModuleSpecifierSourceFile();
-    if (!resolved) continue;
-
-    const targetAbsolute = resolved.getFilePath();
-    if (!targetAbsolute.startsWith(codeDir)) continue;
+  for (const imp of imports) {
+    const targetAbsolute = resolveRelativeImport(absolutePath, imp.specifier);
+    if (!targetAbsolute || !targetAbsolute.startsWith(codeDir)) continue;
 
     const targetFileId = path.relative(codeDir, targetAbsolute);
-    const targetNodeId = targetFileId;
-
-    if (targetNodeId !== fileNodeId) {
+    if (targetFileId !== fileNodeId) {
       edges.push({
         from: fileNodeId,
-        to: targetNodeId,
+        to: targetFileId,
         attrs: { kind: 'imports' },
       });
     }
   }
 
   return { fileId, mtime, nodes, edges };
-}
-
-// ---------------------------------------------------------------------------
-// Statement processing
-// ---------------------------------------------------------------------------
-
-function processStatement(
-  node: Node,
-  fileId: string,
-  parentId: string,
-  mtime: number,
-  nodes: ParsedFile['nodes'],
-  edges: ParsedFile['edges'],
-): void {
-  // Function declarations
-  if (Node.isFunctionDeclaration(node)) {
-    const name = node.getName();
-    if (!name) return;
-    const id = makeId(fileId, name);
-    nodes.push({ id, attrs: buildAttrs('function', fileId, name, node, mtime) });
-    edges.push({ from: parentId, to: id, attrs: { kind: 'contains' } });
-    return;
-  }
-
-  // Class declarations
-  if (Node.isClassDeclaration(node)) {
-    const name = node.getName();
-    if (!name) return;
-    const id = makeId(fileId, name);
-    nodes.push({ id, attrs: buildAttrs('class', fileId, name, node, mtime) });
-    edges.push({ from: parentId, to: id, attrs: { kind: 'contains' } });
-
-    // extends
-    const base = node.getBaseClass();
-    if (base) {
-      const baseName = base.getName?.() ?? base.getSymbol()?.getName();
-      if (baseName) {
-        edges.push({ from: id, to: makeId(fileId, baseName), attrs: { kind: 'extends' } });
-      }
-    }
-
-    // implements
-    for (const impl of node.getImplements()) {
-      const implName = impl.getExpression().getText();
-      edges.push({ from: id, to: makeId(fileId, implName), attrs: { kind: 'implements' } });
-    }
-
-    // Methods
-    for (const method of node.getMethods()) {
-      const methodName = method.getName();
-      const methodId = makeId(fileId, name, methodName);
-      nodes.push({ id: methodId, attrs: buildAttrs('method', fileId, methodName, method, mtime) });
-      edges.push({ from: id, to: methodId, attrs: { kind: 'contains' } });
-    }
-    return;
-  }
-
-  // Interface declarations
-  if (Node.isInterfaceDeclaration(node)) {
-    const name = node.getName();
-    const id = makeId(fileId, name);
-    nodes.push({ id, attrs: buildAttrs('interface', fileId, name, node, mtime) });
-    edges.push({ from: parentId, to: id, attrs: { kind: 'contains' } });
-    return;
-  }
-
-  // Type alias declarations
-  if (Node.isTypeAliasDeclaration(node)) {
-    const name = node.getName();
-    const id = makeId(fileId, name);
-    nodes.push({ id, attrs: buildAttrs('type', fileId, name, node, mtime) });
-    edges.push({ from: parentId, to: id, attrs: { kind: 'contains' } });
-    return;
-  }
-
-  // Enum declarations
-  if (Node.isEnumDeclaration(node)) {
-    const name = node.getName();
-    const id = makeId(fileId, name);
-    nodes.push({ id, attrs: buildAttrs('enum', fileId, name, node, mtime) });
-    edges.push({ from: parentId, to: id, attrs: { kind: 'contains' } });
-    return;
-  }
-
-  // Variable statements: export const foo = ..., export const bar = () => ...
-  if (Node.isVariableStatement(node)) {
-    for (const decl of node.getDeclarations()) {
-      const name = decl.getName();
-      if (typeof name !== 'string') continue;
-
-      const initializer = decl.getInitializer();
-      const isArrow =
-        initializer?.getKind() === SyntaxKind.ArrowFunction ||
-        initializer?.getKind() === SyntaxKind.FunctionExpression;
-      const kind: CodeNodeKind = isArrow ? 'function' : 'variable';
-
-      const id = makeId(fileId, name);
-      nodes.push({ id, attrs: buildAttrs(kind, fileId, name, node, mtime) });
-      edges.push({ from: parentId, to: id, attrs: { kind: 'contains' } });
-    }
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -227,66 +194,52 @@ function makeId(fileId: string, ...parts: string[]): string {
   return [fileId, ...parts].join('::');
 }
 
-function buildAttrs(
-  kind: CodeNodeKind,
+function makeFileAttrs(
   fileId: string,
-  name: string,
-  node: Node,
+  docComment: string,
+  importSummary: string,
+  lastLine: number,
   mtime: number,
 ): CodeNodeAttributes {
-  const start = node.getStartLineNumber();
-  const end = node.getEndLineNumber();
-  const fullText = node.getFullText().trim();
-
-  // Signature = first line (up to opening brace or end of line)
-  const firstLine = fullText.split('\n')[0].trim();
-  const signature = firstLine.length > 200 ? firstLine.slice(0, 200) + '…' : firstLine;
-
-  // JSDoc = leading comment of the node
-  const jsDocs = 'getJsDocs' in node
-    ? (node as { getJsDocs(): Array<{ getFullText(): string }> }).getJsDocs()
-    : [];
-  const docComment = jsDocs.map(d => d.getFullText().trim()).join('\n').trim();
-
-  // isExported
-  const isExported = 'isExported' in node
-    ? (node as { isExported(): boolean }).isExported()
-    : false;
-
   return {
-    kind,
+    kind: 'file',
     fileId,
-    name,
-    signature,
+    name: path.basename(fileId),
+    signature: fileId,
     docComment,
-    body: fullText,
-    startLine: start,
-    endLine: end,
-    isExported,
+    body: importSummary,
+    startLine: 1,
+    endLine: lastLine,
+    isExported: false,
     embedding: [],
     fileEmbedding: [],
     mtime,
   };
 }
 
-function extractFileDocComment(sourceFile: SourceFile): string {
-  // First statement's leading trivia that looks like a file-level JSDoc
-  const firstStatement = sourceFile.getStatements()[0];
-  if (!firstStatement) return '';
-  const leadingComments = firstStatement.getLeadingCommentRanges();
-  return leadingComments
-    .map(r => r.getText())
-    .filter(t => t.startsWith('/**') || t.startsWith('//'))
-    .join('\n')
-    .trim();
+/**
+ * Extract the file-level doc comment (first JSDoc comment before any declaration).
+ */
+function extractFileDocComment(rootNode: any): string {
+  for (const child of rootNode.children) {
+    if (child.type === 'comment' && child.text.startsWith('/**')) {
+      return child.text.trim();
+    }
+    // Stop at first non-comment node
+    if (child.type !== 'comment') break;
+  }
+  return '';
 }
 
-function buildImportSummary(sourceFile: SourceFile): string {
-  const imports = sourceFile.getImportDeclarations();
-  if (imports.length === 0) return '';
-  return imports.map(i => i.getText().trim()).join('\n');
-}
-
-function isRelative(moduleSpecifier: string): boolean {
-  return moduleSpecifier.startsWith('./') || moduleSpecifier.startsWith('../');
+/**
+ * Build a summary of import statements.
+ */
+function buildImportSummary(rootNode: any): string {
+  const imports: string[] = [];
+  for (const child of rootNode.children) {
+    if (child.type === 'import_statement') {
+      imports.push(child.text.trim());
+    }
+  }
+  return imports.join('\n');
 }

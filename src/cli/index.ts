@@ -273,7 +273,6 @@ program
         codeExcludePattern:  gc.code.excludePattern ?? project.excludePattern ?? undefined,
         filesExcludePattern: gc.files.excludePattern ?? project.excludePattern ?? undefined,
         chunkDepth:          project.chunkDepth,
-        tsconfig:            project.tsconfig,
         docsModelName:       `${id}:docs`,
         codeModelName:       `${id}:code`,
         filesModelName:      `${id}:files`,

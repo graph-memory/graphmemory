@@ -1,12 +1,9 @@
 import path from 'path';
-import { parseCodeFile, getProject, resetProject } from '@/lib/parsers/code';
+import { parseCodeFile } from '@/lib/parsers/code';
 import type { ParsedFile } from '@/lib/parsers/code';
 
 const FIXTURES = path.join(__dirname, 'fixtures', 'code');
 const MTIME = 1000;
-
-resetProject();
-const project = getProject(FIXTURES);
 
 function node(pf: ParsedFile, id: string) {
   return pf.nodes.find(n => n.id === id);
@@ -18,7 +15,7 @@ function hasEdge(pf: ParsedFile, from: string, to: string, kind: string): boolea
 
 describe('types.ts', () => {
   const typesPath = path.join(FIXTURES, 'types.ts');
-  const types = parseCodeFile(typesPath, FIXTURES, MTIME, project);
+  const types = parseCodeFile(typesPath, FIXTURES, MTIME);
 
   it('fileId is types.ts', () => {
     expect(types.fileId).toBe('types.ts');
@@ -111,7 +108,7 @@ describe('types.ts', () => {
 
 describe('graph.ts', () => {
   const graphPath = path.join(FIXTURES, 'graph.ts');
-  const graph = parseCodeFile(graphPath, FIXTURES, MTIME, project);
+  const graph = parseCodeFile(graphPath, FIXTURES, MTIME);
 
   it('fileId is graph.ts', () => {
     expect(graph.fileId).toBe('graph.ts');
@@ -236,7 +233,7 @@ describe('graph.ts', () => {
 
 describe('search.ts', () => {
   const searchPath = path.join(FIXTURES, 'search.ts');
-  const search = parseCodeFile(searchPath, FIXTURES, MTIME, project);
+  const search = parseCodeFile(searchPath, FIXTURES, MTIME);
 
   it('fileId is search.ts', () => {
     expect(search.fileId).toBe('search.ts');
@@ -322,11 +319,11 @@ describe('search.ts', () => {
 
 describe('import edges', () => {
   const searchPath = path.join(FIXTURES, 'search.ts');
-  const search = parseCodeFile(searchPath, FIXTURES, MTIME, project);
+  const search = parseCodeFile(searchPath, FIXTURES, MTIME);
   const typesPath = path.join(FIXTURES, 'types.ts');
-  const types = parseCodeFile(typesPath, FIXTURES, MTIME, project);
+  const types = parseCodeFile(typesPath, FIXTURES, MTIME);
   const graphPath = path.join(FIXTURES, 'graph.ts');
-  const graph = parseCodeFile(graphPath, FIXTURES, MTIME, project);
+  const graph = parseCodeFile(graphPath, FIXTURES, MTIME);
 
   it('search.ts imports edge -> types.ts', () => {
     expect(hasEdge(search, 'search.ts', 'types.ts', 'imports')).toBe(true);
@@ -347,7 +344,7 @@ describe('import edges', () => {
 
 describe('store.ts', () => {
   const storePath = path.join(FIXTURES, 'store.ts');
-  const store = parseCodeFile(storePath, FIXTURES, MTIME, project);
+  const store = parseCodeFile(storePath, FIXTURES, MTIME);
 
   it('fileId is store.ts', () => {
     expect(store.fileId).toBe('store.ts');
@@ -431,43 +428,5 @@ describe('store.ts', () => {
 
   it('CachedStore::persist contains edge from class', () => {
     expect(hasEdge(store, 'store.ts::CachedStore', 'store.ts::CachedStore::persist', 'contains')).toBe(true);
-  });
-});
-
-describe('getProject caching', () => {
-  beforeEach(() => resetProject());
-
-  it('returns the same Project instance for the same codeDir', () => {
-    const p1 = getProject(FIXTURES);
-    const p2 = getProject(FIXTURES);
-    expect(p1).toBe(p2);
-  });
-
-  it('returns different Project instances for different codeDirs', () => {
-    const p1 = getProject(FIXTURES);
-    const p2 = getProject(path.join(FIXTURES, '..'));
-    expect(p1).not.toBe(p2);
-  });
-
-  it('resetProject(codeDir) clears only that codeDir', () => {
-    const p1 = getProject(FIXTURES);
-    const other = path.join(FIXTURES, '..');
-    const p2 = getProject(other);
-    resetProject(FIXTURES);
-    const p1b = getProject(FIXTURES);
-    const p2b = getProject(other);
-    expect(p1b).not.toBe(p1);
-    expect(p2b).toBe(p2);
-  });
-
-  it('resetProject() without args clears all', () => {
-    const p1 = getProject(FIXTURES);
-    const other = path.join(FIXTURES, '..');
-    const p2 = getProject(other);
-    resetProject();
-    const p1b = getProject(FIXTURES);
-    const p2b = getProject(other);
-    expect(p1b).not.toBe(p1);
-    expect(p2b).not.toBe(p2);
   });
 });

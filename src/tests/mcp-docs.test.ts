@@ -57,7 +57,7 @@ describe('MCP docs tools', () => {
     let globalAxis = 0;
     for (const file of DOC_FILES) {
       const abs = path.join(FIXTURES, file);
-      const chunks = parseFile(readFileSync(abs, 'utf-8'), abs, FIXTURES, 4);
+      const chunks = await parseFile(readFileSync(abs, 'utf-8'), abs, FIXTURES, 4);
       for (const chunk of chunks) chunk.embedding = unitVec(globalAxis++);
       updateFile(docGraph, chunks, DOC_MTIME);
     }
@@ -463,7 +463,7 @@ describe('MCP docs tools', () => {
       let globalAxis = 0;
       for (const file of DOC_FILES) {
         const abs = path.join(FIXTURES, file);
-        const chunks = parseFile(readFileSync(abs, 'utf-8'), abs, FIXTURES, 4);
+        const chunks = await parseFile(readFileSync(abs, 'utf-8'), abs, FIXTURES, 4);
         for (const chunk of chunks) chunk.embedding = unitVec(globalAxis++);
         updateFile(docGraph, chunks, DOC_MTIME);
       }

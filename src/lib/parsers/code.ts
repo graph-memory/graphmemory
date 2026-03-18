@@ -52,11 +52,11 @@ function hasFile(p: string): boolean {
 // Main parser
 // ---------------------------------------------------------------------------
 
-export function parseCodeFile(
+export async function parseCodeFile(
   absolutePath: string,
   codeDir: string,
   mtime: number,
-): ParsedFile {
+): Promise<ParsedFile> {
   const fileId = path.relative(codeDir, absolutePath);
 
   // Determine language from file extension
@@ -77,7 +77,7 @@ export function parseCodeFile(
   }
 
   const source = fs.readFileSync(absolutePath, 'utf-8');
-  const rootNode = parseSource(source, language);
+  const rootNode = await parseSource(source, language);
 
   if (!rootNode) {
     return {

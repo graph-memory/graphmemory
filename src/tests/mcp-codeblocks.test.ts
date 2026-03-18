@@ -48,9 +48,7 @@ const CODE_MTIME = 1_800_000_000_000;
 const cbDocGraph = createGraph();
 let cbAxis = 0;
 const cbFile = path.join(FIXTURES, 'codeblocks.md');
-const cbChunks = parseFile(readFileSync(cbFile, 'utf-8'), cbFile, FIXTURES, 4);
-for (const chunk of cbChunks) chunk.embedding = unitVec(cbAxis++);
-updateFile(cbDocGraph, cbChunks, DOC_MTIME);
+let cbChunks: Awaited<ReturnType<typeof parseFile>>;
 
 // Build minimal code graph with verifyToken and createToken
 function codeNode(
@@ -114,6 +112,10 @@ let ctx: McpTestContext;
 let call: McpTestContext['call'];
 
 beforeAll(async () => {
+  cbChunks = await parseFile(readFileSync(cbFile, 'utf-8'), cbFile, FIXTURES, 4);
+  for (const chunk of cbChunks) chunk.embedding = unitVec(cbAxis++);
+  updateFile(cbDocGraph, cbChunks, DOC_MTIME);
+
   ctx = await setupMcpClient({ docGraph: cbDocGraph, codeGraph: cbCodeGraph, embedFn: cbFakeEmbed });
   call = ctx.call;
 });

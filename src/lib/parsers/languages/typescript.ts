@@ -330,16 +330,11 @@ export function registerTypescript(): void {
   if (_registered) return;
   _registered = true;
 
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const tsLang = require('tree-sitter-typescript');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const jsLang = require('tree-sitter-javascript');
-
   // TypeScript and TSX share the same mapper
-  registerLanguage('typescript', tsLang.typescript, typescriptMapper);
-  registerLanguage('tsx', tsLang.tsx, typescriptMapper);
+  registerLanguage('typescript', 'tree-sitter-typescript.wasm', typescriptMapper);
+  registerLanguage('tsx', 'tree-sitter-tsx.wasm', typescriptMapper);
 
-  // JavaScript and JSX use the same mapper (TS superset, works fine)
-  registerLanguage('javascript', jsLang, typescriptMapper);
-  registerLanguage('jsx', jsLang, typescriptMapper);
+  // JavaScript and JSX use the same mapper (TS is a superset)
+  registerLanguage('javascript', 'tree-sitter-javascript.wasm', typescriptMapper);
+  registerLanguage('jsx', 'tree-sitter-javascript.wasm', typescriptMapper);
 }

@@ -14,12 +14,12 @@ const TAG_TO_LANGUAGE: Record<string, string> = {
  * Extract top-level symbol names from a code block using tree-sitter.
  * Returns [] for unsupported languages or on parse failure.
  */
-export function extractSymbols(code: string, language: string): string[] {
+export async function extractSymbols(code: string, language: string): Promise<string[]> {
   const lang = TAG_TO_LANGUAGE[language.toLowerCase()];
   if (!lang || !isLanguageSupported(lang)) return [];
 
   try {
-    const rootNode = parseSource(code, lang);
+    const rootNode = await parseSource(code, lang);
     if (!rootNode) return [];
 
     const mapper = getMapper(lang)!;

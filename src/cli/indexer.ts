@@ -102,7 +102,7 @@ export function createProjectIndexer(
     const fileId = path.relative(config.projectDir, absolutePath);
     if (getFileMtime(docGraph, fileId) === mtime) return;
     const content = fs.readFileSync(absolutePath, 'utf-8');
-    const chunks = parseFile(content, absolutePath, config.projectDir, config.chunkDepth);
+    const chunks = await parseFile(content, absolutePath, config.projectDir, config.chunkDepth);
     // Batch-embed all chunks + file-level in one forward pass
     const batchInputs = chunks.map(c => ({ title: c.title, content: c.content }));
     const rootChunk = chunks.find(c => c.level === 1);
@@ -139,7 +139,7 @@ export function createProjectIndexer(
     const mtime = stat.mtimeMs;
     const fileId = path.relative(config.projectDir, absolutePath);
     if (getCodeFileMtime(codeGraph, fileId) === mtime) return;
-    const parsed = parseCodeFile(absolutePath, config.projectDir, mtime);
+    const parsed = await parseCodeFile(absolutePath, config.projectDir, mtime);
     // Batch-embed all symbols + file-level in one forward pass
     const batchInputs = parsed.nodes.map(({ attrs }) => ({ title: attrs.signature, content: attrs.docComment }));
     batchInputs.push({ title: fileId, content: '' });

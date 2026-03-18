@@ -1,4 +1,4 @@
-export { registerLanguage, getLanguageEntry, isLanguageSupported, parseSource, getMapper, listLanguages } from './registry';
+export { registerLanguage, isLanguageSupported, parseSource, getMapper, listLanguages, initParser } from './registry';
 export type { LanguageMapper, ExtractedSymbol, ExtractedEdge, ExtractedImport } from './types';
 export { registerTypescript } from './typescript';
 

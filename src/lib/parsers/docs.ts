@@ -15,12 +15,12 @@ export interface Chunk {
 }
 
 // Parse a markdown file into chunks split by headings
-export function parseFile(
+export async function parseFile(
   content: string,
   absolutePath: string,
   projectDir: string,
   chunkDepth: number,
-): Chunk[] {
+): Promise<Chunk[]> {
   const fileId = path.relative(projectDir, absolutePath);
   const lines = content.split('\n');
 
@@ -65,14 +65,14 @@ export function parseFile(
       };
     });
 
-  return spliceCodeBlocks(textChunks, seenIds);
+  return await spliceCodeBlocks(textChunks, seenIds);
 }
 
 // --- code block extraction ---
 
 const FENCE_RE = /^(`{3,}|~{3,})(\S*)\s*\n([\s\S]*?)^\1\s*$/gm;
 
-function spliceCodeBlocks(chunks: Chunk[], seenIds: Set<string>): Chunk[] {
+async function spliceCodeBlocks(chunks: Chunk[], seenIds: Set<string>): Promise<Chunk[]> {
   const result: Chunk[] = [];
 
   for (const chunk of chunks) {
@@ -102,7 +102,7 @@ function spliceCodeBlocks(chunks: Chunk[], seenIds: Set<string>): Chunk[] {
       seenIds.add(id);
 
       const lang = cb.language || undefined;
-      const symbols = lang ? extractSymbols(cb.code, lang) : [];
+      const symbols = lang ? await extractSymbols(cb.code, lang) : [];
 
       result.push({
         id,

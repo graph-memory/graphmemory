@@ -43,7 +43,7 @@ Three mounts:
 | **Projects** | `/data/projects/` | Project directories to index (read-only, unless you use knowledge/tasks/skills — then remove `:ro`) |
 | **Models** | `/data/models/` | Embedding model cache — use a named volume so models persist across container restarts |
 
-The embedding model (`Xenova/bge-m3`, ~2.3GB) is downloaded on first startup. Subsequent starts use the cached model from the volume.
+The embedding model (`Xenova/bge-m3`, ~560MB) is downloaded on first startup. Subsequent starts use the cached model from the volume.
 
 ### 3. Run with Docker Compose
 

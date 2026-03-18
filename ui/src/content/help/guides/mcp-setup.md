@@ -129,7 +129,7 @@ docker compose run --rm graph-memory index --config /data/config/graph-memory.ya
 
 ## Troubleshooting
 
-**Model loading is slow on first start**: The embedding model (~90MB) is downloaded on first use. Subsequent starts use the cached model from `~/.graph-memory/models/` (or the configured `modelsDir`).
+**Model loading is slow on first start**: The embedding model (`Xenova/bge-m3`, ~560MB) is downloaded on first use. Subsequent starts use the cached model from `~/.graph-memory/models/` (or the configured `modelsDir`).
 
 **Port already in use**: Change the port in `graph-memory.yaml` under `server.port`, or stop the existing process.
 

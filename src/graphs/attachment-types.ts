@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import mime from 'mime';
+import { getMimeType } from '@/lib/mime';
 
 export interface AttachmentMeta {
   filename: string;     // "screenshot.png"
@@ -28,7 +28,7 @@ export function scanAttachments(entityDir: string): AttachmentMeta[] {
         const stat = fs.statSync(filePath);
         attachments.push({
           filename: entry.name,
-          mimeType: mime.getType(entry.name) ?? 'application/octet-stream',
+          mimeType: getMimeType(entry.name) ?? 'application/octet-stream',
           size: stat.size,
           addedAt: stat.birthtimeMs || stat.mtimeMs,
         });

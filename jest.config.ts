@@ -12,7 +12,6 @@ const config: Config = {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@huggingface/transformers$': '<rootDir>/src/tests/__mocks__/huggingface-transformers.ts',
     '^chokidar$': '<rootDir>/src/tests/__mocks__/chokidar.ts',
-    '^mime$': '<rootDir>/src/tests/__mocks__/mime.ts',
   },
   watchman: false,
 };

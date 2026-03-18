@@ -1,4 +1,4 @@
-import mime from 'mime';
+import { getMimeType as lookupMime } from '@/lib/mime';
 
 /** Extension → programming/markup language name. */
 export const EXT_TO_LANGUAGE: Record<string, string> = {
@@ -132,6 +132,5 @@ export function getLanguage(ext: string): string | null {
 
 /** Look up MIME type from file extension via `mime` library. Returns null if unknown. */
 export function getMimeType(ext: string): string | null {
-  // mime.getType accepts extension with or without dot, e.g. "ts" or ".ts"
-  return mime.getType(ext) ?? null;
+  return lookupMime(ext);
 }

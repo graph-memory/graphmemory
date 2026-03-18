@@ -9,8 +9,6 @@ import Typography from '@mui/material/Typography';
 import Checkbox from '@mui/material/Checkbox';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import FormGroup from '@mui/material/FormGroup';
-import Select from '@mui/material/Select';
-import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
@@ -249,29 +247,37 @@ export default function PromptsPage() {
           <Box sx={{ px: 2, pb: 1, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
             <Box>
               <Typography variant="overline" sx={{ color: 'text.secondary' }}>Role</Typography>
-              <Select
-                value={state.role}
-                onChange={e => setState(prev => ({ ...prev, role: e.target.value as RoleName }))}
-                size="small"
-                fullWidth
-              >
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mt: 0.5 }}>
                 {Object.entries(ROLE_LABELS).map(([value, label]) => (
-                  <MenuItem key={value} value={value}>{label}</MenuItem>
+                  <Chip
+                    key={value}
+                    label={label}
+                    size="small"
+                    onClick={() => setState(prev => ({ ...prev, role: value as RoleName }))}
+                    sx={state.role === value
+                      ? { bgcolor: 'primary.main', color: '#fff', '&:hover': { bgcolor: 'primary.dark' }, textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em' }
+                      : { opacity: 0.5, textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em' }
+                    }
+                  />
                 ))}
-              </Select>
+              </Box>
             </Box>
             <Box>
               <Typography variant="overline" sx={{ color: 'text.secondary' }}>Style</Typography>
-              <Select
-                value={state.style}
-                onChange={e => setState(prev => ({ ...prev, style: e.target.value as StyleName }))}
-                size="small"
-                fullWidth
-              >
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mt: 0.5 }}>
                 {Object.entries(STYLE_LABELS).map(([value, label]) => (
-                  <MenuItem key={value} value={value}>{label}</MenuItem>
+                  <Chip
+                    key={value}
+                    label={label}
+                    size="small"
+                    onClick={() => setState(prev => ({ ...prev, style: value as StyleName }))}
+                    sx={state.style === value
+                      ? { bgcolor: 'primary.main', color: '#fff', '&:hover': { bgcolor: 'primary.dark' }, textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em' }
+                      : { opacity: 0.5, textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em' }
+                    }
+                  />
                 ))}
-              </Select>
+              </Box>
             </Box>
           </Box>
 

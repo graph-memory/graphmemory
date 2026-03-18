@@ -12,11 +12,13 @@ import { sourceLabel, confidenceLabel, SOURCE_BADGE_COLOR } from '@/entities/ski
 import { RelationManager } from '@/features/relation-manager/index.ts';
 import { AttachmentSection } from '@/features/attachments/index.ts';
 import { useWebSocket } from '@/shared/lib/useWebSocket.ts';
+import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
 import { PageTopBar, Section, FieldRow, Tags, CopyButton, ConfirmDialog, MarkdownRenderer, StatusBadge } from '@/shared/ui/index.ts';
 
 export default function SkillDetailPage() {
   const { projectId, skillId } = useParams<{ projectId: string; skillId: string }>();
   const navigate = useNavigate();
+  const canWrite = useCanWrite('skills');
   const [skill, setSkill] = useState<Skill | null>(null);
   const [relations, setRelations] = useState<SkillRelation[]>([]);
   const [attachments, setAttachments] = useState<AttachmentMeta[]>([]);
@@ -71,14 +73,16 @@ export default function SkillDetailPage() {
           { label: skill.title },
         ]}
         actions={
-          <>
-            <Button variant="contained" color="success" startIcon={<EditIcon />} onClick={() => navigate(`/${projectId}/skills/${skillId}/edit`)}>
-              Edit
-            </Button>
-            <Button color="error" startIcon={<DeleteIcon />} onClick={() => setDeleteConfirm(true)}>
-              Delete
-            </Button>
-          </>
+          canWrite ? (
+            <>
+              <Button variant="contained" color="success" startIcon={<EditIcon />} onClick={() => navigate(`/${projectId}/skills/${skillId}/edit`)}>
+                Edit
+              </Button>
+              <Button color="error" startIcon={<DeleteIcon />} onClick={() => setDeleteConfirm(true)}>
+                Delete
+              </Button>
+            </>
+          ) : undefined
         }
       />
 

@@ -19,6 +19,8 @@ import type { WatcherHandle } from '@/lib/watcher';
 import type { GraphManagerContext, ExternalGraphs } from '@/graphs/manager-types';
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { MirrorWriteTracker, scanMirrorDirs, startMirrorWatcher } from '@/lib/mirror-watcher';
+import { ensureAuthorInTeam } from '@/lib/team';
+import path from 'path';
 
 // ---------------------------------------------------------------------------
 // ProjectInstance
@@ -118,8 +120,15 @@ export class ProjectManager extends EventEmitter {
       dirty: false,
     } as WorkspaceInstance;
 
+    let _authorEnsured = false;
     const ctx: GraphManagerContext = {
-      markDirty: () => { wsInstance.dirty = true; },
+      markDirty: () => {
+        wsInstance.dirty = true;
+        if (!_authorEnsured) {
+          _authorEnsured = true;
+          ensureAuthorInTeam(path.join(config.mirrorDir, '.team'), config.author);
+        }
+      },
       emit: (event: string, data: unknown) => { this.emit(event, data); },
       projectId: id,
       mirrorDir: config.mirrorDir,
@@ -251,8 +260,15 @@ export class ProjectManager extends EventEmitter {
     } as ProjectInstance;
 
     // Build graph manager context
+    let _authorEnsured = false;
     const ctx: GraphManagerContext = {
-      markDirty: () => { instance.dirty = true; },
+      markDirty: () => {
+        instance.dirty = true;
+        if (!_authorEnsured) {
+          _authorEnsured = true;
+          ensureAuthorInTeam(path.join(config.projectDir, '.team'), config.author);
+        }
+      },
       emit: (event: string, data: unknown) => { this.emit(event, data); },
       projectId: id,
       projectDir: config.projectDir,

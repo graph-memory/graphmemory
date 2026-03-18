@@ -9,6 +9,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
 import PsychologyIcon from '@mui/icons-material/Psychology';
 import { useWebSocket } from '@/shared/lib/useWebSocket.ts';
+import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
 import { PageTopBar, FilterBar, EmptyState } from '@/shared/ui/index.ts';
 import { searchSkills, type Skill, type SkillSearchResult, SkillCard } from '@/entities/skill/index.ts';
 import { useSkills } from '@/features/skill-crud/index.ts';
@@ -17,6 +18,7 @@ export default function SkillsPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const canWrite = useCanWrite('skills');
   const { skills, loading, error, refresh } = useSkills(projectId ?? null);
 
   const [search, setSearch] = useState(searchParams.get('q') || '');
@@ -68,9 +70,11 @@ export default function SkillsPage() {
       <PageTopBar
         breadcrumbs={[{ label: 'Skills' }]}
         actions={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('new')}>
-            New Skill
-          </Button>
+          canWrite ? (
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('new')}>
+              New Skill
+            </Button>
+          ) : undefined
         }
       />
 
@@ -114,7 +118,7 @@ export default function SkillsPage() {
           title={searchResults ? 'No matching skills found' : 'No skills yet'}
           description={searchResults ? 'Try a different search query' : 'Create your first skill to get started'}
           action={
-            !searchResults ? (
+            !searchResults && canWrite ? (
               <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('new')}>
                 New Skill
               </Button>
@@ -129,7 +133,7 @@ export default function SkillsPage() {
               skill={skill as Skill}
               score={'score' in skill ? (skill as unknown as SkillSearchResult).score : undefined}
               onClick={() => navigate(skill.id)}
-              onEdit={() => navigate(`${skill.id}/edit`)}
+              onEdit={canWrite ? () => navigate(`${skill.id}/edit`) : undefined}
             />
           ))}
         </Stack>

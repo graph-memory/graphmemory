@@ -1,10 +1,14 @@
 const BASE = '/api';
 
+let _apiKey: string | null = null;
+
+export function setApiKey(key: string | null) { _apiKey = key; }
+export function getApiKey(): string | null { return _apiKey; }
+
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
-    ...init,
-  });
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', ...init?.headers as any };
+  if (_apiKey) headers['Authorization'] = `Bearer ${_apiKey}`;
+  const res = await fetch(`${BASE}${path}`, { ...init, headers });
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(body.error || res.statusText);

@@ -11,11 +11,13 @@ import {
 import { RelationManager } from '@/features/relation-manager/index.ts';
 import { AttachmentSection } from '@/features/attachments/index.ts';
 import { useWebSocket } from '@/shared/lib/useWebSocket.ts';
+import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
 import { PageTopBar, Section, FieldRow, Tags, CopyButton, ConfirmDialog, MarkdownRenderer, DateDisplay } from '@/shared/ui/index.ts';
 
 export default function NoteDetailPage() {
   const { projectId, noteId } = useParams<{ projectId: string; noteId: string }>();
   const navigate = useNavigate();
+  const canWrite = useCanWrite('knowledge');
   const [note, setNote] = useState<Note | null>(null);
   const [relations, setRelations] = useState<Relation[]>([]);
   const [attachments, setAttachments] = useState<AttachmentMeta[]>([]);
@@ -70,14 +72,16 @@ export default function NoteDetailPage() {
           { label: note.title },
         ]}
         actions={
-          <>
-            <Button variant="contained" color="success" startIcon={<EditIcon />} onClick={() => navigate(`/${projectId}/knowledge/${noteId}/edit`)}>
-              Edit
-            </Button>
-            <Button color="error" startIcon={<DeleteIcon />} onClick={() => setDeleteConfirm(true)}>
-              Delete
-            </Button>
-          </>
+          canWrite ? (
+            <>
+              <Button variant="contained" color="success" startIcon={<EditIcon />} onClick={() => navigate(`/${projectId}/knowledge/${noteId}/edit`)}>
+                Edit
+              </Button>
+              <Button color="error" startIcon={<DeleteIcon />} onClick={() => setDeleteConfirm(true)}>
+                Delete
+              </Button>
+            </>
+          ) : undefined
         }
       />
 

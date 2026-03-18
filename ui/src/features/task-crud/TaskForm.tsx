@@ -1,19 +1,22 @@
 import { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import {
   Box, Button, TextField, Select, MenuItem,
   CircularProgress,
 } from '@mui/material';
 import { Section, FormGrid, FormField, FieldLabel, Tags, MarkdownEditor } from '@/shared/ui/index.ts';
 import { COLUMNS, type Task, type TaskStatus, type TaskPriority } from '@/entities/task/index.ts';
+import { listTeam, type TeamMember } from '@/entities/project/api.ts';
 
 interface TaskFormProps {
   task?: Task;
-  onSubmit: (data: { title: string; description: string; status: TaskStatus; priority: TaskPriority; tags: string[]; dueDate?: number | null; estimate?: number | null }) => Promise<void>;
+  onSubmit: (data: { title: string; description: string; status: TaskStatus; priority: TaskPriority; tags: string[]; dueDate?: number | null; estimate?: number | null; assignee?: string | null }) => Promise<void>;
   onCancel: () => void;
   submitLabel?: string;
 }
 
 export function TaskForm({ task, onSubmit, onCancel, submitLabel = 'Save' }: TaskFormProps) {
+  const { projectId } = useParams<{ projectId: string }>();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<TaskStatus>('todo');
@@ -21,6 +24,8 @@ export function TaskForm({ task, onSubmit, onCancel, submitLabel = 'Save' }: Tas
   const [tags, setTags] = useState<string[]>([]);
   const [dueDate, setDueDate] = useState('');
   const [estimate, setEstimate] = useState('');
+  const [assignee, setAssignee] = useState<string>('');
+  const [team, setTeam] = useState<TeamMember[]>([]);
   const [saving, setSaving] = useState(false);
   const [titleError, setTitleError] = useState(false);
 
@@ -33,8 +38,14 @@ export function TaskForm({ task, onSubmit, onCancel, submitLabel = 'Save' }: Tas
       setTags(task.tags ?? []);
       setDueDate(task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '');
       setEstimate(task.estimate != null ? String(task.estimate) : '');
+      setAssignee(task.assignee ?? '');
     }
   }, [task]);
+
+  useEffect(() => {
+    if (!projectId) return;
+    listTeam(projectId).then(setTeam).catch(() => {});
+  }, [projectId]);
 
   const handleSubmit = async () => {
     if (!title.trim()) {
@@ -51,6 +62,7 @@ export function TaskForm({ task, onSubmit, onCancel, submitLabel = 'Save' }: Tas
         tags,
         dueDate: dueDate ? new Date(dueDate).getTime() : null,
         estimate: estimate ? Number(estimate) : null,
+        assignee: assignee || null,
       });
     } finally {
       setSaving(false);
@@ -114,6 +126,23 @@ export function TaskForm({ task, onSubmit, onCancel, submitLabel = 'Save' }: Tas
               onChange={e => setEstimate(e.target.value)}
               slotProps={{ input: { inputProps: { min: 0, step: 0.5 } } }}
             />
+          </FormField>
+          <FormField>
+            <FieldLabel>Assignee</FieldLabel>
+            <Select
+              fullWidth
+              value={assignee}
+              onChange={e => setAssignee(e.target.value)}
+              displayEmpty
+              renderValue={v => {
+                if (!v) return 'Unassigned';
+                const m = team.find(t => t.id === v);
+                return m?.name || v;
+              }}
+            >
+              <MenuItem value="">Unassigned</MenuItem>
+              {team.map(m => <MenuItem key={m.id} value={m.id}>{m.name || m.id}</MenuItem>)}
+            </Select>
           </FormField>
           <FormField fullWidth>
             <Tags

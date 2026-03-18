@@ -15,6 +15,7 @@ import {
 import { RelationManager } from '@/features/relation-manager/index.ts';
 import { AttachmentSection } from '@/features/attachments/index.ts';
 import { useWebSocket } from '@/shared/lib/useWebSocket.ts';
+import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
 import {
   PageTopBar, Section, FieldRow, StatusBadge, Tags, CopyButton, DateDisplay, ConfirmDialog, MarkdownRenderer,
 } from '@/shared/ui/index.ts';
@@ -29,6 +30,7 @@ interface TaskDetail extends Task {
 export default function TaskDetailPage() {
   const { projectId, taskId } = useParams<{ projectId: string; taskId: string }>();
   const navigate = useNavigate();
+  const canWrite = useCanWrite('tasks');
   const [task, setTask] = useState<TaskDetail | null>(null);
   const [relations, setRelations] = useState<TaskRelation[]>([]);
   const [attachments, setAttachments] = useState<AttachmentMeta[]>([]);
@@ -109,14 +111,16 @@ export default function TaskDetailPage() {
           { label: task.title },
         ]}
         actions={
-          <>
-            <Button variant="contained" color="success" startIcon={<EditIcon />} onClick={() => navigate(`/${projectId}/tasks/${taskId}/edit`)}>
-              Edit
-            </Button>
-            <Button color="error" startIcon={<DeleteIcon />} onClick={() => setDeleteConfirm(true)}>
-              Delete
-            </Button>
-          </>
+          canWrite ? (
+            <>
+              <Button variant="contained" color="success" startIcon={<EditIcon />} onClick={() => navigate(`/${projectId}/tasks/${taskId}/edit`)}>
+                Edit
+              </Button>
+              <Button color="error" startIcon={<DeleteIcon />} onClick={() => setDeleteConfirm(true)}>
+                Delete
+              </Button>
+            </>
+          ) : undefined
         }
       />
 
@@ -133,14 +137,16 @@ export default function TaskDetailPage() {
         <FieldRow label="Status">
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <StatusBadge label={statusLabel(task.status)} color={STATUS_BADGE_COLOR[task.status]} />
-            <FormControl size="small" sx={{ minWidth: 140 }}>
-              <InputLabel>Move to</InputLabel>
-              <Select value="" label="Move to" onChange={e => handleMove(e.target.value as TaskStatus)}>
-                {COLUMNS.filter(c => c.status !== task.status).map(c => (
-                  <MenuItem key={c.status} value={c.status}>{c.label}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            {canWrite && (
+              <FormControl size="small" sx={{ minWidth: 140 }}>
+                <InputLabel>Move to</InputLabel>
+                <Select value="" label="Move to" onChange={e => handleMove(e.target.value as TaskStatus)}>
+                  {COLUMNS.filter(c => c.status !== task.status).map(c => (
+                    <MenuItem key={c.status} value={c.status}>{c.label}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
           </Box>
         </FieldRow>
         <FieldRow label="Priority">

@@ -1,10 +1,16 @@
 import { request, unwrapList, type ListResponse } from '@/shared/api/client.ts';
 
+export interface GraphInfo {
+  enabled: boolean;
+  access: 'deny' | 'r' | 'rw' | null;
+}
+
 export interface ProjectInfo {
   id: string;
   projectDir: string;
   workspaceId: string | null;
-  stats: { docs: number; code: number; knowledge: number; files: number; tasks: number };
+  graphs: Record<string, GraphInfo>;
+  stats: { docs: number; code: number; knowledge: number; files: number; tasks: number; skills: number };
 }
 
 export interface WorkspaceInfo {
@@ -31,4 +37,14 @@ export function listWorkspaces(): Promise<WorkspaceInfo[]> {
 
 export function getProjectStats(projectId: string) {
   return request<ProjectDetailedStats>(`/projects/${projectId}/stats`);
+}
+
+export interface TeamMember {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export function listTeam(projectId: string): Promise<TeamMember[]> {
+  return request<ListResponse<TeamMember>>(`/projects/${projectId}/team`).then(unwrapList);
 }

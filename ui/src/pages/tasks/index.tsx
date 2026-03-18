@@ -15,12 +15,14 @@ import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import { useWebSocket } from '@/shared/lib/useWebSocket.ts';
+import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
 import { PageTopBar, StatusBadge, Tags, ConfirmDialog } from '@/shared/ui/index.ts';
 import {
   listTasks, moveTask, createTask, deleteTask,
   COLUMNS, PRIORITY_BADGE_COLOR, priorityLabel,
   type Task, type TaskStatus, type TaskPriority,
 } from '@/entities/task/index.ts';
+import { listTeam, type TeamMember } from '@/entities/project/api.ts';
 import { useColumnVisibility } from './useColumnVisibility.ts';
 
 const DONE_STATUSES: TaskStatus[] = ['done', 'cancelled'];
@@ -40,11 +42,14 @@ export default function TasksPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const { palette } = useTheme();
+  const canWrite = useCanWrite('tasks');
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [draggedTask, setDraggedTask] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<TaskStatus | null>(null);
+  const [team, setTeam] = useState<TeamMember[]>([]);
+  const [assigneeFilter, setAssigneeFilter] = useState<string>('');
 
   // Column visibility
   const { visible, toggle: toggleColumn, visibleColumns } = useColumnVisibility();
@@ -77,6 +82,11 @@ export default function TasksPage() {
   }, [projectId]);
 
   useEffect(() => { refresh(); }, [refresh]);
+
+  useEffect(() => {
+    if (!projectId) return;
+    listTeam(projectId).then(setTeam).catch(() => {});
+  }, [projectId]);
 
   useWebSocket(projectId ?? null, useCallback((event) => {
     if (event.type.startsWith('task:')) refresh();
@@ -162,8 +172,11 @@ export default function TasksPage() {
     if (filterTag) {
       filtered = filtered.filter(t => t.tags?.includes(filterTag));
     }
+    if (assigneeFilter) {
+      filtered = filtered.filter(t => t.assignee === assigneeFilter);
+    }
     return filtered;
-  }, [tasks, searchQuery, filterPriority, filterTag]);
+  }, [tasks, searchQuery, filterPriority, filterTag, assigneeFilter]);
 
   const grouped = useMemo(() => {
     const map = new Map<TaskStatus, Task[]>();
@@ -175,7 +188,7 @@ export default function TasksPage() {
     return map;
   }, [filteredTasks]);
 
-  const hasFilters = searchQuery || filterPriority || filterTag;
+  const hasFilters = searchQuery || filterPriority || filterTag || assigneeFilter;
 
   return (
     <Box>
@@ -205,9 +218,11 @@ export default function TasksPage() {
                 </MenuItem>
               ))}
             </Menu>
-            <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('new')}>
-              New Task
-            </Button>
+            {canWrite && (
+              <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('new')}>
+                New Task
+              </Button>
+            )}
           </>
         }
       />
@@ -264,8 +279,26 @@ export default function TasksPage() {
             </Select>
           </FormControl>
         )}
+        {team.length > 0 && (
+          <FormControl size="small" sx={{ minWidth: 120 }}>
+            <Select
+              value={assigneeFilter}
+              onChange={e => setAssigneeFilter(e.target.value)}
+              displayEmpty
+              renderValue={v => {
+                if (!v) return 'Assignee';
+                const m = team.find(t => t.id === v);
+                return m?.name || v;
+              }}
+              sx={{ color: assigneeFilter ? undefined : palette.custom.textMuted }}
+            >
+              <MenuItem value="">All</MenuItem>
+              {team.map(m => <MenuItem key={m.id} value={m.id}>{m.name || m.id}</MenuItem>)}
+            </Select>
+          </FormControl>
+        )}
         {hasFilters && (
-          <Button size="small" onClick={() => { setSearchQuery(''); setFilterPriority(''); setFilterTag(''); }}>
+          <Button size="small" onClick={() => { setSearchQuery(''); setFilterPriority(''); setFilterTag(''); setAssigneeFilter(''); }}>
             Clear
           </Button>
         )}
@@ -279,11 +312,13 @@ export default function TasksPage() {
           <ViewKanbanIcon sx={{ fontSize: 48, color: palette.custom.textMuted, mb: 2 }} />
           <Typography variant="h6" gutterBottom>No tasks yet</Typography>
           <Typography variant="body2" sx={{ color: palette.custom.textMuted, mb: 2 }}>
-            Create your first task to get started
+            {canWrite ? 'Create your first task to get started' : 'No tasks yet'}
           </Typography>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('new')}>
-            New Task
-          </Button>
+          {canWrite && (
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('new')}>
+              New Task
+            </Button>
+          )}
         </Box>
       ) : (
         <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 2, maxHeight: 'calc(100vh - 220px)' }}>
@@ -318,13 +353,15 @@ export default function TasksPage() {
                       {columnTasks.length}
                     </Typography>
                   </Box>
-                  <IconButton
-                    size="small"
-                    onClick={() => { setInlineCreateColumn(status); setInlineCreateTitle(''); }}
-                    sx={{ p: 0.25, color: palette.custom.textMuted }}
-                  >
-                    <AddIcon sx={{ fontSize: 18 }} />
-                  </IconButton>
+                  {canWrite && (
+                    <IconButton
+                      size="small"
+                      onClick={() => { setInlineCreateColumn(status); setInlineCreateTitle(''); }}
+                      sx={{ p: 0.25, color: palette.custom.textMuted }}
+                    >
+                      <AddIcon sx={{ fontSize: 18 }} />
+                    </IconButton>
+                  )}
                 </Box>
 
                 {/* Inline create — right below header */}
@@ -361,9 +398,9 @@ export default function TasksPage() {
                       <Paper
                         key={task.id}
                         variant="outlined"
-                        draggable
-                        onDragStart={() => handleDragStart(task.id)}
-                        onDragEnd={handleDragEnd}
+                        draggable={canWrite}
+                        onDragStart={canWrite ? () => handleDragStart(task.id) : undefined}
+                        onDragEnd={canWrite ? handleDragEnd : undefined}
                         onClick={() => navigate(task.id)}
                         sx={{
                           p: 1.5, cursor: 'pointer', position: 'relative',
@@ -391,21 +428,28 @@ export default function TasksPage() {
                           >
                             <EditIcon sx={{ fontSize: 15 }} />
                           </IconButton>
-                          <IconButton
-                            size="small"
-                            onClick={(e) => { e.stopPropagation(); setDeleteTarget(task); }}
-                            sx={{ p: 0.5, color: 'error.main' }}
-                          >
-                            <DeleteIcon sx={{ fontSize: 15 }} />
-                          </IconButton>
+                          {canWrite && (
+                            <IconButton
+                              size="small"
+                              onClick={(e) => { e.stopPropagation(); setDeleteTarget(task); }}
+                              sx={{ p: 0.5, color: 'error.main' }}
+                            >
+                              <DeleteIcon sx={{ fontSize: 15 }} />
+                            </IconButton>
+                          )}
                         </Box>
 
-                        {/* Title + priority */}
+                        {/* Title + assignee */}
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5, pr: 3 }}>
                           <Typography variant="body2" fontWeight={600} sx={{ flex: 1 }}>
                             {task.title}
                           </Typography>
                         </Box>
+                        {task.assignee && (
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                            @{task.assignee}
+                          </Typography>
+                        )}
 
                         {/* Badges row: priority, estimate, due date */}
                         <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: task.description ? 0.5 : 0 }}>

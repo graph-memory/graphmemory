@@ -9,6 +9,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
 import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
 import { useWebSocket } from '@/shared/lib/useWebSocket.ts';
+import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
 import { PageTopBar, FilterBar, EmptyState } from '@/shared/ui/index.ts';
 import { searchNotes, type Note, NoteCard } from '@/entities/note/index.ts';
 import { useNotes } from '@/features/note-crud/index.ts';
@@ -17,6 +18,7 @@ export default function KnowledgePage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const canWrite = useCanWrite('knowledge');
   const { notes, loading, error, refresh } = useNotes(projectId ?? null);
 
   const [search, setSearch] = useState(searchParams.get('q') || '');
@@ -68,9 +70,11 @@ export default function KnowledgePage() {
       <PageTopBar
         breadcrumbs={[{ label: 'Knowledge' }]}
         actions={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('new')}>
-            New Note
-          </Button>
+          canWrite ? (
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('new')}>
+              New Note
+            </Button>
+          ) : undefined
         }
       />
 
@@ -114,7 +118,7 @@ export default function KnowledgePage() {
           title={searchResults ? 'No matching notes found' : 'No notes yet'}
           description={searchResults ? 'Try a different search query' : 'Create your first note to get started'}
           action={
-            !searchResults ? (
+            !searchResults && canWrite ? (
               <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('new')}>
                 New Note
               </Button>
@@ -129,7 +133,7 @@ export default function KnowledgePage() {
               note={note}
               score={'score' in note ? (note as Note & { score: number }).score : undefined}
               onClick={() => navigate(note.id)}
-              onEdit={() => navigate(`${note.id}/edit`)}
+              onEdit={canWrite ? () => navigate(`${note.id}/edit`) : undefined}
             />
           ))}
         </Stack>

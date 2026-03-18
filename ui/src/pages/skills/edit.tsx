@@ -3,11 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Box, Button, CircularProgress, Alert } from '@mui/material';
 import { getSkill, updateSkill, type Skill } from '@/entities/skill/index.ts';
 import { SkillForm } from '@/features/skill-crud/SkillForm.tsx';
+import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
 import { PageTopBar } from '@/shared/ui/index.ts';
 
 export default function SkillEditPage() {
   const { projectId, skillId } = useParams<{ projectId: string; skillId: string }>();
   const navigate = useNavigate();
+  const canWrite = useCanWrite('skills');
   const [skill, setSkill] = useState<Skill | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,11 +55,12 @@ export default function SkillEditPage() {
           { label: 'Edit' },
         ]}
         actions={
-          <Button variant="contained" form="skill-form" type="submit">
+          <Button variant="contained" form="skill-form" type="submit" disabled={!canWrite}>
             Save
           </Button>
         }
       />
+      {!canWrite && <Alert severity="warning" sx={{ mb: 2 }}>Read-only access — you cannot edit skills.</Alert>}
       <SkillForm
         skill={skill}
         onSubmit={handleSubmit}

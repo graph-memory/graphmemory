@@ -3,11 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Box, Button, CircularProgress, Alert } from '@mui/material';
 import { getNote, updateNote, type Note } from '@/entities/note/index.ts';
 import { NoteForm } from '@/features/note-crud/NoteForm.tsx';
+import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
 import { PageTopBar } from '@/shared/ui/index.ts';
 
 export default function NoteEditPage() {
   const { projectId, noteId } = useParams<{ projectId: string; noteId: string }>();
   const navigate = useNavigate();
+  const canWrite = useCanWrite('knowledge');
   const [note, setNote] = useState<Note | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,11 +45,12 @@ export default function NoteEditPage() {
           { label: 'Edit' },
         ]}
         actions={
-          <Button variant="contained" form="note-form" type="submit">
+          <Button variant="contained" form="note-form" type="submit" disabled={!canWrite}>
             Save
           </Button>
         }
       />
+      {!canWrite && <Alert severity="warning" sx={{ mb: 2 }}>Read-only access — you cannot edit notes.</Alert>}
       <NoteForm
         note={note}
         onSubmit={handleSubmit}

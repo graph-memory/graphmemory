@@ -22,9 +22,18 @@ import MenuBookIcon from '@mui/icons-material/MenuBook';
 import { useProjects, type WorkspaceInfo } from '@/entities/project/index.ts';
 import { useThemeMode } from '@/shared/lib/ThemeModeContext.tsx';
 import { WsProvider } from '@/shared/lib/useWebSocket.ts';
+import { AccessProvider } from '@/shared/lib/AccessContext.tsx';
 
 const DRAWER_WIDTH = 240;
 const APPBAR_HEIGHT = 64;
+
+const NAV_GRAPH_MAP: Record<string, string> = {
+  knowledge: 'knowledge',
+  tasks: 'tasks',
+  skills: 'skills',
+  docs: 'docs',
+  files: 'files',
+};
 
 const NAV_ITEMS = [
   { label: 'Dashboard', icon: <DashboardIcon />, path: 'dashboard' },
@@ -161,7 +170,11 @@ export default function Layout() {
       </Box>
       <Divider />
       <List sx={{ flex: 1, px: 1 }}>
-        {NAV_ITEMS.map(({ label, icon, path }) => {
+        {NAV_ITEMS.filter(({ path }) => {
+          const gn = NAV_GRAPH_MAP[path];
+          if (!gn || !currentProject?.graphs) return true;
+          return currentProject.graphs[gn]?.enabled !== false;
+        }).map(({ label, icon, path }) => {
           const currentPage = location.pathname.split('/').filter(Boolean)[1] || '';
           const active = currentPage === path;
           return (
@@ -273,9 +286,11 @@ export default function Layout() {
           pt: `${APPBAR_HEIGHT + 24}px`,
         }}
       >
-        <WsProvider projectId={projectId ?? null}>
-          <Outlet />
-        </WsProvider>
+        <AccessProvider graphs={currentProject?.graphs ?? {}} loading={loading}>
+          <WsProvider projectId={projectId ?? null}>
+            <Outlet />
+          </WsProvider>
+        </AccessProvider>
       </Box>
     </Box>
   );

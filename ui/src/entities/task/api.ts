@@ -13,6 +13,7 @@ export interface Task {
   dueDate: number | null;
   estimate: number | null;
   completedAt: number | null;
+  assignee: string | null;
   createdAt: number;
   updatedAt: number;
   version: number;
@@ -20,22 +21,22 @@ export interface Task {
   updatedBy?: string;
 }
 
-export function listTasks(projectId: string, params?: { status?: TaskStatus; priority?: TaskPriority; tag?: string; limit?: number }) {
-  return request<ListResponse<Task>>(`/projects/${projectId}/tasks${qs({ status: params?.status, priority: params?.priority, tag: params?.tag, limit: params?.limit })}`).then(unwrapList);
+export function listTasks(projectId: string, params?: { status?: TaskStatus; priority?: TaskPriority; tag?: string; assignee?: string; limit?: number }) {
+  return request<ListResponse<Task>>(`/projects/${projectId}/tasks${qs({ status: params?.status, priority: params?.priority, tag: params?.tag, assignee: params?.assignee, limit: params?.limit })}`).then(unwrapList);
 }
 
 export function getTask(projectId: string, taskId: string) {
   return request<Task>(`/projects/${projectId}/tasks/${taskId}`);
 }
 
-export function createTask(projectId: string, data: { title: string; description?: string; status?: TaskStatus; priority?: TaskPriority; tags?: string[]; dueDate?: number | null; estimate?: number | null }) {
+export function createTask(projectId: string, data: { title: string; description?: string; status?: TaskStatus; priority?: TaskPriority; tags?: string[]; dueDate?: number | null; estimate?: number | null; assignee?: string | null }) {
   return request<Task>(`/projects/${projectId}/tasks`, {
     method: 'POST',
     body: JSON.stringify(data),
   });
 }
 
-export function updateTask(projectId: string, taskId: string, data: Partial<Pick<Task, 'title' | 'description' | 'status' | 'priority' | 'tags' | 'dueDate' | 'estimate'>>) {
+export function updateTask(projectId: string, taskId: string, data: Partial<Pick<Task, 'title' | 'description' | 'status' | 'priority' | 'tags' | 'dueDate' | 'estimate' | 'assignee'>>) {
   return request<Task>(`/projects/${projectId}/tasks/${taskId}`, {
     method: 'PUT',
     body: JSON.stringify(data),

@@ -244,6 +244,19 @@ describe('CRUD — Skills', () => {
     it('limit=1 returns 1', () => {
       expect(listSkills(g, { limit: 1 })).toHaveLength(1);
     });
+
+    it('returns description field', () => {
+      const skill = listSkills(g).find(s => s.id === id1);
+      expect(skill?.description).toBe('Updated: complete guide to REST endpoints.');
+    });
+
+    it('truncates description to 500 chars', () => {
+      const longDesc = 'x'.repeat(1000);
+      const g2 = createSkillGraph();
+      createSkill(g2, 'Long Skill', longDesc, ['step'], ['trigger'], [], [], [], 'user', 1, unitVec(0));
+      const skill = listSkills(g2)[0];
+      expect(skill.description).toHaveLength(500);
+    });
   });
 
   describe('createSkillRelation', () => {

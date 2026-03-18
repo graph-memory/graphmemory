@@ -200,6 +200,19 @@ describe('CRUD — Notes', () => {
     it('limit=1 returns 1', () => {
       expect(listNotes(g, undefined, undefined, 1)).toHaveLength(1);
     });
+
+    it('returns content field', () => {
+      const note = listNotes(g).find(n => n.id === id1);
+      expect(note?.content).toBe('Updated: JWT with refresh tokens.');
+    });
+
+    it('truncates content to 500 chars', () => {
+      const longContent = 'x'.repeat(1000);
+      const g2 = createKnowledgeGraph();
+      createNote(g2, 'Long Note', longContent, [], unitVec(0));
+      const note = listNotes(g2)[0];
+      expect(note.content).toHaveLength(500);
+    });
   });
 
   describe('createRelation', () => {

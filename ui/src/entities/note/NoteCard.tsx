@@ -33,8 +33,17 @@ export function NoteCard({ note, score, onClick, onEdit }: NoteCardProps) {
               )}
             </Box>
             {note.content && (
-              <Typography variant="body2" sx={{ color: palette.custom.textMuted }} noWrap>
-                {note.content}
+              <Typography
+                variant="body2"
+                sx={{
+                  color: palette.custom.textMuted,
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                }}
+              >
+                {note.content.replace(/^#+\s*/gm, '').replace(/[*_`]/g, '').trim()}
               </Typography>
             )}
             {note.tags?.length > 0 && (

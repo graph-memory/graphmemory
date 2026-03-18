@@ -176,11 +176,11 @@ export function listNotes(
   filter?: string,
   tag?: string,
   limit: number = 20,
-): Array<{ id: string; title: string; tags: string[]; updatedAt: number }> {
+): Array<{ id: string; title: string; content: string; tags: string[]; updatedAt: number }> {
   const lowerFilter = filter?.toLowerCase();
   const lowerTag = tag?.toLowerCase();
 
-  const results: Array<{ id: string; title: string; tags: string[]; updatedAt: number }> = [];
+  const results: Array<{ id: string; title: string; content: string; tags: string[]; updatedAt: number }> = [];
 
   graph.forEachNode((id, attrs: KnowledgeNodeAttributes) => {
     if (attrs.proxyFor) return; // skip proxy nodes
@@ -192,7 +192,7 @@ export function listNotes(
     if (lowerTag) {
       if (!attrs.tags.some(t => t.toLowerCase() === lowerTag)) return;
     }
-    results.push({ id, title: attrs.title, tags: attrs.tags, updatedAt: attrs.updatedAt });
+    results.push({ id, title: attrs.title, content: attrs.content.slice(0, 500), tags: attrs.tags, updatedAt: attrs.updatedAt });
   });
 
   return results

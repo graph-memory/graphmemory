@@ -246,6 +246,19 @@ describe('CRUD — Tasks', () => {
       expect(listTasks(g, { limit: 1 })).toHaveLength(1);
     });
 
+    it('returns description field', () => {
+      const task = listTasks(g).find(t => t.id === id1);
+      expect(task?.description).toBe('Updated: redirect loop fixed.');
+    });
+
+    it('truncates description to 500 chars', () => {
+      const longDesc = 'x'.repeat(1000);
+      const g2 = createTaskGraph();
+      createTask(g2, 'Long Task', longDesc, 'todo', 'medium', [], unitVec(0));
+      const task = listTasks(g2)[0];
+      expect(task.description).toHaveLength(500);
+    });
+
     it('dueDate sorting: tasks with dueDate before nulls', () => {
       // id2 has dueDate, others don't; among same priority, dueDate first
       const medTasks = listTasks(g, { priority: 'medium' });

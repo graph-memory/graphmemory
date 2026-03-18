@@ -365,7 +365,7 @@ export function listSkills(
     results.push({
       id,
       title: attrs.title,
-      description: attrs.description,
+      description: attrs.description?.slice(0, 500),
       steps: attrs.steps,
       triggers: attrs.triggers,
       inputHints: attrs.inputHints,

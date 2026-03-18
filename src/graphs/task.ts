@@ -375,7 +375,7 @@ export function listTasks(
     results.push({
       id,
       title: attrs.title,
-      description: attrs.description,
+      description: attrs.description?.slice(0, 500),
       status: attrs.status,
       priority: attrs.priority,
       tags: attrs.tags,

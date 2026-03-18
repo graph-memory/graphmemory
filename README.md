@@ -84,6 +84,20 @@ docker run --rm \
   ghcr.io/prih/mcp-graph-memory serve --config /data/config/graph-memory.yaml --reindex
 ```
 
+To index once and exit (useful in CI or as a pre-start step):
+
+```bash
+# Docker
+docker run --rm \
+  -v $(pwd)/graph-memory.yaml:/data/config/graph-memory.yaml:ro \
+  -v /path/to/my-app:/data/projects/my-app \
+  -v graph-memory-models:/data/models \
+  ghcr.io/prih/mcp-graph-memory index --config /data/config/graph-memory.yaml
+
+# Docker Compose (uses volumes defined in your compose file)
+docker compose run --rm graph-memory index --config /data/config/graph-memory.yaml
+```
+
 > **Multiple projects**: mount each project directory separately and add entries to `graph-memory.yaml`. The config file is watched for changes — add or remove projects without restarting the container.
 
 ## What it does

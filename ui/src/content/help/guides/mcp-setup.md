@@ -101,6 +101,20 @@ docker run -d \
 
 Then connect your MCP client to `http://localhost:3000/mcp/my-app`.
 
+To index once and exit without starting the server:
+
+```bash
+# Docker
+docker run --rm \
+  -v $(pwd)/graph-memory.yaml:/data/config/graph-memory.yaml:ro \
+  -v /path/to/my-app:/data/projects/my-app \
+  -v graph-memory-models:/data/models \
+  ghcr.io/prih/mcp-graph-memory index --config /data/config/graph-memory.yaml
+
+# Docker Compose (uses volumes defined in your compose file)
+docker compose run --rm graph-memory index --config /data/config/graph-memory.yaml
+```
+
 ## Which transport to choose?
 
 | | Stdio | HTTP |

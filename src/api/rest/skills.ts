@@ -11,8 +11,8 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 
 export function createSkillsRouter(): Router {
   const router = Router({ mergeParams: true });
 
-  function getProject(req: any): ProjectInstance {
-    return req.project;
+  function getProject(req: any) {
+    return req.project as ProjectInstance & { skillManager: NonNullable<ProjectInstance['skillManager']> };
   }
 
   // List skills

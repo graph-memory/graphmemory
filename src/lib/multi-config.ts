@@ -25,27 +25,42 @@ const embeddingConfigSchema = z.object({
   batchSize:       z.number().int().positive().optional(),
 });
 
-const graphEmbeddingOverridesSchema = z.object({
-  docs:      embeddingConfigSchema.partial().optional(),
-  code:      embeddingConfigSchema.partial().optional(),
-  knowledge: embeddingConfigSchema.partial().optional(),
-  tasks:     embeddingConfigSchema.partial().optional(),
-  files:     embeddingConfigSchema.partial().optional(),
-  skills:    embeddingConfigSchema.partial().optional(),
+const graphConfigSchema = z.object({
+  enabled:        z.boolean().optional(),
+  pattern:        z.string().optional(),
+  excludePattern: z.string().optional(),
+  embedding:      embeddingConfigSchema.optional(),
+  // Legacy: flat partial embedding overrides (e.g. graphs.docs.model)
+  model:          z.string().optional(),
+  pooling:        z.enum(['mean', 'cls']).optional(),
+  normalize:      z.boolean().optional(),
+  dtype:          z.string().optional(),
+  queryPrefix:    z.string().optional(),
+  documentPrefix: z.string().optional(),
+  batchSize:      z.number().int().positive().optional(),
+});
+
+const graphsConfigSchema = z.object({
+  docs:      graphConfigSchema.optional(),
+  code:      graphConfigSchema.optional(),
+  knowledge: graphConfigSchema.optional(),
+  tasks:     graphConfigSchema.optional(),
+  files:     graphConfigSchema.optional(),
+  skills:    graphConfigSchema.optional(),
 });
 
 const projectSchema = z.object({
   projectDir:      z.string(),
   graphMemory:     z.string().optional(),
-  docsPattern:     z.string().optional(),
-  codePattern:     z.string().optional(),
+  docsPattern:     z.string().optional(),     // deprecated → graphs.docs.pattern
+  codePattern:     z.string().optional(),     // deprecated → graphs.code.pattern
   excludePattern:  z.string().optional(),
   tsconfig:        z.string().optional(),
   chunkDepth:      z.number().int().positive().optional(),
   maxTokensDefault: z.number().int().positive().optional(),
   embedMaxChars:   z.number().int().positive().optional(),
   embedding:       embeddingConfigSchema.optional(),
-  graphs:          graphEmbeddingOverridesSchema.optional(),
+  graphs:          graphsConfigSchema.optional(),
   author:          authorSchema.optional(),
 });
 
@@ -57,10 +72,23 @@ const serverSchema = z.object({
   embedding:       embeddingConfigSchema.optional(),
 });
 
-const wsGraphOverridesSchema = z.object({
-  knowledge: embeddingConfigSchema.partial().optional(),
-  tasks:     embeddingConfigSchema.partial().optional(),
-  skills:    embeddingConfigSchema.partial().optional(),
+const wsGraphConfigSchema = z.object({
+  enabled:        z.boolean().optional(),
+  embedding:      embeddingConfigSchema.optional(),
+  // Legacy: flat partial embedding overrides
+  model:          z.string().optional(),
+  pooling:        z.enum(['mean', 'cls']).optional(),
+  normalize:      z.boolean().optional(),
+  dtype:          z.string().optional(),
+  queryPrefix:    z.string().optional(),
+  documentPrefix: z.string().optional(),
+  batchSize:      z.number().int().positive().optional(),
+});
+
+const wsGraphsConfigSchema = z.object({
+  knowledge: wsGraphConfigSchema.optional(),
+  tasks:     wsGraphConfigSchema.optional(),
+  skills:    wsGraphConfigSchema.optional(),
 });
 
 const workspaceSchema = z.object({
@@ -68,7 +96,7 @@ const workspaceSchema = z.object({
   graphMemory:    z.string().optional(),
   mirrorDir:      z.string().optional(),
   embedding:      embeddingConfigSchema.optional(),
-  graphs:         wsGraphOverridesSchema.optional(),
+  graphs:         wsGraphsConfigSchema.optional(),
   author:         authorSchema.optional(),
 });
 
@@ -121,27 +149,34 @@ export interface ServerConfig {
   embedding: EmbeddingConfig;
 }
 
+export interface GraphConfig {
+  enabled: boolean;
+  pattern?: string;
+  excludePattern?: string;
+  embedding: EmbeddingConfig;
+}
+
 export interface ProjectConfig {
   projectDir: string;
   graphMemory: string;
-  docsPattern: string;
-  codePattern: string;
   excludePattern: string;
   tsconfig?: string;
   chunkDepth: number;
   maxTokensDefault: number;
   embedMaxChars: number;
   embedding: EmbeddingConfig;
-  graphEmbeddings: Record<GraphName, EmbeddingConfig>;
+  graphConfigs: Record<GraphName, GraphConfig>;
   author: AuthorConfig;
 }
+
+export type WsGraphName = 'knowledge' | 'tasks' | 'skills';
 
 export interface WorkspaceConfig {
   projects: string[];
   graphMemory: string;
   mirrorDir: string;
   embedding: EmbeddingConfig;
-  graphEmbeddings: Record<'knowledge' | 'tasks' | 'skills', EmbeddingConfig>;
+  graphConfigs: Record<WsGraphName, GraphConfig>;
   author: AuthorConfig;
 }
 
@@ -278,28 +313,65 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
     // Project-level embedding (inherits from server)
     const projectEmbedding = resolveEmbeddingConfig(raw.embedding, globalEmbedding);
 
-    // Per-graph embeddings (inherit from project)
-    const graphOverrides = raw.graphs ?? {};
-    const graphEmbeddings = {} as Record<GraphName, EmbeddingConfig>;
+    // Backward compat: migrate old flat fields into graphs config
+    const rawGraphs = raw.graphs ?? {};
+
+    // Migrate docsPattern → graphs.docs.pattern
+    if (raw.docsPattern !== undefined && !rawGraphs.docs?.pattern) {
+      if (!rawGraphs.docs) (rawGraphs as any).docs = {};
+      if (raw.docsPattern === '') {
+        (rawGraphs as any).docs.enabled = false;
+      } else {
+        (rawGraphs as any).docs.pattern = raw.docsPattern;
+      }
+    }
+    // Migrate codePattern → graphs.code.pattern
+    if (raw.codePattern !== undefined && !rawGraphs.code?.pattern) {
+      if (!rawGraphs.code) (rawGraphs as any).code = {};
+      if (raw.codePattern === '') {
+        (rawGraphs as any).code.enabled = false;
+      } else {
+        (rawGraphs as any).code.pattern = raw.codePattern;
+      }
+    }
+
+    // Resolve per-graph configs
+    const graphConfigs = {} as Record<GraphName, GraphConfig>;
     for (const gn of GRAPH_NAMES) {
-      graphEmbeddings[gn] = mergeEmbeddingConfig(
-        projectEmbedding,
-        graphOverrides[gn as keyof typeof graphOverrides] as Partial<EmbeddingConfig> | undefined,
-      );
+      const gc = rawGraphs[gn as keyof typeof rawGraphs];
+
+      // Resolve embedding: first-defined-wins (graph → project → server), no field merge
+      // Check for legacy flat fields (model, pooling, etc.) and wrap into embedding
+      let graphEmbedding: EmbeddingConfig | undefined;
+      if (gc?.embedding) {
+        graphEmbedding = resolveEmbeddingConfig(gc.embedding, EMBEDDING_DEFAULTS);
+      } else if (gc?.model) {
+        // Legacy: flat partial embedding fields at graph level — merge with project
+        graphEmbedding = mergeEmbeddingConfig(projectEmbedding, {
+          model: gc.model, pooling: gc.pooling, normalize: gc.normalize,
+          dtype: gc.dtype, queryPrefix: gc.queryPrefix,
+          documentPrefix: gc.documentPrefix, batchSize: gc.batchSize,
+        });
+      }
+
+      graphConfigs[gn] = {
+        enabled: gc?.enabled ?? true,
+        pattern: gc?.pattern ?? (gn === 'docs' ? PROJECT_DEFAULTS.docsPattern : gn === 'code' ? PROJECT_DEFAULTS.codePattern : undefined),
+        excludePattern: gc?.excludePattern,
+        embedding: graphEmbedding ?? projectEmbedding,
+      };
     }
 
     projects.set(id, {
       projectDir,
       graphMemory,
-      docsPattern:     raw.docsPattern     ?? PROJECT_DEFAULTS.docsPattern,
-      codePattern:     raw.codePattern     ?? PROJECT_DEFAULTS.codePattern,
       excludePattern:  raw.excludePattern  ?? PROJECT_DEFAULTS.excludePattern,
       tsconfig:        raw.tsconfig,
       chunkDepth:      raw.chunkDepth      ?? PROJECT_DEFAULTS.chunkDepth,
       maxTokensDefault: raw.maxTokensDefault ?? PROJECT_DEFAULTS.maxTokensDefault,
       embedMaxChars:   raw.embedMaxChars   ?? PROJECT_DEFAULTS.embedMaxChars,
       embedding:       projectEmbedding,
-      graphEmbeddings,
+      graphConfigs,
       author:          raw.author          ?? globalAuthor,
     });
   }
@@ -329,20 +401,35 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
       // Workspace-level embedding (inherits from server)
       const wsEmbedding = resolveEmbeddingConfig(raw.embedding, globalEmbedding);
 
-      // Per-graph embeddings for workspace's shared graphs (knowledge, tasks, skills)
-      const graphOverrides = raw.graphs ?? {};
-      const graphEmbeddings = {
-        knowledge: mergeEmbeddingConfig(wsEmbedding, graphOverrides.knowledge as Partial<EmbeddingConfig> | undefined),
-        tasks:     mergeEmbeddingConfig(wsEmbedding, graphOverrides.tasks     as Partial<EmbeddingConfig> | undefined),
-        skills:    mergeEmbeddingConfig(wsEmbedding, graphOverrides.skills    as Partial<EmbeddingConfig> | undefined),
-      };
+      // Per-graph configs for workspace's shared graphs (knowledge, tasks, skills)
+      const rawGraphs = raw.graphs ?? {};
+      const WS_GRAPH_NAMES: WsGraphName[] = ['knowledge', 'tasks', 'skills'];
+      const graphConfigs = {} as Record<WsGraphName, GraphConfig>;
+
+      for (const gn of WS_GRAPH_NAMES) {
+        const gc = rawGraphs[gn];
+        let graphEmbedding: EmbeddingConfig | undefined;
+        if (gc?.embedding) {
+          graphEmbedding = resolveEmbeddingConfig(gc.embedding, EMBEDDING_DEFAULTS);
+        } else if (gc?.model) {
+          graphEmbedding = mergeEmbeddingConfig(wsEmbedding, {
+            model: gc.model, pooling: gc.pooling, normalize: gc.normalize,
+            dtype: gc.dtype, queryPrefix: gc.queryPrefix,
+            documentPrefix: gc.documentPrefix, batchSize: gc.batchSize,
+          });
+        }
+        graphConfigs[gn] = {
+          enabled: gc?.enabled ?? true,
+          embedding: graphEmbedding ?? wsEmbedding,
+        };
+      }
 
       workspaces.set(wsId, {
         projects:       raw.projects,
         graphMemory,
         mirrorDir,
         embedding:      wsEmbedding,
-        graphEmbeddings,
+        graphConfigs,
         author:         raw.author ?? globalAuthor,
       });
     }

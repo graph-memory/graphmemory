@@ -21,7 +21,9 @@ export interface ProjectIndexerConfig {
   projectDir: string;
   docsPattern?: string;
   codePattern?: string;
-  excludePattern?: string;
+  docsExcludePattern?: string;
+  codeExcludePattern?: string;
+  filesExcludePattern?: string;
   chunkDepth: number;
   tsconfig?: string;
   docsModelName?: string;
@@ -188,12 +190,24 @@ export function createProjectIndexer(
   // Dispatch: match a file against both patterns, enqueue as needed
   // ---------------------------------------------------------------------------
 
-  const excludePatterns = config.excludePattern
-    ? config.excludePattern.split(',').map(p => p.trim()).filter(Boolean)
-    : [];
+  // Per-graph exclude patterns
+  function parseExclude(pat?: string): string[] {
+    return pat ? pat.split(',').map(p => p.trim()).filter(Boolean) : [];
+  }
+  const docsExcludePatterns  = parseExclude(config.docsExcludePattern);
+  const codeExcludePatterns  = parseExclude(config.codeExcludePattern);
+  const filesExcludePatterns = parseExclude(config.filesExcludePattern);
+  // Union of all exclude patterns for directory pruning during scan
+  const allExcludePatterns = [...new Set([...docsExcludePatterns, ...codeExcludePatterns, ...filesExcludePatterns])];
 
-  function isExcluded(rel: string): boolean {
-    return excludePatterns.length > 0 && micromatch.isMatch(rel, excludePatterns);
+  function isDocsExcluded(rel: string): boolean {
+    return docsExcludePatterns.length > 0 && micromatch.isMatch(rel, docsExcludePatterns);
+  }
+  function isCodeExcluded(rel: string): boolean {
+    return codeExcludePatterns.length > 0 && micromatch.isMatch(rel, codeExcludePatterns);
+  }
+  function isFilesExcluded(rel: string): boolean {
+    return filesExcludePatterns.length > 0 && micromatch.isMatch(rel, filesExcludePatterns);
   }
 
   function dispatchAdd(absolutePath: string): void {
@@ -214,36 +228,34 @@ export function createProjectIndexer(
     }
 
     const rel = path.relative(config.projectDir, absolutePath);
-    if (isExcluded(rel)) return;
-    if (config.docsPattern && micromatch.isMatch(rel, config.docsPattern)) {
+    if (config.docsPattern && !isDocsExcluded(rel) && micromatch.isMatch(rel, config.docsPattern)) {
       enqueueDoc(() => indexDocFile(absolutePath));
     }
-    if (codeGraph && config.codePattern && micromatch.isMatch(rel, config.codePattern)) {
+    if (codeGraph && config.codePattern && !isCodeExcluded(rel) && micromatch.isMatch(rel, config.codePattern)) {
       enqueueCode(() => indexCodeFile(absolutePath));
     }
-    if (fileIndexGraph) {
+    if (fileIndexGraph && !isFilesExcluded(rel)) {
       enqueueFile(() => indexFileEntry(absolutePath));
     }
   }
 
   function dispatchRemove(absolutePath: string): void {
     const rel = path.relative(config.projectDir, absolutePath);
-    if (isExcluded(rel)) return;
-    if (docGraph && config.docsPattern && micromatch.isMatch(rel, config.docsPattern)) {
+    if (docGraph && config.docsPattern && !isDocsExcluded(rel) && micromatch.isMatch(rel, config.docsPattern)) {
       removeFile(docGraph, rel);
       if (knowledgeGraph) cleanupKnowledgeProxies(knowledgeGraph, 'docs', docGraph);
       if (taskGraph) cleanupTaskProxies(taskGraph, 'docs', docGraph);
       if (skillGraph) cleanupSkillProxies(skillGraph, 'docs', docGraph);
       process.stderr.write(`[indexer] removed doc  ${rel}\n`);
     }
-    if (codeGraph && config.codePattern && micromatch.isMatch(rel, config.codePattern)) {
+    if (codeGraph && config.codePattern && !isCodeExcluded(rel) && micromatch.isMatch(rel, config.codePattern)) {
       removeCodeFile(codeGraph, rel);
       if (knowledgeGraph) cleanupKnowledgeProxies(knowledgeGraph, 'code', codeGraph);
       if (taskGraph) cleanupTaskProxies(taskGraph, 'code', codeGraph);
       if (skillGraph) cleanupSkillProxies(skillGraph, 'code', codeGraph);
       process.stderr.write(`[indexer] removed code ${rel}\n`);
     }
-    if (fileIndexGraph) {
+    if (fileIndexGraph && !isFilesExcluded(rel)) {
       removeFileEntry(fileIndexGraph, rel);
       if (knowledgeGraph) cleanupKnowledgeProxies(knowledgeGraph, 'files', fileIndexGraph);
       if (taskGraph) cleanupTaskProxies(taskGraph, 'files', fileIndexGraph);
@@ -262,10 +274,10 @@ export function createProjectIndexer(
         const full = path.join(dir, entry.name);
         if (entry.isDirectory()) {
           const relDir = path.relative(config.projectDir, full);
-          // prune directory if any file inside would be excluded (handles both `dir` and `dir/**` patterns)
-          if (excludePatterns.length > 0 && (
-            micromatch.isMatch(relDir, excludePatterns) ||
-            micromatch.isMatch(relDir + '/x', excludePatterns)
+          // prune directory if ALL graphs would exclude it
+          if (allExcludePatterns.length > 0 && (
+            micromatch.isMatch(relDir, allExcludePatterns) ||
+            micromatch.isMatch(relDir + '/x', allExcludePatterns)
           )) continue;
           walk(full);
         } else if (entry.isFile()) {
@@ -285,7 +297,7 @@ export function createProjectIndexer(
         onUnlink: (f) => dispatchRemove(f),
       },
       '**/*',
-      excludePatterns.length > 0 ? excludePatterns : undefined,
+      allExcludePatterns.length > 0 ? allExcludePatterns : undefined,
     );
   }
 

@@ -49,7 +49,8 @@ function resolveProject(configPath: string, projectId?: string): { id: string; p
 
 async function loadAllModels(projectId: string, config: ProjectConfig, modelsDir: string): Promise<void> {
   for (const gn of GRAPH_NAMES) {
-    await loadModel(config.graphEmbeddings[gn], modelsDir, config.embedMaxChars, `${projectId}:${gn}`);
+    if (!config.graphConfigs[gn].enabled) continue;
+    await loadModel(config.graphConfigs[gn].embedding, modelsDir, config.embedMaxChars, `${projectId}:${gn}`);
   }
 }
 
@@ -130,7 +131,9 @@ program
         if (instance.codeGraph) {
           process.stderr.write(`[index] "${id}" code: ${instance.codeGraph.order} nodes, ${instance.codeGraph.size} edges\n`);
         }
-        process.stderr.write(`[index] "${id}" files: ${instance.fileIndexGraph.order} nodes, ${instance.fileIndexGraph.size} edges\n`);
+        if (instance.fileIndexGraph) {
+          process.stderr.write(`[index] "${id}" files: ${instance.fileIndexGraph.order} nodes, ${instance.fileIndexGraph.size} edges\n`);
+        }
       }
 
       // Save workspaces
@@ -237,15 +240,15 @@ program
     const fresh = !!opts.reindex;
     if (fresh) process.stderr.write(`[mcp] Re-indexing project "${id}" from scratch\n`);
 
-    const ge = project.graphEmbeddings;
+    const gc = project.graphConfigs;
 
     // Load persisted graphs (or create fresh ones if reindexing / model changed) and start MCP server immediately
-    const docGraph  = project.docsPattern ? loadGraph(project.graphMemory, fresh, embeddingFingerprint(ge.docs)) : undefined;
-    const codeGraph = project.codePattern ? loadCodeGraph(project.graphMemory, fresh, embeddingFingerprint(ge.code)) : undefined;
-    const knowledgeGraph = loadKnowledgeGraph(project.graphMemory, fresh, embeddingFingerprint(ge.knowledge));
-    const fileIndexGraph = loadFileIndexGraph(project.graphMemory, fresh, embeddingFingerprint(ge.files));
-    const taskGraph = loadTaskGraph(project.graphMemory, fresh, embeddingFingerprint(ge.tasks));
-    const skillGraph = loadSkillGraph(project.graphMemory, fresh, embeddingFingerprint(ge.skills));
+    const docGraph  = gc.docs.enabled ? loadGraph(project.graphMemory, fresh, embeddingFingerprint(gc.docs.embedding)) : undefined;
+    const codeGraph = gc.code.enabled ? loadCodeGraph(project.graphMemory, fresh, embeddingFingerprint(gc.code.embedding)) : undefined;
+    const knowledgeGraph = gc.knowledge.enabled ? loadKnowledgeGraph(project.graphMemory, fresh, embeddingFingerprint(gc.knowledge.embedding)) : undefined;
+    const fileIndexGraph = gc.files.enabled ? loadFileIndexGraph(project.graphMemory, fresh, embeddingFingerprint(gc.files.embedding)) : undefined;
+    const taskGraph = gc.tasks.enabled ? loadTaskGraph(project.graphMemory, fresh, embeddingFingerprint(gc.tasks.embedding)) : undefined;
+    const skillGraph = gc.skills.enabled ? loadSkillGraph(project.graphMemory, fresh, embeddingFingerprint(gc.skills.embedding)) : undefined;
 
     const embedFns = buildEmbedFns(id);
     const sessionCtx: McpSessionContext = { projectId: id };
@@ -260,14 +263,16 @@ program
 
       indexer = createProjectIndexer(docGraph, codeGraph, {
         projectDir,
-        docsPattern:    project.docsPattern || undefined,
-        codePattern:    project.codePattern || undefined,
-        excludePattern: project.excludePattern || undefined,
-        chunkDepth:     project.chunkDepth,
-        tsconfig:       project.tsconfig,
-        docsModelName:  `${id}:docs`,
-        codeModelName:  `${id}:code`,
-        filesModelName: `${id}:files`,
+        docsPattern:         gc.docs.enabled ? gc.docs.pattern : undefined,
+        codePattern:         gc.code.enabled ? gc.code.pattern : undefined,
+        docsExcludePattern:  gc.docs.excludePattern ?? project.excludePattern ?? undefined,
+        codeExcludePattern:  gc.code.excludePattern ?? project.excludePattern ?? undefined,
+        filesExcludePattern: gc.files.excludePattern ?? project.excludePattern ?? undefined,
+        chunkDepth:          project.chunkDepth,
+        tsconfig:            project.tsconfig,
+        docsModelName:       `${id}:docs`,
+        codeModelName:       `${id}:code`,
+        filesModelName:      `${id}:files`,
       }, knowledgeGraph, fileIndexGraph, taskGraph, skillGraph);
 
       watcher = indexer.watch();
@@ -275,17 +280,19 @@ program
       await indexer.drain();
 
       if (docGraph) {
-        saveGraph(docGraph, project.graphMemory, embeddingFingerprint(ge.docs));
+        saveGraph(docGraph, project.graphMemory, embeddingFingerprint(gc.docs.embedding));
         process.stderr.write(`[mcp] Docs indexed. ${docGraph.order} nodes, ${docGraph.size} edges.\n`);
       }
 
       if (codeGraph) {
-        saveCodeGraph(codeGraph, project.graphMemory, embeddingFingerprint(ge.code));
+        saveCodeGraph(codeGraph, project.graphMemory, embeddingFingerprint(gc.code.embedding));
         process.stderr.write(`[mcp] Code indexed. ${codeGraph.order} nodes, ${codeGraph.size} edges.\n`);
       }
 
-      saveFileIndexGraph(fileIndexGraph, project.graphMemory, embeddingFingerprint(ge.files));
-      process.stderr.write(`[mcp] File index done. ${fileIndexGraph.order} nodes, ${fileIndexGraph.size} edges.\n`);
+      if (fileIndexGraph) {
+        saveFileIndexGraph(fileIndexGraph, project.graphMemory, embeddingFingerprint(gc.files.embedding));
+        process.stderr.write(`[mcp] File index done. ${fileIndexGraph.order} nodes, ${fileIndexGraph.size} edges.\n`);
+      }
     }
 
     startIndexing().catch((err: unknown) => {
@@ -307,11 +314,11 @@ program
       try {
         if (watcher) await watcher.close();
         if (indexer) await indexer.drain();
-        if (docGraph) saveGraph(docGraph, project.graphMemory, embeddingFingerprint(ge.docs));
-        if (codeGraph) saveCodeGraph(codeGraph, project.graphMemory, embeddingFingerprint(ge.code));
-        saveKnowledgeGraph(knowledgeGraph, project.graphMemory, embeddingFingerprint(ge.knowledge));
-        saveFileIndexGraph(fileIndexGraph, project.graphMemory, embeddingFingerprint(ge.files));
-        saveTaskGraph(taskGraph, project.graphMemory, embeddingFingerprint(ge.tasks));
+        if (docGraph) saveGraph(docGraph, project.graphMemory, embeddingFingerprint(gc.docs.embedding));
+        if (codeGraph) saveCodeGraph(codeGraph, project.graphMemory, embeddingFingerprint(gc.code.embedding));
+        if (knowledgeGraph) saveKnowledgeGraph(knowledgeGraph, project.graphMemory, embeddingFingerprint(gc.knowledge.embedding));
+        if (fileIndexGraph) saveFileIndexGraph(fileIndexGraph, project.graphMemory, embeddingFingerprint(gc.files.embedding));
+        if (taskGraph) saveTaskGraph(taskGraph, project.graphMemory, embeddingFingerprint(gc.tasks.embedding));
       } catch { /* ignore */ }
       clearTimeout(forceTimer);
       // Let event loop drain naturally — avoids ONNX global thread pool destructor crash on macOS

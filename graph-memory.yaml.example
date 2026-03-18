@@ -45,9 +45,7 @@ projects:
     # Storage
     # graphMemory: ".graph-memory"              # Graph data dir (relative to projectDir)
 
-    # Indexing patterns
-    # docsPattern: "**/*.md"                    # Glob for markdown files
-    # codePattern: "**/*.{js,ts,jsx,tsx}"       # Glob for source files
+    # Exclude pattern (project-level fallback — overridden by graph-level excludePattern)
     # excludePattern: "node_modules/**"         # Glob to exclude from indexing
     # tsconfig: "./tsconfig.json"               # Path to tsconfig.json (enables import resolution)
 
@@ -56,7 +54,7 @@ projects:
     # maxTokensDefault: 4000                    # Default max tokens for responses
     # embedMaxChars: 2000                       # Max chars fed to embedder per node
 
-    # Per-project embedding config (overrides server.embedding)
+    # Per-project embedding config (overrides server.embedding — used as fallback for graphs)
     # embedding:
     #   model: "Xenova/bge-m3"
 
@@ -65,28 +63,43 @@ projects:
     #   name: "Project Bot"
     #   email: "bot@example.com"
 
-    # Per-graph embedding overrides (inherit from project embedding, then server embedding)
-    # Only specify fields you want to override — the rest inherit from the project/server level.
+    # Per-graph configuration
+    # Each graph can be enabled/disabled, have its own pattern, excludePattern, and embedding.
+    # Embedding resolution: graph.embedding ?? project.embedding ?? server.embedding
+    #   (first fully-defined wins — no field-by-field merge at graph level)
     # graphs:
     #   docs:
-    #     model: "Xenova/bge-m3"
+    #     enabled: true                          # default: true (set false to disable)
+    #     pattern: "**/*.md"                     # Glob for markdown files (default: "**/*.md")
+    #     excludePattern: "changelog/**"         # Overrides project-level excludePattern
+    #     embedding:                             # Full embedding config (no merge with parent)
+    #       model: "Xenova/bge-m3"
+    #       pooling: "cls"
+    #       normalize: true
     #   code:
-    #     model: "Xenova/bge-m3"
+    #     enabled: true
+    #     pattern: "**/*.{js,ts,jsx,tsx}"        # Glob for source files (default: "**/*.{js,ts,jsx,tsx}")
+    #     excludePattern: "dist/**"
     #   knowledge:
-    #     model: "Xenova/bge-m3"
+    #     enabled: true
     #   tasks:
-    #     model: "Xenova/bge-m3"
+    #     enabled: true
     #   files:
-    #     model: "Xenova/bge-m3"
+    #     enabled: true
     #   skills:
-    #     model: "Xenova/bge-m3"
+    #     enabled: true
 
   # ── Project 2: Documentation-only project (no code indexing) ─────────────
   docs-site:
     projectDir: "/path/to/docs-site"
-    docsPattern: "content/**/*.md"
-    codePattern: ""                             # Empty string disables code indexing
     excludePattern: "node_modules/**,build/**"
+    graphs:
+      docs:
+        pattern: "content/**/*.md"
+      code:
+        enabled: false                          # Disable code indexing
+      skills:
+        enabled: false                          # Disable skills
 
 # ---------------------------------------------------------------------------
 # Workspaces (optional — share knowledge/tasks/skills across projects)
@@ -106,10 +119,12 @@ projects:
 #     # Workspace-level embedding (overrides server.embedding for shared graphs)
 #     # embedding:
 #     #   model: "Xenova/bge-m3"
-#     # Per-graph overrides for shared graphs (knowledge, tasks, skills only)
+#     # Per-graph config for shared graphs (knowledge, tasks, skills only)
 #     # graphs:
 #     #   knowledge:
-#     #     model: "Xenova/bge-m3"
+#     #     enabled: true
+#     #     embedding:
+#     #       model: "Xenova/bge-m3"
 
 # ============================================================================
 # Embedding model examples
@@ -177,6 +192,7 @@ projects:
 #
 # ── Mixed config: different models per graph ──────────────────────────────
 # Use a smaller model for file paths and a larger model for content search.
+# Note: graph-level embedding is a complete block (first-defined-wins, no merge).
 #
 # projects:
 #   my-app:
@@ -187,8 +203,13 @@ projects:
 #       normalize: true
 #     graphs:
 #       files:
-#         model: "Xenova/bge-small-en-v1.5"
-#         pooling: "cls"
+#         embedding:
+#           model: "Xenova/bge-small-en-v1.5"
+#           pooling: "cls"
+#           normalize: true
 #       code:
-#         model: "Xenova/bge-base-en-v1.5"
-#         queryPrefix: "Represent this sentence for searching relevant passages: "
+#         embedding:
+#           model: "Xenova/bge-base-en-v1.5"
+#           pooling: "cls"
+#           normalize: true
+#           queryPrefix: "Represent this sentence for searching relevant passages: "

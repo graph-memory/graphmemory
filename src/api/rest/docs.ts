@@ -10,8 +10,8 @@ function joinParam(value: unknown): string {
 export function createDocsRouter(): Router {
   const router = Router({ mergeParams: true });
 
-  function getProject(req: any): ProjectInstance {
-    return req.project;
+  function getProject(req: any) {
+    return req.project as ProjectInstance & { docManager: NonNullable<ProjectInstance['docManager']> };
   }
 
   // List topics (files)

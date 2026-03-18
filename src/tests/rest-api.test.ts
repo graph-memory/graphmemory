@@ -24,6 +24,18 @@ function fakeEmbed(q: string): Promise<number[]> {
   return Promise.resolve(unitVec(q.length % DIM));
 }
 
+const TEST_EMBEDDING = { model: 'test', pooling: 'mean' as const, normalize: true, queryPrefix: '', documentPrefix: '', batchSize: 1 };
+
+function testGraphConfigs() {
+  return Object.fromEntries(
+    ['docs', 'code', 'knowledge', 'tasks', 'files', 'skills'].map(g => [g, {
+      enabled: true,
+      pattern: g === 'docs' ? '**/*.md' : g === 'code' ? '**/*.ts' : undefined,
+      embedding: { ...TEST_EMBEDDING },
+    }]),
+  ) as any;
+}
+
 function createTestProject(): ProjectInstance {
   const knowledgeGraph = createKnowledgeGraph();
   const fileIndexGraph = createFileIndexGraph();
@@ -37,16 +49,12 @@ function createTestProject(): ProjectInstance {
     config: {
       projectDir: '/tmp/test',
       graphMemory: '/tmp/test/.graph-memory',
-      docsPattern: '**/*.md',
-      codePattern: '**/*.ts',
       excludePattern: 'node_modules/**',
       chunkDepth: 4,
       maxTokensDefault: 4000,
       embedMaxChars: 2000,
-      embedding: { model: 'test', pooling: 'mean' as const, normalize: true, queryPrefix: '', documentPrefix: '', batchSize: 1 },
-      graphEmbeddings: Object.fromEntries(
-        ['docs', 'code', 'knowledge', 'tasks', 'files', 'skills'].map(g => [g, { model: 'test', pooling: 'mean' as const, normalize: true, queryPrefix: '', documentPrefix: '', batchSize: 1 }]),
-      ) as any,
+      embedding: { ...TEST_EMBEDDING },
+      graphConfigs: testGraphConfigs(),
       author: { name: '', email: '' },
     },
     knowledgeGraph,
@@ -310,13 +318,13 @@ describe('REST API', () => {
         .send({ fromId: 'linked-task', toId: 'linked-note', kind: 'references', targetGraph: 'knowledge', projectId: 'test' });
 
       // Verify proxy exists (project-scoped proxy ID)
-      expect(project.taskGraph.hasNode('@knowledge::test::linked-note')).toBe(true);
+      expect(project.taskGraph!.hasNode('@knowledge::test::linked-note')).toBe(true);
 
       // Delete note
       await request(app).delete('/api/projects/test/knowledge/notes/linked-note');
 
       // Proxy should be cleaned up
-      expect(project.taskGraph.hasNode('@knowledge::test::linked-note')).toBe(false);
+      expect(project.taskGraph!.hasNode('@knowledge::test::linked-note')).toBe(false);
     });
 
     it('delete task cleans up proxy in KnowledgeGraph', async () => {
@@ -334,13 +342,13 @@ describe('REST API', () => {
         .send({ fromId: 'another-note', toId: 'another-task', kind: 'tracks', targetGraph: 'tasks', projectId: 'test' });
 
       // Verify proxy exists (project-scoped proxy ID)
-      expect(project.knowledgeGraph.hasNode('@tasks::test::another-task')).toBe(true);
+      expect(project.knowledgeGraph!.hasNode('@tasks::test::another-task')).toBe(true);
 
       // Delete task
       await request(app).delete('/api/projects/test/tasks/another-task');
 
       // Proxy should be cleaned up
-      expect(project.knowledgeGraph.hasNode('@tasks::test::another-task')).toBe(false);
+      expect(project.knowledgeGraph!.hasNode('@tasks::test::another-task')).toBe(false);
     });
   });
 
@@ -476,16 +484,12 @@ describe('Attachment REST endpoints', () => {
       config: {
         projectDir: dir,
         graphMemory: path.join(dir, '.graph-memory'),
-        docsPattern: '**/*.md',
-        codePattern: '**/*.ts',
         excludePattern: 'node_modules/**',
         chunkDepth: 4,
         maxTokensDefault: 4000,
         embedMaxChars: 2000,
-        embedding: { model: 'test', pooling: 'mean' as const, normalize: true, queryPrefix: '', documentPrefix: '', batchSize: 1 },
-        graphEmbeddings: Object.fromEntries(
-          ['docs', 'code', 'knowledge', 'tasks', 'files', 'skills'].map(g => [g, { model: 'test', pooling: 'mean' as const, normalize: true, queryPrefix: '', documentPrefix: '', batchSize: 1 }]),
-        ) as any,
+        embedding: { ...TEST_EMBEDDING },
+        graphConfigs: testGraphConfigs(),
         author: { name: '', email: '' },
       },
       knowledgeGraph,

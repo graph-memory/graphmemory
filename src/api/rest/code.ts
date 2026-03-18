@@ -10,8 +10,8 @@ function joinParam(value: unknown): string {
 export function createCodeRouter(): Router {
   const router = Router({ mergeParams: true });
 
-  function getProject(req: any): ProjectInstance {
-    return req.project;
+  function getProject(req: any) {
+    return req.project as ProjectInstance & { codeManager: NonNullable<ProjectInstance['codeManager']> };
   }
 
   // List code files

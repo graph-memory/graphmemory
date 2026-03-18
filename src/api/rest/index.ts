@@ -43,17 +43,26 @@ export function createRestApp(projectManager: ProjectManager): express.Express {
   app.get('/api/projects', (_req, res) => {
     const projects = projectManager.listProjects().map(id => {
       const p = projectManager.getProject(id)!;
+      const gc = p.config.graphConfigs;
       return {
         id,
         projectDir: p.config.projectDir,
         workspaceId: p.workspaceId ?? null,
+        graphs: {
+          docs:      { enabled: gc.docs.enabled },
+          code:      { enabled: gc.code.enabled },
+          knowledge: { enabled: gc.knowledge.enabled },
+          files:     { enabled: gc.files.enabled },
+          tasks:     { enabled: gc.tasks.enabled },
+          skills:    { enabled: gc.skills.enabled },
+        },
         stats: {
           docs:      p.docGraph      ? p.docGraph.order      : 0,
           code:      p.codeGraph     ? p.codeGraph.order      : 0,
-          knowledge: p.knowledgeGraph.order,
-          files:     p.fileIndexGraph.order,
-          tasks:     p.taskGraph.order,
-          skills:    p.skillGraph.order,
+          knowledge: p.knowledgeGraph ? p.knowledgeGraph.order : 0,
+          files:     p.fileIndexGraph ? p.fileIndexGraph.order : 0,
+          tasks:     p.taskGraph     ? p.taskGraph.order      : 0,
+          skills:    p.skillGraph    ? p.skillGraph.order     : 0,
         },
       };
     });
@@ -78,20 +87,31 @@ export function createRestApp(projectManager: ProjectManager): express.Express {
     res.json({
       docs:      p.docGraph      ? { nodes: p.docGraph.order,      edges: p.docGraph.size }      : null,
       code:      p.codeGraph     ? { nodes: p.codeGraph.order,     edges: p.codeGraph.size }     : null,
-      knowledge: { nodes: p.knowledgeGraph.order, edges: p.knowledgeGraph.size },
-      fileIndex: { nodes: p.fileIndexGraph.order, edges: p.fileIndexGraph.size },
-      tasks:     { nodes: p.taskGraph.order,      edges: p.taskGraph.size },
-      skills:    { nodes: p.skillGraph.order,     edges: p.skillGraph.size },
+      knowledge: p.knowledgeGraph ? { nodes: p.knowledgeGraph.order, edges: p.knowledgeGraph.size } : null,
+      fileIndex: p.fileIndexGraph ? { nodes: p.fileIndexGraph.order, edges: p.fileIndexGraph.size } : null,
+      tasks:     p.taskGraph     ? { nodes: p.taskGraph.order,      edges: p.taskGraph.size }     : null,
+      skills:    p.skillGraph    ? { nodes: p.skillGraph.order,     edges: p.skillGraph.size }    : null,
     });
   });
 
-  // Mount domain routers
-  app.use('/api/projects/:projectId/knowledge', createKnowledgeRouter());
-  app.use('/api/projects/:projectId/tasks', createTasksRouter());
-  app.use('/api/projects/:projectId/skills', createSkillsRouter());
-  app.use('/api/projects/:projectId/docs', createDocsRouter());
-  app.use('/api/projects/:projectId/code', createCodeRouter());
-  app.use('/api/projects/:projectId/files', createFilesRouter());
+  // Middleware: require a specific manager to be enabled, or return 404
+  function requireManager(managerKey: keyof import('@/lib/project-manager').ProjectInstance) {
+    return (req: express.Request, _res: express.Response, next: express.NextFunction) => {
+      const p = (req as any).project;
+      if (!p || !p[managerKey]) {
+        return _res.status(404).json({ error: 'This graph is disabled for this project' });
+      }
+      next();
+    };
+  }
+
+  // Mount domain routers (gated by manager existence)
+  app.use('/api/projects/:projectId/knowledge', requireManager('knowledgeManager'), createKnowledgeRouter());
+  app.use('/api/projects/:projectId/tasks', requireManager('taskManager'), createTasksRouter());
+  app.use('/api/projects/:projectId/skills', requireManager('skillManager'), createSkillsRouter());
+  app.use('/api/projects/:projectId/docs', requireManager('docManager'), createDocsRouter());
+  app.use('/api/projects/:projectId/code', requireManager('codeManager'), createCodeRouter());
+  app.use('/api/projects/:projectId/files', requireManager('fileIndexManager'), createFilesRouter());
   app.use('/api/projects/:projectId/graph', createGraphRouter());
   app.use('/api/projects/:projectId/tools', createToolsRouter(projectManager));
 

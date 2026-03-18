@@ -11,8 +11,8 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 
 export function createTasksRouter(): Router {
   const router = Router({ mergeParams: true });
 
-  function getProject(req: any): ProjectInstance {
-    return req.project;
+  function getProject(req: any) {
+    return req.project as ProjectInstance & { taskManager: NonNullable<ProjectInstance['taskManager']> };
   }
 
   // List tasks

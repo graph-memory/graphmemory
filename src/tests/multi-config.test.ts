@@ -22,13 +22,17 @@ projects:
     const p = mc.projects.get('my-app')!;
     expect(p.projectDir).toBe('/tmp/my-app');
     expect(p.graphMemory).toBe('/tmp/my-app/.graph-memory');
-    expect(p.docsPattern).toBe('**/*.md');
-    expect(p.codePattern).toBe('**/*.{js,ts,jsx,tsx}');
+    expect(p.graphConfigs.docs.pattern).toBe('**/*.md');
+    expect(p.graphConfigs.code.pattern).toBe('**/*.{js,ts,jsx,tsx}');
     expect(p.excludePattern).toBe('node_modules/**');
     expect(p.chunkDepth).toBe(4);
     expect(p.maxTokensDefault).toBe(4000);
     expect(p.embedMaxChars).toBe(2000);
     expect(p.embedding.model).toBe('Xenova/bge-m3');
+    // All graphs enabled by default
+    for (const gn of ['docs', 'code', 'knowledge', 'tasks', 'files', 'skills'] as const) {
+      expect(p.graphConfigs[gn].enabled).toBe(true);
+    }
   });
 
   it('applies server-level defaults', () => {
@@ -95,8 +99,10 @@ projects:
     expect(mc.projects.size).toBe(2);
 
     const app1 = mc.projects.get('app1')!;
-    expect(app1.docsPattern).toBe('docs/**/*.md');
-    expect(app1.codePattern).toBe('');
+    // Legacy docsPattern migrated to graphs.docs.pattern
+    expect(app1.graphConfigs.docs.pattern).toBe('docs/**/*.md');
+    // Legacy codePattern: "" migrated to graphs.code.enabled: false
+    expect(app1.graphConfigs.code.enabled).toBe(false);
     expect(app1.embedding.model).toBe('custom/app1');
 
     const app2 = mc.projects.get('app2')!;
@@ -105,7 +111,7 @@ projects:
     expect(app2.embedding.model).toBe('default/model');
   });
 
-  it('supports per-graph embedding overrides', () => {
+  it('supports per-graph embedding overrides (legacy flat fields)', () => {
     const yamlPath = tmpYaml(`
 server:
   embedding:
@@ -130,19 +136,20 @@ projects:
 `);
     const mc = loadMultiConfig(yamlPath);
     const x = mc.projects.get('x')!;
-    expect(x.graphEmbeddings.docs.model).toBe('model/docs');
-    expect(x.graphEmbeddings.docs.pooling).toBe('cls');
-    expect(x.graphEmbeddings.code.model).toBe('model/code');
-    expect(x.graphEmbeddings.code.pooling).toBe('mean'); // inherited from project
-    expect(x.graphEmbeddings.knowledge.model).toBe('model/knowledge');
-    expect(x.graphEmbeddings.knowledge.queryPrefix).toBe('search: ');
-    expect(x.graphEmbeddings.tasks.model).toBe('model/tasks');
-    expect(x.graphEmbeddings.files.model).toBe('model/files');
+    // Legacy flat fields: model, pooling etc. at graph level → merged with project embedding
+    expect(x.graphConfigs.docs.embedding.model).toBe('model/docs');
+    expect(x.graphConfigs.docs.embedding.pooling).toBe('cls');
+    expect(x.graphConfigs.code.embedding.model).toBe('model/code');
+    expect(x.graphConfigs.code.embedding.pooling).toBe('mean'); // inherited from project
+    expect(x.graphConfigs.knowledge.embedding.model).toBe('model/knowledge');
+    expect(x.graphConfigs.knowledge.embedding.queryPrefix).toBe('search: ');
+    expect(x.graphConfigs.tasks.embedding.model).toBe('model/tasks');
+    expect(x.graphConfigs.files.embedding.model).toBe('model/files');
     // skills not overridden — inherits project default
-    expect(x.graphEmbeddings.skills.model).toBe('default/model');
+    expect(x.graphConfigs.skills.embedding.model).toBe('default/model');
   });
 
-  it('graph overrides inherit from project embedding', () => {
+  it('legacy graph overrides inherit from project embedding', () => {
     const yamlPath = tmpYaml(`
 projects:
   x:
@@ -157,13 +164,90 @@ projects:
 `);
     const mc = loadMultiConfig(yamlPath);
     const x = mc.projects.get('x')!;
-    // docs overrides model but inherits pooling/prefix from project
-    expect(x.graphEmbeddings.docs.model).toBe('docs/model');
-    expect(x.graphEmbeddings.docs.pooling).toBe('cls');
-    expect(x.graphEmbeddings.docs.queryPrefix).toBe('proj-query: ');
+    // Legacy flat model field: merged with project embedding
+    expect(x.graphConfigs.docs.embedding.model).toBe('docs/model');
+    expect(x.graphConfigs.docs.embedding.pooling).toBe('cls');
+    expect(x.graphConfigs.docs.embedding.queryPrefix).toBe('proj-query: ');
     // code inherits everything from project
-    expect(x.graphEmbeddings.code.model).toBe('proj/model');
-    expect(x.graphEmbeddings.code.pooling).toBe('cls');
+    expect(x.graphConfigs.code.embedding.model).toBe('proj/model');
+    expect(x.graphConfigs.code.embedding.pooling).toBe('cls');
+  });
+
+  it('graph-level embedding block takes precedence (first-defined-wins)', () => {
+    const yamlPath = tmpYaml(`
+projects:
+  x:
+    projectDir: /tmp/x
+    embedding:
+      model: proj/model
+      pooling: cls
+      queryPrefix: "proj-query: "
+    graphs:
+      docs:
+        embedding:
+          model: docs/model
+          pooling: mean
+`);
+    const mc = loadMultiConfig(yamlPath);
+    const x = mc.projects.get('x')!;
+    // Full embedding block at graph level — no merge with project
+    expect(x.graphConfigs.docs.embedding.model).toBe('docs/model');
+    expect(x.graphConfigs.docs.embedding.pooling).toBe('mean');
+    expect(x.graphConfigs.docs.embedding.queryPrefix).toBe(''); // NOT inherited from project
+    // code still inherits from project
+    expect(x.graphConfigs.code.embedding.model).toBe('proj/model');
+  });
+
+  it('graphs.*.enabled controls graph creation', () => {
+    const yamlPath = tmpYaml(`
+projects:
+  x:
+    projectDir: /tmp/x
+    graphs:
+      docs:
+        enabled: true
+        pattern: "content/**/*.md"
+      code:
+        enabled: false
+      knowledge:
+        enabled: false
+      tasks:
+        enabled: true
+      skills:
+        enabled: false
+      files:
+        enabled: true
+`);
+    const mc = loadMultiConfig(yamlPath);
+    const x = mc.projects.get('x')!;
+    expect(x.graphConfigs.docs.enabled).toBe(true);
+    expect(x.graphConfigs.docs.pattern).toBe('content/**/*.md');
+    expect(x.graphConfigs.code.enabled).toBe(false);
+    expect(x.graphConfigs.knowledge.enabled).toBe(false);
+    expect(x.graphConfigs.tasks.enabled).toBe(true);
+    expect(x.graphConfigs.skills.enabled).toBe(false);
+    expect(x.graphConfigs.files.enabled).toBe(true);
+  });
+
+  it('graph-level excludePattern overrides project-level', () => {
+    const yamlPath = tmpYaml(`
+projects:
+  x:
+    projectDir: /tmp/x
+    excludePattern: "node_modules/**"
+    graphs:
+      docs:
+        excludePattern: "changelog/**"
+      code:
+        excludePattern: "test/**,dist/**"
+`);
+    const mc = loadMultiConfig(yamlPath);
+    const x = mc.projects.get('x')!;
+    expect(x.excludePattern).toBe('node_modules/**');
+    expect(x.graphConfigs.docs.excludePattern).toBe('changelog/**');
+    expect(x.graphConfigs.code.excludePattern).toBe('test/**,dist/**');
+    // files has no graph-level exclude — undefined (caller uses project-level fallback)
+    expect(x.graphConfigs.files.excludePattern).toBeUndefined();
   });
 
   it('throws on invalid YAML (missing projects)', () => {
@@ -255,12 +339,12 @@ workspaces:
 `);
     const mc = loadMultiConfig(yamlPath);
     const ws = mc.workspaces.get('ws')!;
-    expect(ws.graphEmbeddings.knowledge.model).toBe('model/k');
-    expect(ws.graphEmbeddings.knowledge.queryPrefix).toBe('find: ');
-    expect(ws.graphEmbeddings.tasks.model).toBe('model/t');
-    expect(ws.graphEmbeddings.skills.model).toBe('model/s');
-    // Inherited fields from workspace embedding
-    expect(ws.graphEmbeddings.tasks.pooling).toBe('cls');
+    expect(ws.graphConfigs.knowledge.embedding.model).toBe('model/k');
+    expect(ws.graphConfigs.knowledge.embedding.queryPrefix).toBe('find: ');
+    expect(ws.graphConfigs.tasks.embedding.model).toBe('model/t');
+    expect(ws.graphConfigs.skills.embedding.model).toBe('model/s');
+    // Inherited fields from workspace embedding (legacy merge)
+    expect(ws.graphConfigs.tasks.embedding.pooling).toBe('cls');
   });
 
   it('throws when workspace references unknown project', () => {

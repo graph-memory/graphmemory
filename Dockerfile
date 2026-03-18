@@ -1,4 +1,4 @@
-FROM node:24-alpine AS build
+FROM node:24-slim AS build
 
 WORKDIR /app
 
@@ -19,7 +19,7 @@ COPY ui/ ./ui/
 RUN npm run build
 
 # --- Runtime ---
-FROM node:24-alpine
+FROM node:24-slim
 
 WORKDIR /app
 

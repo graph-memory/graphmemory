@@ -81,12 +81,17 @@ export async function embedBatch(
   const texts = inputs.map(({ title, content }) =>
     `${config.documentPrefix}${title}\n${content}`.slice(0, _maxChars),
   );
-  const tensor = await pipe._call(texts, { pooling: config.pooling, normalize: config.normalize });
-  const dim = tensor.dims[1];
-  const data = tensor.data as Float32Array;
+
+  const batchSize = config.batchSize;
   const result: number[][] = [];
-  for (let i = 0; i < inputs.length; i++) {
-    result.push(Array.from(data.slice(i * dim, (i + 1) * dim)));
+  for (let start = 0; start < texts.length; start += batchSize) {
+    const chunk = texts.slice(start, start + batchSize);
+    const tensor = await pipe._call(chunk, { pooling: config.pooling, normalize: config.normalize });
+    const dim = tensor.dims[1];
+    const data = tensor.data as Float32Array;
+    for (let i = 0; i < chunk.length; i++) {
+      result.push(Array.from(data.slice(i * dim, (i + 1) * dim)));
+    }
   }
   return result;
 }

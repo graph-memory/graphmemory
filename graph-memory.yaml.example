@@ -31,6 +31,7 @@ server:
   #   dtype: "q8"                               # Quantization: fp32, fp16, q8, q4
   #   queryPrefix: ""                           # Prefix prepended to search queries
   #   documentPrefix: ""                        # Prefix prepended to documents during indexing
+  #   batchSize: 1                              # Texts per ONNX forward pass (increase for faster indexing, more memory)
 
 # ---------------------------------------------------------------------------
 # Projects

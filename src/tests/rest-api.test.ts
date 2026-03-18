@@ -43,9 +43,9 @@ function createTestProject(): ProjectInstance {
       chunkDepth: 4,
       maxTokensDefault: 4000,
       embedMaxChars: 2000,
-      embedding: { model: 'test', pooling: 'mean' as const, normalize: true, queryPrefix: '', documentPrefix: '' },
+      embedding: { model: 'test', pooling: 'mean' as const, normalize: true, queryPrefix: '', documentPrefix: '', batchSize: 1 },
       graphEmbeddings: Object.fromEntries(
-        ['docs', 'code', 'knowledge', 'tasks', 'files', 'skills'].map(g => [g, { model: 'test', pooling: 'mean' as const, normalize: true, queryPrefix: '', documentPrefix: '' }]),
+        ['docs', 'code', 'knowledge', 'tasks', 'files', 'skills'].map(g => [g, { model: 'test', pooling: 'mean' as const, normalize: true, queryPrefix: '', documentPrefix: '', batchSize: 1 }]),
       ) as any,
       author: { name: '', email: '' },
     },
@@ -482,9 +482,9 @@ describe('Attachment REST endpoints', () => {
         chunkDepth: 4,
         maxTokensDefault: 4000,
         embedMaxChars: 2000,
-        embedding: { model: 'test', pooling: 'mean' as const, normalize: true, queryPrefix: '', documentPrefix: '' },
+        embedding: { model: 'test', pooling: 'mean' as const, normalize: true, queryPrefix: '', documentPrefix: '', batchSize: 1 },
         graphEmbeddings: Object.fromEntries(
-          ['docs', 'code', 'knowledge', 'tasks', 'files', 'skills'].map(g => [g, { model: 'test', pooling: 'mean' as const, normalize: true, queryPrefix: '', documentPrefix: '' }]),
+          ['docs', 'code', 'knowledge', 'tasks', 'files', 'skills'].map(g => [g, { model: 'test', pooling: 'mean' as const, normalize: true, queryPrefix: '', documentPrefix: '', batchSize: 1 }]),
         ) as any,
         author: { name: '', email: '' },
       },

@@ -22,6 +22,7 @@ const embeddingConfigSchema = z.object({
   dtype:           z.string().optional(),
   queryPrefix:     z.string().optional(),
   documentPrefix:  z.string().optional(),
+  batchSize:       z.number().int().positive().optional(),
 });
 
 const graphEmbeddingOverridesSchema = z.object({
@@ -98,6 +99,7 @@ export interface EmbeddingConfig {
   dtype?: string;
   queryPrefix: string;
   documentPrefix: string;
+  batchSize: number;
 }
 
 /**
@@ -175,6 +177,7 @@ const EMBEDDING_DEFAULTS: EmbeddingConfig = {
   normalize:      true,
   queryPrefix:    '',
   documentPrefix: '',
+  batchSize:      1,
 };
 
 const SERVER_DEFAULTS: Omit<ServerConfig, 'embedding'> & { embedding: EmbeddingConfig } = {
@@ -214,6 +217,7 @@ function mergeEmbeddingConfig(
     dtype:          override.dtype          ?? base.dtype,
     queryPrefix:    override.queryPrefix    ?? base.queryPrefix,
     documentPrefix: override.documentPrefix ?? base.documentPrefix,
+    batchSize:      override.batchSize      ?? base.batchSize,
   };
 }
 
@@ -233,6 +237,7 @@ function resolveEmbeddingConfig(
     dtype:          raw.dtype           ?? fallback.dtype,
     queryPrefix:    raw.queryPrefix     ?? fallback.queryPrefix,
     documentPrefix: raw.documentPrefix  ?? fallback.documentPrefix,
+    batchSize:      raw.batchSize       ?? fallback.batchSize,
   };
 }
 

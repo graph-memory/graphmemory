@@ -60,7 +60,7 @@ A manually curated graph for notes, facts, and decisions. Not populated by index
 Task management with kanban workflow. Also manually curated.
 
 **Nodes:**
-- **Tasks** — title, description, status, priority, tags, dueDate, estimate
+- **Tasks** — title, description, status, priority, tags, dueDate, estimate, assignee
 
 **Edges:**
 - `subtask_of` — parent-child tasks

@@ -108,7 +108,7 @@ docker compose run --rm graph-memory index --config /data/config/graph-memory.ya
   types, enums, and their relationships (`contains`, `imports`, `extends`, `implements`)
 - Indexes **all project files** into a file index graph with directory hierarchy, language/MIME detection
 - Stores **facts and notes** in a dedicated knowledge graph with typed relations, file attachments, and cross-graph links; mirrors to `.notes/{id}/` directories
-- Tracks **tasks** in a task graph with status (kanban), priority, due dates, estimates, file attachments, and cross-graph links; mirrors to `.tasks/{id}/` directories
+- Tracks **tasks** in a task graph with status (kanban), priority, due dates, estimates, assignee, file attachments, and cross-graph links; mirrors to `.tasks/{id}/` directories
 - Manages **skills** (recipes/procedures) in a skill graph with steps, triggers, usage tracking, file attachments, and cross-graph links; mirrors to `.skills/{id}/` directories
 - Embeds every node locally using `Xenova/bge-m3` by default (no external API calls); supports per-graph models with configurable pooling, normalization, dtype, and query/document prefixes
 - Answers search queries via **hybrid search** (BM25 keyword + vector cosine similarity) with BFS graph expansion
@@ -186,7 +186,7 @@ docker compose run --rm graph-memory index --config /data/config/graph-memory.ya
 
 | Tool               | Description                                                    |
 |--------------------|----------------------------------------------------------------|
-| `create_task`      | Create a task with title, description, priority, tags, status, dueDate, estimate |
+| `create_task`      | Create a task with title, description, priority, tags, status, dueDate, estimate, assignee |
 | `update_task`      | Update any task fields (partial update)                        |
 | `delete_task`      | Delete a task and its relations                                |
 | `get_task`         | Fetch a task with subtasks, blockedBy, blocks, and related     |
@@ -339,7 +339,11 @@ YAML config file. All fields optional except `projects.*.projectDir`:
 | `port` | `number` | `3000` | HTTP server port |
 | `sessionTimeout` | `number` | `1800` | Idle session timeout in seconds |
 | `modelsDir` | `string` | `~/.graph-memory/models` | Local model cache directory |
+| `corsOrigins` | `string[]` | — | Allowed CORS origins (omit for permissive CORS) |
+| `defaultAccess` | `string` | `rw` | Default access for unknown users: `deny`, `r`, or `rw` |
+| `access` | `object` | — | Server-level per-user access overrides (e.g. `alice: rw`) |
 | `embedding` | `object` | (see below) | Default embedding config (fallback for all graphs) |
+| `embeddingApi` | `object` | — | Expose the embedding model via `POST /api/embed` (see below) |
 
 **Embedding config** (`server.embedding`, `projects.<id>.embedding`, `projects.<id>.graphs.<name>`):
 
@@ -351,6 +355,9 @@ YAML config file. All fields optional except `projects.*.projectDir`:
 | `dtype` | `string` | — | Quantization: `fp32`, `fp16`, `q8`, `q4` |
 | `queryPrefix` | `string` | `""` | Prefix prepended to search queries |
 | `documentPrefix` | `string` | `""` | Prefix prepended to documents during indexing |
+| `batchSize` | `number` | `1` | Texts per ONNX forward pass (increase for faster indexing, more memory) |
+| `remote` | `string` | — | Remote embedding API URL (replaces local ONNX model) |
+| `remoteApiKey` | `string` | — | API key for the remote embedding endpoint |
 
 Config inheritance: `graphs.<name>` → `project.embedding` → `server.embedding` → defaults.
 
@@ -360,15 +367,128 @@ Config inheritance: `graphs.<name>` → `project.embedding` → `server.embeddin
 |---|---|---|---|
 | `projectDir` | `string` | **(required)** | Root directory to index |
 | `graphMemory` | `string` | `{projectDir}/.graph-memory` | Where to store graph JSON files |
-| `docsPattern` | `string` | `**/*.md` | Glob for markdown files |
-| `codePattern` | `string` | `**/*.{js,ts,jsx,tsx}` | Glob for source files |
-| `excludePattern` | `string` | `node_modules/**` | Glob to exclude from indexing |
+| `docsPattern` | `string` | `**/*.md` | Glob for markdown files (legacy shorthand; prefer `graphs.docs.pattern`) |
+| `codePattern` | `string` | `**/*.{js,ts,jsx,tsx}` | Glob for source files (legacy shorthand; prefer `graphs.code.pattern`) |
+| `excludePattern` | `string` | `node_modules/**` | Glob to exclude from indexing (project-level fallback) |
 | `tsconfig` | `string` | — | Path to tsconfig.json |
 | `embedding` | `object` | (server default) | Project-level embedding config |
-| `graphs` | `object` | — | Per-graph embedding overrides (`docs`, `code`, `knowledge`, `tasks`, `files`, `skills`) |
+| `graphs` | `object` | — | Per-graph config (see below) |
+| `access` | `object` | — | Per-project per-user access overrides |
 | `chunkDepth` | `number` | `4` | Max heading depth to chunk at |
 | `maxTokensDefault` | `number` | `4000` | Default max tokens for responses |
 | `embedMaxChars` | `number` | `2000` | Max chars fed to embedder per node |
+
+**Per-graph configuration** (`projects.<id>.graphs.<name>:`):
+
+Each of the six graphs (`docs`, `code`, `knowledge`, `tasks`, `files`, `skills`) can be individually configured:
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `enabled` | `boolean` | `true` | Set `false` to disable this graph entirely |
+| `pattern` | `string` | (depends on graph) | Glob for docs/code graphs (e.g. `"docs/**/*.md"`) |
+| `excludePattern` | `string` | (project fallback) | Overrides the project-level `excludePattern` |
+| `embedding` | `object` | (project/server fallback) | Full embedding config — **first-defined-wins, no field-by-field merge** |
+| `access` | `object` | — | Per-graph per-user access overrides (e.g. `bob: rw`) |
+
+Example:
+
+```yaml
+graphs:
+  docs:
+    pattern: "content/**/*.md"
+    excludePattern: "changelog/**"
+    embedding:
+      model: "Xenova/bge-m3"
+      pooling: "cls"
+  code:
+    enabled: false           # disable code indexing
+  knowledge:
+    access:
+      bob: rw                # bob gets rw on knowledge even if project says r
+```
+
+## Authentication & Access Control
+
+When `users` are defined in the config, the REST API and MCP HTTP endpoints require authentication via Bearer token:
+
+```yaml
+users:
+  alice:
+    name: "Alice"
+    email: "alice@example.com"
+    apiKey: "mgm-key-abc123"
+  bob:
+    name: "Bob"
+    email: "bob@example.com"
+    apiKey: "mgm-key-def456"
+```
+
+Clients authenticate with `Authorization: Bearer <apiKey>`. MCP stdio mode does not use authentication -- identity comes from the `author` config.
+
+**4-level ACL resolution** (first match wins):
+
+1. `graphs.<name>.access[userId]` -- per-graph override
+2. `projects.<id>.access[userId]` -- per-project override
+3. `workspaces.<id>.access[userId]` -- per-workspace override
+4. `server.access[userId]` -- server-level default for that user
+5. `server.defaultAccess` -- fallback for unknown users (default: `rw`)
+
+Access levels: `deny` (no access), `r` (read-only), `rw` (read-write).
+
+The web UI shows a login page when authentication is configured. API key comparison uses timing-safe equality to prevent timing attacks.
+
+## Team Management
+
+Team members are stored as `.team/{id}.md` files inside the project (or workspace mirror) directory. Each file has YAML frontmatter with `name` and `email`:
+
+```markdown
+---
+name: Alice
+email: alice@example.com
+---
+# Alice
+```
+
+The configured `author` is automatically created as a team member file on first mutation. Team members are used as task assignees (see below).
+
+## Embedding API
+
+The server can expose its local embedding model as a REST endpoint for other services:
+
+```yaml
+server:
+  embeddingApi:
+    enabled: true
+    apiKey: "emb-secret-key"     # optional, separate from user apiKeys
+```
+
+**`POST /api/embed`** -- embed an array of texts:
+
+```json
+{
+  "texts": ["first document", "second document"]
+}
+```
+
+Returns `{ "embeddings": [[...], [...]] }`. When `apiKey` is set, requests must include `Authorization: Bearer <apiKey>`.
+
+**Remote embedding**: instead of loading a local ONNX model, a project can delegate embedding to a remote server (e.g. a GPU machine running the embedding API above):
+
+```yaml
+server:
+  embedding:
+    remote: "http://gpu-server:3000/api/embed"
+    remoteApiKey: "emb-secret-key"
+```
+
+Remote URLs are validated to use `http:` or `https:` protocols only.
+
+## Security
+
+- **Timing-safe API key comparison** -- all API key checks (`users`, `embeddingApi`) use `crypto.timingSafeEqual` to prevent timing attacks
+- **SSRF protection** -- remote embedding URLs are validated to use `http:` or `https:` protocols only
+- **Filename validation** -- attachment filenames are sanitized (path separators, `..`, and null bytes stripped) to prevent path traversal
+- **Content-Disposition** -- attachment downloads use RFC 5987 encoding (`filename*=UTF-8''...`) with `X-Content-Type-Options: nosniff`
 
 ## How graph IDs work
 
@@ -398,7 +518,7 @@ The `serve` command starts a web UI at `http://localhost:3000` with:
 
 - **Dashboard** — project stats (notes, tasks, skills, docs, code, files) + recent activity
 - **Knowledge** — notes CRUD, semantic search, relations, cross-graph links
-- **Tasks** — kanban board with configurable columns, drag-drop with drop-zone highlights, inline task creation, filter bar (search/priority/tags), due date and estimate badges, quick actions on hover, scrollable columns
+- **Tasks** — kanban board with configurable columns, drag-drop with drop-zone highlights, inline task creation, filter bar (search/priority/tags/assignee), due date and estimate badges, assignee display with team member name resolution, quick actions on hover, scrollable columns
 - **Skills** — skill/recipe management with triggers, steps, and usage tracking
 - **Docs** — browse and search indexed markdown documentation
 - **Files** — file browser with directory navigation, metadata, search
@@ -408,7 +528,7 @@ The `serve` command starts a web UI at `http://localhost:3000` with:
 - **Tools** — MCP tools explorer with live execution from the browser
 - **Help** — built-in searchable documentation on all tools and concepts
 
-Light/dark theme toggle. Real-time updates via WebSocket.
+Light/dark theme toggle. Real-time updates via WebSocket. Login page when authentication is configured.
 
 ### REST API
 
@@ -465,6 +585,8 @@ GET    /api/projects/:id/skills/:skillId/attachments   → list attachments
 GET    /api/projects/:id/skills/:skillId/attachments/:filename → download attachment
 DELETE /api/projects/:id/skills/:skillId/attachments/:filename → delete attachment
 
+GET    /api/projects/:id/team                          → list team members
+
 GET    /api/projects/:id/docs/search?q=...            → search docs
 GET    /api/projects/:id/code/search?q=...            → search code
 GET    /api/projects/:id/files                        → list files
@@ -474,6 +596,8 @@ GET    /api/projects/:id/graph?scope=...              → graph export
 GET    /api/projects/:id/tools                        → list MCP tools
 GET    /api/projects/:id/tools/:toolName              → tool details + schema
 POST   /api/projects/:id/tools/:toolName/call         → call a tool
+
+POST   /api/embed                                     → embed texts (requires embeddingApi.enabled)
 ```
 
 ## Demo Project
@@ -506,7 +630,7 @@ cd ui && npm run dev   # Vite dev server on :5173, proxies /api → :3000
 
 Run tests:
 ```bash
-npm test                                   # all tests (1178 tests across 26 suites)
+npm test                                   # all tests (1216 tests across 27 suites)
 npm test -- --testPathPatterns=search       # run a specific test file
 npm run test:watch                         # watch mode
 ```

@@ -1,4 +1,4 @@
-import { request, unwrapList, type ListResponse } from '@/shared/api/client.ts';
+import { request, unwrapList, authHeaders, type ListResponse } from '@/shared/api/client.ts';
 
 export interface GraphInfo {
   enabled: boolean;
@@ -47,4 +47,16 @@ export interface TeamMember {
 
 export function listTeam(projectId: string): Promise<TeamMember[]> {
   return request<ListResponse<TeamMember>>(`/projects/${projectId}/team`).then(unwrapList);
+}
+
+export interface AuthStatus {
+  required: boolean;
+  authenticated: boolean;
+  userId?: string;
+  name?: string;
+}
+
+export async function checkAuthStatus(): Promise<AuthStatus> {
+  const res = await fetch('/api/auth/status', { headers: authHeaders() });
+  return res.json();
 }

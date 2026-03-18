@@ -15,8 +15,11 @@ server:
 projects:
   my-app:
     projectDir: "/path/to/my-app"
-    docsPattern: "docs/**/*.md"
-    codePattern: "src/**/*.ts"
+    graphs:
+      docs:
+        pattern: "docs/**/*.md"
+      code:
+        pattern: "src/**/*.ts"
 ```
 
 The only required field is `projects.*.projectDir`. Everything else has sensible defaults.
@@ -41,7 +44,13 @@ Can be overridden per project or per workspace.
 | `port` | `3000` | HTTP server port |
 | `sessionTimeout` | `1800` | Idle MCP session timeout in seconds (30 min) |
 | `modelsDir` | `~/.graph-memory/models` | Where embedding models are cached locally |
+| `corsOrigins` | — | Allowed CORS origins (array of strings) |
+| `defaultAccess` | `rw` | Default access for unknown users: `deny`, `r`, `rw` |
 | `embedding.model` | `Xenova/bge-m3` | Default model for all graphs |
+| `embedding.remote` | — | Remote embedding API URL (delegates instead of local model) |
+| `embedding.remoteApiKey` | — | API key for remote embedding |
+| `embeddingApi.enabled` | `false` | Expose local model via `POST /api/embed` |
+| `embeddingApi.apiKey` | — | API key for the embedding endpoint |
 
 ## Project settings
 
@@ -51,16 +60,17 @@ Each project needs at least `projectDir`:
 |---|---|---|
 | `projectDir` | **(required)** | Root directory to index |
 | `graphMemory` | `.graph-memory` | Where graph JSON files are stored (relative to projectDir) |
-| `docsPattern` | `**/*.md` | Glob for markdown files. Empty string `""` disables docs |
-| `codePattern` | `**/*.{js,ts,jsx,tsx}` | Glob for source files. Empty string `""` disables code |
-| `excludePattern` | `node_modules/**` | Glob to exclude. Comma-separated for multiple patterns |
+| `excludePattern` | `node_modules/**` | Glob to exclude (project-level fallback, overridden by graph-level) |
 | `tsconfig` | — | Path to tsconfig.json (enables import resolution in code graph) |
 | `chunkDepth` | `4` | Max heading depth for markdown chunking |
 | `embedMaxChars` | `2000` | Max characters fed to the embedding model per node |
+| `access` | — | Per-user access overrides for this project |
 
-### Per-graph embedding models
+> **Legacy fields:** `docsPattern` and `codePattern` still work but are deprecated. Use `graphs.docs.pattern` and `graphs.code.pattern` instead.
 
-Override the embedding model for specific graphs:
+### Per-graph configuration
+
+Each graph can be individually configured with `enabled`, `pattern`, `excludePattern`, `embedding`, and `access`:
 
 ```yaml
 projects:
@@ -68,20 +78,34 @@ projects:
     projectDir: "/path/to/my-app"
     graphs:
       docs:
-        model: "Xenova/bge-m3"
+        enabled: true                      # Set false to disable this graph
+        pattern: "docs/**/*.md"            # Glob for files to index
+        excludePattern: "docs/archive/**"  # Glob to exclude
+        embedding:                          # Full embedding config (no merge with parent)
+          model: "Xenova/bge-m3"
+          pooling: "cls"
+          normalize: true
+        access:                             # Per-graph access control
+          bob: rw
       code:
-        model: "Xenova/bge-base-en-v1.5"
+        enabled: true
+        pattern: "src/**/*.ts"
+        embedding:
+          model: "Xenova/bge-base-en-v1.5"
       knowledge:
-        model: "Xenova/bge-m3"
+        access:
+          bob: rw                           # bob gets rw on knowledge
       tasks:
-        model: "Xenova/bge-m3"
+        enabled: true
       files:
-        model: "Xenova/bge-m3"
+        enabled: true
       skills:
-        model: "Xenova/bge-m3"
+        enabled: true
 ```
 
-Graphs without a specific model use `embedding.model` (project-level, then server-level). The same model string is loaded only once, even if used by multiple graphs.
+Graphs without a specific `embedding` block use the project-level `embedding`, then the server-level `embedding`. The same model string is loaded only once, even if used by multiple graphs.
+
+Graph-level `embedding` is a complete block (first-defined-wins, no field-by-field merge with parent).
 
 ## Workspaces
 
@@ -115,6 +139,171 @@ workspaces:
 | `graphMemory` | Where shared graph JSON files are stored |
 | `mirrorDir` | Where shared `.notes/`, `.tasks/`, `.skills/` mirror files are written |
 | `author` | Author for shared notes/tasks/skills (overrides root author) |
+| `access` | Per-user access for shared graphs (overrides `server.access`) |
+| `embedding` | Embedding config for shared graphs (overrides `server.embedding`) |
+
+## Users & authentication
+
+Define users with API keys for REST API authentication. Each user authenticates via `Authorization: Bearer <apiKey>` header. MCP stdio mode does not use authentication — identity comes from the `author` config.
+
+```yaml
+users:
+  alice:
+    name: "Alice"
+    email: "alice@example.com"
+    apiKey: "mgm-key-abc123"
+  bob:
+    name: "Bob"
+    email: "bob@example.com"
+    apiKey: "mgm-key-def456"
+```
+
+| Field | Description |
+|---|---|
+| `name` | Display name (used as createdBy/updatedBy in notes/tasks/skills) |
+| `email` | Email address (written in mirror files in git-style format) |
+| `apiKey` | Bearer token for REST API authentication |
+
+When a user authenticates, their `name` and `email` are used as the author for mutations, overriding the root `author` config.
+
+## Access control
+
+Access control restricts who can read or write to projects, workspaces, and individual graphs. Access levels are `deny`, `r` (read-only), or `rw` (read-write).
+
+### Server-level defaults
+
+```yaml
+server:
+  defaultAccess: rw            # Access for users not listed in access maps
+  access:                       # Server-level per-user access
+    alice: rw
+    bob: r
+```
+
+`defaultAccess` applies to any authenticated user not explicitly listed. Default is `rw`.
+
+### Per-project access
+
+```yaml
+projects:
+  my-app:
+    projectDir: "/path/to/my-app"
+    access:
+      bob: rw                   # bob gets rw on this project (overrides server.access)
+```
+
+### Per-workspace access
+
+```yaml
+workspaces:
+  backend:
+    projects: [api-gateway, catalog-service]
+    access:
+      alice: rw
+      bob: r                    # bob gets read-only on shared graphs
+```
+
+### Per-graph access
+
+```yaml
+projects:
+  my-app:
+    projectDir: "/path/to/my-app"
+    access:
+      bob: r                    # bob is read-only on this project...
+    graphs:
+      knowledge:
+        access:
+          bob: rw               # ...but gets rw on knowledge specifically
+```
+
+### Resolution order
+
+Access is resolved from most specific to least specific:
+
+1. **Graph-level** `access` (e.g., `graphs.knowledge.access.bob`)
+2. **Project-level** `access` (e.g., `projects.my-app.access.bob`)
+3. **Workspace-level** `access` (for shared graphs)
+4. **Server-level** `access` (e.g., `server.access.bob`)
+5. **`server.defaultAccess`** (fallback, default `rw`)
+
+## Team directory setup
+
+For team environments, combine `users` with access control to give each team member appropriate permissions:
+
+```yaml
+users:
+  alice:
+    name: "Alice (Tech Lead)"
+    email: "alice@company.com"
+    apiKey: "mgm-key-alice-secret"
+  bob:
+    name: "Bob (Developer)"
+    email: "bob@company.com"
+    apiKey: "mgm-key-bob-secret"
+  ci:
+    name: "CI Bot"
+    email: "ci@company.com"
+    apiKey: "mgm-key-ci-secret"
+
+server:
+  defaultAccess: deny            # Deny unknown users
+  access:
+    alice: rw
+    bob: rw
+    ci: r                        # CI can only read
+
+projects:
+  production-app:
+    projectDir: "/path/to/app"
+    access:
+      ci: r                      # CI can read project data
+```
+
+## Embedding API configuration
+
+Expose the server's local embedding model as an HTTP API for other services or Graph Memory instances to use:
+
+```yaml
+server:
+  embeddingApi:
+    enabled: true                # Enable POST /api/embed endpoint
+    apiKey: "emb-secret-key"     # API key for embedding requests (separate from user apiKeys)
+```
+
+When enabled, `POST /api/embed` accepts `{ text: "..." }` or `{ texts: ["..."] }` and returns embeddings from the server's configured model. Authenticate with `Authorization: Bearer <apiKey>` using the `embeddingApi.apiKey`.
+
+## Remote embedding setup
+
+Instead of running the embedding model locally, delegate to a remote embedding API (e.g., another Graph Memory instance with `embeddingApi` enabled, or any compatible service):
+
+```yaml
+server:
+  embedding:
+    model: "Xenova/bge-m3"
+    remote: "http://gpu-server:3000/api/embed"
+    remoteApiKey: "emb-secret-key"
+```
+
+When `remote` is set, the server sends embedding requests to the remote URL instead of loading the model locally. This is useful for:
+- Running on machines without GPU/enough RAM for the model
+- Sharing a single model instance across multiple Graph Memory servers
+- Using a dedicated embedding service
+
+The `remote` and `remoteApiKey` fields can be set at server, project, or graph level following the same embedding resolution order.
+
+## CORS origins
+
+Configure allowed origins for Cross-Origin Resource Sharing when the UI or API is accessed from a different domain:
+
+```yaml
+server:
+  corsOrigins:
+    - "http://localhost:5173"       # Vite dev server
+    - "https://my-app.example.com"  # Production frontend
+```
+
+When `corsOrigins` is not set, CORS headers are not added. Set this when the web UI or REST API is accessed from a different origin than the server.
 
 ## Common patterns
 
@@ -124,8 +313,11 @@ workspaces:
 projects:
   wiki:
     projectDir: "/path/to/wiki"
-    docsPattern: "**/*.md"
-    codePattern: ""
+    graphs:
+      docs:
+        pattern: "**/*.md"
+      code:
+        enabled: false
 ```
 
 ### Code-only project (no docs)
@@ -134,8 +326,11 @@ projects:
 projects:
   library:
     projectDir: "/path/to/library"
-    docsPattern: ""
-    codePattern: "src/**/*.ts"
+    graphs:
+      docs:
+        enabled: false
+      code:
+        pattern: "src/**/*.ts"
 ```
 
 ### Multiple exclude patterns

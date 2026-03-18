@@ -12,6 +12,7 @@ import {
   type Task, type TaskStatus, type TaskRelation, type AttachmentMeta,
   COLUMNS, STATUS_BADGE_COLOR, PRIORITY_BADGE_COLOR, statusLabel, priorityLabel,
 } from '@/entities/task/index.ts';
+import { listTeam, type TeamMember } from '@/entities/project/api.ts';
 import { RelationManager } from '@/features/relation-manager/index.ts';
 import { AttachmentSection } from '@/features/attachments/index.ts';
 import { useWebSocket } from '@/shared/lib/useWebSocket.ts';
@@ -34,6 +35,7 @@ export default function TaskDetailPage() {
   const [task, setTask] = useState<TaskDetail | null>(null);
   const [relations, setRelations] = useState<TaskRelation[]>([]);
   const [attachments, setAttachments] = useState<AttachmentMeta[]>([]);
+  const [team, setTeam] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -41,14 +43,16 @@ export default function TaskDetailPage() {
   const load = useCallback(async () => {
     if (!projectId || !taskId) return;
     try {
-      const [t, rels, atts] = await Promise.all([
+      const [t, rels, atts, members] = await Promise.all([
         getTask(projectId, taskId) as Promise<TaskDetail>,
         listTaskRelations(projectId, taskId),
         listTaskAttachments(projectId, taskId),
+        listTeam(projectId).catch(() => [] as TeamMember[]),
       ]);
       setTask(t);
       setRelations(rels);
       setAttachments(atts);
+      setTeam(members);
       setError(null);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
@@ -165,6 +169,11 @@ export default function TaskDetailPage() {
             <Typography variant="body2">{task.estimate}h</Typography>
           </FieldRow>
         )}
+        {task.assignee && (
+          <FieldRow label="Assignee">
+            <Typography variant="body2">{team.find(m => m.id === task.assignee)?.name ?? task.assignee}</Typography>
+          </FieldRow>
+        )}
         {task.completedAt != null && (
           <FieldRow label="Completed">
             <DateDisplay value={task.completedAt} showTime showRelative />
@@ -217,6 +226,7 @@ export default function TaskDetailPage() {
             const atts = await listTaskAttachments(projectId!, taskId!);
             setAttachments(atts);
           }}
+          readOnly={!canWrite}
         />
       </Section>
 

@@ -37,6 +37,9 @@ server:
   # port: 3000                                  # HTTP server port
   # sessionTimeout: 1800                        # Idle session timeout (seconds)
   # modelsDir: "~/.graph-memory/models"         # Local model cache directory
+  # corsOrigins:                                # Allowed CORS origins (default: none)
+  #   - "http://localhost:5173"
+  #   - "https://my-app.example.com"
   # defaultAccess: rw                           # Default access for unknown users: deny | r | rw
   # access:                                     # Server-level per-user access
   #   alice: rw
@@ -149,6 +152,10 @@ projects:
 #     author:                                   # Author for shared notes/tasks/skills
 #       name: "Backend Team"
 #       email: "backend@example.com"
+#     # Workspace-level access (overrides server.access for workspace shared graphs)
+#     # access:
+#     #   alice: rw
+#     #   bob: r
 #     # Workspace-level embedding (overrides server.embedding for shared graphs)
 #     # embedding:
 #     #   model: "Xenova/bge-m3"

@@ -1016,6 +1016,7 @@ export class TaskGraphManager {
         dueDate: parsed.dueDate,
         estimate: parsed.estimate,
         completedAt: parsed.completedAt,
+        assignee: parsed.assignee ?? existing.assignee,
         embedding,
         attachments: parsed.attachments,
         updatedAt: now,

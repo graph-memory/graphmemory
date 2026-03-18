@@ -1,6 +1,7 @@
+import crypto from 'crypto';
 import { Router } from 'express';
 import { z } from 'zod';
-import { embed } from '@/lib/embedder';
+import { embedBatch } from '@/lib/embedder';
 import type { EmbeddingApiConfig } from '@/lib/multi-config';
 
 const embedRequestSchema = z.object({
@@ -19,22 +20,24 @@ export function createEmbedRouter(apiConfig: EmbeddingApiConfig, modelName: stri
       // Auth: check embeddingApi.apiKey (separate from user apiKey)
       if (apiConfig.apiKey) {
         const auth = req.headers.authorization;
-        if (!auth?.startsWith('Bearer ') || auth.slice(7) !== apiConfig.apiKey) {
+        if (!auth?.startsWith('Bearer ')) {
+          return res.status(401).json({ error: 'Invalid embedding API key' });
+        }
+        const provided = Buffer.from(auth.slice(7));
+        const expected = Buffer.from(apiConfig.apiKey);
+        if (provided.length !== expected.length || !crypto.timingSafeEqual(provided, expected)) {
           return res.status(401).json({ error: 'Invalid embedding API key' });
         }
       }
 
       const parsed = embedRequestSchema.parse(req.body);
-      const embeddings: number[][] = [];
-      for (const text of parsed.texts) {
-        const vec = await embed(text, '', modelName);
-        embeddings.push(vec);
-      }
+      const inputs = parsed.texts.map(text => ({ title: text, content: '' }));
+      const embeddings = await embedBatch(inputs, modelName);
 
       res.json({ embeddings });
     } catch (err: any) {
       if (err?.name === 'ZodError') {
-        return res.status(400).json({ error: 'Validation error', details: err.issues });
+        return res.status(400).json({ error: 'Validation error' });
       }
       next(err);
     }

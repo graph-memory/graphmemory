@@ -1,6 +1,6 @@
 # Documentation Tools
 
-The docs tools let you search, browse, and navigate your indexed markdown documentation. They're available when `docsPattern` is configured in your project.
+The docs tools let you search, browse, and navigate your indexed markdown documentation. They're available when `graphs.docs.pattern` (or legacy `docsPattern`) is configured in your project.
 
 ## Tool overview
 

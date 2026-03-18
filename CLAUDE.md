@@ -31,7 +31,7 @@ npm run cli:dev        # tsx src/cli/index.ts (no build needed)
 
 Run tests with Jest:
 ```bash
-npm test                               # run all tests (1178 tests across 26 suites)
+npm test                               # run all tests (1216 tests across 27 suites)
 npm test -- --testPathPatterns=search   # run a specific test file
 npm run test:watch                     # watch mode
 npx tsx src/tests/embedder.test.ts     # embedding model (loads real model — slow, excluded from Jest)
@@ -65,6 +65,7 @@ Test suites:
 - `bm25.test.ts` — BM25 search algorithm, tokenizer, and Reciprocal Rank Fusion unit test
 - `workspace.test.ts` — workspace context + proxy ID formatting with projectId
 - `mcp-context.test.ts` — MCP get_context tool integration (returns project/workspace context)
+- `access.test.ts` — access resolution + user API key lookup unit test
 
 CLI commands (after build) — all require `--config graph-memory.yaml`:
 ```bash
@@ -113,6 +114,8 @@ src/
     frontmatter.ts   # serializeMarkdown/parseMarkdown — YAML frontmatter + markdown body
     file-mirror.ts   # writeNoteFile/writeTaskFile/writeSkillFile/deleteMirrorDir + attachment helpers — file mirror for .notes/, .tasks/, and .skills/
     file-import.ts   # parseNoteFile/parseTaskFile/parseSkillFile/diffRelations — reverse import from mirror files
+    access.ts        # access resolution (graph→project→workspace→server→defaultAccess) + user API key lookup
+    team.ts          # team directory scanning (.team/*.md) + ensureAuthorInTeam()
     parsers/
       docs.ts        # markdown → Chunk[] (Chunk type defined here); extracts fenced code blocks as child chunks
       code.ts        # ts-morph → ParsedFile (nodes + typed edges)
@@ -143,6 +146,7 @@ src/
       graph.ts       # Graph export endpoint (for UI visualization)
       tools.ts       # Tools explorer REST routes (list, get, call MCP tools via HTTP)
       websocket.ts   # WebSocket server for real-time push to UI
+      embed.ts       # POST /api/embed endpoint for embedding texts
     tools/
       docs/          # list-topics.ts, get-toc.ts, search.ts, get-node.ts, search-files.ts, find-examples.ts, search-snippets.ts, list-snippets.ts, explain-symbol.ts, cross-references.ts
       code/          # list-files.ts, get-file-symbols.ts, search-code.ts, get-symbol.ts, search-files.ts
@@ -152,7 +156,7 @@ src/
       skills/        # create-skill.ts, update-skill.ts, delete-skill.ts, get-skill.ts, list-skills.ts, search-skills.ts, link-skill.ts, create-skill-link.ts, delete-skill-link.ts, find-linked-skills.ts, add-attachment.ts, remove-attachment.ts, recall-skills.ts, bump-skill-usage.ts
       context/       # get-context.ts
   tests/
-    *.test.ts        # Jest test suites (1178 tests across 26 suites)
+    *.test.ts        # Jest test suites (1216 tests across 27 suites)
     helpers.ts       # shared test utilities (unitVec, fakeEmbed, setupMcpClient, text/json)
     __mocks__/       # Jest mocks for ESM-only packages (chokidar, @huggingface/transformers, mime)
     fixtures/
@@ -162,11 +166,11 @@ src/
 ui/                  # React web UI (Feature-Sliced Design)
   src/
     app/             # App.tsx (routes), theme.ts, styles.css
-    pages/           # dashboard, knowledge, tasks, skills, docs, files, prompts, search, graph, tools, help
+    pages/           # dashboard, knowledge, tasks, skills, docs, files, prompts, search, graph, tools, help, login
     widgets/         # layout (sidebar + project selector + theme toggle)
     features/        # note-crud, task-crud, skill-crud
     entities/        # project, note, task, skill, file, doc, code, graph
-    shared/          # api/client.ts, lib/useWebSocket.ts, lib/ThemeModeContext.tsx
+    shared/          # api/client.ts, lib/useWebSocket.ts, lib/ThemeModeContext.tsx, lib/AuthGate.tsx
     content/         # help articles + prompt templates (markdown) bundled into the UI
 demo-project/        # Demo "TaskFlow" single-project for testing and demonstration
   src/               # 18 TypeScript files (models, services, controllers, middleware, utils)
@@ -237,7 +241,8 @@ demo-projects/       # Demo "ShopFlow" multi-project workspace for testing works
   search, directory nodes have empty embeddings; `rebuildDirectoryStats()` computes aggregate
   `size` and `fileCount` on directory nodes after scan
 - **Task graph**: CRUD-only graph (no file indexing, like KnowledgeGraph); tasks have title,
-  description, status (kanban), priority, tags, dueDate, estimate, completedAt; slug IDs from
+  description, status (kanban), priority, tags, dueDate, estimate, completedAt, assignee
+  (string | null, references team member ID from `.team/` directory); slug IDs from
   title (shared `slugify` with generalized `{ hasNode }` interface); task↔task edges:
   `subtask_of`, `blocks`, `related_to`; `move_task` auto-manages `completedAt` (sets on
   done/cancelled, clears on reopen); `get_task` enriches with subtasks/blockedBy/blocks/related;
@@ -321,9 +326,11 @@ demo-projects/       # Demo "ShopFlow" multi-project workspace for testing works
   `PromiseQueue` serializes mutation tool handlers per project to prevent race conditions
 - **REST API**: Express app on the same HTTP server (`/api/*`). CRUD endpoints for knowledge,
   tasks, and skills; search endpoints for docs/code/files; graph export for visualization; tools
-  explorer (list/get/call MCP tools via HTTP). Zod validation on all request bodies and
-  query params. Response format: `{ results: [...] }` for lists, direct object for singles,
-  204 for DELETEs
+  explorer (list/get/call MCP tools via HTTP). Auth endpoints: GET `/api/auth/status` (returns
+  `{ required, authenticated, userId?, name? }`), POST `/api/embed` (embed texts, separate
+  apiKey from user auth), GET `/api/projects/:id/team` (list team members, access-controlled).
+  Zod validation on all request bodies and query params. Response format:
+  `{ results: [...] }` for lists, direct object for singles, 204 for DELETEs
 - **WebSocket**: `/api/ws` for real-time push to UI. Events: `note:created|updated|deleted`,
   `task:created|updated|deleted|moved`, `note:attachment:added|deleted`,
   `task:attachment:added|deleted`, `skill:created|updated|deleted`,
@@ -349,6 +356,21 @@ demo-projects/       # Demo "ShopFlow" multi-project workspace for testing works
   Three volume mounts: `/data/config/graph-memory.yaml` (config), `/data/projects/` (project dirs),
   `/data/models/` (embedding model cache). GitHub Actions workflow builds and pushes to
   `ghcr.io/prih/mcp-graph-memory` on push to `main` or version tags
+- **Per-graph config**: each graph supports `enabled`, `pattern`, `excludePattern`, `embedding`,
+  `access` settings individually in the YAML config
+- **ACL resolution chain**: graph.access[user] → project.access[user] → workspace.access[user] →
+  server.access[user] → server.defaultAccess. Resolution implemented in `src/lib/access.ts`
+- **Team directory**: `.team/*.md` files with frontmatter { name, email }, follows existing
+  mirror file patterns; `ensureAuthorInTeam()` auto-creates team file for configured author
+- **Embedding API**: POST `/api/embed` endpoint with separate `apiKey` (independent from user
+  auth), uses server's embedding model for external consumers
+- **Remote embedding**: `embedding.remote` URL → HTTP proxy replaces local ONNX model;
+  `embedding.remoteApiKey` for authenticating with remote embedding service
+- **Login page**: UI checks GET `/api/auth/status` on load, shows login page if auth required
+  and not authenticated; `AuthGate` component wraps the app
+- **Timing-safe API key comparison**: uses `crypto.timingSafeEqual()` for API key validation
+  to prevent timing attacks
+- **CORS configurable**: `server.corsOrigins` string array, defaults to allow all origins (`*`)
 
 ## Configuration
 
@@ -356,11 +378,13 @@ All configuration is via `graph-memory.yaml` (multi-project YAML). See `graph-me
 
 **Author settings** (`author:`): `name`, `email` — used as createdBy/updatedBy in notes/tasks/skills; git-style format `"Name <email>"` in mirror files. Can be overridden per project or per workspace
 
-**Server settings** (`server:`): `host`, `port`, `sessionTimeout`, `modelsDir`, `embedding.model`
+**Server settings** (`server:`): `host`, `port`, `sessionTimeout`, `modelsDir`, `embedding.model`, `corsOrigins` (string[], CORS allowed origins, defaults to `*`), `defaultAccess` (`deny` | `r` | `rw`, default: `rw`), `access` (per-user server-level access overrides), `embeddingApi` (`{ enabled, apiKey }` for embedding API endpoint)
 
-**Per-project settings** (`projects.<id>:`): `projectDir` (required), `graphMemory`, `docsPattern`, `codePattern`, `excludePattern`, `tsconfig`, `embedding.model`, `graphs.docs.model`, `graphs.code.model`, `graphs.knowledge.model`, `graphs.tasks.model`, `graphs.files.model`, `graphs.skills.model`, `chunkDepth`, `maxTokensDefault`, `embedMaxChars`, `author`
+**User definitions** (`users.<id>:`): `name`, `email`, `apiKey` — user identity and API key for authentication
 
-**Workspace settings** (`workspaces.<id>:`): `projects` (list of project IDs), `graphMemory`, `mirrorDir`, `author` — shared knowledge/tasks/skills graphs across member projects
+**Per-project settings** (`projects.<id>:`): `projectDir` (required), `graphMemory`, `docsPattern`, `codePattern`, `excludePattern`, `tsconfig`, `embedding.model`, `embedding.remote`, `embedding.remoteApiKey`, `graphs.docs.model`, `graphs.code.model`, `graphs.knowledge.model`, `graphs.tasks.model`, `graphs.files.model`, `graphs.skills.model`, `chunkDepth`, `maxTokensDefault`, `embedMaxChars`, `author`, `access` (per-user access overrides). Per-graph settings: `graphs.<name>.enabled`, `graphs.<name>.pattern`, `graphs.<name>.excludePattern`, `graphs.<name>.embedding`, `graphs.<name>.access`
+
+**Workspace settings** (`workspaces.<id>:`): `projects` (list of project IDs), `graphMemory`, `mirrorDir`, `author`, `access` (per-user access overrides) — shared knowledge/tasks/skills graphs across member projects
 
 ## Conventions
 

@@ -133,6 +133,6 @@ docker compose run --rm graph-memory index --config /data/config/graph-memory.ya
 
 **Port already in use**: Change the port in `graph-memory.yaml` under `server.port`, or stop the existing process.
 
-**Tools not showing up**: Make sure `docsPattern` and/or `codePattern` are set in your config. Without patterns, only file index, knowledge, task, and skill tools are registered.
+**Tools not showing up**: Make sure `graphs.docs.pattern` and/or `graphs.code.pattern` (or legacy `docsPattern`/`codePattern`) are set in your config. Without patterns, only file index, knowledge, task, and skill tools are registered.
 
 **Config changes not taking effect**: The `serve` command watches `graph-memory.yaml` for changes automatically. For `mcp` (stdio), you need to restart the process.

@@ -1,6 +1,6 @@
 # Code Tools
 
-The code tools let you search and navigate your indexed TypeScript/JavaScript source code. They're available when `codePattern` is configured in your project.
+The code tools let you search and navigate your indexed TypeScript/JavaScript source code. They're available when `graphs.code.pattern` (or legacy `codePattern`) is configured in your project.
 
 ## Tool overview
 

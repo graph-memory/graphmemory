@@ -125,6 +125,19 @@ server:
   port: 3000
   sessionTimeout: 1800          # seconds
   modelsDir: "~/.graph-memory/models"
+  corsOrigins: ["http://localhost:5173"]  # allowed CORS origins (optional)
+  defaultAccess: "rw"                    # anonymous access level (deny|r|rw)
+  access:                                # per-user server-wide overrides
+    alice: "rw"
+  embeddingApi:                          # optional embedding proxy endpoint
+    enabled: true
+    apiKey: "embed-secret"               # separate from user API keys
+
+users:                                   # named users with API keys
+  alice:
+    name: "Alice"
+    email: "alice@example.com"
+    apiKey: "sk-alice-secret"
 
 projects:
   my-app:
@@ -133,18 +146,48 @@ projects:
     docsPattern: "docs/**/*.md"
     codePattern: "src/**/*.ts"
     excludePattern: "node_modules/**"
+    access:                              # per-user project-level overrides
+      bob: "r"
     embedding:
       model: "Xenova/bge-m3"
+      remote: "https://embed.example.com/v1/embed"  # optional remote embedding
+      remoteApiKey: "remote-secret"                  # auth for remote endpoint
     graphs:
       docs:
-        model: ""               # per-graph model override
+        enabled: true
+        pattern: "docs/**/*.md"
+        excludePattern: "drafts/**"
+        embedding:                       # per-graph embedding (first-defined-wins)
+          model: "Xenova/bge-m3"
+        access:                          # per-user graph-level overrides
+          charlie: "r"
       code:
-        model: ""
+        enabled: true
     chunkDepth: 4
     embedMaxChars: 2000
 ```
 
 Validated with **Zod** schemas. All fields optional with sensible defaults.
+
+### Per-Graph Configuration
+
+Each of the 6 graphs (`docs`, `code`, `knowledge`, `tasks`, `files`, `skills`) supports a `GraphConfig` block with:
+
+| Field | Description |
+|-------|-------------|
+| `enabled` | Enable/disable the graph (default `true`) |
+| `pattern` | Glob pattern for file matching (docs/code only) |
+| `excludePattern` | Glob pattern for exclusions |
+| `embedding` | Full embedding config (model, pooling, normalize, dtype, remote, etc.) |
+| `access` | Per-user access overrides for this graph |
+
+**Embedding resolution** follows a first-defined-wins strategy with whole-object replacement (no field-level merge):
+
+```
+graph.embedding → project.embedding → server.embedding → defaults
+```
+
+If a graph defines its own `embedding` block, it is used in full. Otherwise the project-level embedding is used, falling back to the server-level embedding config.
 
 ### Workspaces
 
@@ -169,6 +212,27 @@ workspaces:
 | `author` | Author for shared notes/tasks/skills (overrides root author) |
 
 Workspace projects use a shared `PromiseQueue` for mutation serialization across all member projects. Cross-graph links between workspace projects use project-scoped proxy IDs (e.g., `@docs::api-gateway::guide.md::Setup`).
+
+### Users & Access Control
+
+Users are defined at the top level of the config with a name, email, and API key:
+
+```yaml
+users:
+  alice:
+    name: "Alice"
+    email: "alice@example.com"
+    apiKey: "sk-alice-secret"
+```
+
+Access levels (`deny`, `r`, `rw`) can be set at 4 levels. The **resolution chain** (first match wins):
+
+```
+graph.access[userId] → project.access[userId] → workspace.access[userId]
+→ server.access[userId] → server.defaultAccess
+```
+
+When no users are configured, all requests are anonymous and use `server.defaultAccess` (default `rw`).
 
 ---
 
@@ -226,7 +290,7 @@ Indexes ALL project files and directories (not just pattern-matched ones).
 
 Task tracking with kanban workflow. CRUD-only (like KnowledgeGraph).
 
-- **Nodes**: `title`, `description`, `status`, `priority`, `tags[]`, `dueDate`, `estimate`, `completedAt`, `embedding`
+- **Nodes**: `title`, `description`, `status`, `priority`, `tags[]`, `dueDate`, `estimate`, `assignee`, `completedAt`, `embedding`
 - **Statuses**: `backlog` → `todo` → `in_progress` → `done` → `cancelled`
 - **Priorities**: `critical` (0) → `high` → `medium` → `low` (3)
 - **Edge kinds**: `subtask_of`, `blocks`, `related_to`
@@ -485,6 +549,9 @@ GET    /api/projects/:id/graph?scope=...              → export graph for visua
 GET    /api/projects/:id/tools                        → list available MCP tools
 GET    /api/projects/:id/tools/:toolName              → get tool details + input schema
 POST   /api/projects/:id/tools/:toolName/call         → call a tool with arguments
+
+GET    /api/auth/status                               → auth status (required, authenticated, userId)
+POST   /api/embed                                     → embed texts (optional, gated by embeddingApi config)
 ```
 
 Response format: `{ results: [...] }` for lists, direct object for single items. DELETE returns 204.
@@ -523,7 +590,179 @@ The UI filters events by current `projectId` client-side.
 
 ---
 
-## 10. Web UI
+## 10. Authentication & Authorization
+
+**Files**: `src/lib/access.ts`, `src/api/rest/index.ts`
+
+### Flow
+
+```
+Client request with Authorization: Bearer <apiKey>
+  → auth middleware: resolveUserFromApiKey() → attaches userId to request
+  → per-route: requireGraphAccess(graphName, 'r'|'rw')
+      → resolveAccess(userId, graphName, project, server, workspace?)
+      → check canRead() / canWrite()
+      → 403 if denied
+```
+
+### Resolution Chain
+
+Access is resolved per-user, per-graph via a 4-level chain (first match wins):
+
+1. **Graph-level**: `project.graphs.<graph>.access[userId]`
+2. **Project-level**: `project.access[userId]`
+3. **Workspace-level**: `workspace.access[userId]`
+4. **Server-level**: `server.access[userId]`
+5. **Default**: `server.defaultAccess` (default `rw`)
+
+### Access Levels
+
+| Level | Read | Write |
+|-------|------|-------|
+| `rw` | yes | yes |
+| `r` | yes | no |
+| `deny` | no | no |
+
+### UI Authentication
+
+**Files**: `ui/src/shared/lib/AuthGate.tsx`, `ui/src/pages/login/index.tsx`
+
+The `AuthGate` component wraps the entire app. On load it calls `GET /api/auth/status`:
+- If `required: false` (no users configured) — render the app immediately
+- If `required: true, authenticated: false` — show `LoginPage` for API key entry
+- If `required: true, authenticated: true` — render the app
+- On network error — render the app (errors surface naturally)
+
+The API key is stored in `localStorage` and attached to all requests via `setApiKey()` in the shared HTTP client.
+
+### Auth Status Endpoint
+
+`GET /api/auth/status` is mounted before the auth middleware (always accessible):
+
+```json
+{ "required": true, "authenticated": true, "userId": "alice", "name": "Alice" }
+```
+
+---
+
+## 11. Team & Assignee
+
+**File**: `src/lib/team.ts`
+
+### `.team/` Directory
+
+Team members are stored as markdown files in `{projectDir}/.team/` (or workspace `mirrorDir/.team/`):
+
+```
+.team/
+  alice.md       # frontmatter: { name: "Alice", email: "alice@example.com" }
+  bob.md         # frontmatter: { name: "Bob", email: "bob@example.com" }
+```
+
+Each file is `{id}.md` with YAML frontmatter containing `name` and `email`.
+
+### Functions
+
+| Function | Description |
+|----------|-------------|
+| `scanTeamDir(teamDir)` | Scan `.team/` and return `TeamMember[]` (id, name, email) |
+| `ensureAuthorInTeam(teamDir, author)` | Auto-create a team member file for the configured author if it doesn't exist |
+
+### Task Assignee
+
+Tasks have an `assignee` field (string or null) that references a team member ID. The author's team member file is auto-created on first mutation when an author is configured.
+
+---
+
+## 12. Embedding API
+
+**File**: `src/api/rest/embed.ts`
+
+### Endpoint
+
+`POST /api/embed` — embed arbitrary texts using the server's embedding model.
+
+```json
+// Request
+{ "texts": ["hello world", "another text"] }
+
+// Response
+{ "embeddings": [[0.1, 0.2, ...], [0.3, 0.4, ...]] }
+```
+
+### Configuration
+
+```yaml
+server:
+  embeddingApi:
+    enabled: true
+    apiKey: "embed-secret"    # optional, separate from user API keys
+```
+
+The embedding API has its own API key (separate from user authentication). When `apiKey` is set, requests must include `Authorization: Bearer <apiKey>`. Validated with Zod: max 100 texts, max 10,000 chars each.
+
+### Remote Embedding
+
+The embedding system supports remote HTTP proxies as an alternative to local ONNX model loading:
+
+```yaml
+embedding:
+  model: "text-embedding-3-small"
+  remote: "https://embed.example.com/v1/embed"
+  remoteApiKey: "remote-secret"
+```
+
+When `remote` is set, `loadModel()` registers a proxy entry instead of downloading and loading an ONNX model. All `embed()` and `embedBatch()` calls are forwarded to the remote endpoint via HTTP POST.
+
+---
+
+## 13. Security
+
+### API Key Comparison
+
+All API key comparisons use `crypto.timingSafeEqual()` with equal-length `Buffer` comparison to prevent timing attacks. This applies to both user API keys and the embedding API key.
+
+### Filename Validation
+
+Attachment filenames are validated at two levels:
+
+1. **REST validation** (`src/api/rest/validation.ts`): Zod schema rejects filenames with path separators (`/`, `\`), `..`, and enforces length limits
+2. **Write-time sanitization** (`src/lib/file-mirror.ts`): `sanitizeFilename()` strips null bytes, `..`, and path separators before writing to disk
+
+### Content-Disposition
+
+Attachment downloads use RFC 5987 encoding for the `Content-Disposition` header:
+
+```
+Content-Disposition: attachment; filename*=UTF-8''encoded-filename
+```
+
+This ensures correct handling of Unicode filenames across browsers.
+
+### URL Validation
+
+Remote embedding URLs are validated to only allow `http:` and `https:` protocols, preventing SSRF via `file:`, `data:`, or other schemes.
+
+### CORS
+
+CORS origins are configurable via `server.corsOrigins` in the YAML config:
+
+```yaml
+server:
+  corsOrigins: ["http://localhost:5173", "https://app.example.com"]
+```
+
+When not set, the default CORS middleware allows all origins.
+
+### Security Headers
+
+All responses include:
+- `X-Content-Type-Options: nosniff`
+- `X-Frame-Options: DENY`
+
+---
+
+## 14. Web UI
 
 **Directory**: `ui/`
 
@@ -557,7 +796,8 @@ ui/src/
 │   ├── search/                   # Cross-graph unified search
 │   ├── graph/                    # Interactive graph visualization (Cytoscape.js)
 │   ├── tools/                    # MCP tools explorer + live execution
-│   └── help/                     # Built-in searchable documentation
+│   ├── help/                     # Built-in searchable documentation
+│   └── login/                   # Login page for API key authentication
 ├── widgets/
 │   └── layout/                   # Sidebar + project selector + theme toggle
 ├── features/
@@ -582,7 +822,8 @@ ui/src/
 └── shared/
     ├── api/client.ts             # Base HTTP: get(), post(), put(), del()
     ├── lib/useWebSocket.ts       # WebSocket hook with auto-reconnect
-    └── lib/ThemeModeContext.tsx   # Light/dark theme toggle context
+    ├── lib/ThemeModeContext.tsx   # Light/dark theme toggle context
+    └── lib/AuthGate.tsx          # Auth gate (checks /api/auth/status, shows LoginPage if needed)
 ```
 
 ### Routes
@@ -612,7 +853,7 @@ cd ui && npm run build  # Production build → ui/dist/
 
 ---
 
-## 11. Project Manager
+## 15. Project Manager
 
 **File**: `src/lib/project-manager.ts`
 
@@ -666,7 +907,7 @@ The `serve` command watches `graph-memory.yaml` with chokidar. On change:
 
 ---
 
-## 12. Concurrency Model
+## 16. Concurrency Model
 
 ### PromiseQueue
 
@@ -694,7 +935,7 @@ Read tools (`list`, `get`, `search`) run without queueing. They read graph state
 
 ---
 
-## 13. Data Flow
+## 17. Data Flow
 
 ### Indexing Flow
 
@@ -785,7 +1026,7 @@ A separate chokidar watcher on `.notes/`, `.tasks/`, and `.skills/` detects exte
 
 ---
 
-## 14. Directory Structure
+## 18. Directory Structure
 
 ```
 src/
@@ -817,6 +1058,8 @@ src/
     file-mirror.ts           # File mirror helpers (write/delete .notes/ .tasks/ .skills/ files)
     file-import.ts           # Reverse import from mirror files (parseNoteFile, parseTaskFile, parseSkillFile)
     mirror-watcher.ts        # MirrorWriteTracker + watcher for reverse import from IDE edits
+    access.ts                # Access resolution (4-level chain) + API key lookup (timing-safe)
+    team.ts                  # Team directory scanning (.team/*.md) + auto-creation of author member
     parsers/
       docs.ts                # Markdown → Chunk[] (headings, code blocks)
       code.ts                # TS/JS → ParsedFile (ts-morph AST)
@@ -844,6 +1087,7 @@ src/
       graph.ts               # Graph export endpoint
       tools.ts               # Tools explorer REST routes (list, get, call)
       websocket.ts           # WebSocket server
+      embed.ts               # Embedding API endpoint (POST /api/embed)
     tools/
       docs/                  # 10 MCP doc tools (via DocGraphManager)
       code/                  # 5 MCP code tools (via CodeGraphManager)
@@ -858,7 +1102,9 @@ src/
     __mocks__/               # Jest mocks for ESM-only packages (chokidar, @huggingface/transformers, mime)
     fixtures/                # Test fixtures (markdown, TypeScript)
 ui/
-  src/                       # React UI (FSD architecture — see section 10)
+  src/                       # React UI (FSD architecture — see section 14)
+    pages/login/             # Login page for API key authentication
+    shared/lib/AuthGate.tsx  # Auth gate (checks /api/auth/status on load, shows LoginPage if needed)
   vite.config.ts             # Vite config with /api proxy
   package.json               # UI dependencies
   README.md                  # UI development guide
@@ -866,7 +1112,7 @@ ui/
 
 ---
 
-## 15. Dependencies
+## 19. Dependencies
 
 ### Backend
 

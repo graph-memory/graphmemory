@@ -27,8 +27,8 @@ export function scanTeamDir(teamDir: string): TeamMember[] {
         name: (fm.name as string) ?? id,
         email: (fm.email as string) ?? '',
       });
-    } catch {
-      // Skip unreadable files
+    } catch (err) {
+      process.stderr.write(`[team] Failed to parse team member file "${entry.name}": ${err}\n`);
     }
   }
   return members;

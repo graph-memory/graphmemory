@@ -23,6 +23,7 @@ interface AttachmentSectionProps {
   getUrl: (filename: string) => string;
   onUpload: (file: File) => Promise<void>;
   onDelete: (filename: string) => Promise<void>;
+  readOnly?: boolean;
 }
 
 function formatSize(bytes: number): string {
@@ -35,7 +36,7 @@ function isImage(mimeType: string): boolean {
   return mimeType.startsWith('image/');
 }
 
-export function AttachmentSection({ attachments, getUrl, onUpload, onDelete }: AttachmentSectionProps) {
+export function AttachmentSection({ attachments, getUrl, onUpload, onDelete, readOnly }: AttachmentSectionProps) {
   const { palette } = useTheme();
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -100,11 +101,11 @@ export function AttachmentSection({ attachments, getUrl, onUpload, onDelete }: A
               <ImageListItemBar
                 title={img.filename}
                 subtitle={formatSize(img.size)}
-                actionIcon={
+                actionIcon={!readOnly ? (
                   <IconButton size="small" sx={{ color: 'white' }} onClick={() => setDeleteTarget(img.filename)}>
                     <DeleteIcon fontSize="small" />
                   </IconButton>
-                }
+                ) : undefined}
               />
             </ImageListItem>
           ))}
@@ -131,11 +132,13 @@ export function AttachmentSection({ attachments, getUrl, onUpload, onDelete }: A
                     <DownloadIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
-                <Tooltip title="Delete">
-                  <IconButton size="small" onClick={() => setDeleteTarget(f.filename)}>
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
+                {!readOnly && (
+                  <Tooltip title="Delete">
+                    <IconButton size="small" onClick={() => setDeleteTarget(f.filename)}>
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                )}
               </ListItemSecondaryAction>
             </ListItem>
           ))}
@@ -149,7 +152,7 @@ export function AttachmentSection({ attachments, getUrl, onUpload, onDelete }: A
       )}
 
       {/* Upload zone */}
-      <Box
+      {!readOnly && <Box
         onDragOver={e => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
@@ -184,7 +187,7 @@ export function AttachmentSection({ attachments, getUrl, onUpload, onDelete }: A
           hidden
           onChange={e => handleFiles(e.target.files)}
         />
-      </Box>
+      </Box>}
 
       <ConfirmDialog
         open={deleteTarget !== null}

@@ -90,8 +90,10 @@ export function listNoteAttachments(projectId: string, noteId: string) {
 export async function uploadNoteAttachment(projectId: string, noteId: string, file: File): Promise<AttachmentMeta> {
   const form = new FormData();
   form.append('file', file);
+  const { authHeaders } = await import('@/shared/api/client');
   const res = await fetch(`/api/projects/${projectId}/knowledge/notes/${noteId}/attachments`, {
     method: 'POST',
+    headers: authHeaders(),
     body: form,
   });
   if (!res.ok) {

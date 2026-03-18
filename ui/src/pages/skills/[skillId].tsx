@@ -192,6 +192,7 @@ export default function SkillDetailPage() {
             const atts = await listSkillAttachments(projectId!, skillId!);
             setAttachments(atts);
           }}
+          readOnly={!canWrite}
         />
       </Section>
 

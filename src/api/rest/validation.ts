@@ -221,9 +221,11 @@ export const linkedQuerySchema = z.object({
 // Attachment schemas
 // ---------------------------------------------------------------------------
 
-/** Validates an attachment filename (path param). No path separators, no .., no null bytes. */
+/** Validates an attachment filename (path param). No path separators, no .., no dangerous chars. */
 export const attachmentFilenameSchema = z.string()
   .min(1)
+  .max(255)
   .refine(s => !/[/\\]/.test(s), 'Filename must not contain path separators')
   .refine(s => !s.includes('..'), 'Filename must not contain ..')
-  .refine(s => !s.includes('\0'), 'Filename must not contain null bytes');
+  .refine(s => !s.includes('\0'), 'Filename must not contain null bytes')
+  .refine(s => !/[\x00-\x1f\x7f"<>|?*]/.test(s), 'Filename contains invalid characters');

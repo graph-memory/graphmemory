@@ -40,7 +40,7 @@ This means `"how to authenticate users"` will find documentation about auth even
 
 ## Quick start workflow
 
-1. **Configure** your project in `graph-memory.yaml` with `docsPattern` and `codePattern`
+1. **Configure** your project in `graph-memory.yaml` with `graphs.docs.pattern` and `graphs.code.pattern`
 2. **Start** the server: `node dist/cli/index.js serve --config graph-memory.yaml`
 3. **Browse** your indexed content in the UI
 4. **Search** across all graphs using natural language

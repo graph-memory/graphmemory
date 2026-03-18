@@ -135,6 +135,7 @@ export default function NoteDetailPage() {
             const atts = await listNoteAttachments(projectId!, noteId!);
             setAttachments(atts);
           }}
+          readOnly={!canWrite}
         />
       </Section>
 

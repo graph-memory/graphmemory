@@ -689,6 +689,7 @@ function createMirrorInTaskGraph(
       dueDate: null,
       estimate: null,
       completedAt: null,
+      assignee: null,
       embedding: [],
       attachments: [],
       createdAt: 0,

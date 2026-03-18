@@ -13,6 +13,14 @@ const _models = new Map<string, ModelEntry>();                     // name → {
 const _pipeCache = new Map<string, FeatureExtractionPipeline>();   // "model|dtype" → pipe (dedup)
 let _maxChars = 4000;
 
+function validateRemoteUrl(url: string): void {
+  let parsed: URL;
+  try { parsed = new URL(url); } catch { throw new Error(`Invalid remote embedding URL: ${url}`); }
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    throw new Error(`Remote embedding URL must use http or https: ${url}`);
+  }
+}
+
 export async function loadModel(
   config: EmbeddingConfig, modelsDir: string, maxChars: number, name = 'default',
 ): Promise<void> {
@@ -20,6 +28,7 @@ export async function loadModel(
 
   // Remote embedding: register proxy, skip ONNX loading
   if (config.remote) {
+    validateRemoteUrl(config.remote);
     _models.set(name, { pipe: null, config, remote: { url: config.remote, apiKey: config.remoteApiKey } });
     process.stderr.write(`[embedder] Model "${name}" using remote endpoint ${config.remote}\n`);
     return;
@@ -68,7 +77,7 @@ async function remoteEmbed(url: string, texts: string[], apiKey?: string): Promi
     body: JSON.stringify({ texts }),
   });
   if (!resp.ok) {
-    const body = await resp.text();
+    const body = (await resp.text()).slice(0, 500);
     throw new Error(`Remote embed failed (${resp.status}): ${body}`);
   }
   const data = await resp.json() as { embeddings: number[][] };

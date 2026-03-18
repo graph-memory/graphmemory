@@ -87,6 +87,7 @@ const serverSchema = z.object({
   port:            z.number().int().positive().optional(),
   sessionTimeout:  z.number().int().positive().optional(),
   modelsDir:       z.string().optional(),
+  corsOrigins:     z.array(z.string()).optional(),
   embedding:       embeddingConfigSchema.optional(),
   embeddingApi:    embeddingApiSchema.optional(),
   defaultAccess:   accessLevelSchema.optional(),
@@ -185,6 +186,7 @@ export interface ServerConfig {
   port: number;
   sessionTimeout: number;
   modelsDir: string;
+  corsOrigins?: string[];
   embedding: EmbeddingConfig;
   embeddingApi?: EmbeddingApiConfig;
   defaultAccess: AccessLevel;
@@ -348,6 +350,7 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
     port:           srv.port           ?? SERVER_DEFAULTS.port,
     sessionTimeout: srv.sessionTimeout ?? SERVER_DEFAULTS.sessionTimeout,
     modelsDir:      path.resolve(srv.modelsDir ?? SERVER_DEFAULTS.modelsDir),
+    corsOrigins:    srv.corsOrigins,
     embedding:      globalEmbedding,
     embeddingApi:   srv.embeddingApi ? { enabled: !!srv.embeddingApi.enabled, apiKey: srv.embeddingApi.apiKey } : undefined,
     defaultAccess:  srv.defaultAccess  ?? SERVER_DEFAULTS.defaultAccess,

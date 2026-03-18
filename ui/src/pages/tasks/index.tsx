@@ -447,7 +447,7 @@ export default function TasksPage() {
                         </Box>
                         {task.assignee && (
                           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-                            @{task.assignee}
+                            @{team.find(m => m.id === task.assignee)?.name ?? task.assignee}
                           </Typography>
                         )}
 

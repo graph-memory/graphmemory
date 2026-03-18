@@ -106,8 +106,10 @@ export function listTaskAttachments(projectId: string, taskId: string) {
 export async function uploadTaskAttachment(projectId: string, taskId: string, file: File): Promise<AttachmentMeta> {
   const form = new FormData();
   form.append('file', file);
+  const { authHeaders } = await import('@/shared/api/client');
   const res = await fetch(`/api/projects/${projectId}/tasks/${taskId}/attachments`, {
     method: 'POST',
+    headers: authHeaders(),
     body: form,
   });
   if (!res.ok) {

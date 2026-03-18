@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import type { AccessLevel, GraphName, ProjectConfig, WorkspaceConfig, ServerConfig, UserConfig } from '@/lib/multi-config';
 
 /**
@@ -46,8 +47,10 @@ export function resolveUserFromApiKey(
   apiKey: string,
   users: Record<string, UserConfig>,
 ): { userId: string; user: UserConfig } | undefined {
+  const keyBuf = Buffer.from(apiKey);
   for (const [userId, user] of Object.entries(users)) {
-    if (user.apiKey === apiKey) {
+    const userKeyBuf = Buffer.from(user.apiKey);
+    if (keyBuf.length === userKeyBuf.length && crypto.timingSafeEqual(keyBuf, userKeyBuf)) {
       return { userId, user };
     }
   }

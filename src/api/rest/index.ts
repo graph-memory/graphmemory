@@ -46,7 +46,8 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
   const users = options?.users ?? {};
   const hasUsers = Object.keys(users).length > 0;
 
-  app.use(cors());
+  const corsOrigins = serverConfig?.corsOrigins;
+  app.use(cors(corsOrigins?.length ? { origin: corsOrigins } : undefined));
   app.use(express.json({ limit: '10mb' }));
 
   // Security headers
@@ -54,6 +55,17 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
     next();
+  });
+
+  // Auth status endpoint (before auth middleware — always accessible)
+  app.get('/api/auth/status', (req, res) => {
+    if (!hasUsers) return res.json({ required: false, authenticated: false });
+    const auth = req.headers.authorization;
+    if (auth?.startsWith('Bearer ')) {
+      const result = resolveUserFromApiKey(auth.slice(7), users);
+      if (result) return res.json({ required: true, authenticated: true, userId: result.userId, name: result.user.name });
+    }
+    return res.json({ required: true, authenticated: false });
   });
 
   // Auth middleware: resolve user from Bearer token
@@ -146,7 +158,18 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
   });
 
   // Team members (workspace: shared .team/ in mirrorDir; standalone: .team/ in projectDir)
+  // Requires at least read access to any graph in the project
   app.get('/api/projects/:projectId/team', (req, res) => {
+    if (serverConfig && hasUsers) {
+      const userId = (req as any).userId as string | undefined;
+      if (!userId) return res.status(401).json({ error: 'Authentication required' });
+      const p = (req as any).project;
+      const ws = p.workspaceId ? projectManager.getWorkspace(p.workspaceId) : undefined;
+      const hasAnyAccess = GRAPH_NAMES.some(gn =>
+        canRead(resolveAccess(userId, gn, p.config, serverConfig, ws?.config)),
+      );
+      if (!hasAnyAccess) return res.status(403).json({ error: 'Access denied' });
+    }
     const p = (req as any).project;
     const ws = p.workspaceId ? projectManager.getWorkspace(p.workspaceId) : undefined;
     const baseDir = ws ? ws.config.mirrorDir : p.config.projectDir;
@@ -223,7 +246,7 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
   // Error handler
   app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     if (err.name === 'ZodError') {
-      return res.status(400).json({ error: 'Validation error', details: err.issues });
+      return res.status(400).json({ error: 'Validation error' });
     }
     if (err.type === 'entity.parse.failed' || (err instanceof SyntaxError && 'body' in err)) {
       return res.status(400).json({ error: 'Invalid JSON' });

@@ -102,6 +102,7 @@ describe('parseTaskFile', () => {
       dueDate: '2026-03-20T00:00:00.000Z',
       estimate: 4,
       completedAt: null,
+      assignee: null,
       createdAt: '2026-01-15T10:00:00.000Z',
       updatedAt: '2026-01-15T12:00:00.000Z',
       relations: [{ to: 'parent-task', kind: 'subtask_of' }],

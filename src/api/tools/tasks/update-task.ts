@@ -23,10 +23,11 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
         tags:            z.array(z.string()).optional().describe('Replace tags array'),
         dueDate:         z.number().nullable().optional().describe('New due date (ms timestamp) or null to clear'),
         estimate:        z.number().nullable().optional().describe('New estimate (hours) or null to clear'),
+        assignee:        z.string().nullable().optional().describe('Team member ID to assign, or null to unassign'),
         expectedVersion: z.number().int().positive().optional().describe('Current version for optimistic locking — request fails with version_conflict if the task has been updated since'),
       },
     },
-    async ({ taskId, title, description, status, priority, tags, dueDate, estimate, expectedVersion }) => {
+    async ({ taskId, title, description, status, priority, tags, dueDate, estimate, assignee, expectedVersion }) => {
       const patch: Record<string, unknown> = {};
       if (title !== undefined) patch.title = title;
       if (description !== undefined) patch.description = description;
@@ -35,6 +36,7 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
       if (tags !== undefined) patch.tags = tags;
       if (dueDate !== undefined) patch.dueDate = dueDate;
       if (estimate !== undefined) patch.estimate = estimate;
+      if (assignee !== undefined) patch.assignee = assignee;
 
       try {
         const updated = await mgr.updateTask(taskId, patch, expectedVersion);

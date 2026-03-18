@@ -25,7 +25,7 @@ describe('slugify (shared with tasks)', () => {
   it('dedup: returns ::2 when base exists', () => {
     graph.addNode('fix-auth-bug', {
       title: 'Fix Auth Bug', description: '', status: 'backlog', priority: 'medium',
-      tags: [], dueDate: null, estimate: null, completedAt: null,
+      tags: [], dueDate: null, estimate: null, completedAt: null, assignee: null,
       version: 1, embedding: [], attachments: [], createdAt: 0, updatedAt: 0,
     });
     expect(slugify('Fix Auth Bug', graph)).toBe('fix-auth-bug::2');
@@ -882,7 +882,7 @@ describe('Attachments (TaskGraphManager)', () => {
       const proxyNodeId = '@docs::some-doc';
       manager.graph.addNode(proxyNodeId, {
         title: '', description: '', status: 'backlog', priority: 'medium',
-        tags: [], dueDate: null, estimate: null, completedAt: null,
+        tags: [], dueDate: null, estimate: null, completedAt: null, assignee: null,
         embedding: [], attachments: [], createdAt: 0, updatedAt: 0,
         proxyFor: { graph: 'docs', nodeId: 'some-doc' },
       } as any);

@@ -36,6 +36,7 @@ export interface ParsedTaskFile {
   dueDate: number | null;
   estimate: number | null;
   completedAt: number | null;
+  assignee: string | null;
   createdAt: number | null;
   updatedAt: number | null;
   version: number | null;
@@ -154,6 +155,7 @@ export function parseTaskFile(filePath: string): ParsedTaskFile | null {
       dueDate: isoToMs(fm.dueDate),
       estimate: typeof fm.estimate === 'number' ? fm.estimate : null,
       completedAt: isoToMs(fm.completedAt),
+      assignee: typeof fm.assignee === 'string' ? fm.assignee : null,
       createdAt: isoToMs(fm.createdAt),
       updatedAt: isoToMs(fm.updatedAt),
       version: typeof fm.version === 'number' ? fm.version : null,

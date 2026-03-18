@@ -65,9 +65,9 @@ export function createTasksRouter(): Router {
   router.post('/', requireWriteAccess, validateBody(createTaskSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
-      const { title, description, status, priority, tags, dueDate, estimate } = req.body;
+      const { title, description, status, priority, tags, dueDate, estimate, assignee } = req.body;
       const created = await p.mutationQueue.enqueue(async () => {
-        const taskId = await p.taskManager.createTask(title, description, status, priority, tags, dueDate, estimate);
+        const taskId = await p.taskManager.createTask(title, description, status, priority, tags, dueDate, estimate, assignee ?? null);
         return p.taskManager.getTask(taskId);
       });
       res.status(201).json(created);

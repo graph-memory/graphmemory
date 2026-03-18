@@ -271,6 +271,7 @@ export function replayTaskEvents(events: AnyEvent[], description: string): Parse
     dueDate,
     estimate,
     completedAt,
+    assignee: null,
     createdAt: created.createdAt,
     updatedAt: updatedAt ?? created.createdAt,
     version,

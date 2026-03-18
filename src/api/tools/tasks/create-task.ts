@@ -20,13 +20,15 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
         tags:        z.array(z.string()).optional().describe('Optional tags for filtering, e.g. ["bug", "auth"]'),
         dueDate:     z.number().optional().describe('Due date as Unix timestamp in milliseconds'),
         estimate:    z.number().optional().describe('Estimated effort in hours'),
+        assignee:    z.string().optional().describe('Team member ID to assign the task to'),
       },
     },
-    async ({ title, description, priority, status, tags, dueDate, estimate }) => {
+    async ({ title, description, priority, status, tags, dueDate, estimate, assignee }) => {
       const taskId = await mgr.createTask(
         title, description,
         status ?? 'backlog', priority,
         tags ?? [], dueDate ?? null, estimate ?? null,
+        assignee ?? null,
       );
       return { content: [{ type: 'text', text: JSON.stringify({ taskId }, null, 2) }] };
     },

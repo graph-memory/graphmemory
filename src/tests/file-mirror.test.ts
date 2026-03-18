@@ -149,6 +149,7 @@ describe('file-mirror', () => {
         dueDate: 1710100000000,
         estimate: 4,
         completedAt: null,
+        assignee: null,
         createdAt: 1710000000000,
         updatedAt: 1710000060000,
         version: 1,

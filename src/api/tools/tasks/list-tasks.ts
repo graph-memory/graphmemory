@@ -18,11 +18,12 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
           .describe('Filter by priority'),
         tag:      z.string().optional().describe('Filter by tag (exact match, case-insensitive)'),
         filter:   z.string().optional().describe('Substring match on title or ID'),
+        assignee: z.string().optional().describe('Filter by assignee (team member ID)'),
         limit:    z.number().optional().describe('Max results (default 50)'),
       },
     },
-    async ({ status, priority, tag, filter, limit }) => {
-      const results = mgr.listTasks({ status, priority, tag, filter, limit });
+    async ({ status, priority, tag, filter, assignee, limit }) => {
+      const results = mgr.listTasks({ status, priority, tag, filter, assignee, limit });
       return { content: [{ type: 'text', text: JSON.stringify(results, null, 2) }] };
     },
   );

@@ -138,7 +138,7 @@ function _regenerateNoteSnapshot(
 // Task mirror functions
 // ---------------------------------------------------------------------------
 
-type TaskAttrs = Pick<TaskNodeAttributes, 'title' | 'description' | 'status' | 'priority' | 'tags' | 'dueDate' | 'estimate' | 'completedAt' | 'createdAt' | 'updatedAt' | 'version' | 'createdBy' | 'updatedBy'>;
+type TaskAttrs = Pick<TaskNodeAttributes, 'title' | 'description' | 'status' | 'priority' | 'tags' | 'assignee' | 'dueDate' | 'estimate' | 'completedAt' | 'createdAt' | 'updatedAt' | 'version' | 'createdBy' | 'updatedBy'>;
 
 /** Append a 'created' event + write description.md + regenerate task.md snapshot. */
 export function mirrorTaskCreate(
@@ -225,6 +225,7 @@ function _regenerateTaskSnapshot(
     status: attrs.status,
     priority: attrs.priority,
     tags: attrs.tags,
+    assignee: attrs.assignee ?? null,
     dueDate: tsToIso(attrs.dueDate),
     estimate: attrs.estimate,
     completedAt: tsToIso(attrs.completedAt),

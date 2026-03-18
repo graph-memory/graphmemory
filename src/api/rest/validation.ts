@@ -71,6 +71,7 @@ export const createTaskSchema = z.object({
   tags:        z.array(z.string().max(100)).max(100).optional().default([]),
   dueDate:     z.number().nullable().optional(),
   estimate:    z.number().nullable().optional(),
+  assignee:    z.string().max(100).nullable().optional(),
 });
 
 export const updateTaskSchema = z.object({
@@ -81,6 +82,7 @@ export const updateTaskSchema = z.object({
   tags:        z.array(z.string().max(100)).max(100).optional(),
   dueDate:     z.number().nullable().optional(),
   estimate:    z.number().nullable().optional(),
+  assignee:    z.string().max(100).nullable().optional(),
   version:     z.number().int().positive().optional(),
 });
 
@@ -109,6 +111,7 @@ export const taskListSchema = z.object({
   priority: z.enum(['critical', 'high', 'medium', 'low']).optional(),
   tag:      z.string().optional(),
   filter:   z.string().optional(),
+  assignee: z.string().optional(),
   limit:    z.coerce.number().int().positive().optional(),
 });
 

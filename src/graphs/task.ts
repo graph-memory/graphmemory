@@ -47,6 +47,7 @@ function ensureProxyNode(graph: TaskGraph, targetGraph: TaskCrossGraphType, node
       dueDate: null,
       estimate: null,
       completedAt: null,
+      assignee: null,
       embedding: [],
       attachments: [],
       createdAt: 0,
@@ -105,6 +106,7 @@ export function createTask(
   dueDate: number | null = null,
   estimate: number | null = null,
   author = '',
+  assignee: string | null = null,
 ): string {
   const id = slugify(title, graph);
   const now = Date.now();
@@ -117,6 +119,7 @@ export function createTask(
     dueDate,
     estimate,
     completedAt: null,
+    assignee,
     embedding,
     attachments: [],
     createdAt: now,
@@ -140,6 +143,7 @@ export function updateTask(
     tags?: string[];
     dueDate?: number | null;
     estimate?: number | null;
+    assignee?: string | null;
   },
   embedding?: number[],
   author = '',
@@ -159,6 +163,7 @@ export function updateTask(
   if (patch.tags !== undefined)        graph.setNodeAttribute(taskId, 'tags', patch.tags);
   if (patch.dueDate !== undefined)     graph.setNodeAttribute(taskId, 'dueDate', patch.dueDate);
   if (patch.estimate !== undefined)    graph.setNodeAttribute(taskId, 'estimate', patch.estimate);
+  if (patch.assignee !== undefined)    graph.setNodeAttribute(taskId, 'assignee', patch.assignee);
   if (embedding !== undefined)         graph.setNodeAttribute(taskId, 'embedding', embedding);
   if (author)                          graph.setNodeAttribute(taskId, 'updatedBy', author);
 
@@ -236,6 +241,7 @@ export interface TaskEntry {
   dueDate: number | null;
   estimate: number | null;
   completedAt: number | null;
+  assignee: string | null;
   createdAt: number;
   updatedAt: number;
   version: number;
@@ -333,6 +339,7 @@ export function getTask(
     dueDate: attrs.dueDate,
     estimate: attrs.estimate,
     completedAt: attrs.completedAt,
+    assignee: attrs.assignee ?? null,
     createdAt: attrs.createdAt,
     updatedAt: attrs.updatedAt,
     version: attrs.version,
@@ -353,10 +360,11 @@ export function listTasks(
     priority?: TaskPriority;
     tag?: string;
     filter?: string;
+    assignee?: string;
     limit?: number;
   } = {},
 ): TaskEntry[] {
-  const { status, priority, tag, filter, limit = 50 } = opts;
+  const { status, priority, tag, filter, assignee, limit = 50 } = opts;
   const lowerFilter = filter?.toLowerCase();
   const lowerTag = tag?.toLowerCase();
 
@@ -366,6 +374,7 @@ export function listTasks(
     if (attrs.proxyFor) return;
     if (status && attrs.status !== status) return;
     if (priority && attrs.priority !== priority) return;
+    if (assignee !== undefined && attrs.assignee !== assignee) return;
     if (lowerTag && !attrs.tags.some(t => t.toLowerCase() === lowerTag)) return;
     if (lowerFilter) {
       const match = id.toLowerCase().includes(lowerFilter) ||
@@ -382,6 +391,7 @@ export function listTasks(
       dueDate: attrs.dueDate,
       estimate: attrs.estimate,
       completedAt: attrs.completedAt,
+      assignee: attrs.assignee ?? null,
       version: attrs.version,
       createdAt: attrs.createdAt,
       updatedAt: attrs.updatedAt,
@@ -755,9 +765,10 @@ export class TaskGraphManager {
     tags: string[] = [],
     dueDate: number | null = null,
     estimate: number | null = null,
+    assignee: string | null = null,
   ): Promise<string> {
     const embedding = await this.embedFns.document(`${title} ${description}`);
-    const taskId = createTask(this._graph, title, description, status, priority, tags, embedding, dueDate, estimate, this.ctx.author);
+    const taskId = createTask(this._graph, title, description, status, priority, tags, embedding, dueDate, estimate, this.ctx.author, assignee);
     this._bm25Index.addDocument(taskId, this._graph.getNodeAttributes(taskId));
     this.ctx.markDirty();
     this.ctx.emit('task:created', { projectId: this.ctx.projectId, taskId });
@@ -772,7 +783,7 @@ export class TaskGraphManager {
 
   async updateTask(taskId: string, patch: {
     title?: string; description?: string; status?: TaskStatus; priority?: TaskPriority;
-    tags?: string[]; dueDate?: number | null; estimate?: number | null;
+    tags?: string[]; dueDate?: number | null; estimate?: number | null; assignee?: string | null;
   }, expectedVersion?: number): Promise<boolean> {
     const existing = getTask(this._graph, taskId);
     if (!existing) return false;
@@ -1023,6 +1034,7 @@ export class TaskGraphManager {
         dueDate: parsed.dueDate,
         estimate: parsed.estimate,
         completedAt: parsed.completedAt,
+        assignee: (parsed as any).assignee ?? null,
         embedding,
         attachments: parsed.attachments ?? [],
         createdAt: parsed.createdAt ?? now,
@@ -1110,7 +1122,7 @@ export class TaskGraphManager {
   }
 
   listTasks(opts?: {
-    status?: TaskStatus; priority?: TaskPriority; tag?: string; filter?: string; limit?: number;
+    status?: TaskStatus; priority?: TaskPriority; tag?: string; filter?: string; assignee?: string; limit?: number;
   }) {
     return listTasks(this._graph, opts);
   }

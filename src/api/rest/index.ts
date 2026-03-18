@@ -14,6 +14,7 @@ import { createCodeRouter } from '@/api/rest/code';
 import { createFilesRouter } from '@/api/rest/files';
 import { createGraphRouter } from '@/api/rest/graph';
 import { createToolsRouter } from '@/api/rest/tools';
+import { scanTeamDir } from '@/lib/team';
 
 export interface RestAppOptions {
   serverConfig?: ServerConfig;
@@ -140,6 +141,15 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
       tasks:     p.taskGraph     ? { nodes: p.taskGraph.order,      edges: p.taskGraph.size }     : null,
       skills:    p.skillGraph    ? { nodes: p.skillGraph.order,     edges: p.skillGraph.size }    : null,
     });
+  });
+
+  // Team members (workspace: shared .team/ in mirrorDir; standalone: .team/ in projectDir)
+  app.get('/api/projects/:projectId/team', (req, res) => {
+    const p = (req as any).project;
+    const ws = p.workspaceId ? projectManager.getWorkspace(p.workspaceId) : undefined;
+    const baseDir = ws ? ws.config.mirrorDir : p.config.projectDir;
+    const members = scanTeamDir(path.join(baseDir, '.team'));
+    res.json({ results: members });
   });
 
   // Middleware: require a specific manager to be enabled, or return 404

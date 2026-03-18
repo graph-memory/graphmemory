@@ -25,6 +25,7 @@ export interface TaskNodeAttributes {
   createdAt: number;
   updatedAt: number;
   version: number;         // incremented on every mutation (starts at 1)
+  assignee: string | null;  // team member ID
   createdBy?: string;      // author from config at creation time
   updatedBy?: string;      // author from config at last update
   embedding: number[];

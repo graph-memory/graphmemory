@@ -436,4 +436,47 @@ projects:
     expect(mc.server.access).toBeUndefined();
     expect(mc.users).toEqual({});
   });
+
+  it('parses embeddingApi config', () => {
+    const yamlPath = tmpYaml(`
+server:
+  embeddingApi:
+    enabled: true
+    apiKey: "emb-secret-key"
+projects:
+  a:
+    projectDir: /tmp/a
+`);
+    const mc = loadMultiConfig(yamlPath);
+    expect(mc.server.embeddingApi).toEqual({ enabled: true, apiKey: 'emb-secret-key' });
+  });
+
+  it('defaults embeddingApi to undefined', () => {
+    const yamlPath = tmpYaml(`
+projects:
+  a:
+    projectDir: /tmp/a
+`);
+    const mc = loadMultiConfig(yamlPath);
+    expect(mc.server.embeddingApi).toBeUndefined();
+  });
+
+  it('parses remote embedding config', () => {
+    const yamlPath = tmpYaml(`
+server:
+  embedding:
+    model: "Xenova/bge-m3"
+    remote: "http://gpu-server:3000/api/embed"
+    remoteApiKey: "remote-key"
+projects:
+  a:
+    projectDir: /tmp/a
+`);
+    const mc = loadMultiConfig(yamlPath);
+    expect(mc.server.embedding.remote).toBe('http://gpu-server:3000/api/embed');
+    expect(mc.server.embedding.remoteApiKey).toBe('remote-key');
+    // Project inherits remote config
+    const p = mc.projects.get('a')!;
+    expect(p.embedding.remote).toBe('http://gpu-server:3000/api/embed');
+  });
 });

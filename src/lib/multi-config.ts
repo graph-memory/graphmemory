@@ -23,6 +23,8 @@ const embeddingConfigSchema = z.object({
   queryPrefix:     z.string().optional(),
   documentPrefix:  z.string().optional(),
   batchSize:       z.number().int().positive().optional(),
+  remote:          z.string().optional(),    // Remote embedding API URL
+  remoteApiKey:    z.string().optional(),    // API key for remote embedding
 });
 
 const accessLevelSchema = z.enum(['deny', 'r', 'rw']);
@@ -75,12 +77,18 @@ const projectSchema = z.object({
   access:          accessMapSchema,
 });
 
+const embeddingApiSchema = z.object({
+  enabled: z.boolean().optional(),
+  apiKey:  z.string().optional(),
+});
+
 const serverSchema = z.object({
   host:            z.string().optional(),
   port:            z.number().int().positive().optional(),
   sessionTimeout:  z.number().int().positive().optional(),
   modelsDir:       z.string().optional(),
   embedding:       embeddingConfigSchema.optional(),
+  embeddingApi:    embeddingApiSchema.optional(),
   defaultAccess:   accessLevelSchema.optional(),
   access:          accessMapSchema,
 });
@@ -152,6 +160,13 @@ export interface EmbeddingConfig {
   queryPrefix: string;
   documentPrefix: string;
   batchSize: number;
+  remote?: string;       // Remote embedding API URL (replaces local ONNX)
+  remoteApiKey?: string; // API key for remote embedding
+}
+
+export interface EmbeddingApiConfig {
+  enabled: boolean;
+  apiKey?: string;
 }
 
 /**
@@ -171,6 +186,7 @@ export interface ServerConfig {
   sessionTimeout: number;
   modelsDir: string;
   embedding: EmbeddingConfig;
+  embeddingApi?: EmbeddingApiConfig;
   defaultAccess: AccessLevel;
   access?: AccessMap;
 }
@@ -304,6 +320,8 @@ function resolveEmbeddingConfig(
     queryPrefix:    raw.queryPrefix     ?? fallback.queryPrefix,
     documentPrefix: raw.documentPrefix  ?? fallback.documentPrefix,
     batchSize:      raw.batchSize       ?? fallback.batchSize,
+    remote:         raw.remote          ?? fallback.remote,
+    remoteApiKey:   raw.remoteApiKey    ?? fallback.remoteApiKey,
   };
 }
 
@@ -331,6 +349,7 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
     sessionTimeout: srv.sessionTimeout ?? SERVER_DEFAULTS.sessionTimeout,
     modelsDir:      path.resolve(srv.modelsDir ?? SERVER_DEFAULTS.modelsDir),
     embedding:      globalEmbedding,
+    embeddingApi:   srv.embeddingApi ? { enabled: !!srv.embeddingApi.enabled, apiKey: srv.embeddingApi.apiKey } : undefined,
     defaultAccess:  srv.defaultAccess  ?? SERVER_DEFAULTS.defaultAccess,
     access:         srv.access         ?? undefined,
   };

@@ -14,11 +14,13 @@ import { createCodeRouter } from '@/api/rest/code';
 import { createFilesRouter } from '@/api/rest/files';
 import { createGraphRouter } from '@/api/rest/graph';
 import { createToolsRouter } from '@/api/rest/tools';
+import { createEmbedRouter } from '@/api/rest/embed';
 import { scanTeamDir } from '@/lib/team';
 
 export interface RestAppOptions {
   serverConfig?: ServerConfig;
   users?: Record<string, UserConfig>;
+  embeddingApiModelName?: string;
 }
 
 /**
@@ -198,6 +200,11 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
   app.use('/api/projects/:projectId/files', ...graphMiddleware('fileIndexManager', 'files'), createFilesRouter());
   app.use('/api/projects/:projectId/graph', createGraphRouter());
   app.use('/api/projects/:projectId/tools', createToolsRouter(projectManager));
+
+  // Embedding API (optional, gated by server.embeddingApi.enabled)
+  if (serverConfig?.embeddingApi?.enabled && options?.embeddingApiModelName) {
+    app.use('/api/embed', createEmbedRouter(serverConfig.embeddingApi, options.embeddingApiModelName));
+  }
 
   // Serve UI static files — check dist/ui/ (npm package) then ui/dist/ (dev)
   const uiDistPkg = path.resolve(__dirname, '../../ui');

@@ -840,3 +840,109 @@ describe('REST API — Auth & ACL', () => {
     expect(proj.graphs.knowledge.enabled).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Embedding API tests
+// ---------------------------------------------------------------------------
+
+import { loadModel, resetEmbedder } from '@/lib/embedder';
+
+describe('REST API — Embedding API', () => {
+  let app: ReturnType<typeof createRestApp>;
+  const EMBED_MODEL_NAME = '__test_embed__';
+
+  beforeEach(async () => {
+    resetEmbedder();
+    await loadModel(
+      { model: 'test', pooling: 'mean', normalize: true, queryPrefix: '', documentPrefix: '', batchSize: 1 },
+      '/tmp/models', 4000, EMBED_MODEL_NAME,
+    );
+
+    const project = createTestProject();
+    const manager = {
+      getProject: (id: string) => id === 'test' ? project : undefined,
+      listProjects: () => ['test'],
+      listWorkspaces: () => [],
+      getWorkspace: () => undefined,
+    } as unknown as ProjectManager;
+
+    app = createRestApp(manager, {
+      serverConfig: {
+        host: '127.0.0.1', port: 3000, sessionTimeout: 1800,
+        modelsDir: '/tmp/models',
+        embedding: { ...TEST_EMBEDDING },
+        embeddingApi: { enabled: true, apiKey: 'emb-secret' },
+        defaultAccess: 'rw',
+      },
+      embeddingApiModelName: EMBED_MODEL_NAME,
+    });
+  });
+
+  afterEach(() => {
+    resetEmbedder();
+  });
+
+  it('returns embeddings for valid request', async () => {
+    const res = await request(app)
+      .post('/api/embed')
+      .set('Authorization', 'Bearer emb-secret')
+      .send({ texts: ['hello', 'world'] });
+    expect(res.status).toBe(200);
+    expect(res.body.embeddings).toHaveLength(2);
+    expect(Array.isArray(res.body.embeddings[0])).toBe(true);
+    expect(res.body.embeddings[0].length).toBeGreaterThan(0);
+  });
+
+  it('rejects missing texts with correct auth', async () => {
+    const res = await request(app)
+      .post('/api/embed')
+      .set('Authorization', 'Bearer emb-secret')
+      .send({});
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects invalid API key', async () => {
+    const res = await request(app)
+      .post('/api/embed')
+      .set('Authorization', 'Bearer wrong-key')
+      .send({ texts: ['test'] });
+    expect(res.status).toBe(401);
+  });
+
+  it('allows request with correct API key', async () => {
+    const res = await request(app)
+      .post('/api/embed')
+      .set('Authorization', 'Bearer emb-secret')
+      .send({ texts: ['test'] });
+    expect(res.status).toBe(200);
+    expect(res.body.embeddings).toHaveLength(1);
+  });
+
+  it('rejects request without auth when apiKey is configured', async () => {
+    const res = await request(app)
+      .post('/api/embed')
+      .send({ texts: ['test'] });
+    expect(res.status).toBe(401);
+  });
+
+  it('not mounted when embeddingApi is not enabled', async () => {
+    const project = createTestProject();
+    const manager = {
+      getProject: (id: string) => id === 'test' ? project : undefined,
+      listProjects: () => ['test'],
+      listWorkspaces: () => [],
+      getWorkspace: () => undefined,
+    } as unknown as ProjectManager;
+
+    const noEmbedApp = createRestApp(manager, {
+      serverConfig: {
+        host: '127.0.0.1', port: 3000, sessionTimeout: 1800,
+        modelsDir: '/tmp/models',
+        embedding: { ...TEST_EMBEDDING },
+        defaultAccess: 'rw',
+      },
+    });
+    const res = await request(noEmbedApp).post('/api/embed').send({ texts: ['test'] });
+    expect(res.status).toBe(404);
+  });
+});

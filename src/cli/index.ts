@@ -368,10 +368,14 @@ program
       await manager.addProject(id, config, reindex, projectWorkspace.get(id));
     }
 
+    // Embedding API model name (loaded in background with other models)
+    const embeddingApiModelName = mc.server.embeddingApi?.enabled ? '__server__' : undefined;
+
     // Start HTTP server immediately (before models are loaded)
     const httpServer = await startMultiProjectHttpServer(host, port, sessionTimeoutMs, manager, {
       serverConfig: mc.server,
       users: mc.users,
+      embeddingApiModelName,
     });
 
     // Track open connections for graceful shutdown
@@ -386,6 +390,16 @@ program
 
     // Load models and start indexing in background (workspaces first, then projects)
     async function initProjects(): Promise<void> {
+      // Load embedding API model if enabled
+      if (embeddingApiModelName) {
+        try {
+          await loadModel(mc.server.embedding, mc.server.modelsDir, 4000, embeddingApiModelName);
+          process.stderr.write(`[serve] Embedding API model ready\n`);
+        } catch (err: unknown) {
+          process.stderr.write(`[serve] Failed to load embedding API model: ${err}\n`);
+        }
+      }
+
       // Load workspace models
       for (const wsId of manager.listWorkspaces()) {
         try {

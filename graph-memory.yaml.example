@@ -52,6 +52,13 @@ server:
   #   queryPrefix: ""                           # Prefix prepended to search queries
   #   documentPrefix: ""                        # Prefix prepended to documents during indexing
   #   batchSize: 1                              # Texts per ONNX forward pass (increase for faster indexing, more memory)
+  #   remote: "http://gpu-server:3000/api/embed" # Use remote embedding API instead of local ONNX
+  #   remoteApiKey: "emb-secret-key"             # API key for remote embedding
+
+  # Embedding API: expose server's embedding model via POST /api/embed
+  # embeddingApi:
+  #   enabled: false                             # Set true to enable
+  #   apiKey: "emb-secret-key"                   # API key (separate from user apiKeys)
 
 # ---------------------------------------------------------------------------
 # Projects

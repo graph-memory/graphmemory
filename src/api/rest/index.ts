@@ -1,3 +1,4 @@
+import fs from 'fs';
 import path from 'path';
 import express from 'express';
 import cors from 'cors';
@@ -94,8 +95,10 @@ export function createRestApp(projectManager: ProjectManager): express.Express {
   app.use('/api/projects/:projectId/graph', createGraphRouter());
   app.use('/api/projects/:projectId/tools', createToolsRouter(projectManager));
 
-  // Serve UI static files (ui/dist)
-  const uiDist = path.resolve(__dirname, '../../../ui/dist');
+  // Serve UI static files — check dist/ui/ (npm package) then ui/dist/ (dev)
+  const uiDistPkg = path.resolve(__dirname, '../../ui');
+  const uiDistDev = path.resolve(__dirname, '../../../ui/dist');
+  const uiDist = fs.existsSync(uiDistPkg) ? uiDistPkg : uiDistDev;
   app.use(express.static(uiDist));
 
   // SPA fallback: serve index.html for non-API routes

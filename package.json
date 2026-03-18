@@ -1,6 +1,6 @@
 {
   "name": "@prih/mcp-graph-memory",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "MCP server for semantic graph memory from markdown files",
   "main": "dist/cli/index.js",
   "bin": {
@@ -9,7 +9,7 @@
   "scripts": {
     "build": "npm run build:server && npm run build:ui",
     "build:server": "rm -rf dist && tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
-    "build:ui": "cd ui && npm run build",
+    "build:ui": "cd ui && npm run build && cp -r dist ../dist/ui",
     "start": "node dist/index.js",
     "dev": "tsc --watch",
     "cli": "node dist/cli/index.js",
@@ -41,7 +41,6 @@
   },
   "files": [
     "dist/",
-    "ui/dist/",
     "README.md"
   ],
   "publishConfig": {

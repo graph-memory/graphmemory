@@ -1,5 +1,5 @@
 {
-  "name": "mcp-graph-memory",
+  "name": "@prih/mcp-graph-memory",
   "version": "1.0.3",
   "description": "MCP server for semantic graph memory from markdown files",
   "main": "dist/cli/index.js",
@@ -19,11 +19,34 @@
   },
   "repository": {
     "type": "git",
-    "url": "git@github.com:prih/mcp-graph-memory.git"
+    "url": "https://github.com/prih/mcp-graph-memory.git"
   },
-  "keywords": [],
-  "author": "",
+  "homepage": "https://github.com/prih/mcp-graph-memory",
+  "bugs": "https://github.com/prih/mcp-graph-memory/issues",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "graph",
+    "memory",
+    "semantic-search",
+    "knowledge-graph",
+    "embeddings",
+    "documentation",
+    "code-indexing"
+  ],
+  "author": "prih <prihmail@gmail.com>",
   "license": "ISC",
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "dist/",
+    "ui/dist/",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@huggingface/transformers": "^3.8.1",
     "@modelcontextprotocol/sdk": "^1.27.1",

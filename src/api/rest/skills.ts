@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { getMimeType } from '@/lib/mime';
+import mime from 'mime';
 import { Router } from 'express';
 import multer from 'multer';
 import type { ProjectInstance } from '@/lib/project-manager';
@@ -214,7 +214,7 @@ export function createSkillsRouter(): Router {
       const filename = attachmentFilenameSchema.parse(req.params.filename);
       const filePath = p.skillManager.getAttachmentPath(req.params.skillId as string, filename);
       if (!filePath) return res.status(404).json({ error: 'Attachment not found' });
-      const mimeType = getMimeType(filePath) ?? 'application/octet-stream';
+      const mimeType = mime.getType(filePath) ?? 'application/octet-stream';
       res.setHeader('Content-Type', mimeType);
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       res.setHeader('X-Content-Type-Options', 'nosniff');

@@ -52,8 +52,8 @@ describe('getMimeType', () => {
     expect(getMimeType('.json')).toBe('application/json');
   });
 
-  it('returns null for truly unknown extension', () => {
-    expect(getMimeType('.zzzzunknown')).toBeNull();
+  it('returns null for unknown extension', () => {
+    expect(getMimeType('.xyz')).toBeNull();
   });
 });
 

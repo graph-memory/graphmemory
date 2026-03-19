@@ -6,22 +6,62 @@ then exposes them as **58 MCP tools** + **REST API** + **Web UI**.
 
 ## Quick start
 
-### Docker (recommended)
+```bash
+npm install -g @graphmemory/server
+cd /path/to/my-project
+graphmemory serve
+```
+
+That's it. No config file needed — the current directory becomes your project. Open http://localhost:3000 for the web UI.
+
+The embedding model (~560 MB) downloads on first startup and is cached at `~/.graph-memory/models/`.
+
+### Connect an MCP client
+
+**Claude Code:**
 
 ```bash
-# 1. Create graph-memory.yaml
-cat > graph-memory.yaml << 'EOF'
-server:
-  host: "0.0.0.0"
-  port: 3000
-  modelsDir: "/data/models"
+claude mcp add --transport http --scope project graph-memory http://localhost:3000/mcp/my-project
+```
 
+**Claude Desktop** — add via **Settings > Connectors**, enter the URL:
+
+```
+http://localhost:3000/mcp/my-project
+```
+
+**Cursor / Windsurf / other clients** — enter the URL directly in settings:
+
+```
+http://localhost:3000/mcp/my-project
+```
+
+The project ID is your directory name. Multiple clients can connect simultaneously.
+
+### With a config file
+
+For multi-project setups, custom embedding models, auth, or workspaces — create `graph-memory.yaml`:
+
+```yaml
 projects:
   my-app:
-    projectDir: "/data/projects/my-app"
-EOF
+    projectDir: "/path/to/my-app"
+  docs-site:
+    projectDir: "/path/to/docs"
+    graphs:
+      code:
+        enabled: false
+```
 
-# 2. Run
+```bash
+graphmemory serve --config graph-memory.yaml
+```
+
+See [docs/configuration.md](docs/configuration.md) for full reference and [graph-memory.yaml.example](graph-memory.yaml.example) for all options.
+
+### Docker
+
+```bash
 docker run -d \
   --name graph-memory \
   -p 3000:3000 \
@@ -31,61 +71,25 @@ docker run -d \
   ghcr.io/graph-memory/graphmemory-server
 ```
 
-Open http://localhost:3000 — the web UI is ready. The embedding model (~560 MB) downloads on first startup.
+Docker Compose:
 
-### npm
+```yaml
+services:
+  graph-memory:
+    image: ghcr.io/graph-memory/graphmemory-server
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./graph-memory.yaml:/data/config/graph-memory.yaml:ro
+      - /path/to/my-app:/data/projects/my-app
+      - models:/data/models
+    restart: unless-stopped
 
-```bash
-npm install -g @graphmemory/server
-graphmemory serve --config graph-memory.yaml
+volumes:
+  models:
 ```
 
-### From source
-
-```bash
-git clone https://github.com/graph-memory/graphmemory.git
-cd graphmemory
-npm install && cd ui && npm install && cd ..
-npm run build
-node dist/cli/index.js serve --config graph-memory.yaml
-```
-
-## Connect an MCP client
-
-Start the server, then connect MCP clients to `http://localhost:3000/mcp/{projectId}`.
-
-**Claude Desktop** — add via **Settings > Connectors** in the app, enter the URL:
-
-```
-http://localhost:3000/mcp/my-app
-```
-
-**Claude Code** — run in your project directory:
-
-```bash
-claude mcp add --transport http --scope project graph-memory http://localhost:3000/mcp/my-app
-```
-
-Or add to `.mcp.json` manually:
-
-```json
-{
-  "mcpServers": {
-    "graph-memory": {
-      "type": "http",
-      "url": "http://localhost:3000/mcp/my-app"
-    }
-  }
-}
-```
-
-**Cursor / Windsurf / other clients** — enter the URL directly in settings:
-
-```
-http://localhost:3000/mcp/my-app
-```
-
-See [docs/cli.md](docs/cli.md) for full CLI reference and connection options.
+See [docs/docker.md](docs/docker.md) for details.
 
 ## What it does
 
@@ -125,31 +129,6 @@ Graph (Cytoscape.js visualization), Tools (MCP explorer), Help.
 
 Light/dark theme. Real-time WebSocket updates. Login page when auth is configured.
 
-## Configuration
-
-All configuration via `graph-memory.yaml`. Only `projects.<id>.projectDir` is required:
-
-```yaml
-server:
-  host: "127.0.0.1"
-  port: 3000
-  model:
-    name: "Xenova/bge-m3"
-
-projects:
-  my-app:
-    projectDir: "/path/to/my-app"
-    graphs:
-      docs:
-        include: "**/*.md"               # default
-      code:
-        include: "**/*.{js,ts,jsx,tsx}"  # default
-      skills:
-        enabled: false
-```
-
-See [docs/configuration.md](docs/configuration.md) for full reference and [graph-memory.yaml.example](graph-memory.yaml.example) for all options.
-
 ## Authentication
 
 ```yaml
@@ -170,26 +149,6 @@ server:
 - **ACL**: graph > project > workspace > server > defaultAccess (`deny` / `r` / `rw`)
 
 See [docs/authentication.md](docs/authentication.md).
-
-## Docker Compose
-
-```yaml
-services:
-  graph-memory:
-    image: ghcr.io/graph-memory/graphmemory-server
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./graph-memory.yaml:/data/config/graph-memory.yaml:ro
-      - /path/to/my-app:/data/projects/my-app
-      - models:/data/models
-    restart: unless-stopped
-
-volumes:
-  models:
-```
-
-See [docs/docker.md](docs/docker.md).
 
 ## Development
 

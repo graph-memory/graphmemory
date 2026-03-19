@@ -1,18 +1,22 @@
 # CLI Commands
 
-All commands require `--config graph-memory.yaml`.
-
 ```bash
-graphmemory <command> --config graph-memory.yaml [options]
+graphmemory <command> [options]
 ```
 
-## `serve` — multi-project HTTP server
+## `serve` — HTTP server
 
 Primary mode. Starts HTTP server with MCP endpoints, REST API, web UI, and WebSocket.
 
 ```bash
-graphmemory serve --config graph-memory.yaml [--host <addr>] [--port <n>] [--reindex]
+# Zero-config: use current directory as a single project
+graphmemory serve
+
+# With config file: multi-project, custom settings
+graphmemory serve --config graph-memory.yaml
 ```
+
+When no `--config` is provided and `graph-memory.yaml` is not found, the current directory becomes the project. The project ID is the directory name.
 
 ### Startup sequence
 
@@ -37,7 +41,7 @@ graphmemory serve --config graph-memory.yaml [--host <addr>] [--port <n>] [--rei
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--config` | (required) | Path to `graph-memory.yaml` |
+| `--config` | `graph-memory.yaml` | Path to config (optional — uses cwd if not found) |
 | `--host` | from config or `127.0.0.1` | Bind address |
 | `--port` | from config or `3000` | Port |
 | `--reindex` | `false` | Discard persisted graphs, re-index from scratch |
@@ -47,6 +51,10 @@ graphmemory serve --config graph-memory.yaml [--host <addr>] [--port <n>] [--rei
 Indexes a project and exits. Useful for CI/CD or as a pre-start step.
 
 ```bash
+# Zero-config: index current directory
+graphmemory index
+
+# With config
 graphmemory index --config graph-memory.yaml --project my-app [--reindex]
 ```
 
@@ -60,8 +68,8 @@ graphmemory index --config graph-memory.yaml --project my-app [--reindex]
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--config` | (required) | Path to `graph-memory.yaml` |
-| `--project` | (required) | Project ID from config |
+| `--config` | `graph-memory.yaml` | Path to config (optional — uses cwd if not found) |
+| `--project` | all projects | Project ID to index (omit to index all) |
 | `--reindex` | `false` | Discard persisted graphs |
 
 ## `users add` — add a user

@@ -15,10 +15,11 @@
 npm install -g @graphmemory/server
 ```
 
-Or use `npx`:
+Or use `npx` without installing:
 
 ```bash
-npx @graphmemory/server serve --config graph-memory.yaml
+cd /path/to/my-project
+npx @graphmemory/server serve
 ```
 
 ## CLI binary
@@ -26,6 +27,11 @@ npx @graphmemory/server serve --config graph-memory.yaml
 After global installation, the `graphmemory` command is available:
 
 ```bash
+# Zero-config: use current directory as project
+cd /path/to/my-project
+graphmemory serve
+
+# With config file
 graphmemory serve --config graph-memory.yaml
 graphmemory index --config graph-memory.yaml --project my-app
 graphmemory users add --config graph-memory.yaml

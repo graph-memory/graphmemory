@@ -1,8 +1,14 @@
 # Configuration
 
-All configuration is done via `graph-memory.yaml`. See `graph-memory.yaml.example` for a full annotated reference.
+## Zero-config mode
 
-## Minimal example
+No config file needed. Just run `graphmemory serve` in your project directory — the current directory becomes the project with sensible defaults (BGE-M3 q8 model, all graphs enabled).
+
+## Config file
+
+For multi-project setups, custom models, auth, or workspaces — create `graph-memory.yaml`. See `graph-memory.yaml.example` for a full annotated reference.
+
+### Minimal example
 
 ```yaml
 projects:

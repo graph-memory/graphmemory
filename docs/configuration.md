@@ -67,7 +67,6 @@ projects:
   my-app:
     projectDir: "/path/to/my-app"
     graphMemory: ".graph-memory"
-    tsconfig: "./tsconfig.json"
     chunkDepth: 4
     author:
       name: "Project Bot"
@@ -163,7 +162,6 @@ graph.embedding → project.embedding → server.embedding → defaults
 | `projectDir` | string | **(required)** | Root directory to index |
 | `graphMemory` | string | `{projectDir}/.graph-memory` | Where to store graph JSON files |
 | `exclude` | string | — | Additional glob to exclude (merged with server default `**/node_modules/**,**/dist/**`) |
-| `tsconfig` | string | — | Path to tsconfig.json for import resolution |
 | `chunkDepth` | number | `4` | Max heading depth for chunk boundaries |
 | `embedding` | object | (server default) | Project-level embedding config |
 | `access` | object | — | Per-user access overrides for this project |

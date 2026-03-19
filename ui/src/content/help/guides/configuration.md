@@ -56,7 +56,6 @@ Each project needs at least `projectDir`:
 | `projectDir` | **(required)** | Root directory to index |
 | `graphMemory` | `.graph-memory` | Where graph JSON files are stored (relative to projectDir) |
 | `exclude` | — | Additional glob to exclude (merged with server default `**/node_modules/**,**/dist/**`) |
-| `tsconfig` | — | Path to tsconfig.json (enables import resolution in code graph) |
 | `chunkDepth` | `4` | Max heading depth for markdown chunking |
 | `embedding.maxChars` | `8000` | Max characters fed to the embedding model per node (inherits: graph → project → workspace → server) |
 | `access` | — | Per-user access overrides for this project |

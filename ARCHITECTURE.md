@@ -8,8 +8,7 @@
 │                   src/cli/index.ts (Commander)                       │
 │                                                                      │
 │   index ──── scan + embed + save + exit                              │
-│   mcp ────── stdio MCP server + watch (single project)               │
-│   serve ──── HTTP server + REST API + UI + WebSocket (multi-project) │
+│   serve ──── HTTP server + MCP + REST API + UI + WebSocket           │
 │   users ──── user management (add users to config)                   │
 └──────────────────────────┬───────────────────────────────────────────┘
                            │

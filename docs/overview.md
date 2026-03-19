@@ -39,8 +39,7 @@
 
 | Transport | Command | Use case |
 |-----------|---------|----------|
-| **stdio** | `mcp` | IDE integration (Claude Desktop, Cursor, Windsurf) — single project |
-| **HTTP** | `serve` | Remote clients, multiple MCP sessions sharing one server |
+| **HTTP** | `serve` | MCP clients, multiple sessions sharing one server |
 | **REST API** | `serve` | Web UI, custom integrations, scripts |
 
 ## Requirements

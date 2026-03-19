@@ -55,12 +55,11 @@ A single file can be dispatched to multiple queues (e.g. a `.ts` file goes to bo
 
 ### `scan()`
 
-Walks `projectDir` recursively with `fs.readdirSync`. For each file:
-- Computes relative path
-- Checks exclude pattern
-- Dispatches to relevant queues
-
-Directories whose relative path matches the exclude pattern are pruned entirely (not descended into).
+Walks `projectDir` recursively with `fs.readdirSync`. For each entry:
+- Skips dotfiles/dotdirs (names starting with `.`)
+- Skips `ALWAYS_IGNORED` directories (`node_modules`, `dist`, `build`, etc.) at any nesting level
+- Prunes directories matching the exclude pattern (not descended into)
+- Dispatches matching files to relevant queues
 
 ### `watch()`
 

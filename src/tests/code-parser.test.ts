@@ -74,7 +74,7 @@ describe('graph.ts', () => {
   it('internalHelper node exists', () => { expect(node(graph, 'graph.ts::internalHelper')).toBeDefined(); });
   it('internalHelper isExported false', () => { expect(node(graph, 'graph.ts::internalHelper')?.attrs.isExported).toBe(false); });
   it('internalHelper kind is function', () => { expect(node(graph, 'graph.ts::internalHelper')?.attrs.kind).toBe('function'); });
-  it('createStore signature contains "Create"', () => { expect(node(graph, 'graph.ts::createStore')?.attrs.signature).toContain('Create'); });
+  it('createStore signature contains "createStore"', () => { expect(node(graph, 'graph.ts::createStore')?.attrs.signature).toContain('createStore'); });
 });
 
 describe('search.ts', () => {

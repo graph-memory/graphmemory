@@ -75,8 +75,8 @@ projects:
         enabled: true                      # Set false to disable this graph
         include: "**/*.md"                 # Default — indexes all markdown files
         exclude: "**/archive/**"           # Glob to exclude
-        embedding:                          # Full embedding config (no merge with parent)
-          model: "Xenova/bge-m3"
+        model:                              # Full model config (whole object, no merge with parent)
+          name: "Xenova/bge-m3"
           pooling: "cls"
           normalize: true
         access:                             # Per-graph access control
@@ -84,8 +84,8 @@ projects:
       code:
         enabled: true
         include: "**/*.{js,ts,jsx,tsx}"    # Default — indexes all JS/TS files
-        embedding:
-          model: "Xenova/bge-base-en-v1.5"
+        model:
+          name: "Xenova/bge-base-en-v1.5"
       knowledge:
         access:
           bob: rw                           # bob gets rw on knowledge
@@ -134,7 +134,7 @@ workspaces:
 
 ## Users & authentication
 
-Define users for REST API and UI authentication. MCP stdio mode does not use authentication — identity comes from the `author` config.
+Define users for REST API and UI authentication.
 
 ```yaml
 users:
@@ -276,8 +276,9 @@ Instead of running the embedding model locally, delegate to a remote embedding A
 
 ```yaml
 server:
+  model:
+    name: "Xenova/bge-m3"
   embedding:
-    model: "Xenova/bge-m3"
     remote: "http://gpu-server:3000/api/embed"
     remoteApiKey: "emb-secret-key"
 ```
@@ -352,9 +353,9 @@ projects:
     projectDir: "/data/projects/my-app"
 ```
 
-## Hot reload
+## Applying config changes
 
-When using the `serve` command, the config file is watched for changes. You can add, remove, or update projects without restarting the server.
+Restart the server process to apply changes to `graph-memory.yaml`.
 
 ## Automatic re-indexing
 

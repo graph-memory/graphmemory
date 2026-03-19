@@ -14,8 +14,13 @@ export interface WatcherHandlers {
   onUnlink(filePath: string): void;
 }
 
-/** Directories that are always excluded from watching (heavy, never useful). */
-const ALWAYS_IGNORED = ['.git', 'node_modules', '.next', '.nuxt', '.turbo', 'dist', 'build', '.graph-memory', '.notes', '.tasks', '.skills'];
+/** Directory basenames that are always excluded from watching and scanning at any nesting level. */
+export const ALWAYS_IGNORED = new Set([
+  'node_modules', '.git', '.hg', '.svn',
+  '.next', '.nuxt', '.turbo',
+  'dist', 'build',
+  '.graph-memory', '.notes', '.tasks', '.skills',
+]);
 
 // chokidar 5: watch the directory directly — glob patterns don't fire 'add' for existing files
 export function startWatcher(
@@ -30,17 +35,17 @@ export function startWatcher(
     return micromatch.isMatch(rel, pattern);
   };
 
-  // chokidar 5 `ignored` accepts a function — use micromatch for glob exclude patterns
-  // plus always skip heavy directories (.git, node_modules, etc.)
-  const alwaysIgnoredSet = new Set(ALWAYS_IGNORED.map(d => path.join(dir, d)));
-
   const ignored = (filePath: string): boolean => {
-    // Always ignore heavy directories by exact basename match
-    if (alwaysIgnoredSet.has(filePath)) return true;
-    // User-defined exclude patterns (glob-based)
+    const basename = path.basename(filePath);
+    // Skip dotfiles and dotdirs (hidden) at any level — except the watched root itself
+    if (basename.startsWith('.') && filePath !== dir) return true;
+    // Always-ignored directories by basename at any nesting level
+    if (ALWAYS_IGNORED.has(basename)) return true;
+    // User-defined exclude patterns (glob-based) — only prune directories, not individual files.
+    // File-level filtering is handled by matches() + dispatchAdd per-graph excludes.
     if (excludePatterns && excludePatterns.length > 0) {
       const rel = path.relative(dir, filePath);
-      if (micromatch.isMatch(rel, excludePatterns)) return true;
+      if (micromatch.isMatch(rel + '/x', excludePatterns)) return true;
     }
     return false;
   };

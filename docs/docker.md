@@ -185,4 +185,4 @@ services:
       - models:/data/models
 ```
 
-The config file is watched for changes — add or remove projects without restarting the container.
+Restart the container to apply config changes.

@@ -32,19 +32,19 @@ Each graph can use a different embedding model, configured in `graph-memory.yaml
 ```yaml
 projects:
   my-app:
-    embedding:
-      model: Xenova/bge-m3        # default for all graphs
+    model:
+      name: Xenova/bge-m3          # default for all graphs
     graphs:
       docs:
-        embedding:
-          model: Xenova/bge-m3    # override for docs (full config, no merge)
+        model:
+          name: Xenova/bge-m3      # override for docs (whole object, no merge)
       code:
-        embedding:
-          model: Xenova/bge-base-en-v1.5
-      # knowledge, tasks, files, skills inherit project.embedding
+        model:
+          name: Xenova/bge-base-en-v1.5
+      # knowledge, tasks, files, skills inherit project.model
 ```
 
-Resolution: `graph.embedding → project.embedding → server.embedding → defaults`. Each level is a complete config block — no field-by-field merge.
+Model resolution: `graph.model → project.model → server.model → defaults`. Each level is a complete config block — no field-by-field merge. Embedding config (`batchSize`, `maxChars`, etc.) is separate and merges field-by-field.
 
 ## Cosine similarity
 

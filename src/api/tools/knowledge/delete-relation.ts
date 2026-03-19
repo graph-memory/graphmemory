@@ -12,8 +12,8 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
       inputSchema: {
         fromId:      z.string().describe('Source note ID'),
         toId:        z.string().describe('Target note ID, or target node ID in docs/code/files/tasks graph'),
-        targetGraph: z.enum(['docs', 'code', 'files', 'tasks']).optional()
-          .describe('Set to "docs", "code", "files", or "tasks" when deleting a cross-graph link'),
+        targetGraph: z.enum(['docs', 'code', 'files', 'tasks', 'skills']).optional()
+          .describe('Set to "docs", "code", "files", "tasks", or "skills" when deleting a cross-graph link'),
         projectId:   z.string().optional().describe('Project ID that the target node belongs to. Defaults to the current project.'),
       },
     },

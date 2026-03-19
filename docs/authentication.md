@@ -11,8 +11,6 @@ The system supports two authentication methods:
 | **Password + JWT cookies** | Web UI login | Browser (REST API) |
 | **API key (Bearer token)** | Programmatic access | MCP HTTP, REST API, scripts |
 
-MCP stdio mode does **not** use authentication — identity comes from the `author` config.
-
 ## Password-based login (UI)
 
 ### Flow

@@ -131,5 +131,5 @@ find_linked_tasks({ targetId: "src/auth.ts", targetGraph: "files" })
 - Use `list_all_files` with `extension: ".ts"` or `language: "typescript"` to find all files of a type
 - `get_file_info` on `"."` gives project-level stats (total size, file count)
 - `search_all_files` works better with path-like queries than abstract concepts
-- File index is always active — no `docsPattern` or `codePattern` configuration needed
+- File index is always active — no `graphs.docs.include` or `graphs.code.include` configuration needed
 - The `language` filter in `list_all_files` uses detected language names like `"typescript"`, `"javascript"`, `"markdown"`, `"json"`, `"yaml"`, `"css"`, `"html"`, `"python"`, etc.

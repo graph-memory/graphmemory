@@ -34,12 +34,8 @@ function buildBody(node: TSNode, docComment: string): string {
   return node.text ?? '';
 }
 
-/** Build a signature that includes the JSDoc first line if present. */
-function buildFullSignature(node: TSNode, docComment: string): string {
-  if (docComment) {
-    const firstDocLine = docComment.split('\n')[0].trim();
-    return firstDocLine;
-  }
+/** Build a signature: always use the code declaration, not JSDoc. */
+function buildFullSignature(node: TSNode, _docComment: string): string {
   return buildSignature(node);
 }
 

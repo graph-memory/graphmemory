@@ -62,7 +62,7 @@ export const helpArticles: HelpArticle[] = [
   {
     id: 'mcp-setup',
     title: 'Connecting MCP Clients',
-    summary: 'How to connect Claude Desktop, Cursor, Windsurf, and other MCP clients via stdio or HTTP.',
+    summary: 'How to connect Claude Desktop, Cursor, Windsurf, and other MCP clients via HTTP.',
     category: 'guide',
     relatedTools: ['get_context'],
     content: mcpSetup,

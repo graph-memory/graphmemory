@@ -911,9 +911,9 @@ describe('Attachments (KnowledgeGraphManager)', () => {
     it('sanitizes filename with path separators', () => {
       const data = Buffer.from('content');
       const meta = manager.addAttachment(noteId, '../../../etc/passwd', data);
-      // sanitizeFilename strips ".." and "/" so the resulting name is "etcpasswd"
+      // sanitizeFilename extracts basename
       expect(meta).not.toBeNull();
-      expect(meta!.filename).toBe('etcpasswd');
+      expect(meta!.filename).toBe('passwd');
     });
 
     it('returns null for empty filename after sanitization', () => {

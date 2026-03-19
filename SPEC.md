@@ -47,7 +47,7 @@ See [docs/api-mcp.md](docs/api-mcp.md) for schemas and [docs/mcp-tools-guide.md]
 - **REST API**: Express with Zod validation — [docs/api-rest.md](docs/api-rest.md)
 - **WebSocket**: real-time push events — [docs/api-websocket.md](docs/api-websocket.md)
 - **Web UI**: React 19 + MUI 7 (FSD architecture) — [docs/ui-architecture.md](docs/ui-architecture.md)
-- **Multi-project**: one process, multiple projects, YAML hot-reload — [docs/cli.md](docs/cli.md)
+- **Multi-project**: one process, multiple projects — [docs/cli.md](docs/cli.md)
 - **Workspaces**: shared knowledge/tasks/skills across projects — [docs/configuration.md](docs/configuration.md)
 - **Team**: `.team/` directory for task assignees — [docs/team.md](docs/team.md)
 - **Docker**: multi-platform image (amd64 + arm64) — [docs/docker.md](docs/docker.md)
@@ -60,7 +60,6 @@ All config via `graph-memory.yaml`. See [docs/configuration.md](docs/configurati
 
 ```bash
 graphmemory serve --config graph-memory.yaml    # HTTP server (primary)
-graphmemory mcp --config graph-memory.yaml -p X # stdio (IDE)
 graphmemory index --config graph-memory.yaml -p X # index + exit
 graphmemory users add --config graph-memory.yaml  # add user
 ```

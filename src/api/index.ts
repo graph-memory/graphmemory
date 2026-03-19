@@ -1,7 +1,6 @@
 import http from 'http';
 import { randomUUID } from 'crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { embed } from '@/lib/embedder';
 import type { ProjectManager } from '@/lib/project-manager';
@@ -180,7 +179,7 @@ export function createMcpServer(
   // Build instructions for MCP clients (workspace/project context)
   const instructions = sessionContext ? buildInstructions(sessionContext) : undefined;
   const server = new McpServer(
-    { name: 'graphmemory', version: '1.1.0' },
+    { name: 'graphmemory', version: '1.2.0' },
     instructions ? { instructions } : undefined,
   );
   // Mutation tools are registered through mutServer to serialize concurrent writes
@@ -234,7 +233,7 @@ export function createMcpServer(
   if (knowledgeGraph) {
     const ctx = projectDir ? { ...noopContext(), projectDir } : noopContext();
     const knowledgeMgr = new KnowledgeGraphManager(knowledgeGraph, fns.knowledge, ctx, {
-      docGraph, codeGraph, fileIndexGraph, taskGraph,
+      docGraph, codeGraph, fileIndexGraph, taskGraph, skillGraph,
     });
     createNote.register(mutServer, knowledgeMgr);
     updateNote.register(mutServer, knowledgeMgr);
@@ -255,7 +254,7 @@ export function createMcpServer(
   if (taskGraph) {
     const taskCtx = projectDir ? { ...noopContext(), projectDir } : noopContext();
     const taskMgr = new TaskGraphManager(taskGraph, fns.tasks, taskCtx, {
-      docGraph, codeGraph, knowledgeGraph, fileIndexGraph,
+      docGraph, codeGraph, knowledgeGraph, fileIndexGraph, skillGraph,
     });
     createTask.register(mutServer, taskMgr);
     updateTask.register(mutServer, taskMgr);
@@ -297,30 +296,20 @@ export function createMcpServer(
   return server;
 }
 
-export async function startStdioServer(
-  docGraph?: DocGraph,
-  codeGraph?: CodeGraph,
-  knowledgeGraph?: KnowledgeGraph,
-  fileIndexGraph?: FileIndexGraph,
-  taskGraph?: TaskGraph,
-  embedFn?: EmbedFn | Partial<EmbedFnMap>,
-  projectDir?: string,
-  skillGraph?: SkillGraph,
-  sessionContext?: McpSessionContext,
-): Promise<void> {
-  const server = createMcpServer(docGraph, codeGraph, knowledgeGraph, fileIndexGraph, taskGraph, embedFn, undefined, projectDir, skillGraph, sessionContext);
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  process.stderr.write('[server] MCP server running on stdio\n');
-}
-
 // ---------------------------------------------------------------------------
 // HTTP transport (Streamable HTTP)
 // ---------------------------------------------------------------------------
 
+const MAX_BODY_SIZE = 10 * 1024 * 1024; // 10 MB
+
 async function collectBody(req: http.IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
-  for await (const chunk of req) chunks.push(chunk as Buffer);
+  let size = 0;
+  for await (const chunk of req) {
+    size += (chunk as Buffer).length;
+    if (size > MAX_BODY_SIZE) throw new Error('Request body too large');
+    chunks.push(chunk as Buffer);
+  }
   return JSON.parse(Buffer.concat(chunks).toString());
 }
 
@@ -360,43 +349,47 @@ export async function startHttpServer(
   sweepInterval.unref();
 
   const httpServer = http.createServer(async (req, res) => {
-    if (req.url !== '/mcp') {
-      res.writeHead(404).end();
-      return;
+    try {
+      if (req.url !== '/mcp') {
+        res.writeHead(404).end();
+        return;
+      }
+
+      const sessionId = req.headers['mcp-session-id'] as string | undefined;
+
+      // Existing session — route to its transport
+      if (sessionId && sessions.has(sessionId)) {
+        const session = sessions.get(sessionId)!;
+        session.lastActivity = Date.now();
+        const body = req.method === 'POST' ? await collectBody(req) : undefined;
+        await session.transport.handleRequest(req, res, body);
+        return;
+      }
+
+      // New session — only POST (initialize) can create one
+      if (req.method !== 'POST') {
+        res.writeHead(400).end('No session');
+        return;
+      }
+
+      const body = await collectBody(req);
+      const transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: () => randomUUID(),
+        onsessioninitialized: (sid) => {
+          sessions.set(sid, { server: mcpServer, transport, lastActivity: Date.now() });
+          process.stderr.write(`[http] Session ${sid} started\n`);
+        },
+      });
+      transport.onclose = () => {
+        const sid = transport.sessionId;
+        if (sid) sessions.delete(sid);
+      };
+      const mcpServer = createMcpServer(docGraph, codeGraph, knowledgeGraph, fileIndexGraph, taskGraph, embedFn, undefined, projectDir, skillGraph, sessionContext);
+      await mcpServer.connect(transport);
+      await transport.handleRequest(req, res, body);
+    } catch (err) {
+      if (!res.headersSent) res.writeHead(400).end(String(err));
     }
-
-    const sessionId = req.headers['mcp-session-id'] as string | undefined;
-
-    // Existing session — route to its transport
-    if (sessionId && sessions.has(sessionId)) {
-      const session = sessions.get(sessionId)!;
-      session.lastActivity = Date.now();
-      const body = req.method === 'POST' ? await collectBody(req) : undefined;
-      await session.transport.handleRequest(req, res, body);
-      return;
-    }
-
-    // New session — only POST (initialize) can create one
-    if (req.method !== 'POST') {
-      res.writeHead(400).end('No session');
-      return;
-    }
-
-    const body = await collectBody(req);
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: () => randomUUID(),
-      onsessioninitialized: (sid) => {
-        sessions.set(sid, { server: mcpServer, transport, lastActivity: Date.now() });
-        process.stderr.write(`[http] Session ${sid} started\n`);
-      },
-    });
-    transport.onclose = () => {
-      const sid = transport.sessionId;
-      if (sid) sessions.delete(sid);
-    };
-    const mcpServer = createMcpServer(docGraph, codeGraph, knowledgeGraph, fileIndexGraph, taskGraph, embedFn, undefined, projectDir, skillGraph, sessionContext);
-    await mcpServer.connect(transport);
-    await transport.handleRequest(req, res, body);
   });
 
   return new Promise((resolve) => {
@@ -445,6 +438,7 @@ export async function startMultiProjectHttpServer(
   const restApp = createRestApp(projectManager, restOptions);
 
   const httpServer = http.createServer(async (req, res) => {
+    try {
     // Route /api/* to Express
     if (req.url?.startsWith('/api/')) {
       restApp(req, res);
@@ -550,10 +544,16 @@ export async function startMultiProjectHttpServer(
     );
     await mcpServer.connect(transport);
     await transport.handleRequest(req, res, body);
+    } catch (err) {
+      if (!res.headersSent) res.writeHead(400).end(String(err));
+    }
   });
 
   // Attach WebSocket server for real-time events
-  attachWebSocket(httpServer, projectManager);
+  attachWebSocket(httpServer, projectManager, {
+    jwtSecret: restOptions?.serverConfig?.jwtSecret,
+    users: restOptions?.users,
+  });
 
   return new Promise((resolve) => {
     httpServer.listen(port, host, () => {

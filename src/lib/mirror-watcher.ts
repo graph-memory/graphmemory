@@ -18,7 +18,8 @@ import type { SkillSource } from '../graphs/skill-types';
  * this tracker lets us detect our own writes and skip them.
  */
 export class MirrorWriteTracker {
-  private recentWrites = new Map<string, number>();
+  /** Map from filePath → { mtimeMs (for comparison), recordedAt (for eviction) } */
+  private recentWrites = new Map<string, { mtimeMs: number; recordedAt: number }>();
   private static readonly STALE_MS = 10_000; // entries older than 10s are stale
   private static readonly MAX_ENTRIES = 10_000;
 
@@ -26,7 +27,7 @@ export class MirrorWriteTracker {
   recordWrite(filePath: string): void {
     try {
       const stat = fs.statSync(filePath, { throwIfNoEntry: false } as fs.StatSyncOptions);
-      if (stat) this.recentWrites.set(filePath, (stat as fs.Stats).mtimeMs);
+      if (stat) this.recentWrites.set(filePath, { mtimeMs: (stat as fs.Stats).mtimeMs, recordedAt: Date.now() });
     } catch { /* ignore */ }
     // Prevent unbounded growth — evict stale entries periodically
     if (this.recentWrites.size > MirrorWriteTracker.MAX_ENTRIES) this.evictStale();
@@ -39,7 +40,7 @@ export class MirrorWriteTracker {
     try {
       const stat = fs.statSync(filePath, { throwIfNoEntry: false } as fs.StatSyncOptions);
       if (!stat) return false;
-      if (Math.abs((stat as fs.Stats).mtimeMs - recorded) < 100) {
+      if (Math.abs((stat as fs.Stats).mtimeMs - recorded.mtimeMs) < 100) {
         this.recentWrites.delete(filePath);
         return true;
       }
@@ -50,8 +51,8 @@ export class MirrorWriteTracker {
 
   private evictStale(): void {
     const now = Date.now();
-    for (const [filePath, mtime] of this.recentWrites) {
-      if (now - mtime > MirrorWriteTracker.STALE_MS) this.recentWrites.delete(filePath);
+    for (const [filePath, entry] of this.recentWrites) {
+      if (now - entry.recordedAt > MirrorWriteTracker.STALE_MS) this.recentWrites.delete(filePath);
     }
   }
 }

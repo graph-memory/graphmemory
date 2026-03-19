@@ -6,18 +6,16 @@ server:
   host: "0.0.0.0"
   port: 3000
   sessionTimeout: 1800
-  embedding:
-    model: "Xenova/bge-m3"
+  model:
+    name: "Xenova/bge-m3"
     pooling: "cls"
+    normalize: true
     dtype: "q8"
-    queryPrefix: ""
-    documentPrefix: ""
 
 projects:
   api-gateway:
     projectDir: "./api-gateway"
     exclude: "**/node_modules/**"
-    tsconfig: "tsconfig.json"
     graphs:
       docs:
         include: "docs/**/*.md"
@@ -27,7 +25,6 @@ projects:
   catalog-service:
     projectDir: "./catalog-service"
     exclude: "**/node_modules/**"
-    tsconfig: "tsconfig.json"
     graphs:
       docs:
         include: "docs/**/*.md"
@@ -37,7 +34,6 @@ projects:
   order-service:
     projectDir: "./order-service"
     exclude: "**/node_modules/**"
-    tsconfig: "tsconfig.json"
     graphs:
       docs:
         include: "docs/**/*.md"
@@ -47,7 +43,6 @@ projects:
   web-store:
     projectDir: "./web-store"
     exclude: "**/node_modules/**"
-    tsconfig: "tsconfig.json"
     graphs:
       docs:
         include: "docs/**/*.md"
@@ -57,7 +52,6 @@ projects:
   admin-panel:
     projectDir: "./admin-panel"
     exclude: "**/node_modules/**"
-    tsconfig: "tsconfig.json"
     graphs:
       docs:
         include: "docs/**/*.md"

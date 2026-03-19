@@ -1,51 +1,8 @@
 # Connecting MCP Clients
 
-Graph Memory supports two transport modes for MCP clients: **stdio** (single project) and **HTTP** (multi-project). Choose the right one for your setup.
+Graph Memory uses HTTP transport for MCP clients. Start the server, then connect your client to the MCP endpoint.
 
-## Stdio transport
-
-Best for: single-project setups, IDE integrations where each project gets its own MCP server process.
-
-The MCP client launches the server as a subprocess. Communication happens over stdin/stdout.
-
-After `npm install -g @graphmemory/server`:
-
-### Claude Desktop (stdio)
-
-Add to your Claude Desktop config (`claude_desktop_config.json`):
-
-```json
-{
-  "mcpServers": {
-    "graph-memory": {
-      "command": "graphmemory",
-      "args": ["mcp", "--config", "/path/to/graph-memory.yaml", "--project", "my-app"]
-    }
-  }
-}
-```
-
-Replace `my-app` with the project ID from your `graph-memory.yaml`.
-
-### Claude Code (stdio)
-
-Add to your project's `.mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "graph-memory": {
-      "type": "stdio",
-      "command": "graphmemory",
-      "args": ["mcp", "--config", "/path/to/graph-memory.yaml", "--project", "my-app"]
-    }
-  }
-}
-```
-
-## HTTP transport
-
-Best for: multi-project setups, shared team servers, or when multiple clients need to access the same graphs simultaneously.
+## Setup
 
 Start the server first:
 
@@ -55,7 +12,7 @@ graphmemory serve --config graph-memory.yaml
 
 Each project gets its own MCP endpoint at `http://localhost:3000/mcp/{projectId}`.
 
-### Claude Desktop (HTTP)
+### Claude Desktop
 
 Add via **Settings > Connectors** in the Claude Desktop app, enter the URL:
 
@@ -63,7 +20,7 @@ Add via **Settings > Connectors** in the Claude Desktop app, enter the URL:
 http://localhost:3000/mcp/my-app
 ```
 
-### Claude Code (HTTP)
+### Claude Code
 
 Run in your project directory:
 
@@ -94,8 +51,6 @@ http://localhost:3000/mcp/{projectId}
 
 ## Docker
 
-When running via Docker, the HTTP transport is the only option (stdio requires a local process).
-
 ```bash
 docker run -d \
   --name graph-memory \
@@ -122,18 +77,6 @@ docker run --rm \
 docker compose run --rm graph-memory index --config /data/config/graph-memory.yaml
 ```
 
-## Which transport to choose?
-
-| | Stdio | HTTP |
-|---|---|---|
-| **Projects** | One per process | Multiple from one server |
-| **Clients** | One client per server | Many clients share one server |
-| **Web UI** | Not available | Available at `http://localhost:3000` |
-| **REST API** | Not available | Available at `/api/*` |
-| **WebSocket** | Not available | Real-time updates via `/api/ws` |
-| **Setup** | Client manages process | You start the server separately |
-| **Best for** | IDE integration | Teams, multi-project, Docker |
-
 ## Troubleshooting
 
 **Model loading is slow on first start**: The embedding model (`Xenova/bge-m3`, ~560MB) is downloaded on first use. Subsequent starts use the cached model from `~/.graph-memory/models/` (or the configured `modelsDir`).
@@ -142,4 +85,4 @@ docker compose run --rm graph-memory index --config /data/config/graph-memory.ya
 
 **Tools not showing up**: Make sure `graphs.docs.include` and/or `graphs.code.include` are set in your config (defaults: `**/*.md` and `**/*.{js,ts,jsx,tsx}`). If a graph is `enabled: false`, its tools won't be registered.
 
-**Config changes not taking effect**: The `serve` command watches `graph-memory.yaml` for changes automatically. For `mcp` (stdio), you need to restart the process.
+**Config changes not taking effect**: Restart the server process to apply changes to `graph-memory.yaml`.

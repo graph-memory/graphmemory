@@ -27,7 +27,6 @@ After global installation, the `graphmemory` command is available:
 
 ```bash
 graphmemory serve --config graph-memory.yaml
-graphmemory mcp --config graph-memory.yaml --project my-app
 graphmemory index --config graph-memory.yaml --project my-app
 graphmemory users add --config graph-memory.yaml
 ```
@@ -94,26 +93,6 @@ cd ui && npm run dev    # Vite dev server on :5173
 ```
 
 ## Using as MCP server
-
-### With Claude Desktop (stdio)
-
-```json
-{
-  "mcpServers": {
-    "graph-memory": {
-      "command": "npx",
-      "args": [
-        "@graphmemory/server",
-        "mcp",
-        "--config", "/path/to/graph-memory.yaml",
-        "--project", "my-app"
-      ]
-    }
-  }
-}
-```
-
-### With HTTP transport
 
 Start the server:
 ```bash

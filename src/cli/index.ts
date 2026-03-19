@@ -4,69 +4,31 @@ import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
 import readline from 'readline';
-import { loadMultiConfig, GRAPH_NAMES, embeddingFingerprint, type ProjectConfig, type ServerConfig, type GraphName } from '@/lib/multi-config';
+import { loadMultiConfig, defaultConfig, type MultiConfig } from '@/lib/multi-config';
 import { hashPassword } from '@/lib/jwt';
 import { ProjectManager } from '@/lib/project-manager';
-import { loadModel, embed, embedQuery } from '@/lib/embedder';
-import { loadGraph, saveGraph } from '@/graphs/docs';
-import { loadCodeGraph, saveCodeGraph } from '@/graphs/code';
-import { loadKnowledgeGraph, saveKnowledgeGraph } from '@/graphs/knowledge';
-import { loadFileIndexGraph, saveFileIndexGraph } from '@/graphs/file-index';
-import { loadTaskGraph, saveTaskGraph } from '@/graphs/task';
-import { loadSkillGraph } from '@/graphs/skill';
-import { startStdioServer, startMultiProjectHttpServer } from '@/api/index';
-import type { EmbedFnMap, McpSessionContext } from '@/api/index';
-import { createProjectIndexer } from '@/cli/indexer';
-import { startWatcher } from '@/lib/watcher';
+import { loadModel } from '@/lib/embedder';
+import { startMultiProjectHttpServer } from '@/api/index';
 
 const program = new Command();
 
 program
   .name('graphmemory')
   .description('MCP server for semantic graph memory from markdown docs and source code')
-  .version('1.1.0');
+  .version('1.2.0');
 
 const parseIntArg = (v: string) => parseInt(v, 10);
 
 // ---------------------------------------------------------------------------
-// Helper: resolve a single project from YAML config + --project flag
+// Helper: load config from file, or fall back to default (cwd as single project)
 // ---------------------------------------------------------------------------
 
-function resolveProject(configPath: string, projectId?: string): { id: string; project: ProjectConfig; server: ServerConfig } {
-  const mc = loadMultiConfig(configPath);
-  const ids = Array.from(mc.projects.keys());
-
-  if (ids.length === 0) {
-    process.stderr.write('[cli] No projects defined in config\n');
-    process.exit(1);
+function loadConfigOrDefault(configPath: string): MultiConfig {
+  if (fs.existsSync(configPath)) {
+    return loadMultiConfig(configPath);
   }
-
-  const id = projectId ?? ids[0];
-  const project = mc.projects.get(id);
-  if (!project) {
-    process.stderr.write(`[cli] Project "${id}" not found in config. Available: ${ids.join(', ')}\n`);
-    process.exit(1);
-  }
-
-  return { id, project, server: mc.server };
-}
-
-async function loadAllModels(projectId: string, config: ProjectConfig, modelsDir: string): Promise<void> {
-  for (const gn of GRAPH_NAMES) {
-    if (!config.graphConfigs[gn].enabled) continue;
-    await loadModel(config.graphConfigs[gn].model, config.graphConfigs[gn].embedding, modelsDir, `${projectId}:${gn}`);
-  }
-}
-
-function buildEmbedFns(projectId: string): EmbedFnMap {
-  const pair = (gn: GraphName) => ({
-    document: (q: string) => embed(q, '', `${projectId}:${gn}`),
-    query:    (q: string) => embedQuery(q, `${projectId}:${gn}`),
-  });
-  return {
-    docs: pair('docs'), code: pair('code'), knowledge: pair('knowledge'),
-    tasks: pair('tasks'), files: pair('files'), skills: pair('skills'),
-  };
+  process.stderr.write(`[cli] Config "${configPath}" not found, using current directory as project\n`);
+  return defaultConfig(process.cwd());
 }
 
 // ---------------------------------------------------------------------------
@@ -81,7 +43,7 @@ program
   .option('--reindex', 'Discard persisted graphs and re-index from scratch')
   .action((opts: { config: string; project?: string; reindex?: boolean }) => {
     (async () => {
-      const mc = loadMultiConfig(opts.config);
+      const mc = loadConfigOrDefault(opts.config);
       const reindex = !!opts.reindex;
       if (reindex) process.stderr.write('[index] Re-indexing from scratch\n');
 
@@ -155,185 +117,6 @@ program
   });
 
 // ---------------------------------------------------------------------------
-// Command: mcp — single-project stdio mode
-// ---------------------------------------------------------------------------
-
-program
-  .command('mcp')
-  .description('Index one project (or workspace), keep watching for changes, and start MCP server on stdio')
-  .option('--config <path>', 'Path to graph-memory.yaml', 'graph-memory.yaml')
-  .option('--project <id>', 'Project ID (defaults to first project)')
-  .option('--workspace <id>', 'Workspace ID (loads all workspace projects with shared graphs)')
-  .option('--reindex', 'Discard persisted graphs and re-index from scratch')
-  .action(async (opts: { config: string; project?: string; workspace?: string; reindex?: boolean }) => {
-    // Workspace mode: load all projects in the workspace with shared graphs
-    if (opts.workspace) {
-      const mc = loadMultiConfig(opts.config);
-      const wsConfig = mc.workspaces.get(opts.workspace);
-      if (!wsConfig) {
-        process.stderr.write(`[mcp] Workspace "${opts.workspace}" not found in config. Available: ${Array.from(mc.workspaces.keys()).join(', ')}\n`);
-        process.exit(1);
-      }
-
-      const fresh = !!opts.reindex;
-      if (fresh) process.stderr.write(`[mcp] Re-indexing workspace "${opts.workspace}" from scratch\n`);
-
-      const manager = new ProjectManager(mc.server);
-      await manager.addWorkspace(opts.workspace, wsConfig, fresh);
-
-      for (const projId of wsConfig.projects) {
-        const projConfig = mc.projects.get(projId);
-        if (!projConfig) {
-          process.stderr.write(`[mcp] Project "${projId}" referenced by workspace not found\n`);
-          process.exit(1);
-        }
-        await manager.addProject(projId, projConfig, fresh, opts.workspace);
-      }
-
-      // Use specified project (or first) for stdio server
-      const targetId = opts.project ?? wsConfig.projects[0];
-      if (!wsConfig.projects.includes(targetId)) {
-        process.stderr.write(`[mcp] Project "${targetId}" is not part of workspace "${opts.workspace}"\n`);
-        process.exit(1);
-      }
-      const instance = manager.getProject(targetId)!;
-      const sessionCtx: McpSessionContext = {
-        projectId: targetId,
-        workspaceId: opts.workspace,
-        workspaceProjects: wsConfig.projects,
-      };
-      await startStdioServer(
-        instance.docGraph, instance.codeGraph,
-        instance.knowledgeGraph, instance.fileIndexGraph,
-        instance.taskGraph, instance.embedFns,
-        instance.config.projectDir, instance.skillGraph,
-        sessionCtx,
-      );
-
-      // Load models and index in background
-      (async () => {
-        await manager.loadWorkspaceModels(opts.workspace!);
-        for (const projId of wsConfig.projects) {
-          await manager.loadModels(projId);
-          await manager.startIndexing(projId);
-        }
-        await manager.startWorkspaceMirror(opts.workspace!);
-        process.stderr.write(`[mcp] Workspace "${opts.workspace}" fully indexed\n`);
-      })().catch((err: unknown) => {
-        process.stderr.write(`[mcp] Workspace indexer error: ${err}\n`);
-      });
-
-      let shuttingDown = false;
-      async function shutdown(): Promise<void> {
-        if (shuttingDown) { process.stderr.write('[mcp] Force exit\n'); process.exit(1); }
-        shuttingDown = true;
-        process.stderr.write('[mcp] Shutting down...\n');
-        const forceTimer = setTimeout(() => { process.stderr.write('[mcp] Shutdown timeout, force exit\n'); process.exit(1); }, 5000);
-        try { await manager.shutdown(); } catch { /* ignore */ }
-        clearTimeout(forceTimer);
-        // Let event loop drain naturally — avoids ONNX global thread pool destructor crash on macOS
-      }
-
-      process.on('SIGINT',  () => { void shutdown(); });
-      process.on('SIGTERM', () => { void shutdown(); });
-      return;
-    }
-
-    const { id, project, server } = resolveProject(opts.config, opts.project);
-    const projectDir = path.resolve(project.projectDir);
-    const fresh = !!opts.reindex;
-    if (fresh) process.stderr.write(`[mcp] Re-indexing project "${id}" from scratch\n`);
-
-    const gc = project.graphConfigs;
-
-    // Load persisted graphs (or create fresh ones if reindexing / model changed) and start MCP server immediately
-    const docGraph  = gc.docs.enabled ? loadGraph(project.graphMemory, fresh, embeddingFingerprint(gc.docs.model)) : undefined;
-    const codeGraph = gc.code.enabled ? loadCodeGraph(project.graphMemory, fresh, embeddingFingerprint(gc.code.model)) : undefined;
-    const knowledgeGraph = gc.knowledge.enabled ? loadKnowledgeGraph(project.graphMemory, fresh, embeddingFingerprint(gc.knowledge.model)) : undefined;
-    const fileIndexGraph = gc.files.enabled ? loadFileIndexGraph(project.graphMemory, fresh, embeddingFingerprint(gc.files.model)) : undefined;
-    const taskGraph = gc.tasks.enabled ? loadTaskGraph(project.graphMemory, fresh, embeddingFingerprint(gc.tasks.model)) : undefined;
-    const skillGraph = gc.skills.enabled ? loadSkillGraph(project.graphMemory, fresh, embeddingFingerprint(gc.skills.model)) : undefined;
-
-    const embedFns = buildEmbedFns(id);
-    const sessionCtx: McpSessionContext = { projectId: id };
-    await startStdioServer(docGraph, codeGraph, knowledgeGraph, fileIndexGraph, taskGraph, embedFns, project.projectDir, skillGraph, sessionCtx);
-
-    // Load models and start watcher in the background
-    let watcher: ReturnType<ReturnType<typeof createProjectIndexer>['watch']> | undefined;
-    let indexer: ReturnType<typeof createProjectIndexer> | undefined;
-
-    async function startIndexing(): Promise<void> {
-      await loadAllModels(id, project, server.modelsDir);
-
-      indexer = createProjectIndexer(docGraph, codeGraph, {
-        projectId: id,
-        projectDir,
-        docsInclude:         gc.docs.enabled ? gc.docs.include : undefined,
-        docsExclude:         gc.docs.exclude,
-        codeInclude:         gc.code.enabled ? gc.code.include : undefined,
-        codeExclude:         gc.code.exclude,
-        filesExclude:        gc.files.exclude,
-        chunkDepth:          project.chunkDepth,
-        maxFileSize:         project.maxFileSize,
-        docsModelName:       `${id}:docs`,
-        codeModelName:       `${id}:code`,
-        filesModelName:      `${id}:files`,
-      }, knowledgeGraph, fileIndexGraph, taskGraph, skillGraph);
-
-      watcher = indexer.watch();
-      await watcher.whenReady;
-      await indexer.drain();
-
-      if (docGraph) {
-        saveGraph(docGraph, project.graphMemory, embeddingFingerprint(gc.docs.model));
-        process.stderr.write(`[mcp] Docs indexed. ${docGraph.order} nodes, ${docGraph.size} edges.\n`);
-      }
-
-      if (codeGraph) {
-        saveCodeGraph(codeGraph, project.graphMemory, embeddingFingerprint(gc.code.model));
-        process.stderr.write(`[mcp] Code indexed. ${codeGraph.order} nodes, ${codeGraph.size} edges.\n`);
-      }
-
-      if (fileIndexGraph) {
-        saveFileIndexGraph(fileIndexGraph, project.graphMemory, embeddingFingerprint(gc.files.model));
-        process.stderr.write(`[mcp] File index done. ${fileIndexGraph.order} nodes, ${fileIndexGraph.size} edges.\n`);
-      }
-    }
-
-    startIndexing().catch((err: unknown) => {
-      process.stderr.write(`[mcp] Indexer error: ${err}\n`);
-    });
-
-    let shuttingDown = false;
-    async function shutdown(): Promise<void> {
-      if (shuttingDown) {
-        process.stderr.write('[mcp] Force exit\n');
-        process.exit(1);
-      }
-      shuttingDown = true;
-      process.stderr.write('[mcp] Shutting down...\n');
-      const forceTimer = setTimeout(() => {
-        process.stderr.write('[mcp] Shutdown timeout, force exit\n');
-        process.exit(1);
-      }, 5000);
-      try {
-        if (watcher) await watcher.close();
-        if (indexer) await indexer.drain();
-        if (docGraph) saveGraph(docGraph, project.graphMemory, embeddingFingerprint(gc.docs.model));
-        if (codeGraph) saveCodeGraph(codeGraph, project.graphMemory, embeddingFingerprint(gc.code.model));
-        if (knowledgeGraph) saveKnowledgeGraph(knowledgeGraph, project.graphMemory, embeddingFingerprint(gc.knowledge.model));
-        if (fileIndexGraph) saveFileIndexGraph(fileIndexGraph, project.graphMemory, embeddingFingerprint(gc.files.model));
-        if (taskGraph) saveTaskGraph(taskGraph, project.graphMemory, embeddingFingerprint(gc.tasks.model));
-      } catch { /* ignore */ }
-      clearTimeout(forceTimer);
-      // Let event loop drain naturally — avoids ONNX global thread pool destructor crash on macOS
-    }
-
-    process.on('SIGINT',  () => { void shutdown(); });
-    process.on('SIGTERM', () => { void shutdown(); });
-  });
-
-// ---------------------------------------------------------------------------
 // Command: serve — multi-project HTTP mode
 // ---------------------------------------------------------------------------
 
@@ -345,7 +128,7 @@ program
   .option('--port <n>', 'HTTP server port', parseIntArg)
   .option('--reindex', 'Discard persisted graphs and re-index from scratch')
   .action(async (opts: { config: string; host?: string; port?: number; reindex?: boolean }) => {
-    const mc = loadMultiConfig(opts.config);
+    const mc = loadConfigOrDefault(opts.config);
     const host = opts.host ?? mc.server.host;
     const port = opts.port ?? mc.server.port;
     const sessionTimeoutMs = mc.server.sessionTimeout * 1000;
@@ -444,63 +227,6 @@ program
       process.stderr.write(`[serve] Init error: ${err}\n`);
     });
 
-    // Watch YAML config for hot-reload
-    let reloading = false;
-    const configWatcher = startWatcher(
-      path.dirname(path.resolve(opts.config)),
-      {
-        onAdd:    () => {},
-        onChange: async (f) => {
-          if (path.resolve(f) !== path.resolve(opts.config)) return;
-          if (reloading) return;
-          reloading = true;
-          try {
-            process.stderr.write('[serve] Config changed, reloading...\n');
-            const newMc = loadMultiConfig(opts.config);
-            const currentIds = new Set(manager.listProjects());
-            const newIds = new Set(newMc.projects.keys());
-
-            // Remove projects no longer in config
-            for (const id of currentIds) {
-              if (!newIds.has(id)) {
-                await manager.removeProject(id);
-              }
-            }
-
-            // Add new projects
-            for (const [id, config] of newMc.projects) {
-              if (!currentIds.has(id)) {
-                await manager.addProject(id, config);
-                await manager.loadModels(id);
-                await manager.startIndexing(id);
-              }
-            }
-
-            // Re-add changed projects
-            for (const [id, config] of newMc.projects) {
-              if (currentIds.has(id)) {
-                const existing = manager.getProject(id);
-                if (existing && JSON.stringify(existing.config) !== JSON.stringify(config)) {
-                  await manager.removeProject(id);
-                  await manager.addProject(id, config);
-                  await manager.loadModels(id);
-                  await manager.startIndexing(id);
-                }
-              }
-            }
-
-            process.stderr.write('[serve] Config reload complete\n');
-          } catch (err: unknown) {
-            process.stderr.write(`[serve] Config reload error: ${err}\n`);
-          } finally {
-            reloading = false;
-          }
-        },
-        onUnlink: () => {},
-      },
-      path.basename(opts.config),
-    );
-
     let shuttingDown = false;
     async function shutdown(): Promise<void> {
       if (shuttingDown) {
@@ -521,7 +247,6 @@ program
           socket.destroy();
         }
         openSockets.clear();
-        await configWatcher.close();
         await manager.shutdown();
       } catch { /* ignore */ }
       clearTimeout(forceTimer);

@@ -22,11 +22,11 @@ Watches `**/*` (all files). Pattern filtering is done in the dispatcher via micr
 
 ### Excluded paths
 
-Files matching the `exclude` pattern are silently skipped before any pattern matching. The following directories are always excluded:
-- `.graph-memory/` (graph data)
-- `.notes/`, `.tasks/`, `.skills/` (mirror files — watched separately)
-- `.team/` (team directory)
-- `.git/`
+Chokidar's `ignored` function filters paths before they enter the watcher. The following are always excluded at any nesting level:
+- **Dotfiles and dotdirs** — any file or directory starting with `.` (e.g. `.git/`, `.env`, `.vscode/`, `.graph-memory/`, `.notes/`, `.tasks/`, `.skills/`)
+- **Heavy directories** — `node_modules/`, `dist/`, `build/`, `.next/`, `.nuxt/`, `.turbo/`
+
+Additionally, user-configured `exclude` patterns (from server + workspace + project + graph levels) are applied as glob patterns via micromatch. Both files and directories are tested, so `**/vendor/**` prevents chokidar from descending into `vendor/` at any depth.
 
 ### File removal cleanup
 

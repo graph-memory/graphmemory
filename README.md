@@ -85,7 +85,7 @@ Or add to `.mcp.json` manually:
 http://localhost:3000/mcp/my-app
 ```
 
-See [docs/cli.md](docs/cli.md) for stdio transport and other connection options.
+See [docs/cli.md](docs/cli.md) for full CLI reference and connection options.
 
 ## What it does
 
@@ -99,7 +99,7 @@ See [docs/cli.md](docs/cli.md) for stdio transport and other connection options.
 | **Skills** | Reusable recipes with steps, triggers, and usage tracking |
 | **Hybrid search** | BM25 keyword + vector cosine similarity with BFS graph expansion |
 | **Real-time** | File watching + WebSocket push to UI |
-| **Multi-project** | One process manages multiple projects with YAML hot-reload |
+| **Multi-project** | One process manages multiple projects from a single config |
 | **Workspaces** | Share knowledge/tasks/skills across related projects |
 | **Auth & ACL** | Password login (JWT), API keys, 4-level access control |
 
@@ -133,8 +133,8 @@ All configuration via `graph-memory.yaml`. Only `projects.<id>.projectDir` is re
 server:
   host: "127.0.0.1"
   port: 3000
-  embedding:
-    model: "Xenova/bge-m3"
+  model:
+    name: "Xenova/bge-m3"
 
 projects:
   my-app:

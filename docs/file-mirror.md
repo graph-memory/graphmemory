@@ -175,4 +175,4 @@ Files stored alongside mirror files:
 
 ## Excluded from indexing
 
-`.notes/`, `.tasks/`, `.skills/`, and `.team/` directories are excluded from the project file watcher and indexer — they have their own dedicated watcher.
+`.notes/`, `.tasks/`, `.skills/`, and `.team/` directories are excluded from the project file watcher — all dotdirs are ignored at the chokidar level. Mirror directories have their own dedicated watcher (see [Watcher](watcher.md)).

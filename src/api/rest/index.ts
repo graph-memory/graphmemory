@@ -74,7 +74,7 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
   }
   if (rl && rl.search > 0) {
     const searchLimiter = rateLimit({ windowMs: 60_000, max: rl.search, standardHeaders: true, legacyHeaders: false, message: rateLimitMsg });
-    app.use('/api/projects/:projectId/knowledge/notes/search', searchLimiter);
+    app.use('/api/projects/:projectId/knowledge/search', searchLimiter);
     app.use('/api/projects/:projectId/tasks/search', searchLimiter);
     app.use('/api/projects/:projectId/skills/search', searchLimiter);
     app.use('/api/projects/:projectId/docs/search', searchLimiter);

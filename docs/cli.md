@@ -22,8 +22,7 @@ graphmemory serve --config graph-memory.yaml [--host <addr>] [--port <n>] [--rei
 4. Validate `jwtSecret` if users are configured (warns if missing)
 5. Start auto-save (30s interval for dirty projects)
 6. Background: per project — load embedding models → start indexing
-7. Watch YAML for hot-reload (add/remove/change projects without restart)
-8. Handle `SIGINT`/`SIGTERM`: shutdown all projects gracefully
+7. Handle `SIGINT`/`SIGTERM`: shutdown all projects gracefully
 
 ### Endpoints
 
@@ -43,30 +42,6 @@ graphmemory serve --config graph-memory.yaml [--host <addr>] [--port <n>] [--rei
 | `--port` | from config or `3000` | Port |
 | `--reindex` | `false` | Discard persisted graphs, re-index from scratch |
 
-## `mcp` — single-project stdio
-
-For MCP clients like Claude Desktop, Cursor, Windsurf.
-
-```bash
-graphmemory mcp --config graph-memory.yaml --project my-app [--reindex]
-```
-
-### Startup sequence
-
-1. Load existing graphs from disk (or fresh if `--reindex`)
-2. Start MCP server on stdio **immediately** (available with persisted data)
-3. Background: load embedding model → start file watcher → run initial scan
-4. After scan completes: save updated graphs
-5. Handle `SIGINT`/`SIGTERM`: drain queue, save graphs, exit
-
-### Options
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--config` | (required) | Path to `graph-memory.yaml` |
-| `--project` | (required) | Project ID from config |
-| `--reindex` | `false` | Discard persisted graphs |
-
 ## `index` — one-shot scan
 
 Indexes a project and exits. Useful for CI/CD or as a pre-start step.
@@ -83,7 +58,11 @@ graphmemory index --config graph-memory.yaml --project my-app [--reindex]
 
 ### Options
 
-Same as `mcp` command.
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--config` | (required) | Path to `graph-memory.yaml` |
+| `--project` | (required) | Project ID from config |
+| `--reindex` | `false` | Discard persisted graphs |
 
 ## `users add` — add a user
 
@@ -109,7 +88,7 @@ graphmemory users add --config graph-memory.yaml
 
 ## `--reindex` flag
 
-All three main commands (`index`, `mcp`, `serve`) support `--reindex`:
+Both main commands (`index`, `serve`) support `--reindex`:
 
 - Discards persisted graph JSON files
 - Creates fresh empty graphs
@@ -157,18 +136,6 @@ http://localhost:3000/mcp/my-app
 ```
 
 Multiple clients can connect to the same server simultaneously. Each session gets its own MCP instance but shares graph data.
-
-### stdio transport (debugging / single project)
-
-The `mcp` command runs a single-project MCP server over stdin/stdout. Primarily useful for debugging or testing a single project without starting the full HTTP server.
-
-```bash
-graphmemory mcp --config graph-memory.yaml --project my-app
-```
-
-The MCP client launches this as a subprocess. No web UI, no REST API, no WebSocket — just the MCP tool interface over stdio.
-
-For most use cases, prefer the HTTP transport above — it provides the full feature set (multi-project, web UI, REST API, real-time updates) and supports multiple concurrent clients.
 
 ## Development commands
 

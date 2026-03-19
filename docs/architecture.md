@@ -8,8 +8,7 @@
 │                   src/cli/index.ts (Commander)                       │
 │                                                                      │
 │   index ──── scan + embed + save + exit                              │
-│   mcp ────── stdio MCP server + watch (single project)               │
-│   serve ──── HTTP server + REST API + UI + WebSocket (multi-project) │
+│   serve ──── HTTP server + MCP + REST API + UI + WebSocket           │
 │   users ──── user management (add users to config)                   │
 └──────────────────────────┬───────────────────────────────────────────┘
                            │
@@ -74,7 +73,7 @@ Entry point: `src/cli/index.ts` (Commander.js). Three main commands (`index`, `m
 
 ### 3. Project Management Layer
 
-`src/lib/project-manager.ts` — `ProjectManager` class manages multiple project instances. Each project has its own 6 graphs, embed functions, indexer, watcher, and mutation queue. Supports hot-reload of YAML config.
+`src/lib/project-manager.ts` — `ProjectManager` class manages multiple project instances. Each project has its own 6 graphs, embed functions, indexer, watcher, and mutation queue.
 
 ### 4. Indexing Layer
 
@@ -92,7 +91,7 @@ Entry point: `src/cli/index.ts` (Commander.js). Three main commands (`index`, `m
 
 Three interfaces to the graph layer:
 
-- **MCP Tools** (`src/api/tools/`) — 58 tools exposed via MCP protocol (stdio or HTTP)
+- **MCP Tools** (`src/api/tools/`) — 58 tools exposed via MCP protocol (HTTP)
 - **REST API** (`src/api/rest/`) — Express routes for CRUD + search
 - **WebSocket** (`src/api/rest/websocket.ts`) — real-time event push
 
@@ -149,7 +148,7 @@ src/
       files.ts               # File-level cosine search (docs/code)
       file-index.ts          # Cosine search over FileIndexGraph
   api/
-    index.ts                 # createMcpServer() + transports (stdio/HTTP)
+    index.ts                 # createMcpServer() + HTTP transport
     rest/
       index.ts               # Express app + auth middleware + SPA fallback
       validation.ts          # Zod schemas + validation middleware
@@ -254,7 +253,7 @@ Read-only tools (list, get, search) run without queueing — Graphology's in-mem
 
 | Package | Purpose |
 |---------|---------|
-| `@modelcontextprotocol/sdk` | MCP server + transports (stdio, StreamableHTTP) |
+| `@modelcontextprotocol/sdk` | MCP server + StreamableHTTP transport |
 | `@huggingface/transformers` | Embedding models (ONNX runtime) |
 | `graphology` | In-memory directed graph |
 | `chokidar` | File system watching |

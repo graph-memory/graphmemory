@@ -1,14 +1,28 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import type http from 'http';
 import type { ProjectManager } from '@/lib/project-manager';
+import type { UserConfig } from '@/lib/multi-config';
+import { verifyToken } from '@/lib/jwt';
+
+export interface WebSocketOptions {
+  jwtSecret?: string;
+  users?: Record<string, UserConfig>;
+}
 
 /**
  * Attach a WebSocket server to the HTTP server at /api/ws.
  * Broadcasts all ProjectManager events to connected clients.
  * Each event includes projectId — clients filter on their side.
  */
-export function attachWebSocket(httpServer: http.Server, projectManager: ProjectManager): WebSocketServer {
+export function attachWebSocket(
+  httpServer: http.Server,
+  projectManager: ProjectManager,
+  options?: WebSocketOptions,
+): WebSocketServer {
   const wss = new WebSocketServer({ noServer: true });
+  const jwtSecret = options?.jwtSecret;
+  const users = options?.users ?? {};
+  const hasUsers = Object.keys(users).length > 0;
 
   // Handle upgrade requests for /api/ws
   httpServer.on('upgrade', (req, socket, head) => {
@@ -16,6 +30,25 @@ export function attachWebSocket(httpServer: http.Server, projectManager: Project
       socket.destroy();
       return;
     }
+
+    // Auth: if users are configured, require valid JWT cookie or reject
+    if (hasUsers && jwtSecret) {
+      const cookie = req.headers.cookie ?? '';
+      const match = cookie.match(/(?:^|;\s*)mgm_access=([^;]+)/);
+      const token = match?.[1];
+      if (!token) {
+        socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+        socket.destroy();
+        return;
+      }
+      const payload = verifyToken(token, jwtSecret);
+      if (!payload || payload.type !== 'access' || !users[payload.userId]) {
+        socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+        socket.destroy();
+        return;
+      }
+    }
+
     wss.handleUpgrade(req, socket, head, (ws) => {
       ws.on('error', (err) => {
         process.stderr.write(`[ws] Client error: ${err}\n`);

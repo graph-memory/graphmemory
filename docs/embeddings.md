@@ -29,33 +29,46 @@ The same physical model is loaded only once in memory, even if used by multiple 
 
 | Function | Description |
 |----------|-------------|
-| `loadModel(model, modelsDir, maxChars, name)` | Load model from local cache or download from HuggingFace |
+| `loadModel(model, embedding, modelsDir, name)` | Load model from local cache or download from HuggingFace |
 | `embed(title, content, modelName?)` | Single embedding: `"title\ncontent"` → `number[]` |
+| `embedQuery(query, modelName?)` | Query embedding with `queryPrefix` prepended |
 | `embedBatch(inputs, modelName?)` | Batch embedding: multiple items in one forward pass |
 | `cosineSimilarity(a, b)` | Dot product (vectors are L2-normalized) |
 
-## Embedding resolution
+## Config structure
 
-Embedding config can be set at three levels with first-defined-wins (whole object, no field merge):
+Configuration is split into two separate objects: **model** (what model to use) and **embedding** (how to use it).
+
+### Model config
+
+Taken as a **whole object** from the first level that defines it (no field-by-field merge):
+
+```
+graph.model → project.model → server.model → defaults
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `name` | string | `Xenova/bge-m3` | HuggingFace model ID |
+| `pooling` | string | `cls` | Pooling strategy: `mean` or `cls` |
+| `normalize` | boolean | `true` | L2-normalize output vectors |
+| `dtype` | string | `q8` | Quantization: `fp32`, `fp16`, `q8`, `q4` |
+| `queryPrefix` | string | `""` | Prefix prepended to search queries |
+| `documentPrefix` | string | `""` | Prefix prepended to documents during indexing |
+
+### Embedding config
+
+Each field **individually inherits** up the chain (field-by-field merge):
 
 ```
 graph.embedding → project.embedding → server.embedding → defaults
 ```
 
-If a graph defines its own `embedding` block, it is used completely. Otherwise the project-level is used, falling back to server-level.
-
-## Configuration options
-
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `model` | string | `Xenova/bge-m3` | HuggingFace model ID |
-| `pooling` | string | `cls` | Pooling strategy: `mean` or `cls` |
-| `normalize` | boolean | `true` | L2-normalize output vectors |
-| `dtype` | string | — | Quantization: `fp32`, `fp16`, `q8`, `q4` |
-| `queryPrefix` | string | `""` | Prefix prepended to search queries |
-| `documentPrefix` | string | `""` | Prefix prepended to documents during indexing |
 | `batchSize` | number | `1` | Texts per ONNX forward pass |
 | `maxChars` | number | `8000` | Max characters fed to embedder per node |
+| `cacheSize` | number | `10000` | Embedding cache size (0 = disabled) |
 | `remote` | string | — | Remote embedding API URL |
 | `remoteApiKey` | string | — | API key for remote endpoint |
 
@@ -64,8 +77,8 @@ If a graph defines its own `embedding` block, it is used completely. Otherwise t
 ### BGE-M3 (default, recommended)
 
 ```yaml
-embedding:
-  model: "Xenova/bge-m3"
+model:
+  name: "Xenova/bge-m3"
   pooling: "cls"
   normalize: true
 ```
@@ -73,8 +86,8 @@ embedding:
 ### BGE-base (English, smaller)
 
 ```yaml
-embedding:
-  model: "Xenova/bge-base-en-v1.5"
+model:
+  name: "Xenova/bge-base-en-v1.5"
   pooling: "cls"
   normalize: true
   queryPrefix: "Represent this sentence for searching relevant passages: "
@@ -83,8 +96,8 @@ embedding:
 ### BGE-small (English, smallest)
 
 ```yaml
-embedding:
-  model: "Xenova/bge-small-en-v1.5"
+model:
+  name: "Xenova/bge-small-en-v1.5"
   pooling: "cls"
   normalize: true
   queryPrefix: "Represent this sentence for searching relevant passages: "
@@ -93,8 +106,8 @@ embedding:
 ### all-MiniLM-L6-v2 (legacy)
 
 ```yaml
-embedding:
-  model: "Xenova/all-MiniLM-L6-v2"
+model:
+  name: "Xenova/all-MiniLM-L6-v2"
   pooling: "mean"
   normalize: true
 ```
@@ -102,8 +115,8 @@ embedding:
 ### nomic-embed-text-v1.5
 
 ```yaml
-embedding:
-  model: "nomic-ai/nomic-embed-text-v1.5"
+model:
+  name: "nomic-ai/nomic-embed-text-v1.5"
   pooling: "mean"
   normalize: true
   queryPrefix: "search_query: "
@@ -113,8 +126,8 @@ embedding:
 ### Quantized model (lower memory)
 
 ```yaml
-embedding:
-  model: "Xenova/bge-m3"
+model:
+  name: "Xenova/bge-m3"
   pooling: "cls"
   normalize: true
   dtype: "q8"      # fp32, fp16, q8, q4
@@ -203,26 +216,32 @@ server:
 
 ## Mixed models per graph
 
-Different graphs can use different embedding models:
+Different graphs can use different embedding models. Model config is taken as a whole object (first-defined-wins), so each graph that defines `model` gets it entirely:
 
 ```yaml
 projects:
   my-app:
     projectDir: "/path/to/my-app"
-    embedding:
-      model: "Xenova/bge-m3"         # default for most graphs
+    model:
+      name: "Xenova/bge-m3"               # default for most graphs
+      pooling: "cls"
+      normalize: true
     graphs:
       files:
-        embedding:
-          model: "Xenova/bge-small-en-v1.5"  # smaller model for file paths
+        model:
+          name: "Xenova/bge-small-en-v1.5" # smaller model for file paths
+          pooling: "cls"
+          normalize: true
       code:
-        embedding:
-          model: "Xenova/bge-base-en-v1.5"   # different model for code
+        model:
+          name: "Xenova/bge-base-en-v1.5"  # different model for code
+          pooling: "cls"
+          normalize: true
 ```
 
 ## Automatic re-index on model change
 
-Each persisted graph JSON stores an embedding fingerprint (model + pooling + normalize + documentPrefix + dtype). On load, if the fingerprint doesn't match the current config, the graph is automatically discarded and re-indexed from scratch.
+Each persisted graph JSON stores an embedding fingerprint (model name + pooling + normalize + documentPrefix + dtype). On load, if the fingerprint doesn't match the current config, the graph is automatically discarded and re-indexed from scratch.
 
 ## Model cache
 

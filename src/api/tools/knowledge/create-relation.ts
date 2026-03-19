@@ -15,8 +15,8 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
         fromId:      z.string().describe('Source note ID'),
         toId:        z.string().describe('Target note ID, or target node ID in docs/code/files/tasks graph'),
         kind:        z.string().describe('Relation type, e.g. "depends_on", "references"'),
-        targetGraph: z.enum(['docs', 'code', 'files', 'tasks']).optional()
-          .describe('Set to "docs", "code", "files", or "tasks" to create a cross-graph link instead of note-to-note'),
+        targetGraph: z.enum(['docs', 'code', 'files', 'tasks', 'skills']).optional()
+          .describe('Set to "docs", "code", "files", "tasks", or "skills" to create a cross-graph link instead of note-to-note'),
         projectId:   z.string().optional().describe('Project ID that the target node belongs to. Defaults to the current project.'),
       },
     },

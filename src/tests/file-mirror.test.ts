@@ -384,16 +384,16 @@ describe('Attachment helpers', () => {
   });
 
   describe('sanitizeFilename', () => {
-    it('strips .. sequences', () => {
-      expect(sanitizeFilename('../../etc/passwd')).toBe('etcpasswd');
+    it('strips path traversal via basename', () => {
+      expect(sanitizeFilename('../../etc/passwd')).toBe('passwd');
     });
 
-    it('strips forward slashes', () => {
-      expect(sanitizeFilename('path/to/file.txt')).toBe('pathtofile.txt');
+    it('extracts basename from forward slashes', () => {
+      expect(sanitizeFilename('path/to/file.txt')).toBe('file.txt');
     });
 
-    it('strips backslashes', () => {
-      expect(sanitizeFilename('path\\to\\file.txt')).toBe('pathtofile.txt');
+    it('extracts basename from backslashes', () => {
+      expect(sanitizeFilename('path\\to\\file.txt')).toBe('file.txt');
     });
 
     it('strips null bytes', () => {
@@ -410,7 +410,7 @@ describe('Attachment helpers', () => {
     });
 
     it('handles combined malicious input', () => {
-      expect(sanitizeFilename('../../../\0secret/file.txt')).toBe('secretfile.txt');
+      expect(sanitizeFilename('../../../\0secret/file.txt')).toBe('file.txt');
     });
   });
 

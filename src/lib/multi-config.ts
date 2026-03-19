@@ -299,6 +299,7 @@ const MODEL_DEFAULTS: ModelConfig = {
   name:           'Xenova/bge-m3',
   pooling:        'cls',
   normalize:      true,
+  dtype:          'q8',
   queryPrefix:    '',
   documentPrefix: '',
 };
@@ -557,4 +558,62 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
   }
 
   return { author: globalAuthor, server, users, projects, workspaces };
+}
+
+/**
+ * Build a default MultiConfig for a single project rooted at `projectDir`.
+ * Used when no config file is found — zero-config startup.
+ */
+export function defaultConfig(projectDir: string): MultiConfig {
+  const absDir = path.resolve(projectDir);
+  const id = path.basename(absDir);
+
+  const server: ServerConfig = {
+    host:            SERVER_DEFAULTS.host,
+    port:            SERVER_DEFAULTS.port,
+    sessionTimeout:  SERVER_DEFAULTS.sessionTimeout,
+    modelsDir:       path.resolve(SERVER_DEFAULTS.modelsDir),
+    model:           MODEL_DEFAULTS,
+    embedding:       EMBEDDING_DEFAULTS,
+    defaultAccess:   SERVER_DEFAULTS.defaultAccess,
+    accessTokenTtl:  SERVER_DEFAULTS.accessTokenTtl,
+    refreshTokenTtl: SERVER_DEFAULTS.refreshTokenTtl,
+    rateLimit:       RATE_LIMIT_DEFAULTS,
+    maxFileSize:     SERVER_DEFAULTS.maxFileSize,
+    exclude:         [...SERVER_DEFAULTS.exclude],
+  };
+
+  const graphConfigs = {} as Record<GraphName, GraphConfig>;
+  for (const gn of GRAPH_NAMES) {
+    graphConfigs[gn] = {
+      enabled: true,
+      include: gn === 'docs' ? PROJECT_DEFAULTS.docsInclude : gn === 'code' ? PROJECT_DEFAULTS.codeInclude : undefined,
+      exclude: [...server.exclude],
+      model: MODEL_DEFAULTS,
+      embedding: EMBEDDING_DEFAULTS,
+    };
+  }
+
+  const project: ProjectConfig = {
+    projectDir: absDir,
+    graphMemory: path.join(absDir, '.graph-memory'),
+    exclude: [...server.exclude],
+    chunkDepth: PROJECT_DEFAULTS.chunkDepth,
+    maxFileSize: server.maxFileSize,
+    model: MODEL_DEFAULTS,
+    embedding: EMBEDDING_DEFAULTS,
+    graphConfigs,
+    author: AUTHOR_DEFAULT,
+  };
+
+  const projects = new Map<string, ProjectConfig>();
+  projects.set(id, project);
+
+  return {
+    author: AUTHOR_DEFAULT,
+    server,
+    users: {},
+    projects,
+    workspaces: new Map(),
+  };
 }

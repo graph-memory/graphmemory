@@ -1,6 +1,6 @@
 # Code Tools
 
-The code tools let you search and navigate your indexed TypeScript/JavaScript source code. They're available when `graphs.code.pattern` (or legacy `codePattern`) is configured in your project.
+The code tools let you search and navigate your indexed TypeScript/JavaScript source code. They're available when `graphs.code.include` is configured in your project (default: `**/*.{js,ts,jsx,tsx}`).
 
 ## Tool overview
 
@@ -59,7 +59,7 @@ Use `search_files` for a quick file-level search before diving into symbols. Lig
 
 ### 5. Cross-reference with docs
 
-Use `cross_references` (requires both `docsPattern` and `codePattern`) to find everywhere a symbol appears — in both code definitions and documentation examples. See the dedicated guide for details.
+Use `cross_references` (requires both `graphs.docs.include` and `graphs.code.include`) to find everywhere a symbol appears — in both code definitions and documentation examples. See the dedicated guide for details.
 
 ## Tool reference
 

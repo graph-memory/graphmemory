@@ -61,6 +61,9 @@ export function isLanguageSupported(languageName: string): boolean {
   return languages.has(languageName);
 }
 
+/** Reusable parser per language (avoids WASM memory leak from creating Parser on every call). */
+const parsers = new Map<string, any>();
+
 /** Parse source code with the appropriate language grammar. Returns root node or null. */
 export async function parseSource(code: string, languageName: string): Promise<any | null> {
   const entry = languages.get(languageName);
@@ -68,8 +71,12 @@ export async function parseSource(code: string, languageName: string): Promise<a
 
   await initParser();
   const lang = await loadLanguage(entry);
-  const parser = new _wts.Parser();
-  parser.setLanguage(lang);
+  let parser = parsers.get(languageName);
+  if (!parser) {
+    parser = new _wts.Parser();
+    parser.setLanguage(lang);
+    parsers.set(languageName, parser);
+  }
   const tree = parser.parse(code);
   return tree?.rootNode ?? null;
 }

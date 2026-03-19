@@ -51,7 +51,7 @@ export class VersionConflictError extends Error {
   }
 }
 
-/** No-op context for tests and single-project stdio mode. */
+/** No-op context for tests. */
 export function noopContext(projectId = ''): GraphManagerContext {
   return {
     markDirty: () => {},

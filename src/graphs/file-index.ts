@@ -118,6 +118,9 @@ function cleanEmptyDirs(graph: FileIndexGraph, dir: string): void {
   if (!graph.hasNode(dir)) return;
   if (graph.getNodeAttribute(dir, 'kind') !== 'directory') return;
 
+  // Never remove root
+  if (dir === '.') return;
+
   // Count outgoing `contains` edges
   const children = graph.outDegree(dir);
   if (children > 0) return;
@@ -125,10 +128,6 @@ function cleanEmptyDirs(graph: FileIndexGraph, dir: string): void {
   // No children — remove this directory
   const parent = graph.getNodeAttribute(dir, 'directory');
   graph.dropNode(dir);
-
-  // Don't remove root
-  if (dir === '.') return;
-
   cleanEmptyDirs(graph, parent);
 }
 

@@ -472,14 +472,13 @@ export function deleteMirrorDir(dir: string, id: string): void {
 // Attachment file helpers (paths now go through attachments/ subdir)
 // ---------------------------------------------------------------------------
 
-/** Sanitize a filename: strip path separators, .., and null bytes. */
+/** Sanitize a filename: extract basename, strip null bytes and path traversal. */
 export function sanitizeFilename(name: string): string {
-  const sanitized = name
-    .replace(/\0/g, '')
-    .replace(/\.\./g, '')
-    .replace(/[/\\]/g, '')
-    .trim();
-  return sanitized; // empty string is a valid return — callers must check
+  // Normalize backslashes to forward slashes (path.basename on Unix doesn't treat \ as separator)
+  const base = path.basename(name.replace(/\0/g, '').replace(/\\/g, '/')).trim();
+  // Reject pure traversal names
+  if (base === '.' || base === '..') return '';
+  return base;
 }
 
 /** Write an attachment file to the entity's attachments/ subdirectory. */

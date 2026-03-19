@@ -13,7 +13,7 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
       inputSchema: {
         taskId:      z.string().describe('Source task ID'),
         targetId:    z.string().describe('Target node ID in the external graph (e.g. "src/auth.ts::login", "api.md::Setup", "my-note")'),
-        targetGraph: z.enum(['docs', 'code', 'files', 'knowledge'])
+        targetGraph: z.enum(['docs', 'code', 'files', 'knowledge', 'skills'])
           .describe('Which graph the target belongs to'),
         kind:        z.string().describe('Relation type, e.g. "references", "fixes", "implements"'),
         projectId:   z.string().optional().describe('Project ID that the target node belongs to. Defaults to the current project.'),

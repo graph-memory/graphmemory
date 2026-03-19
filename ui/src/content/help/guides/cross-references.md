@@ -11,7 +11,7 @@ Use `cross_references` when you want to fully understand a symbol:
 
 ## Requirements
 
-This tool is **only available** when both `docsPattern` and `codePattern` are configured in the project. It needs both graphs to bridge definitions and documentation.
+This tool is **only available** when both `graphs.docs.include` and `graphs.code.include` are configured in the project. It needs both graphs to bridge definitions and documentation.
 
 ## Tool reference
 
@@ -120,7 +120,7 @@ Calling `cross_references({ symbol: "createUser" })` returns:
 ## Tips
 
 - Use exact symbol names (case-sensitive match)
-- If you get no results, check that both `docsPattern` and `codePattern` are configured
+- If you get no results, check that both `graphs.docs.include` and `graphs.code.include` are configured
 - Empty `definitions` + non-empty `examples` means the symbol is documented but not in your indexed code
 - Empty `examples` + non-empty `definitions` means the symbol exists in code but isn't documented with examples
 - Combine with `get_symbol` to read the full implementation body (which `cross_references` doesn't include)

@@ -41,14 +41,23 @@ server:
   jwtSecret: "your-secret-key-here"
   accessTokenTtl: "15m"
   refreshTokenTtl: "7d"
-  embedding:
-    model: "Xenova/bge-m3"
+  maxFileSize: 1048576
+  exclude: "**/vendor/**"
+  rateLimit:
+    global: 600
+    search: 120
+    auth: 10
+  model:
+    name: "Xenova/bge-m3"
     pooling: "cls"
     normalize: true
     dtype: "q8"
     queryPrefix: ""
     documentPrefix: ""
+  embedding:
     batchSize: 1
+    maxChars: 8000
+    cacheSize: 10000
     remote: "http://gpu-server:3000/api/embed"
     remoteApiKey: "emb-secret-key"
   embeddingApi:
@@ -56,11 +65,6 @@ server:
     apiKey: "emb-secret-key"
     maxTexts: 100
     maxTextChars: 10000
-  rateLimit:
-    global: 600
-    search: 120
-    auth: 10
-  maxFileSize: 1048576
 
 # Projects
 projects:
@@ -68,11 +72,13 @@ projects:
     projectDir: "/path/to/my-app"
     graphMemory: ".graph-memory"
     chunkDepth: 4
+    maxFileSize: 1048576
     author:
       name: "Project Bot"
       email: "bot@example.com"
+    model:
+      name: "Xenova/bge-m3"
     embedding:
-      model: "Xenova/bge-m3"
       maxChars: 8000
     access:
       bob: r
@@ -81,8 +87,8 @@ projects:
         enabled: true
         include: "**/*.md"
         exclude: "**/drafts/**"
-        embedding:
-          model: "Xenova/bge-m3"
+        model:
+          name: "Xenova/bge-m3"
           pooling: "cls"
           normalize: true
         access:
@@ -110,8 +116,10 @@ workspaces:
       email: "backend@example.com"
     access:
       alice: rw
+    model:
+      name: "Xenova/bge-m3"
     embedding:
-      model: "Xenova/bge-m3"
+      maxChars: 8000
 ```
 
 ## Server settings
@@ -128,30 +136,45 @@ workspaces:
 | `jwtSecret` | string | — | **Required when users are defined.** Secret for signing JWT tokens |
 | `accessTokenTtl` | string | `15m` | JWT access token lifetime |
 | `refreshTokenTtl` | string | `7d` | JWT refresh token lifetime |
+| `model` | object | (see below) | Default model config for all graphs |
 | `embedding` | object | (see below) | Default embedding config for all graphs |
 | `embeddingApi` | object | — | Expose embedding model via `POST /api/embed` |
 | `rateLimit` | object | — | Rate limiting: `global` (default 600), `search` (default 120), `auth` (default 10) requests/min |
 | `maxFileSize` | number | `1048576` | Max file size in bytes for indexing (1 MB default). Also settable at workspace/project level |
+| `exclude` | string | — | Additional glob to exclude (merged with default `**/node_modules/**`, `**/dist/**`) |
+
+## Model config
+
+Can be set at four levels: `server.model`, `projects.<id>.model`, `projects.<id>.graphs.<name>.model`, `workspaces.<id>.model`.
+
+**Resolution order** (first-defined-wins, whole object, no field merge):
+```
+graph.model → project.model → server.model → defaults
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `name` | string | `Xenova/bge-m3` | HuggingFace model ID |
+| `pooling` | string | `cls` | Pooling strategy: `mean` or `cls` |
+| `normalize` | boolean | `true` | L2-normalize output vectors |
+| `dtype` | string | `q8` | Quantization: `fp32`, `fp16`, `q8`, `q4` |
+| `queryPrefix` | string | `""` | Prefix prepended to search queries |
+| `documentPrefix` | string | `""` | Prefix prepended to documents during indexing |
 
 ## Embedding config
 
-Can be set at three levels: `server.embedding`, `projects.<id>.embedding`, `projects.<id>.graphs.<name>.embedding`.
+Can be set at four levels: `server.embedding`, `projects.<id>.embedding`, `projects.<id>.graphs.<name>.embedding`, `workspaces.<id>.embedding`.
 
-**Resolution order** (first-defined-wins, whole object, no field merge):
+**Resolution order** (field-by-field merge — each field individually inherits up the chain):
 ```
 graph.embedding → project.embedding → server.embedding → defaults
 ```
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `model` | string | `Xenova/bge-m3` | HuggingFace model ID |
-| `pooling` | string | `cls` | Pooling strategy: `mean` or `cls` |
-| `normalize` | boolean | `true` | L2-normalize output vectors |
-| `dtype` | string | — | Quantization: `fp32`, `fp16`, `q8`, `q4` |
-| `queryPrefix` | string | `""` | Prefix prepended to search queries |
-| `documentPrefix` | string | `""` | Prefix prepended to documents during indexing |
 | `batchSize` | number | `1` | Texts per ONNX forward pass |
 | `maxChars` | number | `8000` | Max chars fed to embedder per node |
+| `cacheSize` | number | `10000` | Embedding cache size (0 = disabled) |
 | `remote` | string | — | Remote embedding API URL (replaces local ONNX) |
 | `remoteApiKey` | string | — | API key for remote embedding endpoint |
 
@@ -163,21 +186,12 @@ graph.embedding → project.embedding → server.embedding → defaults
 | `graphMemory` | string | `{projectDir}/.graph-memory` | Where to store graph JSON files |
 | `exclude` | string | — | Additional glob to exclude (merged with server default `**/node_modules/**,**/dist/**`) |
 | `chunkDepth` | number | `4` | Max heading depth for chunk boundaries |
+| `maxFileSize` | number | (server default) | Max file size in bytes for indexing |
+| `model` | object | (server default) | Project-level model config |
 | `embedding` | object | (server default) | Project-level embedding config |
 | `access` | object | — | Per-user access overrides for this project |
 | `author` | object | (root author) | Author for notes/tasks/skills in this project |
 | `graphs` | object | — | Per-graph configuration (see below) |
-
-### Legacy fields (backward compatible)
-
-| Field | Replacement | Notes |
-|-------|-------------|-------|
-| `docsPattern` | `graphs.docs.include` | Deprecation warning on stderr |
-| `codePattern` | `graphs.code.include` | Deprecation warning on stderr |
-| `pattern` | `include` (at graph level) | Deprecation warning on stderr |
-| `excludePattern` | `exclude` (at all levels) | Deprecation warning on stderr |
-
-Setting `docsPattern: ""` or `codePattern: ""` is equivalent to `graphs.docs.enabled: false` / `graphs.code.enabled: false`.
 
 ## Per-graph configuration
 
@@ -187,8 +201,9 @@ Each of the six graphs (`docs`, `code`, `knowledge`, `tasks`, `files`, `skills`)
 |-------|------|---------|-------------|
 | `enabled` | boolean | `true` | Set `false` to disable the graph entirely |
 | `include` | string | (depends on graph) | Glob for file matching (docs/code only) |
-| `exclude` | string | (project fallback) | Overrides project-level `exclude` |
-| `embedding` | object | (project/server fallback) | Full embedding config — first-defined-wins |
+| `exclude` | string | (project fallback) | Additional exclude (merged with project + server) |
+| `model` | object | (project/server fallback) | Full model config — first-defined-wins, no merge |
+| `embedding` | object | (project/server fallback) | Embedding config — field-by-field merge |
 | `access` | object | — | Per-user access overrides for this graph |
 
 Default patterns:
@@ -229,7 +244,10 @@ Workspaces group projects that share a single KnowledgeGraph, TaskGraph, and Ski
 | `mirrorDir` | string | Where shared `.notes/`, `.tasks/`, `.skills/` are written |
 | `author` | object | Author for shared notes/tasks/skills |
 | `access` | object | Per-user access overrides for workspace graphs |
+| `model` | object | Model config for workspace shared graphs |
 | `embedding` | object | Embedding config for workspace shared graphs |
+| `maxFileSize` | number | Max file size (overrides server default) |
+| `exclude` | string | Additional exclude (merged with server default) |
 
 ## Embedding API
 
@@ -250,11 +268,6 @@ See [Embeddings](embeddings.md) for details.
 
 See [Authentication](authentication.md) for the full ACL resolution chain.
 
-## Config hot-reload
+## Applying config changes
 
-The `serve` command watches `graph-memory.yaml` with chokidar. On change:
-- Added projects → loaded and indexed automatically
-- Removed projects → drained, saved, and removed
-- Changed projects → removed and re-added
-
-No restart required for config changes.
+Restart the server process to apply changes to `graph-memory.yaml`.

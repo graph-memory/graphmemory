@@ -2,7 +2,7 @@
 
 **Files**: `src/api/index.ts`, `src/api/tools/`
 
-58 MCP tools exposed via stdio and HTTP transports.
+58 MCP tools exposed via HTTP transport.
 
 ## Tool groups
 
@@ -129,12 +129,11 @@ Mutation tools (create/update/delete) are wrapped via `createMutationServer()` â
 
 Read-only tools (list, get, search) run freely without queueing.
 
-## Transports
+## Transport
 
 | Transport | Method | Use case |
 |-----------|--------|----------|
-| **stdio** | `startStdioServer()` | IDE integration, single project |
-| **HTTP** | `startMultiProjectHttpServer()` | Multi-project, remote clients |
+| **HTTP** | `startMultiProjectHttpServer()` | Multi-project, MCP clients |
 
 ### HTTP session management
 

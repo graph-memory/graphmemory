@@ -60,12 +60,18 @@ Start the server, then connect MCP clients to `http://localhost:3000/mcp/{projec
 http://localhost:3000/mcp/my-app
 ```
 
-**Claude Code** — in `.mcp.json` at project root:
+**Claude Code** — run in your project directory:
+
+```bash
+claude mcp add --transport http --scope project graph-memory http://localhost:3000/mcp/my-app
+```
+
+Or add to `.mcp.json` manually:
 
 ```json
 {
   "mcpServers": {
-    "project-memory": {
+    "graph-memory": {
       "type": "http",
       "url": "http://localhost:3000/mcp/my-app"
     }

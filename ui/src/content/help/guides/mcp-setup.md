@@ -17,7 +17,7 @@ Add to your Claude Desktop config (`claude_desktop_config.json`):
 ```json
 {
   "mcpServers": {
-    "project-memory": {
+    "graph-memory": {
       "command": "graphmemory",
       "args": ["mcp", "--config", "/path/to/graph-memory.yaml", "--project", "my-app"]
     }
@@ -34,7 +34,7 @@ Add to your project's `.mcp.json`:
 ```json
 {
   "mcpServers": {
-    "project-memory": {
+    "graph-memory": {
       "type": "stdio",
       "command": "graphmemory",
       "args": ["mcp", "--config", "/path/to/graph-memory.yaml", "--project", "my-app"]
@@ -65,12 +65,18 @@ http://localhost:3000/mcp/my-app
 
 ### Claude Code (HTTP)
 
-Add to your project's `.mcp.json`:
+Run in your project directory:
+
+```bash
+claude mcp add --transport http --scope project graph-memory http://localhost:3000/mcp/my-app
+```
+
+Or add to `.mcp.json` manually:
 
 ```json
 {
   "mcpServers": {
-    "project-memory": {
+    "graph-memory": {
       "type": "http",
       "url": "http://localhost:3000/mcp/my-app"
     }
@@ -134,6 +140,6 @@ docker compose run --rm graph-memory index --config /data/config/graph-memory.ya
 
 **Port already in use**: Change the port in `graph-memory.yaml` under `server.port`, or stop the existing process.
 
-**Tools not showing up**: Make sure `graphs.docs.pattern` and/or `graphs.code.pattern` (or legacy `docsPattern`/`codePattern`) are set in your config. Without patterns, only file index, knowledge, task, and skill tools are registered.
+**Tools not showing up**: Make sure `graphs.docs.include` and/or `graphs.code.include` are set in your config (defaults: `**/*.md` and `**/*.{js,ts,jsx,tsx}`). If a graph is `enabled: false`, its tools won't be registered.
 
 **Config changes not taking effect**: The `serve` command watches `graph-memory.yaml` for changes automatically. For `mcp` (stdio), you need to restart the process.

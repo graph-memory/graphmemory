@@ -100,7 +100,7 @@ cd ui && npm run dev    # Vite dev server on :5173
 ```json
 {
   "mcpServers": {
-    "project-memory": {
+    "graph-memory": {
       "command": "npx",
       "args": [
         "@graphmemory/server",

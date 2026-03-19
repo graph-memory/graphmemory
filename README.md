@@ -52,39 +52,6 @@ node dist/cli/index.js serve --config graph-memory.yaml
 
 ## Connect an MCP client
 
-### Stdio (single project)
-
-After `npm install -g @prih/mcp-graph-memory`:
-
-**Claude Desktop** — in `claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "project-memory": {
-      "command": "mcp-graph-memory",
-      "args": ["mcp", "--config", "/path/to/graph-memory.yaml", "--project", "my-app"]
-    }
-  }
-}
-```
-
-**Claude Code** — in `.mcp.json` at project root:
-
-```json
-{
-  "mcpServers": {
-    "project-memory": {
-      "type": "stdio",
-      "command": "mcp-graph-memory",
-      "args": ["mcp", "--config", "/path/to/graph-memory.yaml", "--project", "my-app"]
-    }
-  }
-}
-```
-
-### HTTP (multi-project, shared server)
-
 Start the server, then connect MCP clients to `http://localhost:3000/mcp/{projectId}`.
 
 **Claude Desktop** — add via **Settings > Connectors** in the app, enter the URL:
@@ -111,6 +78,8 @@ http://localhost:3000/mcp/my-app
 ```
 http://localhost:3000/mcp/my-app
 ```
+
+See [docs/cli.md](docs/cli.md) for stdio transport and other connection options.
 
 ## What it does
 

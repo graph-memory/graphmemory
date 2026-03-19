@@ -15,14 +15,9 @@ server:
 projects:
   my-app:
     projectDir: "/path/to/my-app"
-    graphs:
-      docs:
-        pattern: "docs/**/*.md"
-      code:
-        pattern: "src/**/*.ts"
 ```
 
-The only required field is `projects.*.projectDir`. Everything else has sensible defaults.
+The only required field is `projects.*.projectDir`. Everything else has sensible defaults (docs indexes `**/*.md`, code indexes `**/*.{js,ts,jsx,tsx}`).
 
 ## Author settings
 
@@ -60,17 +55,17 @@ Each project needs at least `projectDir`:
 |---|---|---|
 | `projectDir` | **(required)** | Root directory to index |
 | `graphMemory` | `.graph-memory` | Where graph JSON files are stored (relative to projectDir) |
-| `excludePattern` | `node_modules/**` | Glob to exclude (project-level fallback, overridden by graph-level) |
+| `exclude` | — | Additional glob to exclude (merged with server default `**/node_modules/**,**/dist/**`) |
 | `tsconfig` | — | Path to tsconfig.json (enables import resolution in code graph) |
 | `chunkDepth` | `4` | Max heading depth for markdown chunking |
 | `embedding.maxChars` | `8000` | Max characters fed to the embedding model per node (inherits: graph → project → workspace → server) |
 | `access` | — | Per-user access overrides for this project |
 
-> **Legacy fields:** `docsPattern` and `codePattern` still work but are deprecated. Use `graphs.docs.pattern` and `graphs.code.pattern` instead.
+> **Legacy fields:** `docsPattern` and `codePattern` have been removed. Use `graphs.docs.include` and `graphs.code.include` instead.
 
 ### Per-graph configuration
 
-Each graph can be individually configured with `enabled`, `pattern`, `excludePattern`, `embedding`, and `access`:
+Each graph can be individually configured with `enabled`, `include`, `exclude`, `embedding`, and `access`:
 
 ```yaml
 projects:
@@ -79,8 +74,8 @@ projects:
     graphs:
       docs:
         enabled: true                      # Set false to disable this graph
-        pattern: "docs/**/*.md"            # Glob for files to index
-        excludePattern: "docs/archive/**"  # Glob to exclude
+        include: "**/*.md"                 # Default — indexes all markdown files
+        exclude: "**/archive/**"           # Glob to exclude
         embedding:                          # Full embedding config (no merge with parent)
           model: "Xenova/bge-m3"
           pooling: "cls"
@@ -89,7 +84,7 @@ projects:
           bob: rw
       code:
         enabled: true
-        pattern: "src/**/*.ts"
+        include: "**/*.{js,ts,jsx,tsx}"    # Default — indexes all JS/TS files
         embedding:
           model: "Xenova/bge-base-en-v1.5"
       knowledge:
@@ -115,13 +110,9 @@ Workspaces let multiple projects share the same knowledge, task, and skill graph
 projects:
   api-gateway:
     projectDir: "./api-gateway"
-    docsPattern: "docs/**/*.md"
-    codePattern: "src/**/*.ts"
 
   catalog-service:
     projectDir: "./catalog-service"
-    docsPattern: "docs/**/*.md"
-    codePattern: "src/**/*.ts"
 
 workspaces:
   backend:
@@ -322,7 +313,7 @@ projects:
     projectDir: "/path/to/wiki"
     graphs:
       docs:
-        pattern: "**/*.md"
+        include: "**/*.md"
       code:
         enabled: false
 ```
@@ -337,7 +328,7 @@ projects:
       docs:
         enabled: false
       code:
-        pattern: "src/**/*.ts"
+        include: "src/**/*.ts"
 ```
 
 ### Multiple exclude patterns
@@ -346,7 +337,7 @@ projects:
 projects:
   my-app:
     projectDir: "/path/to/my-app"
-    excludePattern: "node_modules/**,dist/**,coverage/**,.git/**"
+    exclude: "**/coverage/**,**/.git/**"
 ```
 
 ### Docker deployment

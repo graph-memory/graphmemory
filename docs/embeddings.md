@@ -147,6 +147,8 @@ server:
   embeddingApi:
     enabled: true
     apiKey: "emb-secret-key"     # optional, separate from user apiKeys
+    maxTexts: 100                # max texts per request (default 100)
+    maxTextChars: 10000          # max chars per text (default 10000)
 ```
 
 ### Endpoint
@@ -161,9 +163,43 @@ server:
 { "embeddings": [[0.1, 0.2, ...], [0.3, 0.4, ...]] }
 ```
 
-Validation: max 100 texts, max 10,000 chars each.
+### Embedding API configuration
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | boolean | `false` | Enable the `/api/embed` endpoint |
+| `apiKey` | string | — | Optional API key (separate from user apiKeys) |
+| `maxTexts` | number | `100` | Maximum number of texts per request |
+| `maxTextChars` | number | `10000` | Maximum characters per individual text |
+
+Validation enforces `maxTexts` and `maxTextChars` limits on every request.
 
 When `apiKey` is set, requests must include `Authorization: Bearer <apiKey>`. The embedding API key is separate from user authentication keys.
+
+## Max file size
+
+Files larger than `maxFileSize` (default 1 MB / 1048576 bytes) are skipped during indexing. This prevents embedding excessively large files. The limit can be set at server, workspace, or project level:
+
+```yaml
+server:
+  maxFileSize: 1048576        # 1 MB (default)
+
+projects:
+  my-app:
+    maxFileSize: 2097152      # 2 MB override for this project
+```
+
+## Rate limiting
+
+The server applies per-IP rate limits (requests per minute) to protect the embedding API and other endpoints:
+
+```yaml
+server:
+  rateLimit:
+    global: 600     # all endpoints (default 600/min)
+    search: 120     # search endpoints (default 120/min)
+    auth: 10        # login/token endpoints (default 10/min)
+```
 
 ## Mixed models per graph
 

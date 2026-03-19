@@ -12,7 +12,7 @@ This answers questions like:
 
 ## What gets indexed
 
-**Everything.** Every file and directory in `projectDir` that doesn't match the `excludePattern` gets a node in the FileIndexGraph. This includes:
+**Everything.** Every file and directory in `projectDir` that doesn't match the `exclude` pattern gets a node in the FileIndexGraph. This includes:
 
 - Source files (`.ts`, `.js`, `.py`, `.go`, etc.)
 - Config files (`.json`, `.yaml`, `.toml`, `.env`)
@@ -178,13 +178,15 @@ A single file can exist in all three graphs simultaneously:
 
 ## Configuration
 
-The FileIndexGraph is always enabled — it has no separate `pattern` setting. It indexes everything that passes the project's `excludePattern`:
+The FileIndexGraph is always enabled — it has no separate `include` setting. It indexes everything that passes the project's `exclude` pattern:
 
 ```yaml
 projects:
   my-app:
     projectDir: "/path/to/my-app"
-    excludePattern: "node_modules/**,dist/**,.git/**"
+    # Server default exclude (**/node_modules/**, **/dist/**) applies automatically.
+    # Add project-specific excludes if needed:
+    exclude: "**/.git/**"
     graphs:
       files:
         enabled: true    # can be disabled if not needed

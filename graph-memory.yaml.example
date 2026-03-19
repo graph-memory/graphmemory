@@ -82,8 +82,8 @@ projects:
     # Storage
     # graphMemory: ".graph-memory"              # Graph data dir (relative to projectDir)
 
-    # Exclude pattern (project-level fallback — overridden by graph-level excludePattern)
-    # excludePattern: "node_modules/**"         # Glob to exclude from indexing
+    # Exclude pattern (merged with server default: **/node_modules/**, **/dist/**)
+    # exclude: "**/coverage/**"                 # Additional glob to exclude from indexing
     # tsconfig: "./tsconfig.json"               # Path to tsconfig.json (enables import resolution)
 
     # Parsing
@@ -103,22 +103,22 @@ projects:
     #   bob: rw                                  # bob gets rw on this project
 
     # Per-graph configuration
-    # Each graph can be enabled/disabled, have its own pattern, excludePattern, and embedding.
+    # Each graph can be enabled/disabled, have its own include, exclude, and embedding.
     # Embedding resolution: graph.embedding ?? project.embedding ?? server.embedding
     #   (first fully-defined wins — no field-by-field merge at graph level)
     # graphs:
     #   docs:
     #     enabled: true                          # default: true (set false to disable)
-    #     pattern: "**/*.md"                     # Glob for markdown files (default: "**/*.md")
-    #     excludePattern: "changelog/**"         # Overrides project-level excludePattern
+    #     include: "**/*.md"                     # Glob for markdown files (default: "**/*.md")
+    #     exclude: "**/changelog/**"              # Overrides project-level exclude
     #     embedding:                             # Full embedding config (no merge with parent)
     #       model: "Xenova/bge-m3"
     #       pooling: "cls"
     #       normalize: true
     #   code:
     #     enabled: true
-    #     pattern: "**/*.{js,ts,jsx,tsx}"        # Glob for source files (default: "**/*.{js,ts,jsx,tsx}")
-    #     excludePattern: "dist/**"
+    #     include: "**/*.{js,ts,jsx,tsx}"        # Glob for source files (default: "**/*.{js,ts,jsx,tsx}")
+    #     exclude: "**/generated/**"
     #   knowledge:
     #     enabled: true
     #     access:                                # Per-graph access (overrides project.access)
@@ -133,10 +133,10 @@ projects:
   # ── Project 2: Documentation-only project (no code indexing) ─────────────
   docs-site:
     projectDir: "/path/to/docs-site"
-    excludePattern: "node_modules/**,build/**"
+    exclude: "**/build/**"
     graphs:
       docs:
-        pattern: "content/**/*.md"
+        include: "content/**/*.md"
       code:
         enabled: false                          # Disable code indexing
       skills:

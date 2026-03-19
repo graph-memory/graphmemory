@@ -135,10 +135,9 @@ projects:
     projectDir: "/path/to/my-app"
     graphs:
       docs:
-        pattern: "docs/**/*.md"
+        include: "**/*.md"               # default
       code:
-        pattern: "src/**/*.{ts,tsx}"
-        enabled: true
+        include: "**/*.{js,ts,jsx,tsx}"  # default
       skills:
         enabled: false
 ```

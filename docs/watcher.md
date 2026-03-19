@@ -22,7 +22,7 @@ Watches `**/*` (all files). Pattern filtering is done in the dispatcher via micr
 
 ### Excluded paths
 
-Files matching `excludePattern` are silently skipped before any pattern matching. The following directories are always excluded:
+Files matching the `exclude` pattern are silently skipped before any pattern matching. The following directories are always excluded:
 - `.graph-memory/` (graph data)
 - `.notes/`, `.tasks/`, `.skills/` (mirror files — watched separately)
 - `.team/` (team directory)

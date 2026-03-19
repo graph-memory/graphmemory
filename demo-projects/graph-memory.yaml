@@ -16,44 +16,62 @@ server:
 projects:
   api-gateway:
     projectDir: "./api-gateway"
-    docsPattern: "docs/**/*.md"
-    codePattern: "src/**/*.ts"
-    excludePattern: "node_modules/**"
+    exclude: "**/node_modules/**"
     tsconfig: "tsconfig.json"
+    graphs:
+      docs:
+        include: "docs/**/*.md"
+      code:
+        include: "src/**/*.ts"
 
   catalog-service:
     projectDir: "./catalog-service"
-    docsPattern: "docs/**/*.md"
-    codePattern: "src/**/*.ts"
-    excludePattern: "node_modules/**"
+    exclude: "**/node_modules/**"
     tsconfig: "tsconfig.json"
+    graphs:
+      docs:
+        include: "docs/**/*.md"
+      code:
+        include: "src/**/*.ts"
 
   order-service:
     projectDir: "./order-service"
-    docsPattern: "docs/**/*.md"
-    codePattern: "src/**/*.ts"
-    excludePattern: "node_modules/**"
+    exclude: "**/node_modules/**"
     tsconfig: "tsconfig.json"
+    graphs:
+      docs:
+        include: "docs/**/*.md"
+      code:
+        include: "src/**/*.ts"
 
   web-store:
     projectDir: "./web-store"
-    docsPattern: "docs/**/*.md"
-    codePattern: "src/**/*.ts"
-    excludePattern: "node_modules/**"
+    exclude: "**/node_modules/**"
     tsconfig: "tsconfig.json"
+    graphs:
+      docs:
+        include: "docs/**/*.md"
+      code:
+        include: "src/**/*.ts"
 
   admin-panel:
     projectDir: "./admin-panel"
-    docsPattern: "docs/**/*.md"
-    codePattern: "src/**/*.ts"
-    excludePattern: "node_modules/**"
+    exclude: "**/node_modules/**"
     tsconfig: "tsconfig.json"
+    graphs:
+      docs:
+        include: "docs/**/*.md"
+      code:
+        include: "src/**/*.ts"
 
   infra:
     projectDir: "./infra"
-    docsPattern: "docs/**/*.md"
-    codePattern: ""
-    excludePattern: "node_modules/**"
+    exclude: "**/node_modules/**"
+    graphs:
+      docs:
+        include: "docs/**/*.md"
+      code:
+        enabled: false
 
 workspaces:
   backend:

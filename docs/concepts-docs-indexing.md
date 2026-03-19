@@ -138,7 +138,7 @@ projects:
       maxChars: 8000                # max chars per chunk for embedding
     graphs:
       docs:
-        pattern: "docs/**/*.md"     # which files to index
-        excludePattern: "drafts/**" # skip certain paths
+        include: "**/*.md"          # default — indexes all markdown files
+        exclude: "**/drafts/**"     # skip certain paths
         enabled: true               # can be disabled entirely
 ```

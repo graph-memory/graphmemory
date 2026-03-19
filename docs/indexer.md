@@ -43,9 +43,9 @@ Each queue is a Promise chain — `queue = queue.then(fn).catch(log)`. Errors ar
 
 When a file is detected:
 
-1. Check against `excludePattern` — if matches, skip entirely
-2. Check against `graphs.docs.pattern` — if matches, enqueue to docs queue
-3. Check against `graphs.code.pattern` — if matches, enqueue to code queue
+1. Check against `exclude` — if matches, skip entirely
+2. Check against `graphs.docs.include` — if matches, enqueue to docs queue
+3. Check against `graphs.code.include` — if matches, enqueue to code queue
 4. **All non-excluded files** are always enqueued to the file index queue
 5. Check if graph is `enabled: false` — disabled graphs skip their queue
 
@@ -105,19 +105,21 @@ When a file is removed (`unlink` event):
 
 ## Per-graph patterns
 
-Each graph can have its own pattern and excludePattern:
+Each graph can have its own include and exclude patterns:
 
 ```yaml
 projects:
   my-app:
     projectDir: "/path/to/my-app"
-    excludePattern: "node_modules/**"     # project-level fallback
+    # Server default exclude (**/node_modules/**, **/dist/**) always applies.
+    # Project-level exclude adds to server defaults:
+    exclude: "**/coverage/**"
     graphs:
       docs:
-        pattern: "docs/**/*.md"
-        excludePattern: "drafts/**"       # overrides project-level
+        include: "**/*.md"                # default
+        exclude: "**/drafts/**"           # overrides project-level exclude
       code:
-        pattern: "src/**/*.{ts,tsx}"
+        include: "**/*.{js,ts,jsx,tsx}"   # default
 ```
 
-The graph-level `excludePattern` overrides the project-level one (not merged).
+The graph-level `exclude` overrides the project-level one (not merged).

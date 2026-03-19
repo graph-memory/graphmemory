@@ -152,7 +152,7 @@ projects:
     projectDir: "/path/to/my-app"
     graphs:
       code:
-        pattern: "src/**/*.{ts,tsx,js,jsx}"
-        excludePattern: "dist/**"
+        include: "**/*.{js,ts,jsx,tsx}"   # default — indexes all JS/TS files
+        exclude: "**/generated/**"        # skip certain paths
         enabled: true
 ```

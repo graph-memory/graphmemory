@@ -54,13 +54,19 @@ server:
   embeddingApi:
     enabled: false
     apiKey: "emb-secret-key"
+    maxTexts: 100
+    maxTextChars: 10000
+  rateLimit:
+    global: 600
+    search: 120
+    auth: 10
+  maxFileSize: 1048576
 
 # Projects
 projects:
   my-app:
     projectDir: "/path/to/my-app"
     graphMemory: ".graph-memory"
-    excludePattern: "node_modules/**"
     tsconfig: "./tsconfig.json"
     chunkDepth: 4
     author:
@@ -74,8 +80,8 @@ projects:
     graphs:
       docs:
         enabled: true
-        pattern: "docs/**/*.md"
-        excludePattern: "drafts/**"
+        include: "**/*.md"
+        exclude: "**/drafts/**"
         embedding:
           model: "Xenova/bge-m3"
           pooling: "cls"
@@ -84,7 +90,7 @@ projects:
           charlie: rw
       code:
         enabled: true
-        pattern: "src/**/*.{ts,tsx}"
+        include: "**/*.{js,ts,jsx,tsx}"
       knowledge:
         enabled: true
       tasks:
@@ -125,6 +131,8 @@ workspaces:
 | `refreshTokenTtl` | string | `7d` | JWT refresh token lifetime |
 | `embedding` | object | (see below) | Default embedding config for all graphs |
 | `embeddingApi` | object | — | Expose embedding model via `POST /api/embed` |
+| `rateLimit` | object | — | Rate limiting: `global` (default 600), `search` (default 120), `auth` (default 10) requests/min |
+| `maxFileSize` | number | `1048576` | Max file size in bytes for indexing (1 MB default). Also settable at workspace/project level |
 
 ## Embedding config
 
@@ -154,7 +162,7 @@ graph.embedding → project.embedding → server.embedding → defaults
 |-------|------|---------|-------------|
 | `projectDir` | string | **(required)** | Root directory to index |
 | `graphMemory` | string | `{projectDir}/.graph-memory` | Where to store graph JSON files |
-| `excludePattern` | string | `node_modules/**` | Glob to exclude from indexing (project-level fallback) |
+| `exclude` | string | — | Additional glob to exclude (merged with server default `**/node_modules/**,**/dist/**`) |
 | `tsconfig` | string | — | Path to tsconfig.json for import resolution |
 | `chunkDepth` | number | `4` | Max heading depth for chunk boundaries |
 | `embedding` | object | (server default) | Project-level embedding config |
@@ -166,8 +174,10 @@ graph.embedding → project.embedding → server.embedding → defaults
 
 | Field | Replacement | Notes |
 |-------|-------------|-------|
-| `docsPattern` | `graphs.docs.pattern` | Deprecation warning on stderr |
-| `codePattern` | `graphs.code.pattern` | Deprecation warning on stderr |
+| `docsPattern` | `graphs.docs.include` | Deprecation warning on stderr |
+| `codePattern` | `graphs.code.include` | Deprecation warning on stderr |
+| `pattern` | `include` (at graph level) | Deprecation warning on stderr |
+| `excludePattern` | `exclude` (at all levels) | Deprecation warning on stderr |
 
 Setting `docsPattern: ""` or `codePattern: ""` is equivalent to `graphs.docs.enabled: false` / `graphs.code.enabled: false`.
 
@@ -178,8 +188,8 @@ Each of the six graphs (`docs`, `code`, `knowledge`, `tasks`, `files`, `skills`)
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | boolean | `true` | Set `false` to disable the graph entirely |
-| `pattern` | string | (depends on graph) | Glob for file matching (docs/code only) |
-| `excludePattern` | string | (project fallback) | Overrides project-level `excludePattern` |
+| `include` | string | (depends on graph) | Glob for file matching (docs/code only) |
+| `exclude` | string | (project fallback) | Overrides project-level `exclude` |
 | `embedding` | object | (project/server fallback) | Full embedding config — first-defined-wins |
 | `access` | object | — | Per-user access overrides for this graph |
 
@@ -232,6 +242,8 @@ server:
   embeddingApi:
     enabled: true
     apiKey: "emb-secret-key"   # optional, separate from user apiKeys
+    maxTexts: 100              # max texts per request (default 100)
+    maxTextChars: 10000        # max chars per text (default 10000)
 ```
 
 See [Embeddings](embeddings.md) for details.

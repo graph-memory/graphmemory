@@ -309,7 +309,7 @@ describe('MCP docs tools', () => {
     });
 
     it('minScore filters out zero-score seeds', async () => {
-      const hits = json<Hit[]>(await ctx.call('search', { query: 'xyzzy completely unknown xyz', topK: 5, minScore: 0.1 }));
+      const hits = json<Hit[]>(await ctx.call('search', { query: 'xyzzy completely unknown xyz', topK: 5, minScore: 0.1, searchMode: 'keyword' }));
       expect(hits).toHaveLength(0);
     });
 

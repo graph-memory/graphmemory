@@ -17,6 +17,9 @@ export function attachWebSocket(httpServer: http.Server, projectManager: Project
       return;
     }
     wss.handleUpgrade(req, socket, head, (ws) => {
+      ws.on('error', (err) => {
+        process.stderr.write(`[ws] Client error: ${err}\n`);
+      });
       wss.emit('connection', ws, req);
     });
   });
@@ -26,7 +29,9 @@ export function attachWebSocket(httpServer: http.Server, projectManager: Project
     const msg = JSON.stringify(event);
     for (const client of wss.clients) {
       if (client.readyState === WebSocket.OPEN) {
-        client.send(msg);
+        client.send(msg, (err) => {
+          if (err) process.stderr.write(`[ws] Send error: ${err}\n`);
+        });
       }
     }
   }

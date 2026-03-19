@@ -1,6 +1,9 @@
 import { Router } from 'express';
 import type { ProjectInstance } from '@/lib/project-manager';
 import { validateQuery, graphExportSchema } from '@/api/rest/validation';
+import type { GraphName } from '@/lib/multi-config';
+
+export type GraphAccessChecker = (req: any, graphName: GraphName) => boolean;
 
 interface GraphExport {
   nodes: Array<{ id: string; graph: string; [k: string]: any }>;
@@ -24,7 +27,18 @@ function exportGraph(graph: any, graphName: string): GraphExport {
   return { nodes, edges };
 }
 
-export function createGraphRouter(): Router {
+const GRAPH_TO_PROP: Record<string, keyof ProjectInstance> = {
+  docs: 'docGraph',
+  code: 'codeGraph',
+  knowledge: 'knowledgeGraph',
+  tasks: 'taskGraph',
+  files: 'fileIndexGraph',
+  skills: 'skillGraph',
+};
+
+const ALL_GRAPHS: GraphName[] = ['docs', 'code', 'knowledge', 'tasks', 'files', 'skills'];
+
+export function createGraphRouter(canReadGraph?: GraphAccessChecker): Router {
   const router = Router({ mergeParams: true });
 
   function getProject(req: any): ProjectInstance {
@@ -34,7 +48,7 @@ export function createGraphRouter(): Router {
   router.get('/', validateQuery(graphExportSchema), (req, res, next) => {
     try {
       const p = getProject(req);
-      const scope = (req as any).validatedQuery.scope;
+      const scope = (req as any).validatedQuery.scope as string;
 
       const allNodes: GraphExport['nodes'] = [];
       const allEdges: GraphExport['edges'] = [];
@@ -46,12 +60,22 @@ export function createGraphRouter(): Router {
         allEdges.push(...exp.edges);
       };
 
-      if (scope === 'all' || scope === 'docs')      add(p.docGraph, 'docs');
-      if (scope === 'all' || scope === 'code')      add(p.codeGraph, 'code');
-      if (scope === 'all' || scope === 'knowledge') add(p.knowledgeGraph, 'knowledge');
-      if (scope === 'all' || scope === 'tasks')     add(p.taskGraph, 'tasks');
-      if (scope === 'all' || scope === 'files')     add(p.fileIndexGraph, 'files');
-      if (scope === 'all' || scope === 'skills')    add(p.skillGraph, 'skills');
+      if (scope === 'all') {
+        // Export only graphs the user can read
+        for (const gn of ALL_GRAPHS) {
+          if (canReadGraph && !canReadGraph(req, gn)) continue;
+          const prop = GRAPH_TO_PROP[gn];
+          add((p as any)[prop], gn);
+        }
+      } else {
+        // Specific graph — check access, 403 if denied
+        const gn = scope as GraphName;
+        if (canReadGraph && !canReadGraph(req, gn)) {
+          return res.status(403).json({ error: 'Access denied' });
+        }
+        const prop = GRAPH_TO_PROP[gn];
+        add((p as any)[prop], gn);
+      }
 
       res.json({ nodes: allNodes, edges: allEdges });
     } catch (err) { next(err); }

@@ -24,15 +24,46 @@ export function updateCodeFile(graph: CodeGraph, parsed: ParsedFile): void {
     graph.addNode(id, attrs);
   }
 
+  const pendingImports: string[] = [];
   for (const { from, to, attrs } of parsed.edges) {
-    // Target node may not be indexed yet (e.g. cross-file edge to un-indexed file).
-    // Add a pending stub so the edge can be created; it will be replaced when
-    // that file is indexed.
-    if (!graph.hasNode(to)) continue; // skip dangling edges for now
+    if (!graph.hasNode(to)) {
+      if (attrs.kind === 'imports') pendingImports.push(to);
+      continue;
+    }
     if (graph.hasNode(from) && !graph.hasEdge(from, to)) {
       graph.addEdgeWithKey(`${from}→${to}`, from, to, attrs);
     }
   }
+
+  // Store pending imports on the file node for post-drain resolution
+  if (pendingImports.length > 0 && graph.hasNode(parsed.fileId)) {
+    graph.setNodeAttribute(parsed.fileId, 'pendingImports', pendingImports);
+  }
+}
+
+/**
+ * Resolve pending import edges after all files have been indexed.
+ * Creates 'imports' edges from file nodes to targets that are now in the graph.
+ */
+export function resolvePendingImports(graph: CodeGraph): number {
+  let created = 0;
+  graph.forEachNode((id, attrs: CodeNodeAttributes) => {
+    if (!attrs.pendingImports || attrs.pendingImports.length === 0) return;
+    const remaining: string[] = [];
+    for (const targetId of attrs.pendingImports) {
+      if (graph.hasNode(targetId) && id !== targetId) {
+        const edgeKey = `${id}→${targetId}`;
+        if (!graph.hasEdge(edgeKey)) {
+          graph.addEdgeWithKey(edgeKey, id, targetId, { kind: 'imports' });
+          created++;
+        }
+      } else {
+        remaining.push(targetId);
+      }
+    }
+    graph.setNodeAttribute(id, 'pendingImports', remaining.length > 0 ? remaining : undefined);
+  });
+  return created;
 }
 
 /** Remove all nodes (and their incident edges) belonging to a file. */

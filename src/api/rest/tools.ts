@@ -3,6 +3,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import type { ProjectInstance, ProjectManager } from '@/lib/project-manager';
 import { createMcpServer, type McpSessionContext } from '@/api/index';
+import type { GraphName } from '@/lib/multi-config';
 
 // Tool category detection based on tool name
 const TOOL_CATEGORIES: Record<string, string> = {
@@ -30,6 +31,14 @@ const TOOL_CATEGORIES: Record<string, string> = {
   find_linked_skills: 'skills',
   add_skill_attachment: 'skills', remove_skill_attachment: 'skills',
 };
+
+const MUTATION_PREFIXES = ['create_', 'update_', 'delete_', 'move_', 'link_', 'add_', 'remove_', 'bump_'];
+
+function isMutationTool(toolName: string): boolean {
+  return MUTATION_PREFIXES.some(p => toolName.startsWith(p));
+}
+
+export type ToolAccessChecker = (req: any, graphName: GraphName, level: 'r' | 'rw') => boolean;
 
 /**
  * Get or create a lazy MCP client for a project instance.
@@ -67,25 +76,32 @@ async function getClient(p: ProjectInstance, pm: ProjectManager): Promise<Client
   return client;
 }
 
-export function createToolsRouter(projectManager: ProjectManager): Router {
+export function createToolsRouter(projectManager: ProjectManager, checkAccess?: ToolAccessChecker): Router {
   const router = Router({ mergeParams: true });
 
   function getProject(req: any): ProjectInstance {
     return req.project;
   }
 
-  // List all available tools
+  // List all available tools (filtered by access)
   router.get('/', async (req, res, next) => {
     try {
       const p = getProject(req);
       const client = await getClient(p, projectManager);
       const { tools } = await client.listTools();
-      const results = tools.map(t => ({
-        name: t.name,
-        description: t.description || '',
-        category: TOOL_CATEGORIES[t.name] || 'other',
-        inputSchema: t.inputSchema,
-      }));
+      const results = tools
+        .filter(t => {
+          if (!checkAccess) return true;
+          const cat = TOOL_CATEGORIES[t.name];
+          if (!cat || cat === 'context' || cat === 'cross-graph') return true;
+          return checkAccess(req, cat as GraphName, 'r');
+        })
+        .map(t => ({
+          name: t.name,
+          description: t.description || '',
+          category: TOOL_CATEGORIES[t.name] || 'other',
+          inputSchema: t.inputSchema,
+        }));
       res.json({ results });
     } catch (err) { next(err); }
   });
@@ -98,6 +114,15 @@ export function createToolsRouter(projectManager: ProjectManager): Router {
       const { tools } = await client.listTools();
       const tool = tools.find(t => t.name === req.params.toolName);
       if (!tool) return res.status(404).json({ error: `Tool "${req.params.toolName}" not found` });
+
+      // Check read access for the tool's graph
+      if (checkAccess) {
+        const cat = TOOL_CATEGORIES[tool.name];
+        if (cat && cat !== 'context' && cat !== 'cross-graph' && !checkAccess(req, cat as GraphName, 'r')) {
+          return res.status(403).json({ error: 'Access denied' });
+        }
+      }
+
       res.json({
         name: tool.name,
         description: tool.description || '',
@@ -111,10 +136,23 @@ export function createToolsRouter(projectManager: ProjectManager): Router {
   router.post('/:toolName/call', async (req, res, next) => {
     try {
       const p = getProject(req);
+      const toolName = req.params.toolName;
+
+      // Check access: read for queries, write for mutations
+      if (checkAccess) {
+        const cat = TOOL_CATEGORIES[toolName];
+        if (cat && cat !== 'context' && cat !== 'cross-graph') {
+          const level = isMutationTool(toolName) ? 'rw' : 'r';
+          if (!checkAccess(req, cat as GraphName, level)) {
+            return res.status(403).json({ error: level === 'rw' ? 'Read-only access' : 'Access denied' });
+          }
+        }
+      }
+
       const client = await getClient(p, projectManager);
       const start = Date.now();
       const result = await client.callTool({
-        name: req.params.toolName,
+        name: toolName,
         arguments: req.body.arguments || {},
       });
       const duration = Date.now() - start;

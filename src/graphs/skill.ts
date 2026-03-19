@@ -78,10 +78,12 @@ export function cleanupProxies(
   graph: SkillGraph,
   targetGraph: SkillCrossGraphType,
   externalGraph: DirectedGraph,
+  projectId?: string,
 ): void {
   const toRemove: string[] = [];
   graph.forEachNode((id, attrs: SkillNodeAttributes) => {
     if (attrs.proxyFor && attrs.proxyFor.graph === targetGraph) {
+      if (projectId && attrs.proxyFor.projectId && attrs.proxyFor.projectId !== projectId) return;
       if (!externalGraph.hasNode(attrs.proxyFor.nodeId)) {
         toRemove.push(id);
       }

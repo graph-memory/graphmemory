@@ -15,13 +15,18 @@ const authorSchema = z.object({
   email: z.string(),
 });
 
-const embeddingConfigSchema = z.object({
-  model:           z.string(),
+// Model config: taken as a whole from the first level that defines it (no field merge)
+const modelConfigSchema = z.object({
+  name:            z.string(),
   pooling:         z.enum(['mean', 'cls']).optional(),
   normalize:       z.boolean().optional(),
   dtype:           z.string().optional(),
   queryPrefix:     z.string().optional(),
   documentPrefix:  z.string().optional(),
+});
+
+// Embedding config: each field individually inherits up the chain
+const embeddingConfigSchema = z.object({
   batchSize:       z.number().int().positive().optional(),
   maxChars:        z.number().int().positive().optional(),
   cacheSize:       z.number().int().min(0).optional(),
@@ -43,16 +48,9 @@ const graphConfigSchema = z.object({
   enabled:        z.boolean().optional(),
   pattern:        z.string().optional(),
   excludePattern: z.string().optional(),
+  model:          modelConfigSchema.optional(),
   embedding:      embeddingConfigSchema.optional(),
   access:         accessMapSchema,
-  // Legacy: flat partial embedding overrides (e.g. graphs.docs.model)
-  model:          z.string().optional(),
-  pooling:        z.enum(['mean', 'cls']).optional(),
-  normalize:      z.boolean().optional(),
-  dtype:          z.string().optional(),
-  queryPrefix:    z.string().optional(),
-  documentPrefix: z.string().optional(),
-  batchSize:      z.number().int().positive().optional(),
 });
 
 const graphsConfigSchema = z.object({
@@ -67,10 +65,10 @@ const graphsConfigSchema = z.object({
 const projectSchema = z.object({
   projectDir:      z.string(),
   graphMemory:     z.string().optional(),
-  docsPattern:     z.string().optional(),     // deprecated → graphs.docs.pattern
-  codePattern:     z.string().optional(),     // deprecated → graphs.code.pattern
   excludePattern:  z.string().optional(),
   chunkDepth:      z.number().int().positive().optional(),
+  maxFileSize:     z.number().int().positive().optional(),
+  model:           modelConfigSchema.optional(),
   embedding:       embeddingConfigSchema.optional(),
   graphs:          graphsConfigSchema.optional(),
   author:          authorSchema.optional(),
@@ -82,12 +80,19 @@ const embeddingApiSchema = z.object({
   apiKey:  z.string().optional(),
 });
 
+const rateLimitSchema = z.object({
+  global: z.number().int().min(0).optional(),   // req/min per IP (0 = disabled)
+  search: z.number().int().min(0).optional(),   // req/min per IP for search/embed
+  auth:   z.number().int().min(0).optional(),   // req/min per IP for login
+});
+
 const serverSchema = z.object({
   host:            z.string().optional(),
   port:            z.number().int().positive().optional(),
   sessionTimeout:  z.number().int().positive().optional(),
   modelsDir:       z.string().optional(),
   corsOrigins:     z.array(z.string()).optional(),
+  model:           modelConfigSchema.optional(),
   embedding:       embeddingConfigSchema.optional(),
   embeddingApi:    embeddingApiSchema.optional(),
   defaultAccess:   accessLevelSchema.optional(),
@@ -95,19 +100,15 @@ const serverSchema = z.object({
   jwtSecret:       z.string().optional(),
   accessTokenTtl:  z.string().optional(),
   refreshTokenTtl: z.string().optional(),
+  rateLimit:       rateLimitSchema.optional(),
+  maxFileSize:     z.number().int().positive().optional(),
 });
 
 const wsGraphConfigSchema = z.object({
   enabled:        z.boolean().optional(),
+  model:          modelConfigSchema.optional(),
   embedding:      embeddingConfigSchema.optional(),
-  // Legacy: flat partial embedding overrides
-  model:          z.string().optional(),
-  pooling:        z.enum(['mean', 'cls']).optional(),
-  normalize:      z.boolean().optional(),
-  dtype:          z.string().optional(),
-  queryPrefix:    z.string().optional(),
-  documentPrefix: z.string().optional(),
-  batchSize:      z.number().int().positive().optional(),
+  access:         accessMapSchema,
 });
 
 const wsGraphsConfigSchema = z.object({
@@ -120,10 +121,12 @@ const workspaceSchema = z.object({
   projects:       z.array(z.string()),
   graphMemory:    z.string().optional(),
   mirrorDir:      z.string().optional(),
+  model:          modelConfigSchema.optional(),
   embedding:      embeddingConfigSchema.optional(),
   graphs:         wsGraphsConfigSchema.optional(),
   author:         authorSchema.optional(),
   access:         accessMapSchema,
+  maxFileSize:    z.number().int().positive().optional(),
 });
 
 const configFileSchema = z.object({
@@ -157,18 +160,27 @@ export interface AuthorConfig {
   email: string;
 }
 
-export interface EmbeddingConfig {
-  model: string;
+export interface ModelConfig {
+  name: string;
   pooling: 'mean' | 'cls';
   normalize: boolean;
   dtype?: string;
   queryPrefix: string;
   documentPrefix: string;
+}
+
+export interface EmbeddingConfig {
   batchSize: number;
   maxChars: number;
   cacheSize: number;
   remote?: string;       // Remote embedding API URL (replaces local ONNX)
   remoteApiKey?: string; // API key for remote embedding
+}
+
+/** Resolved config combining model + embedding for a specific graph. */
+export interface ResolvedEmbedding {
+  model: ModelConfig;
+  embedding: EmbeddingConfig;
 }
 
 export interface EmbeddingApiConfig {
@@ -177,14 +189,17 @@ export interface EmbeddingApiConfig {
 }
 
 /**
- * Build a stable fingerprint string from embedding config fields that affect stored vectors.
- * Used to detect config changes that require re-indexing.
- *
- * queryPrefix is intentionally excluded: it only affects query-time embeddings,
- * not the stored document vectors — so changing it does not require re-indexing.
+ * Build a stable fingerprint string from model config fields that affect stored vectors.
+ * queryPrefix excluded: only affects query-time, not stored document vectors.
  */
-export function embeddingFingerprint(config: EmbeddingConfig): string {
-  return `${config.model}|${config.pooling}|${config.normalize}|${config.dtype ?? ''}|${config.documentPrefix}`;
+export function embeddingFingerprint(model: ModelConfig): string {
+  return `${model.name}|${model.pooling}|${model.normalize}|${model.dtype ?? ''}|${model.documentPrefix}`;
+}
+
+export interface RateLimitConfig {
+  global: number;   // req/min per IP (0 = disabled)
+  search: number;   // req/min per IP for search/embed
+  auth: number;     // req/min per IP for login
 }
 
 export interface ServerConfig {
@@ -193,6 +208,7 @@ export interface ServerConfig {
   sessionTimeout: number;
   modelsDir: string;
   corsOrigins?: string[];
+  model: ModelConfig;
   embedding: EmbeddingConfig;
   embeddingApi?: EmbeddingApiConfig;
   defaultAccess: AccessLevel;
@@ -200,12 +216,15 @@ export interface ServerConfig {
   jwtSecret?: string;
   accessTokenTtl: string;
   refreshTokenTtl: string;
+  rateLimit: RateLimitConfig;
+  maxFileSize: number;
 }
 
 export interface GraphConfig {
   enabled: boolean;
   pattern?: string;
   excludePattern?: string;
+  model: ModelConfig;
   embedding: EmbeddingConfig;
   access?: AccessMap;
 }
@@ -215,6 +234,8 @@ export interface ProjectConfig {
   graphMemory: string;
   excludePattern: string;
   chunkDepth: number;
+  maxFileSize: number;
+  model: ModelConfig;
   embedding: EmbeddingConfig;
   graphConfigs: Record<GraphName, GraphConfig>;
   author: AuthorConfig;
@@ -227,10 +248,12 @@ export interface WorkspaceConfig {
   projects: string[];
   graphMemory: string;
   mirrorDir: string;
+  model: ModelConfig;
   embedding: EmbeddingConfig;
   graphConfigs: Record<WsGraphName, GraphConfig>;
   author: AuthorConfig;
   access?: AccessMap;
+  maxFileSize?: number;
 }
 
 export interface MultiConfig {
@@ -260,15 +283,24 @@ export function formatAuthor(author: AuthorConfig): string {
 // Defaults
 // ---------------------------------------------------------------------------
 
-const EMBEDDING_DEFAULTS: EmbeddingConfig = {
-  model:          'Xenova/bge-m3',
+const MODEL_DEFAULTS: ModelConfig = {
+  name:           'Xenova/bge-m3',
   pooling:        'cls',
   normalize:      true,
   queryPrefix:    '',
   documentPrefix: '',
+};
+
+const EMBEDDING_DEFAULTS: EmbeddingConfig = {
   batchSize:      1,
   maxChars:       8000,
   cacheSize:      10_000,
+};
+
+const RATE_LIMIT_DEFAULTS: RateLimitConfig = {
+  global: 600,
+  search: 120,
+  auth:   10,
 };
 
 const SERVER_DEFAULTS: Omit<ServerConfig, 'embedding'> & { embedding: EmbeddingConfig } = {
@@ -276,10 +308,13 @@ const SERVER_DEFAULTS: Omit<ServerConfig, 'embedding'> & { embedding: EmbeddingC
   port:            3000,
   sessionTimeout:  1800,
   modelsDir:       path.join(HOME, '.graph-memory/models'),
+  model:           MODEL_DEFAULTS,
   embedding:       EMBEDDING_DEFAULTS,
   defaultAccess:   'rw',
   accessTokenTtl:  '15m',
   refreshTokenTtl: '7d',
+  rateLimit:       RATE_LIMIT_DEFAULTS,
+  maxFileSize:     1 * 1024 * 1024,  // 1 MB
 };
 
 const PROJECT_DEFAULTS = {
@@ -294,48 +329,38 @@ const PROJECT_DEFAULTS = {
 // ---------------------------------------------------------------------------
 
 /**
- * Merge embedding configs with inheritance:
- *   override fields → base fields → defaults.
+ * Resolve ModelConfig: take the whole object from the first level that defines it.
+ * If undefined, returns parent (next level up the chain).
  */
-function mergeEmbeddingConfig(
-  base: EmbeddingConfig,
-  override?: Partial<EmbeddingConfig>,
-): EmbeddingConfig {
-  if (!override) return base;
+function resolveModel(
+  raw: z.infer<typeof modelConfigSchema> | undefined,
+  parent: ModelConfig,
+): ModelConfig {
+  if (!raw) return parent;
   return {
-    model:          override.model          ?? base.model,
-    pooling:        override.pooling        ?? base.pooling,
-    normalize:      override.normalize      ?? base.normalize,
-    dtype:          override.dtype          ?? base.dtype,
-    queryPrefix:    override.queryPrefix    ?? base.queryPrefix,
-    documentPrefix: override.documentPrefix ?? base.documentPrefix,
-    batchSize:      override.batchSize      ?? base.batchSize,
-    maxChars:       override.maxChars       ?? base.maxChars,
-    cacheSize:      override.cacheSize      ?? base.cacheSize,
+    name:           raw.name,
+    pooling:        raw.pooling         ?? MODEL_DEFAULTS.pooling,
+    normalize:      raw.normalize       ?? MODEL_DEFAULTS.normalize,
+    dtype:          raw.dtype,
+    queryPrefix:    raw.queryPrefix     ?? MODEL_DEFAULTS.queryPrefix,
+    documentPrefix: raw.documentPrefix  ?? MODEL_DEFAULTS.documentPrefix,
   };
 }
 
 /**
- * Resolve a full EmbeddingConfig from the Zod-parsed raw embedding object,
- * falling back to defaults for missing fields.
+ * Resolve EmbeddingConfig: each field individually inherits up the chain.
  */
-function resolveEmbeddingConfig(
+function resolveEmbedding(
   raw: z.infer<typeof embeddingConfigSchema> | undefined,
-  fallback: EmbeddingConfig,
+  parent: EmbeddingConfig,
 ): EmbeddingConfig {
-  if (!raw) return fallback;
+  if (!raw) return parent;
   return {
-    model:          raw.model,
-    pooling:        raw.pooling         ?? fallback.pooling,
-    normalize:      raw.normalize       ?? fallback.normalize,
-    dtype:          raw.dtype           ?? fallback.dtype,
-    queryPrefix:    raw.queryPrefix     ?? fallback.queryPrefix,
-    documentPrefix: raw.documentPrefix  ?? fallback.documentPrefix,
-    batchSize:      raw.batchSize       ?? fallback.batchSize,
-    maxChars:       raw.maxChars        ?? fallback.maxChars,
-    cacheSize:      raw.cacheSize       ?? fallback.cacheSize,
-    remote:         raw.remote          ?? fallback.remote,
-    remoteApiKey:   raw.remoteApiKey    ?? fallback.remoteApiKey,
+    batchSize:      raw.batchSize       ?? parent.batchSize,
+    maxChars:       raw.maxChars        ?? parent.maxChars,
+    cacheSize:      raw.cacheSize       ?? parent.cacheSize,
+    remote:         raw.remote          ?? parent.remote,
+    remoteApiKey:   raw.remoteApiKey    ?? parent.remoteApiKey,
   };
 }
 
@@ -355,7 +380,9 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
   const srv = validated.server ?? {};
   const globalAuthor: AuthorConfig = validated.author ?? AUTHOR_DEFAULT;
 
-  const globalEmbedding = resolveEmbeddingConfig(srv.embedding, EMBEDDING_DEFAULTS);
+  // Server-level: model + embedding
+  const serverModel = resolveModel(srv.model, MODEL_DEFAULTS);
+  const serverEmbedding = resolveEmbedding(srv.embedding, EMBEDDING_DEFAULTS);
 
   const server: ServerConfig = {
     host:            srv.host            ?? SERVER_DEFAULTS.host,
@@ -363,13 +390,20 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
     sessionTimeout:  srv.sessionTimeout  ?? SERVER_DEFAULTS.sessionTimeout,
     modelsDir:       path.resolve(srv.modelsDir ?? SERVER_DEFAULTS.modelsDir),
     corsOrigins:     srv.corsOrigins,
-    embedding:       globalEmbedding,
+    model:           serverModel,
+    embedding:       serverEmbedding,
     embeddingApi:    srv.embeddingApi ? { enabled: !!srv.embeddingApi.enabled, apiKey: srv.embeddingApi.apiKey } : undefined,
     defaultAccess:   srv.defaultAccess   ?? SERVER_DEFAULTS.defaultAccess,
     access:          srv.access          ?? undefined,
     jwtSecret:       srv.jwtSecret,
     accessTokenTtl:  srv.accessTokenTtl  ?? SERVER_DEFAULTS.accessTokenTtl,
     refreshTokenTtl: srv.refreshTokenTtl ?? SERVER_DEFAULTS.refreshTokenTtl,
+    rateLimit: {
+      global: srv.rateLimit?.global ?? RATE_LIMIT_DEFAULTS.global,
+      search: srv.rateLimit?.search ?? RATE_LIMIT_DEFAULTS.search,
+      auth:   srv.rateLimit?.auth   ?? RATE_LIMIT_DEFAULTS.auth,
+    },
+    maxFileSize:     srv.maxFileSize     ?? SERVER_DEFAULTS.maxFileSize,
   };
 
   // Users
@@ -388,55 +422,23 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
       ? path.resolve(projectDir, raw.graphMemory)
       : path.join(projectDir, '.graph-memory');
 
-    // Project-level embedding (inherits from server)
-    const projectEmbedding = resolveEmbeddingConfig(raw.embedding, globalEmbedding);
+    // Project-level: model (whole object) + embedding (per-field), inherits from server
+    const projectModel = resolveModel(raw.model, serverModel);
+    const projectEmbedding = resolveEmbedding(raw.embedding, serverEmbedding);
 
-    // Backward compat: migrate old flat fields into graphs config
     const rawGraphs = raw.graphs ?? {};
-
-    // Migrate docsPattern → graphs.docs.pattern
-    if (raw.docsPattern !== undefined && !rawGraphs.docs?.pattern) {
-      if (!rawGraphs.docs) (rawGraphs as any).docs = {};
-      if (raw.docsPattern === '') {
-        (rawGraphs as any).docs.enabled = false;
-      } else {
-        (rawGraphs as any).docs.pattern = raw.docsPattern;
-      }
-    }
-    // Migrate codePattern → graphs.code.pattern
-    if (raw.codePattern !== undefined && !rawGraphs.code?.pattern) {
-      if (!rawGraphs.code) (rawGraphs as any).code = {};
-      if (raw.codePattern === '') {
-        (rawGraphs as any).code.enabled = false;
-      } else {
-        (rawGraphs as any).code.pattern = raw.codePattern;
-      }
-    }
 
     // Resolve per-graph configs
     const graphConfigs = {} as Record<GraphName, GraphConfig>;
     for (const gn of GRAPH_NAMES) {
       const gc = rawGraphs[gn as keyof typeof rawGraphs];
 
-      // Resolve embedding: first-defined-wins (graph → project → server), no field merge
-      // Check for legacy flat fields (model, pooling, etc.) and wrap into embedding
-      let graphEmbedding: EmbeddingConfig | undefined;
-      if (gc?.embedding) {
-        graphEmbedding = resolveEmbeddingConfig(gc.embedding, EMBEDDING_DEFAULTS);
-      } else if (gc?.model) {
-        // Legacy: flat partial embedding fields at graph level — merge with project
-        graphEmbedding = mergeEmbeddingConfig(projectEmbedding, {
-          model: gc.model, pooling: gc.pooling, normalize: gc.normalize,
-          dtype: gc.dtype, queryPrefix: gc.queryPrefix,
-          documentPrefix: gc.documentPrefix, batchSize: gc.batchSize,
-        });
-      }
-
       graphConfigs[gn] = {
         enabled: gc?.enabled ?? true,
         pattern: gc?.pattern ?? (gn === 'docs' ? PROJECT_DEFAULTS.docsPattern : gn === 'code' ? PROJECT_DEFAULTS.codePattern : undefined),
         excludePattern: gc?.excludePattern,
-        embedding: graphEmbedding ?? projectEmbedding,
+        model: resolveModel(gc?.model, projectModel),
+        embedding: resolveEmbedding(gc?.embedding, projectEmbedding),
         access: gc?.access ?? undefined,
       };
     }
@@ -446,6 +448,8 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
       graphMemory,
       excludePattern:  raw.excludePattern  ?? PROJECT_DEFAULTS.excludePattern,
       chunkDepth:      raw.chunkDepth      ?? PROJECT_DEFAULTS.chunkDepth,
+      maxFileSize:     raw.maxFileSize     ?? -1, // -1 = unset, resolved after workspace parsing
+      model:           projectModel,
       embedding:       projectEmbedding,
       graphConfigs,
       author:          raw.author          ?? globalAuthor,
@@ -458,12 +462,9 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
 
   if (validated.workspaces) {
     for (const [wsId, raw] of Object.entries(validated.workspaces)) {
-      // Validate that all referenced projects exist
       for (const projId of raw.projects) {
         if (!projects.has(projId)) {
-          throw new Error(
-            `Workspace "${wsId}" references unknown project "${projId}"`,
-          );
+          throw new Error(`Workspace "${wsId}" references unknown project "${projId}"`);
         }
       }
 
@@ -475,8 +476,9 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
         ? path.resolve(raw.mirrorDir)
         : graphMemory;
 
-      // Workspace-level embedding (inherits from server)
-      const wsEmbedding = resolveEmbeddingConfig(raw.embedding, globalEmbedding);
+      // Workspace-level: model + embedding, inherits from server
+      const wsModel = resolveModel(raw.model, serverModel);
+      const wsEmbedding = resolveEmbedding(raw.embedding, serverEmbedding);
 
       // Per-graph configs for workspace's shared graphs (knowledge, tasks, skills)
       const rawGraphs = raw.graphs ?? {};
@@ -485,19 +487,11 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
 
       for (const gn of WS_GRAPH_NAMES) {
         const gc = rawGraphs[gn];
-        let graphEmbedding: EmbeddingConfig | undefined;
-        if (gc?.embedding) {
-          graphEmbedding = resolveEmbeddingConfig(gc.embedding, EMBEDDING_DEFAULTS);
-        } else if (gc?.model) {
-          graphEmbedding = mergeEmbeddingConfig(wsEmbedding, {
-            model: gc.model, pooling: gc.pooling, normalize: gc.normalize,
-            dtype: gc.dtype, queryPrefix: gc.queryPrefix,
-            documentPrefix: gc.documentPrefix, batchSize: gc.batchSize,
-          });
-        }
         graphConfigs[gn] = {
           enabled: gc?.enabled ?? true,
-          embedding: graphEmbedding ?? wsEmbedding,
+          model: resolveModel(gc?.model, wsModel),
+          embedding: resolveEmbedding(gc?.embedding, wsEmbedding),
+          access: gc?.access ?? undefined,
         };
       }
 
@@ -505,11 +499,25 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
         projects:       raw.projects,
         graphMemory,
         mirrorDir,
+        model:          wsModel,
         embedding:      wsEmbedding,
         graphConfigs,
         author:         raw.author ?? globalAuthor,
         access:         raw.access ?? undefined,
+        maxFileSize:    raw.maxFileSize,
       });
+    }
+  }
+
+  // --- Resolve maxFileSize: project → workspace → server ---
+  const wsForProject = new Map<string, WorkspaceConfig>();
+  for (const ws of workspaces.values()) {
+    for (const pid of ws.projects) wsForProject.set(pid, ws);
+  }
+  for (const [pid, proj] of projects) {
+    if (proj.maxFileSize === -1) {
+      const ws = wsForProject.get(pid);
+      proj.maxFileSize = ws?.maxFileSize ?? server.maxFileSize;
     }
   }
 

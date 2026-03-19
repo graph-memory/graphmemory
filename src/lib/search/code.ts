@@ -51,9 +51,9 @@ export function searchCode(
 
   if (useBm25) {
     const bm25Scores = bm25Index!.score(queryText!);
-    const positiveScored = useVector ? scored.filter(s => s.score > 0) : [];
-    if (positiveScored.length > 0) {
-      const vectorMap = new Map(positiveScored.map(s => [s.id, s.score]));
+    if (useVector && scored.length > 0) {
+      // RRF fusion of vector and BM25 — include all vector results (not just positive)
+      const vectorMap = new Map(scored.map(s => [s.id, s.score]));
       const fused = rrfFuse(vectorMap, bm25Scores, rrfK);
       scored.length = 0;
       for (const [id, score] of fused) scored.push({ id, score });

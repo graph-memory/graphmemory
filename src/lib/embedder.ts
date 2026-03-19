@@ -1,7 +1,7 @@
 import { pipeline, env, type FeatureExtractionPipeline } from '@huggingface/transformers';
 import fs from 'fs';
 import path from 'path';
-import type { EmbeddingConfig } from '@/lib/multi-config';
+import type { ModelConfig, EmbeddingConfig } from '@/lib/multi-config';
 
 // ---------------------------------------------------------------------------
 // LRU cache for embedding vectors (avoids re-computing identical texts)
@@ -42,13 +42,14 @@ class LruCache<V> {
 
 interface ModelEntry {
   pipe: FeatureExtractionPipeline | null;  // null for remote models
-  config: EmbeddingConfig;
+  model: ModelConfig;
+  embedding: EmbeddingConfig;
   maxChars: number;
   cache: LruCache<number[]>;
   remote?: { url: string; apiKey?: string };
 }
 
-const _models = new Map<string, ModelEntry>();                     // name → { pipe, config }
+const _models = new Map<string, ModelEntry>();                     // name → { pipe, model, embedding }
 const _pipeCache = new Map<string, FeatureExtractionPipeline>();   // "model|dtype" → pipe (dedup)
 
 function validateRemoteUrl(url: string): void {
@@ -60,43 +61,46 @@ function validateRemoteUrl(url: string): void {
 }
 
 export async function loadModel(
-  config: EmbeddingConfig, modelsDir: string, maxChars: number, name = 'default',
+  model: ModelConfig, embedding: EmbeddingConfig, modelsDir: string, name = 'default',
 ): Promise<void> {
+  const maxChars = embedding.maxChars;
+  const cacheSize = embedding.cacheSize ?? DEFAULT_CACHE_SIZE;
+
   // Remote embedding: register proxy, skip ONNX loading
-  if (config.remote) {
-    validateRemoteUrl(config.remote);
-    _models.set(name, { pipe: null, config, maxChars, cache: new LruCache(config.cacheSize ?? DEFAULT_CACHE_SIZE), remote: { url: config.remote, apiKey: config.remoteApiKey } });
-    process.stderr.write(`[embedder] Model "${name}" using remote endpoint ${config.remote}\n`);
+  if (embedding.remote) {
+    validateRemoteUrl(embedding.remote);
+    _models.set(name, { pipe: null, model, embedding, maxChars, cache: new LruCache(cacheSize), remote: { url: embedding.remote, apiKey: embedding.remoteApiKey } });
+    process.stderr.write(`[embedder] Model "${name}" using remote endpoint ${embedding.remote}\n`);
     return;
   }
 
   // Cache key includes dtype since same model with different dtype = different pipeline
-  const cacheKey = `${config.model}|${config.dtype ?? ''}`;
+  const cacheKey = `${model.name}|${model.dtype ?? ''}`;
 
   // Reuse pipeline if same model+dtype already loaded
   const cached = _pipeCache.get(cacheKey);
   if (cached) {
-    _models.set(name, { pipe: cached, config, maxChars, cache: new LruCache(config.cacheSize ?? DEFAULT_CACHE_SIZE) });
-    process.stderr.write(`[embedder] Reusing model ${config.model} for "${name}"\n`);
+    _models.set(name, { pipe: cached, model, embedding, maxChars, cache: new LruCache(cacheSize) });
+    process.stderr.write(`[embedder] Reusing model ${model.name} for "${name}"\n`);
     return;
   }
 
   env.cacheDir = modelsDir;
-  const modelDir = path.join(modelsDir, config.model.replace('/', path.sep));
+  const modelDir = path.join(modelsDir, model.name.replace('/', path.sep));
   if (fs.existsSync(modelDir)) {
     env.allowRemoteModels = false;
     process.stderr.write(`[embedder] Using local model at ${modelDir}\n`);
   } else {
     env.allowRemoteModels = true;
-    process.stderr.write(`[embedder] Downloading model ${config.model} to ${modelsDir}...\n`);
+    process.stderr.write(`[embedder] Downloading model ${model.name} to ${modelsDir}...\n`);
   }
 
   const pipeOpts: Record<string, unknown> = {};
-  if (config.dtype) pipeOpts.dtype = config.dtype;
+  if (model.dtype) pipeOpts.dtype = model.dtype;
 
-  const pipe = await pipeline('feature-extraction', config.model, pipeOpts);
+  const pipe = await pipeline('feature-extraction', model.name, pipeOpts);
   _pipeCache.set(cacheKey, pipe);
-  _models.set(name, { pipe, config, maxChars, cache: new LruCache(config.cacheSize ?? DEFAULT_CACHE_SIZE) });
+  _models.set(name, { pipe, model, embedding, maxChars, cache: new LruCache(cacheSize) });
   process.stderr.write(`[embedder] Model "${name}" ready\n`);
 }
 
@@ -104,20 +108,51 @@ export async function loadModel(
 // Remote embedding HTTP client
 // ---------------------------------------------------------------------------
 
+const REMOTE_MAX_RETRIES = 3;
+const REMOTE_BASE_DELAY_MS = 200;
+
 async function remoteEmbed(url: string, texts: string[], apiKey?: string): Promise<number[][]> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ texts }),
-  });
-  if (!resp.ok) {
-    const body = (await resp.text()).slice(0, 500);
-    throw new Error(`Remote embed failed (${resp.status}): ${body}`);
+  const body = JSON.stringify({ texts });
+
+  for (let attempt = 0; attempt < REMOTE_MAX_RETRIES; attempt++) {
+    let resp: Response;
+    try {
+      resp = await fetch(url, { method: 'POST', headers, body });
+    } catch (err) {
+      // Network error — retry
+      if (attempt < REMOTE_MAX_RETRIES - 1) {
+        const delay = REMOTE_BASE_DELAY_MS * 2 ** attempt;
+        await new Promise(r => setTimeout(r, delay));
+        continue;
+      }
+      throw new Error(`Remote embed network error after ${REMOTE_MAX_RETRIES} attempts: ${err}`);
+    }
+
+    if (resp.ok) {
+      const data = await resp.json() as { embeddings: number[][] };
+      return data.embeddings;
+    }
+
+    // Client errors (4xx) — don't retry
+    if (resp.status < 500) {
+      const respBody = (await resp.text()).slice(0, 500);
+      throw new Error(`Remote embed failed (${resp.status}): ${respBody}`);
+    }
+
+    // Server errors (5xx) — retry
+    if (attempt < REMOTE_MAX_RETRIES - 1) {
+      const delay = REMOTE_BASE_DELAY_MS * 2 ** attempt;
+      await new Promise(r => setTimeout(r, delay));
+      continue;
+    }
+
+    const respBody = (await resp.text()).slice(0, 500);
+    throw new Error(`Remote embed failed after ${REMOTE_MAX_RETRIES} attempts (${resp.status}): ${respBody}`);
   }
-  const data = await resp.json() as { embeddings: number[][] };
-  return data.embeddings;
+
+  throw new Error('Remote embed: unreachable');
 }
 
 function getEntry(modelName: string): ModelEntry {
@@ -130,7 +165,7 @@ function getEntry(modelName: string): ModelEntry {
 export async function embed(title: string, content: string, modelName = 'default'): Promise<number[]> {
   const entry = getEntry(modelName);
   const raw = `${title}\n${content}`;
-  const text = `${entry.config.documentPrefix}${raw}`.slice(0, entry.maxChars);
+  const text = `${entry.model.documentPrefix}${raw}`.slice(0, entry.maxChars);
 
   const cached = entry.cache.get(text);
   if (cached) return cached;
@@ -139,7 +174,7 @@ export async function embed(title: string, content: string, modelName = 'default
   if (entry.remote) {
     [vec] = await remoteEmbed(entry.remote.url, [text], entry.remote.apiKey);
   } else {
-    const tensor = await entry.pipe!._call(text, { pooling: entry.config.pooling, normalize: entry.config.normalize });
+    const tensor = await entry.pipe!._call(text, { pooling: entry.model.pooling, normalize: entry.model.normalize });
     vec = Array.from(tensor.data as Float32Array);
   }
   entry.cache.set(text, vec);
@@ -149,7 +184,7 @@ export async function embed(title: string, content: string, modelName = 'default
 /** Embed a search query. Applies queryPrefix and configured pooling. */
 export async function embedQuery(query: string, modelName = 'default'): Promise<number[]> {
   const entry = getEntry(modelName);
-  const text = `${entry.config.queryPrefix}${query}`.slice(0, entry.maxChars);
+  const text = `${entry.model.queryPrefix}${query}`.slice(0, entry.maxChars);
 
   const cached = entry.cache.get(text);
   if (cached) return cached;
@@ -158,7 +193,7 @@ export async function embedQuery(query: string, modelName = 'default'): Promise<
   if (entry.remote) {
     [vec] = await remoteEmbed(entry.remote.url, [text], entry.remote.apiKey);
   } else {
-    const tensor = await entry.pipe!._call(text, { pooling: entry.config.pooling, normalize: entry.config.normalize });
+    const tensor = await entry.pipe!._call(text, { pooling: entry.model.pooling, normalize: entry.model.normalize });
     vec = Array.from(tensor.data as Float32Array);
   }
   entry.cache.set(text, vec);
@@ -174,7 +209,7 @@ export async function embedBatch(
   if (inputs.length === 1) return [await embed(inputs[0].title, inputs[0].content, modelName)];
 
   const texts = inputs.map(({ title, content }) =>
-    `${entry.config.documentPrefix}${title}\n${content}`.slice(0, entry.maxChars),
+    `${entry.model.documentPrefix}${title}\n${content}`.slice(0, entry.maxChars),
   );
 
   // Check cache: split into hits and misses
@@ -190,10 +225,10 @@ export async function embedBatch(
     missVecs = await remoteEmbed(entry.remote.url, missTexts, entry.remote.apiKey);
   } else {
     missVecs = [];
-    const batchSize = entry.config.batchSize;
+    const batchSize = entry.embedding.batchSize;
     for (let start = 0; start < missTexts.length; start += batchSize) {
       const chunk = missTexts.slice(start, start + batchSize);
-      const tensor = await entry.pipe!._call(chunk, { pooling: entry.config.pooling, normalize: entry.config.normalize });
+      const tensor = await entry.pipe!._call(chunk, { pooling: entry.model.pooling, normalize: entry.model.normalize });
       const dim = tensor.dims[1];
       const data = tensor.data as Float32Array;
       for (let i = 0; i < chunk.length; i++) {

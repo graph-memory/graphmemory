@@ -270,7 +270,7 @@ describe('MCP code tools', () => {
       });
 
       it('unknown query returns empty results', async () => {
-        const hits = json<CodeHit[]>(await call('search_code', { query: 'xyzzy unknown', topK: 5, minScore: 0.1 }));
+        const hits = json<CodeHit[]>(await call('search_code', { query: 'xyzzy unknown', topK: 5, minScore: 0.1, searchMode: 'keyword' }));
         expect(hits.length).toBe(0);
       });
     });

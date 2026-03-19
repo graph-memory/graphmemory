@@ -69,10 +69,13 @@ export function cleanupProxies(
   graph: KnowledgeGraph,
   targetGraph: CrossGraphType,
   externalGraph: DirectedGraph,
+  projectId?: string,
 ): void {
   const toRemove: string[] = [];
   graph.forEachNode((id, attrs: KnowledgeNodeAttributes) => {
     if (attrs.proxyFor && attrs.proxyFor.graph === targetGraph) {
+      // In workspace mode, only clean proxies belonging to this project
+      if (projectId && attrs.proxyFor.projectId && attrs.proxyFor.projectId !== projectId) return;
       if (!externalGraph.hasNode(attrs.proxyFor.nodeId)) {
         toRemove.push(id);
       }

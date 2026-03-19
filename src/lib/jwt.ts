@@ -66,6 +66,7 @@ export function parseTtl(ttl: string): number {
   const match = ttl.match(/^(\d+)(s|m|h|d)$/);
   if (!match) throw new Error(`Invalid TTL format: "${ttl}". Expected e.g. "15m", "1h", "7d"`);
   const value = parseInt(match[1], 10);
+  if (value <= 0) throw new Error(`TTL must be positive, got "${ttl}"`);
   switch (match[2]) {
     case 's': return value;
     case 'm': return value * 60;

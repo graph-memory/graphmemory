@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import crypto from 'crypto';
 import { serializeMarkdown } from './frontmatter';
 import type { KnowledgeNodeAttributes } from '../graphs/knowledge-types';
 import type { TaskNodeAttributes } from '../graphs/task-types';
@@ -12,6 +13,13 @@ import {
   type CreatedTaskEvent,
   type CreatedSkillEvent,
 } from './events-log';
+
+/** Write to a temp file then rename — atomic on same filesystem. */
+function atomicWriteFileSync(filePath: string, data: string | Buffer, encoding?: BufferEncoding): void {
+  const tmp = `${filePath}.${crypto.randomBytes(4).toString('hex')}.tmp`;
+  fs.writeFileSync(tmp, data, encoding);
+  fs.renameSync(tmp, filePath);
+}
 
 export interface RelationFrontmatter {
   to: string;
@@ -71,7 +79,7 @@ export function mirrorNoteCreate(
       appendEvent(eventsPath, event);
     }
 
-    fs.writeFileSync(path.join(entityDir, 'content.md'), attrs.content, 'utf-8');
+    atomicWriteFileSync(path.join(entityDir, 'content.md'), attrs.content, 'utf-8');
     _regenerateNoteSnapshot(notesDir, noteId, attrs, relations);
     ensureGitignore(notesDir, '*/note.md');
     ensureGitattributes(notesDir);
@@ -102,7 +110,7 @@ export function mirrorNoteUpdate(
     if (Object.keys(delta).length > 1) appendEvent(eventsPath, delta as Parameters<typeof appendEvent>[1]);
 
     if (patch.content !== undefined) {
-      fs.writeFileSync(path.join(entityDir, 'content.md'), patch.content, 'utf-8');
+      atomicWriteFileSync(path.join(entityDir, 'content.md'), patch.content, 'utf-8');
     }
     _regenerateNoteSnapshot(notesDir, noteId, attrs, relations);
   } catch (err) {
@@ -131,7 +139,7 @@ function _regenerateNoteSnapshot(
   const body = `# ${attrs.title}\n\n${attrs.content}`;
   const entityDir = path.join(notesDir, noteId);
   fs.mkdirSync(entityDir, { recursive: true });
-  fs.writeFileSync(path.join(entityDir, 'note.md'), serializeMarkdown(fm, body));
+  atomicWriteFileSync(path.join(entityDir, 'note.md'), serializeMarkdown(fm, body));
 }
 
 // ---------------------------------------------------------------------------
@@ -169,7 +177,7 @@ export function mirrorTaskCreate(
       appendEvent(eventsPath, event);
     }
 
-    fs.writeFileSync(path.join(entityDir, 'description.md'), attrs.description, 'utf-8');
+    atomicWriteFileSync(path.join(entityDir, 'description.md'), attrs.description, 'utf-8');
     _regenerateTaskSnapshot(tasksDir, taskId, attrs, relations);
     ensureGitignore(tasksDir, '*/task.md');
     ensureGitattributes(tasksDir);
@@ -205,7 +213,7 @@ export function mirrorTaskUpdate(
     if (Object.keys(delta).length > 1) appendEvent(eventsPath, delta as Parameters<typeof appendEvent>[1]);
 
     if (patch.description !== undefined) {
-      fs.writeFileSync(path.join(entityDir, 'description.md'), patch.description, 'utf-8');
+      atomicWriteFileSync(path.join(entityDir, 'description.md'), patch.description, 'utf-8');
     }
     _regenerateTaskSnapshot(tasksDir, taskId, attrs, relations);
   } catch (err) {
@@ -240,7 +248,7 @@ function _regenerateTaskSnapshot(
   const body = `# ${attrs.title}\n\n${attrs.description}`;
   const entityDir = path.join(tasksDir, taskId);
   fs.mkdirSync(entityDir, { recursive: true });
-  fs.writeFileSync(path.join(entityDir, 'task.md'), serializeMarkdown(fm, body));
+  atomicWriteFileSync(path.join(entityDir, 'task.md'), serializeMarkdown(fm, body));
 }
 
 // ---------------------------------------------------------------------------
@@ -281,7 +289,7 @@ export function mirrorSkillCreate(
       appendEvent(eventsPath, event);
     }
 
-    fs.writeFileSync(path.join(entityDir, 'description.md'), attrs.description, 'utf-8');
+    atomicWriteFileSync(path.join(entityDir, 'description.md'), attrs.description, 'utf-8');
     _regenerateSkillSnapshot(skillsDir, skillId, attrs, relations);
     ensureGitignore(skillsDir, '*/skill.md');
     ensureGitattributes(skillsDir);
@@ -320,7 +328,7 @@ export function mirrorSkillUpdate(
     if (Object.keys(delta).length > 1) appendEvent(eventsPath, delta as Parameters<typeof appendEvent>[1]);
 
     if (patch.description !== undefined) {
-      fs.writeFileSync(path.join(entityDir, 'description.md'), patch.description, 'utf-8');
+      atomicWriteFileSync(path.join(entityDir, 'description.md'), patch.description, 'utf-8');
     }
     _regenerateSkillSnapshot(skillsDir, skillId, attrs, relations);
   } catch (err) {
@@ -357,7 +365,7 @@ function _regenerateSkillSnapshot(
   const body = `# ${attrs.title}\n\n${attrs.description}${stepsBlock}`;
   const entityDir = path.join(skillsDir, skillId);
   fs.mkdirSync(entityDir, { recursive: true });
-  fs.writeFileSync(path.join(entityDir, 'skill.md'), serializeMarkdown(fm, body));
+  atomicWriteFileSync(path.join(entityDir, 'skill.md'), serializeMarkdown(fm, body));
 }
 
 // ---------------------------------------------------------------------------
@@ -466,18 +474,21 @@ export function deleteMirrorDir(dir: string, id: string): void {
 
 /** Sanitize a filename: strip path separators, .., and null bytes. */
 export function sanitizeFilename(name: string): string {
-  return name
+  const sanitized = name
     .replace(/\0/g, '')
     .replace(/\.\./g, '')
     .replace(/[/\\]/g, '')
     .trim();
+  return sanitized; // empty string is a valid return — callers must check
 }
 
 /** Write an attachment file to the entity's attachments/ subdirectory. */
 export function writeAttachment(baseDir: string, entityId: string, filename: string, data: Buffer): void {
+  const safe = sanitizeFilename(filename);
+  if (!safe) throw new Error('Attachment filename is empty after sanitization');
   const attachmentsDir = path.join(baseDir, entityId, 'attachments');
   fs.mkdirSync(attachmentsDir, { recursive: true });
-  fs.writeFileSync(path.join(attachmentsDir, sanitizeFilename(filename)), data);
+  fs.writeFileSync(path.join(attachmentsDir, safe), data);
 }
 
 /** Delete an attachment file from attachments/ subdir. Returns true if it existed. */

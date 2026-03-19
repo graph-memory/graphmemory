@@ -54,7 +54,7 @@ function resolveProject(configPath: string, projectId?: string): { id: string; p
 async function loadAllModels(projectId: string, config: ProjectConfig, modelsDir: string): Promise<void> {
   for (const gn of GRAPH_NAMES) {
     if (!config.graphConfigs[gn].enabled) continue;
-    await loadModel(config.graphConfigs[gn].embedding, modelsDir, config.graphConfigs[gn].embedding.maxChars, `${projectId}:${gn}`);
+    await loadModel(config.graphConfigs[gn].model, config.graphConfigs[gn].embedding, modelsDir, `${projectId}:${gn}`);
   }
 }
 
@@ -247,12 +247,12 @@ program
     const gc = project.graphConfigs;
 
     // Load persisted graphs (or create fresh ones if reindexing / model changed) and start MCP server immediately
-    const docGraph  = gc.docs.enabled ? loadGraph(project.graphMemory, fresh, embeddingFingerprint(gc.docs.embedding)) : undefined;
-    const codeGraph = gc.code.enabled ? loadCodeGraph(project.graphMemory, fresh, embeddingFingerprint(gc.code.embedding)) : undefined;
-    const knowledgeGraph = gc.knowledge.enabled ? loadKnowledgeGraph(project.graphMemory, fresh, embeddingFingerprint(gc.knowledge.embedding)) : undefined;
-    const fileIndexGraph = gc.files.enabled ? loadFileIndexGraph(project.graphMemory, fresh, embeddingFingerprint(gc.files.embedding)) : undefined;
-    const taskGraph = gc.tasks.enabled ? loadTaskGraph(project.graphMemory, fresh, embeddingFingerprint(gc.tasks.embedding)) : undefined;
-    const skillGraph = gc.skills.enabled ? loadSkillGraph(project.graphMemory, fresh, embeddingFingerprint(gc.skills.embedding)) : undefined;
+    const docGraph  = gc.docs.enabled ? loadGraph(project.graphMemory, fresh, embeddingFingerprint(gc.docs.model)) : undefined;
+    const codeGraph = gc.code.enabled ? loadCodeGraph(project.graphMemory, fresh, embeddingFingerprint(gc.code.model)) : undefined;
+    const knowledgeGraph = gc.knowledge.enabled ? loadKnowledgeGraph(project.graphMemory, fresh, embeddingFingerprint(gc.knowledge.model)) : undefined;
+    const fileIndexGraph = gc.files.enabled ? loadFileIndexGraph(project.graphMemory, fresh, embeddingFingerprint(gc.files.model)) : undefined;
+    const taskGraph = gc.tasks.enabled ? loadTaskGraph(project.graphMemory, fresh, embeddingFingerprint(gc.tasks.model)) : undefined;
+    const skillGraph = gc.skills.enabled ? loadSkillGraph(project.graphMemory, fresh, embeddingFingerprint(gc.skills.model)) : undefined;
 
     const embedFns = buildEmbedFns(id);
     const sessionCtx: McpSessionContext = { projectId: id };
@@ -266,6 +266,7 @@ program
       await loadAllModels(id, project, server.modelsDir);
 
       indexer = createProjectIndexer(docGraph, codeGraph, {
+        projectId: id,
         projectDir,
         docsPattern:         gc.docs.enabled ? gc.docs.pattern : undefined,
         codePattern:         gc.code.enabled ? gc.code.pattern : undefined,
@@ -273,6 +274,7 @@ program
         codeExcludePattern:  gc.code.excludePattern ?? project.excludePattern ?? undefined,
         filesExcludePattern: gc.files.excludePattern ?? project.excludePattern ?? undefined,
         chunkDepth:          project.chunkDepth,
+        maxFileSize:         project.maxFileSize,
         docsModelName:       `${id}:docs`,
         codeModelName:       `${id}:code`,
         filesModelName:      `${id}:files`,
@@ -283,17 +285,17 @@ program
       await indexer.drain();
 
       if (docGraph) {
-        saveGraph(docGraph, project.graphMemory, embeddingFingerprint(gc.docs.embedding));
+        saveGraph(docGraph, project.graphMemory, embeddingFingerprint(gc.docs.model));
         process.stderr.write(`[mcp] Docs indexed. ${docGraph.order} nodes, ${docGraph.size} edges.\n`);
       }
 
       if (codeGraph) {
-        saveCodeGraph(codeGraph, project.graphMemory, embeddingFingerprint(gc.code.embedding));
+        saveCodeGraph(codeGraph, project.graphMemory, embeddingFingerprint(gc.code.model));
         process.stderr.write(`[mcp] Code indexed. ${codeGraph.order} nodes, ${codeGraph.size} edges.\n`);
       }
 
       if (fileIndexGraph) {
-        saveFileIndexGraph(fileIndexGraph, project.graphMemory, embeddingFingerprint(gc.files.embedding));
+        saveFileIndexGraph(fileIndexGraph, project.graphMemory, embeddingFingerprint(gc.files.model));
         process.stderr.write(`[mcp] File index done. ${fileIndexGraph.order} nodes, ${fileIndexGraph.size} edges.\n`);
       }
     }
@@ -317,11 +319,11 @@ program
       try {
         if (watcher) await watcher.close();
         if (indexer) await indexer.drain();
-        if (docGraph) saveGraph(docGraph, project.graphMemory, embeddingFingerprint(gc.docs.embedding));
-        if (codeGraph) saveCodeGraph(codeGraph, project.graphMemory, embeddingFingerprint(gc.code.embedding));
-        if (knowledgeGraph) saveKnowledgeGraph(knowledgeGraph, project.graphMemory, embeddingFingerprint(gc.knowledge.embedding));
-        if (fileIndexGraph) saveFileIndexGraph(fileIndexGraph, project.graphMemory, embeddingFingerprint(gc.files.embedding));
-        if (taskGraph) saveTaskGraph(taskGraph, project.graphMemory, embeddingFingerprint(gc.tasks.embedding));
+        if (docGraph) saveGraph(docGraph, project.graphMemory, embeddingFingerprint(gc.docs.model));
+        if (codeGraph) saveCodeGraph(codeGraph, project.graphMemory, embeddingFingerprint(gc.code.model));
+        if (knowledgeGraph) saveKnowledgeGraph(knowledgeGraph, project.graphMemory, embeddingFingerprint(gc.knowledge.model));
+        if (fileIndexGraph) saveFileIndexGraph(fileIndexGraph, project.graphMemory, embeddingFingerprint(gc.files.model));
+        if (taskGraph) saveTaskGraph(taskGraph, project.graphMemory, embeddingFingerprint(gc.tasks.model));
       } catch { /* ignore */ }
       clearTimeout(forceTimer);
       // Let event loop drain naturally — avoids ONNX global thread pool destructor crash on macOS
@@ -402,7 +404,7 @@ program
       // Load embedding API model if enabled
       if (embeddingApiModelName) {
         try {
-          await loadModel(mc.server.embedding, mc.server.modelsDir, 4000, embeddingApiModelName);
+          await loadModel(mc.server.model, mc.server.embedding, mc.server.modelsDir, embeddingApiModelName);
           process.stderr.write(`[serve] Embedding API model ready\n`);
         } catch (err: unknown) {
           process.stderr.write(`[serve] Failed to load embedding API model: ${err}\n`);

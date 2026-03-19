@@ -171,7 +171,9 @@ export async function parseCodeFile(
   // --- Import edges: file → imported file ---
   for (const imp of imports) {
     const targetAbsolute = resolveRelativeImport(absolutePath, imp.specifier);
-    if (!targetAbsolute || !targetAbsolute.startsWith(codeDir)) continue;
+    if (!targetAbsolute) continue;
+    const targetRel = path.relative(codeDir, targetAbsolute);
+    if (targetRel.startsWith('..') || path.isAbsolute(targetRel)) continue;
 
     const targetFileId = path.relative(codeDir, targetAbsolute);
     if (targetFileId !== fileNodeId) {

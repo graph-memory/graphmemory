@@ -24,13 +24,15 @@ function fakeEmbed(q: string): Promise<number[]> {
   return Promise.resolve(unitVec(q.length % DIM));
 }
 
-const TEST_EMBEDDING = { model: 'test', pooling: 'mean' as const, normalize: true, queryPrefix: '', documentPrefix: '', batchSize: 1, maxChars: 2000, cacheSize: 0 };
+const TEST_MODEL = { name: 'test', pooling: 'mean' as const, normalize: true, queryPrefix: '', documentPrefix: '' };
+const TEST_EMBEDDING = { batchSize: 1, maxChars: 2000, cacheSize: 0 };
 
 function testGraphConfigs() {
   return Object.fromEntries(
     ['docs', 'code', 'knowledge', 'tasks', 'files', 'skills'].map(g => [g, {
       enabled: true,
       pattern: g === 'docs' ? '**/*.md' : g === 'code' ? '**/*.ts' : undefined,
+      model: { ...TEST_MODEL },
       embedding: { ...TEST_EMBEDDING },
     }]),
   ) as any;
@@ -51,7 +53,8 @@ function createTestProject(): ProjectInstance {
       graphMemory: '/tmp/test/.graph-memory',
       excludePattern: 'node_modules/**',
       chunkDepth: 4,
-
+      maxFileSize: 1048576,
+      model: { ...TEST_MODEL },
       embedding: { ...TEST_EMBEDDING },
       graphConfigs: testGraphConfigs(),
       author: { name: '', email: '' },
@@ -485,7 +488,8 @@ describe('Attachment REST endpoints', () => {
         graphMemory: path.join(dir, '.graph-memory'),
         excludePattern: 'node_modules/**',
         chunkDepth: 4,
-  
+        maxFileSize: 1048576,
+        model: { ...TEST_MODEL },
         embedding: { ...TEST_EMBEDDING },
         graphConfigs: testGraphConfigs(),
         author: { name: '', email: '' },
@@ -758,10 +762,11 @@ describe('REST API — Auth & ACL', () => {
       serverConfig: {
         host: '127.0.0.1', port: 3000, sessionTimeout: 1800,
         modelsDir: '/tmp/models',
+        model: { ...TEST_MODEL },
         embedding: { ...TEST_EMBEDDING },
         defaultAccess: 'deny',
         access: { admin: 'rw' },
-        accessTokenTtl: '15m', refreshTokenTtl: '7d',
+        accessTokenTtl: '15m', refreshTokenTtl: '7d', rateLimit: { global: 0, search: 0, auth: 0 }, maxFileSize: 1048576,
       },
       users: {
         admin: { name: 'Admin', email: 'admin@test.com', apiKey: 'key-admin' },
@@ -805,10 +810,11 @@ describe('REST API — Auth & ACL', () => {
       serverConfig: {
         host: '127.0.0.1', port: 3000, sessionTimeout: 1800,
         modelsDir: '/tmp/models',
+        model: { ...TEST_MODEL },
         embedding: { ...TEST_EMBEDDING },
         defaultAccess: 'deny',
         access: { reader: 'r' },
-        accessTokenTtl: '15m', refreshTokenTtl: '7d',
+        accessTokenTtl: '15m', refreshTokenTtl: '7d', rateLimit: { global: 0, search: 0, auth: 0 }, maxFileSize: 1048576,
       },
       users: {
         reader: { name: 'Reader', email: 'reader@test.com', apiKey: 'key-reader' },
@@ -854,8 +860,9 @@ describe('REST API — Embedding API', () => {
   beforeEach(async () => {
     resetEmbedder();
     await loadModel(
-      { model: 'test', pooling: 'mean', normalize: true, queryPrefix: '', documentPrefix: '', batchSize: 1, maxChars: 4000, cacheSize: 0 },
-      '/tmp/models', 4000, EMBED_MODEL_NAME,
+      { name: 'test', pooling: 'mean', normalize: true, queryPrefix: '', documentPrefix: '' },
+      { batchSize: 1, maxChars: 4000, cacheSize: 0 },
+      '/tmp/models', EMBED_MODEL_NAME,
     );
 
     const project = createTestProject();
@@ -870,10 +877,11 @@ describe('REST API — Embedding API', () => {
       serverConfig: {
         host: '127.0.0.1', port: 3000, sessionTimeout: 1800,
         modelsDir: '/tmp/models',
+        model: { ...TEST_MODEL },
         embedding: { ...TEST_EMBEDDING },
         embeddingApi: { enabled: true, apiKey: 'emb-secret' },
         defaultAccess: 'rw',
-        accessTokenTtl: '15m', refreshTokenTtl: '7d',
+        accessTokenTtl: '15m', refreshTokenTtl: '7d', rateLimit: { global: 0, search: 0, auth: 0 }, maxFileSize: 1048576,
       },
       embeddingApiModelName: EMBED_MODEL_NAME,
     });
@@ -939,9 +947,10 @@ describe('REST API — Embedding API', () => {
       serverConfig: {
         host: '127.0.0.1', port: 3000, sessionTimeout: 1800,
         modelsDir: '/tmp/models',
+        model: { ...TEST_MODEL },
         embedding: { ...TEST_EMBEDDING },
         defaultAccess: 'rw',
-        accessTokenTtl: '15m', refreshTokenTtl: '7d',
+        accessTokenTtl: '15m', refreshTokenTtl: '7d', rateLimit: { global: 0, search: 0, auth: 0 }, maxFileSize: 1048576,
       },
     });
     const res = await request(noEmbedApp).post('/api/embed').send({ texts: ['test'] });
@@ -977,11 +986,12 @@ describe('REST API — JWT Cookie Auth', () => {
       serverConfig: {
         host: '127.0.0.1', port: 3000, sessionTimeout: 1800,
         modelsDir: '/tmp/models',
+        model: { ...TEST_MODEL },
         embedding: { ...TEST_EMBEDDING },
         defaultAccess: 'deny',
         access: { admin: 'rw' },
         jwtSecret: JWT_SECRET,
-        accessTokenTtl: '15m', refreshTokenTtl: '7d',
+        accessTokenTtl: '15m', refreshTokenTtl: '7d', rateLimit: { global: 0, search: 0, auth: 0 }, maxFileSize: 1048576,
       },
       users: {
         admin: { name: 'Admin', email: 'admin@test.com', apiKey: 'key-admin', passwordHash: adminPasswordHash },

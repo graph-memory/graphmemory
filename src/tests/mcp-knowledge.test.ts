@@ -261,7 +261,7 @@ describe('knowledge tools', () => {
   });
 
   it('search_notes: unknown query returns empty', async () => {
-    const kHitsNone = json<KnowledgeHit[]>(await call('search_notes', { query: 'xyzzy completely unknown xyz', minScore: 0.1 }));
+    const kHitsNone = json<KnowledgeHit[]>(await call('search_notes', { query: 'xyzzy completely unknown xyz', minScore: 0.1, searchMode: 'keyword' }));
     expect(kHitsNone).toHaveLength(0);
   });
 

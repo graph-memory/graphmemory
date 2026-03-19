@@ -3,9 +3,9 @@ import path from 'path';
 import micromatch from 'micromatch';
 import { embed, embedBatch } from '@/lib/embedder';
 import { parseFile } from '@/lib/parsers/docs';
-import { updateFile, removeFile, getFileMtime, type DocGraph } from '@/graphs/docs';
+import { updateFile, removeFile, getFileMtime, resolvePendingLinks, type DocGraph } from '@/graphs/docs';
 import { parseCodeFile } from '@/lib/parsers/code';
-import { updateCodeFile, removeCodeFile, getCodeFileMtime, type CodeGraph } from '@/graphs/code';
+import { updateCodeFile, removeCodeFile, getCodeFileMtime, resolvePendingImports, type CodeGraph } from '@/graphs/code';
 import { startWatcher, type WatcherHandle } from '@/lib/watcher';
 import type { KnowledgeGraph } from '@/graphs/knowledge-types';
 import { cleanupProxies as cleanupKnowledgeProxies } from '@/graphs/knowledge';
@@ -17,7 +17,9 @@ import type { FileIndexGraph } from '@/graphs/file-index-types';
 import { updateFileEntry, removeFileEntry, getFileEntryMtime, rebuildDirectoryStats } from '@/graphs/file-index';
 
 export interface ProjectIndexerConfig {
+  projectId?: string;
   projectDir: string;
+  maxFileSize?: number;
   docsPattern?: string;
   codePattern?: string;
   docsExcludePattern?: string;
@@ -92,15 +94,19 @@ export function createProjectIndexer(
       const fileId = path.relative(config.projectDir, absolutePath);
       if (docGraph.hasNode(fileId)) {
         removeFile(docGraph, fileId);
-        if (knowledgeGraph) cleanupKnowledgeProxies(knowledgeGraph, 'docs', docGraph);
-        if (taskGraph) cleanupTaskProxies(taskGraph, 'docs', docGraph);
-        if (skillGraph) cleanupSkillProxies(skillGraph, 'docs', docGraph);
+        if (knowledgeGraph) cleanupKnowledgeProxies(knowledgeGraph, 'docs', docGraph, config.projectId);
+        if (taskGraph) cleanupTaskProxies(taskGraph, 'docs', docGraph, config.projectId);
+        if (skillGraph) cleanupSkillProxies(skillGraph, 'docs', docGraph, config.projectId);
       }
       return;
     }
     const mtime = stat.mtimeMs;
     const fileId = path.relative(config.projectDir, absolutePath);
     if (getFileMtime(docGraph, fileId) === mtime) return;
+    if (config.maxFileSize && stat.size > config.maxFileSize) {
+      process.stderr.write(`[indexer] skip doc  ${fileId} (${(stat.size / 1024 / 1024).toFixed(1)} MB exceeds limit)\n`);
+      return;
+    }
     const content = fs.readFileSync(absolutePath, 'utf-8');
     const chunks = await parseFile(content, absolutePath, config.projectDir, config.chunkDepth);
     // Batch-embed all chunks + file-level in one forward pass
@@ -130,15 +136,19 @@ export function createProjectIndexer(
       const fileId = path.relative(config.projectDir, absolutePath);
       if (codeGraph.hasNode(fileId)) {
         removeCodeFile(codeGraph, fileId);
-        if (knowledgeGraph) cleanupKnowledgeProxies(knowledgeGraph, 'code', codeGraph);
-        if (taskGraph) cleanupTaskProxies(taskGraph, 'code', codeGraph);
-        if (skillGraph) cleanupSkillProxies(skillGraph, 'code', codeGraph);
+        if (knowledgeGraph) cleanupKnowledgeProxies(knowledgeGraph, 'code', codeGraph, config.projectId);
+        if (taskGraph) cleanupTaskProxies(taskGraph, 'code', codeGraph, config.projectId);
+        if (skillGraph) cleanupSkillProxies(skillGraph, 'code', codeGraph, config.projectId);
       }
       return;
     }
     const mtime = stat.mtimeMs;
     const fileId = path.relative(config.projectDir, absolutePath);
     if (getCodeFileMtime(codeGraph, fileId) === mtime) return;
+    if (config.maxFileSize && stat.size > config.maxFileSize) {
+      process.stderr.write(`[indexer] skip code ${fileId} (${(stat.size / 1024 / 1024).toFixed(1)} MB exceeds limit)\n`);
+      return;
+    }
     const parsed = await parseCodeFile(absolutePath, config.projectDir, mtime);
     // Batch-embed all symbols + file-level in one forward pass
     const batchInputs = parsed.nodes.map(({ attrs }) => ({ title: attrs.signature, content: attrs.docComment }));
@@ -163,9 +173,9 @@ export function createProjectIndexer(
       const filePath = path.relative(config.projectDir, absolutePath);
       if (fileIndexGraph.hasNode(filePath)) {
         removeFileEntry(fileIndexGraph, filePath);
-        if (knowledgeGraph) cleanupKnowledgeProxies(knowledgeGraph, 'files', fileIndexGraph);
-        if (taskGraph) cleanupTaskProxies(taskGraph, 'files', fileIndexGraph);
-        if (skillGraph) cleanupSkillProxies(skillGraph, 'files', fileIndexGraph);
+        if (knowledgeGraph) cleanupKnowledgeProxies(knowledgeGraph, 'files', fileIndexGraph, config.projectId);
+        if (taskGraph) cleanupTaskProxies(taskGraph, 'files', fileIndexGraph, config.projectId);
+        if (skillGraph) cleanupSkillProxies(skillGraph, 'files', fileIndexGraph, config.projectId);
       }
       return;
     }
@@ -217,23 +227,23 @@ export function createProjectIndexer(
     const rel = path.relative(config.projectDir, absolutePath);
     if (docGraph && config.docsPattern && !isDocsExcluded(rel) && micromatch.isMatch(rel, config.docsPattern)) {
       removeFile(docGraph, rel);
-      if (knowledgeGraph) cleanupKnowledgeProxies(knowledgeGraph, 'docs', docGraph);
-      if (taskGraph) cleanupTaskProxies(taskGraph, 'docs', docGraph);
-      if (skillGraph) cleanupSkillProxies(skillGraph, 'docs', docGraph);
+      if (knowledgeGraph) cleanupKnowledgeProxies(knowledgeGraph, 'docs', docGraph, config.projectId);
+      if (taskGraph) cleanupTaskProxies(taskGraph, 'docs', docGraph, config.projectId);
+      if (skillGraph) cleanupSkillProxies(skillGraph, 'docs', docGraph, config.projectId);
       process.stderr.write(`[indexer] removed doc  ${rel}\n`);
     }
     if (codeGraph && config.codePattern && !isCodeExcluded(rel) && micromatch.isMatch(rel, config.codePattern)) {
       removeCodeFile(codeGraph, rel);
-      if (knowledgeGraph) cleanupKnowledgeProxies(knowledgeGraph, 'code', codeGraph);
-      if (taskGraph) cleanupTaskProxies(taskGraph, 'code', codeGraph);
-      if (skillGraph) cleanupSkillProxies(skillGraph, 'code', codeGraph);
+      if (knowledgeGraph) cleanupKnowledgeProxies(knowledgeGraph, 'code', codeGraph, config.projectId);
+      if (taskGraph) cleanupTaskProxies(taskGraph, 'code', codeGraph, config.projectId);
+      if (skillGraph) cleanupSkillProxies(skillGraph, 'code', codeGraph, config.projectId);
       process.stderr.write(`[indexer] removed code ${rel}\n`);
     }
     if (fileIndexGraph && !isFilesExcluded(rel)) {
       removeFileEntry(fileIndexGraph, rel);
-      if (knowledgeGraph) cleanupKnowledgeProxies(knowledgeGraph, 'files', fileIndexGraph);
-      if (taskGraph) cleanupTaskProxies(taskGraph, 'files', fileIndexGraph);
-      if (skillGraph) cleanupSkillProxies(skillGraph, 'files', fileIndexGraph);
+      if (knowledgeGraph) cleanupKnowledgeProxies(knowledgeGraph, 'files', fileIndexGraph, config.projectId);
+      if (taskGraph) cleanupTaskProxies(taskGraph, 'files', fileIndexGraph, config.projectId);
+      if (skillGraph) cleanupSkillProxies(skillGraph, 'files', fileIndexGraph, config.projectId);
     }
   }
 
@@ -278,6 +288,17 @@ export function createProjectIndexer(
   async function drain(): Promise<void> {
     await Promise.all([docsQueue, codeQueue, fileQueue]);
     if (fileIndexGraph) rebuildDirectoryStats(fileIndexGraph);
+
+    // Resolve cross-file edges that were deferred during indexing
+    if (docGraph) {
+      const docLinks = resolvePendingLinks(docGraph);
+      if (docLinks > 0) process.stderr.write(`[indexer] Resolved ${docLinks} deferred doc cross-file link(s)\n`);
+    }
+    if (codeGraph) {
+      const codeImports = resolvePendingImports(codeGraph);
+      if (codeImports > 0) process.stderr.write(`[indexer] Resolved ${codeImports} deferred code import edge(s)\n`);
+    }
+
     const totalErrors = docErrors + codeErrors + fileErrors;
     if (totalErrors > 0) {
       process.stderr.write(`[indexer] Completed with ${totalErrors} error(s): docs=${docErrors}, code=${codeErrors}, files=${fileErrors}\n`);

@@ -178,8 +178,8 @@ function isExternal(href: string): boolean {
 }
 
 function toFileId(absolutePath: string, projectDir: string): string | null {
-  if (!absolutePath.startsWith(projectDir)) return null;
   const rel = path.relative(projectDir, absolutePath);
+  if (rel.startsWith('..') || path.isAbsolute(rel)) return null;
   if (fs.existsSync(absolutePath)) return rel;
   // try adding .md
   const withMd = absolutePath + '.md';
@@ -195,7 +195,10 @@ function findWikiFile(name: string, projectDir: string): string | null {
   return searchRecursive(name, projectDir);
 }
 
-function searchRecursive(name: string, dir: string): string | null {
+const MAX_SEARCH_DEPTH = 10;
+
+function searchRecursive(name: string, dir: string, depth = 0): string | null {
+  if (depth >= MAX_SEARCH_DEPTH) return null;
   let entries: fs.Dirent[];
   try {
     entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -206,7 +209,7 @@ function searchRecursive(name: string, dir: string): string | null {
     if (entry.name.startsWith('.')) continue;
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      const found = searchRecursive(name, full);
+      const found = searchRecursive(name, full, depth + 1);
       if (found) return found;
     } else if (entry.isFile()) {
       if (entry.name === name || entry.name === `${name}.md` || path.basename(entry.name, '.md') === name) {

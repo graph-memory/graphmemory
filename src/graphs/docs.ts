@@ -18,6 +18,7 @@ export interface NodeAttributes {
   mtime: number;
   language?: string;   // fenced code block language tag (undefined for text chunks)
   symbols: string[];   // extracted symbol names from code blocks ([] for text chunks)
+  pendingLinks?: string[];  // cross-file link targets not yet in graph at index time
 }
 
 export type DocGraph = DirectedGraph<NodeAttributes>;
@@ -59,15 +60,45 @@ export function updateFile(
 
   // Cross-file link edges: chunk → root chunk of target file
   for (const chunk of chunks) {
+    const pending: string[] = [];
     for (const targetFileId of chunk.links) {
       const targetRootId = targetFileId; // root chunk id === fileId
       if (graph.hasNode(targetRootId) && chunk.id !== targetRootId) {
         if (!graph.hasEdge(chunk.id, targetRootId)) {
           graph.addEdge(chunk.id, targetRootId);
         }
+      } else if (chunk.id !== targetRootId) {
+        pending.push(targetRootId);
       }
     }
+    if (pending.length > 0 && graph.hasNode(chunk.id)) {
+      graph.setNodeAttribute(chunk.id, 'pendingLinks', pending);
+    }
   }
+}
+
+/**
+ * Resolve pending cross-file link edges after all files have been indexed.
+ * Iterates all chunks with pendingLinks and creates edges for targets now in graph.
+ */
+export function resolvePendingLinks(graph: DocGraph): number {
+  let created = 0;
+  graph.forEachNode((id, attrs: NodeAttributes) => {
+    if (!attrs.pendingLinks || attrs.pendingLinks.length === 0) return;
+    const remaining: string[] = [];
+    for (const targetId of attrs.pendingLinks) {
+      if (graph.hasNode(targetId) && id !== targetId) {
+        if (!graph.hasEdge(id, targetId)) {
+          graph.addEdge(id, targetId);
+          created++;
+        }
+      } else {
+        remaining.push(targetId);
+      }
+    }
+    graph.setNodeAttribute(id, 'pendingLinks', remaining.length > 0 ? remaining : undefined);
+  });
+  return created;
 }
 
 export function removeFile(graph: DocGraph, fileId: string): void {

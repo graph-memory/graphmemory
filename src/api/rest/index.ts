@@ -3,6 +3,7 @@ import path from 'path';
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import rateLimit from 'express-rate-limit';
 import type { ProjectManager } from '@/lib/project-manager';
 import type { ServerConfig, UserConfig, GraphName } from '@/lib/multi-config';
 import { GRAPH_NAMES } from '@/lib/multi-config';
@@ -63,6 +64,27 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
     res.setHeader('X-Frame-Options', 'DENY');
     next();
   });
+
+  // --- Rate limiting ---
+  const rl = serverConfig?.rateLimit;
+  const rateLimitMsg = { error: 'Too many requests, please try again later' };
+
+  if (rl && rl.global > 0) {
+    app.use('/api/', rateLimit({ windowMs: 60_000, max: rl.global, standardHeaders: true, legacyHeaders: false, message: rateLimitMsg }));
+  }
+  if (rl && rl.search > 0) {
+    const searchLimiter = rateLimit({ windowMs: 60_000, max: rl.search, standardHeaders: true, legacyHeaders: false, message: rateLimitMsg });
+    app.use('/api/projects/:projectId/knowledge/notes/search', searchLimiter);
+    app.use('/api/projects/:projectId/tasks/search', searchLimiter);
+    app.use('/api/projects/:projectId/skills/search', searchLimiter);
+    app.use('/api/projects/:projectId/docs/search', searchLimiter);
+    app.use('/api/projects/:projectId/code/search', searchLimiter);
+    app.use('/api/projects/:projectId/files/search', searchLimiter);
+    app.use('/api/embed', searchLimiter);
+  }
+  if (rl && rl.auth > 0) {
+    app.use('/api/auth/login', rateLimit({ windowMs: 60_000, max: rl.auth, standardHeaders: true, legacyHeaders: false, message: rateLimitMsg }));
+  }
 
   const jwtSecret = serverConfig?.jwtSecret;
   const accessTokenTtl = serverConfig?.accessTokenTtl ?? '15m';
@@ -327,8 +349,25 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
   app.use('/api/projects/:projectId/docs', ...graphMiddleware('docManager', 'docs'), createDocsRouter());
   app.use('/api/projects/:projectId/code', ...graphMiddleware('codeManager', 'code'), createCodeRouter());
   app.use('/api/projects/:projectId/files', ...graphMiddleware('fileIndexManager', 'files'), createFilesRouter());
-  app.use('/api/projects/:projectId/graph', createGraphRouter());
-  app.use('/api/projects/:projectId/tools', createToolsRouter(projectManager));
+  app.use('/api/projects/:projectId/graph', createGraphRouter((req, graphName) => {
+    if (!serverConfig) return true; // no config = no auth enforcement
+    const p = (req as any).project;
+    if (!p) return true;
+    const userId = (req as any).userId as string | undefined;
+    const ws = p.workspaceId ? projectManager.getWorkspace(p.workspaceId) : undefined;
+    const access = resolveAccess(userId, graphName, p.config, serverConfig, ws?.config);
+    return canRead(access);
+  }));
+  app.use('/api/projects/:projectId/tools', createToolsRouter(projectManager, (req, graphName, level) => {
+    if (!serverConfig) return true;
+    const p = (req as any).project;
+    if (!p) return true;
+    const userId = (req as any).userId as string | undefined;
+    const ws = p.workspaceId ? projectManager.getWorkspace(p.workspaceId) : undefined;
+    const access = resolveAccess(userId, graphName, p.config, serverConfig, ws?.config);
+    if (level === 'rw') return canWrite(access);
+    return canRead(access);
+  }));
 
   // Embedding API (optional, gated by server.embeddingApi.enabled)
   if (serverConfig?.embeddingApi?.enabled && options?.embeddingApiModelName) {
@@ -352,7 +391,11 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
   // Error handler
   app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     if (err.name === 'ZodError') {
-      return res.status(400).json({ error: 'Validation error' });
+      const fields = (err.issues ?? []).map((i: any) => ({
+        path: i.path?.join('.'),
+        message: i.message,
+      }));
+      return res.status(400).json({ error: 'Validation error', fields });
     }
     if (err.type === 'entity.parse.failed' || (err instanceof SyntaxError && 'body' in err)) {
       return res.status(400).json({ error: 'Invalid JSON' });

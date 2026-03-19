@@ -29,6 +29,7 @@ export interface CodeNodeAttributes {
   embedding: number[];     // embedded from signature + docComment; [] until filled
   fileEmbedding: number[]; // file-level embedding (only on kind='file' nodes); [] until filled
   mtime: number;           // file mtimeMs at index time
+  pendingImports?: string[];  // import targets not yet in graph at index time
 }
 
 export interface CodeEdgeAttributes {

@@ -64,13 +64,15 @@ describe('JWT sign / verify', () => {
   });
 
   it('rejects expired token', () => {
-    // Sign with 0 seconds TTL
-    const token = signAccessToken('alice', secret, '0s');
-    // Token expires immediately — but jwt allows 0s, it will be expired on verify
-    // We need a small delay or just check that 0s produces an instantly-expired token
-    const payload = verifyToken(token, secret);
-    // jwt.sign with expiresIn: 0 sets exp to iat, so it's expired immediately
-    expect(payload).toBeNull();
+    // Create a token with exp in the past using jsonwebtoken directly
+    const jwt = require('jsonwebtoken');
+    const token = jwt.sign({ userId: 'alice', type: 'access', exp: Math.floor(Date.now() / 1000) - 10 }, secret);
+    expect(verifyToken(token, secret)).toBeNull();
+  });
+
+  it('parseTtl rejects zero TTL', () => {
+    expect(() => parseTtl('0s')).toThrow('TTL must be positive');
+    expect(() => parseTtl('0m')).toThrow('TTL must be positive');
   });
 
   it('rejects garbage token', () => {

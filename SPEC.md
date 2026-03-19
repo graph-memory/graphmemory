@@ -1,4 +1,4 @@
-# SPEC.md — mcp-graph-memory
+# SPEC.md — graphmemory
 
 > **Full documentation**: [docs/](docs/README.md)
 
@@ -59,10 +59,10 @@ All config via `graph-memory.yaml`. See [docs/configuration.md](docs/configurati
 ## CLI
 
 ```bash
-mcp-graph-memory serve --config graph-memory.yaml    # HTTP server (primary)
-mcp-graph-memory mcp --config graph-memory.yaml -p X # stdio (IDE)
-mcp-graph-memory index --config graph-memory.yaml -p X # index + exit
-mcp-graph-memory users add --config graph-memory.yaml  # add user
+graphmemory serve --config graph-memory.yaml    # HTTP server (primary)
+graphmemory mcp --config graph-memory.yaml -p X # stdio (IDE)
+graphmemory index --config graph-memory.yaml -p X # index + exit
+graphmemory users add --config graph-memory.yaml  # add user
 ```
 
 See [docs/cli.md](docs/cli.md) for full reference.

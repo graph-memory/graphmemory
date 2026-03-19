@@ -4,32 +4,32 @@
 
 | Field | Value |
 |-------|-------|
-| **Name** | `@prih/mcp-graph-memory` |
-| **Registry** | https://www.npmjs.com/package/@prih/mcp-graph-memory |
+| **Name** | `@graphmemory/server` |
+| **Registry** | https://www.npmjs.com/package/@graphmemory/server |
 | **License** | ISC |
 | **Node.js** | >= 22 |
 
 ## Installation
 
 ```bash
-npm install -g @prih/mcp-graph-memory
+npm install -g @graphmemory/server
 ```
 
 Or use `npx`:
 
 ```bash
-npx @prih/mcp-graph-memory serve --config graph-memory.yaml
+npx @graphmemory/server serve --config graph-memory.yaml
 ```
 
 ## CLI binary
 
-After global installation, the `mcp-graph-memory` command is available:
+After global installation, the `graphmemory` command is available:
 
 ```bash
-mcp-graph-memory serve --config graph-memory.yaml
-mcp-graph-memory mcp --config graph-memory.yaml --project my-app
-mcp-graph-memory index --config graph-memory.yaml --project my-app
-mcp-graph-memory users add --config graph-memory.yaml
+graphmemory serve --config graph-memory.yaml
+graphmemory mcp --config graph-memory.yaml --project my-app
+graphmemory index --config graph-memory.yaml --project my-app
+graphmemory users add --config graph-memory.yaml
 ```
 
 See [CLI](cli.md) for full command reference.
@@ -45,7 +45,7 @@ Published files are defined in `package.json`:
 {
   "files": ["dist/", "README.md"],
   "bin": {
-    "mcp-graph-memory": "dist/cli/index.js"
+    "graphmemory": "dist/cli/index.js"
   }
 }
 ```
@@ -78,8 +78,8 @@ npm publish             # Publish to npm
 ## Build from source
 
 ```bash
-git clone https://github.com/prih/mcp-graph-memory.git
-cd mcp-graph-memory
+git clone https://github.com/graph-memory/graphmemory.git
+cd graphmemory
 npm install
 cd ui && npm install && cd ..
 npm run build
@@ -103,7 +103,7 @@ cd ui && npm run dev    # Vite dev server on :5173
     "project-memory": {
       "command": "npx",
       "args": [
-        "@prih/mcp-graph-memory",
+        "@graphmemory/server",
         "mcp",
         "--config", "/path/to/graph-memory.yaml",
         "--project", "my-app"
@@ -117,7 +117,7 @@ cd ui && npm run dev    # Vite dev server on :5173
 
 Start the server:
 ```bash
-npx @prih/mcp-graph-memory serve --config graph-memory.yaml
+npx @graphmemory/server serve --config graph-memory.yaml
 ```
 
 Connect MCP client to `http://localhost:3000/mcp/{projectId}`.

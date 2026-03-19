@@ -33,7 +33,7 @@
 | **Embedding API** | Expose the server's embedding model as a REST endpoint for other services |
 | **Remote embedding** | Delegate embedding to a remote GPU server via HTTP |
 | **Docker** | Multi-platform image (amd64 + arm64) on GHCR |
-| **npm package** | `@prih/mcp-graph-memory` on npm |
+| **npm package** | `@graphmemory/server` on npm |
 
 ## Transports
 
@@ -50,6 +50,6 @@
 
 ## Repository
 
-- GitHub: https://github.com/prih/mcp-graph-memory
-- npm: `@prih/mcp-graph-memory`
-- Docker: `ghcr.io/prih/mcp-graph-memory`
+- GitHub: https://github.com/graph-memory/graphmemory
+- npm: `@graphmemory/server`
+- Docker: `ghcr.io/graph-memory/graphmemory`

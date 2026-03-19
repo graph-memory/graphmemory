@@ -17,7 +17,7 @@
 # Users (optional — for REST API authentication and access control)
 # ---------------------------------------------------------------------------
 # Each key is the user ID. apiKey is for API/MCP authentication.
-# passwordHash is for UI login (email+password) — use `mcp-graph-memory users add` CLI to generate.
+# passwordHash is for UI login (email+password) — use `graphmemory users add` CLI to generate.
 # MCP stdio mode does not use authentication — identity comes from the author config.
 #
 # users:

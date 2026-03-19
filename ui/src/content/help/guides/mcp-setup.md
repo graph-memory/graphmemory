@@ -8,7 +8,7 @@ Best for: single-project setups, IDE integrations where each project gets its ow
 
 The MCP client launches the server as a subprocess. Communication happens over stdin/stdout.
 
-After `npm install -g @prih/mcp-graph-memory`:
+After `npm install -g @graphmemory/server`:
 
 ### Claude Desktop (stdio)
 
@@ -18,7 +18,7 @@ Add to your Claude Desktop config (`claude_desktop_config.json`):
 {
   "mcpServers": {
     "project-memory": {
-      "command": "mcp-graph-memory",
+      "command": "graphmemory",
       "args": ["mcp", "--config", "/path/to/graph-memory.yaml", "--project", "my-app"]
     }
   }
@@ -36,7 +36,7 @@ Add to your project's `.mcp.json`:
   "mcpServers": {
     "project-memory": {
       "type": "stdio",
-      "command": "mcp-graph-memory",
+      "command": "graphmemory",
       "args": ["mcp", "--config", "/path/to/graph-memory.yaml", "--project", "my-app"]
     }
   }
@@ -50,7 +50,7 @@ Best for: multi-project setups, shared team servers, or when multiple clients ne
 Start the server first:
 
 ```bash
-mcp-graph-memory serve --config graph-memory.yaml
+graphmemory serve --config graph-memory.yaml
 ```
 
 Each project gets its own MCP endpoint at `http://localhost:3000/mcp/{projectId}`.
@@ -97,7 +97,7 @@ docker run -d \
   -v $(pwd)/graph-memory.yaml:/data/config/graph-memory.yaml:ro \
   -v /path/to/my-app:/data/projects/my-app \
   -v graph-memory-models:/data/models \
-  ghcr.io/prih/mcp-graph-memory
+  ghcr.io/graph-memory/graphmemory
 ```
 
 Then connect your MCP client to `http://localhost:3000/mcp/my-app`.
@@ -110,7 +110,7 @@ docker run --rm \
   -v $(pwd)/graph-memory.yaml:/data/config/graph-memory.yaml:ro \
   -v /path/to/my-app:/data/projects/my-app \
   -v graph-memory-models:/data/models \
-  ghcr.io/prih/mcp-graph-memory index --config /data/config/graph-memory.yaml
+  ghcr.io/graph-memory/graphmemory index --config /data/config/graph-memory.yaml
 
 # Docker Compose (uses volumes defined in your compose file)
 docker compose run --rm graph-memory index --config /data/config/graph-memory.yaml

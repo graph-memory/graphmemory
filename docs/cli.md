@@ -3,7 +3,7 @@
 All commands require `--config graph-memory.yaml`.
 
 ```bash
-mcp-graph-memory <command> --config graph-memory.yaml [options]
+graphmemory <command> --config graph-memory.yaml [options]
 ```
 
 ## `serve` — multi-project HTTP server
@@ -11,7 +11,7 @@ mcp-graph-memory <command> --config graph-memory.yaml [options]
 Primary mode. Starts HTTP server with MCP endpoints, REST API, web UI, and WebSocket.
 
 ```bash
-mcp-graph-memory serve --config graph-memory.yaml [--host <addr>] [--port <n>] [--reindex]
+graphmemory serve --config graph-memory.yaml [--host <addr>] [--port <n>] [--reindex]
 ```
 
 ### Startup sequence
@@ -48,7 +48,7 @@ mcp-graph-memory serve --config graph-memory.yaml [--host <addr>] [--port <n>] [
 For MCP clients like Claude Desktop, Cursor, Windsurf.
 
 ```bash
-mcp-graph-memory mcp --config graph-memory.yaml --project my-app [--reindex]
+graphmemory mcp --config graph-memory.yaml --project my-app [--reindex]
 ```
 
 ### Startup sequence
@@ -72,7 +72,7 @@ mcp-graph-memory mcp --config graph-memory.yaml --project my-app [--reindex]
 Indexes a project and exits. Useful for CI/CD or as a pre-start step.
 
 ```bash
-mcp-graph-memory index --config graph-memory.yaml --project my-app [--reindex]
+graphmemory index --config graph-memory.yaml --project my-app [--reindex]
 ```
 
 ### Startup sequence
@@ -90,7 +90,7 @@ Same as `mcp` command.
 Interactive command to add a user to the config file.
 
 ```bash
-mcp-graph-memory users add --config graph-memory.yaml
+graphmemory users add --config graph-memory.yaml
 ```
 
 ### Interactive prompts
@@ -157,7 +157,7 @@ Multiple clients can connect to the same server simultaneously. Each session get
 The `mcp` command runs a single-project MCP server over stdin/stdout. Primarily useful for debugging or testing a single project without starting the full HTTP server.
 
 ```bash
-mcp-graph-memory mcp --config graph-memory.yaml --project my-app
+graphmemory mcp --config graph-memory.yaml --project my-app
 ```
 
 The MCP client launches this as a subprocess. No web UI, no REST API, no WebSocket — just the MCP tool interface over stdio.

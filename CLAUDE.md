@@ -30,7 +30,7 @@ node dist/cli/index.js serve --config graph-memory.yaml              # multi-pro
 node dist/cli/index.js mcp --config graph-memory.yaml --project X    # single-project stdio
 node dist/cli/index.js index --config graph-memory.yaml --project X  # index and exit
 node dist/cli/index.js serve --config graph-memory.yaml --reindex    # force re-index
-mcp-graph-memory users add --config graph-memory.yaml                # add user interactively
+graphmemory users add --config graph-memory.yaml                # add user interactively
 ```
 
 ## Architecture

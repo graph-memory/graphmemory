@@ -180,7 +180,7 @@ export function createMcpServer(
   // Build instructions for MCP clients (workspace/project context)
   const instructions = sessionContext ? buildInstructions(sessionContext) : undefined;
   const server = new McpServer(
-    { name: 'mcp-graph-memory', version: '1.0.0' },
+    { name: 'graphmemory', version: '1.1.0' },
     instructions ? { instructions } : undefined,
   );
   // Mutation tools are registered through mutServer to serialize concurrent writes

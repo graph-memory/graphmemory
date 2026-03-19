@@ -4,7 +4,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Registry** | `ghcr.io/prih/mcp-graph-memory` |
+| **Registry** | `ghcr.io/graph-memory/graphmemory` |
 | **Platforms** | `linux/amd64`, `linux/arm64` |
 | **Base image** | `node:24-slim` |
 
@@ -19,7 +19,7 @@ docker run -d \
   -v $(pwd)/graph-memory.yaml:/data/config/graph-memory.yaml:ro \
   -v /path/to/my-app:/data/projects/my-app:ro \
   -v graph-memory-models:/data/models \
-  ghcr.io/prih/mcp-graph-memory
+  ghcr.io/graph-memory/graphmemory
 ```
 
 ### Docker Compose
@@ -27,7 +27,7 @@ docker run -d \
 ```yaml
 services:
   graph-memory:
-    image: ghcr.io/prih/mcp-graph-memory
+    image: ghcr.io/graph-memory/graphmemory
     ports:
       - "3000:3000"
     volumes:
@@ -81,7 +81,7 @@ projects:
 ### Default (serve)
 
 ```bash
-docker run ghcr.io/prih/mcp-graph-memory
+docker run ghcr.io/graph-memory/graphmemory
 # Equivalent to: node dist/cli/index.js serve --config /data/config/graph-memory.yaml
 ```
 
@@ -92,7 +92,7 @@ docker run --rm \
   -v $(pwd)/graph-memory.yaml:/data/config/graph-memory.yaml:ro \
   -v /path/to/my-app:/data/projects/my-app \
   -v graph-memory-models:/data/models \
-  ghcr.io/prih/mcp-graph-memory serve --config /data/config/graph-memory.yaml --reindex
+  ghcr.io/graph-memory/graphmemory serve --config /data/config/graph-memory.yaml --reindex
 ```
 
 ### Index once and exit
@@ -103,7 +103,7 @@ docker run --rm \
   -v $(pwd)/graph-memory.yaml:/data/config/graph-memory.yaml:ro \
   -v /path/to/my-app:/data/projects/my-app \
   -v graph-memory-models:/data/models \
-  ghcr.io/prih/mcp-graph-memory index --config /data/config/graph-memory.yaml
+  ghcr.io/graph-memory/graphmemory index --config /data/config/graph-memory.yaml
 
 # Docker Compose
 docker compose run --rm graph-memory index --config /data/config/graph-memory.yaml
@@ -155,17 +155,17 @@ GitHub Actions workflow (`.github/workflows/docker.yml`):
 
 - **Trigger**: push tags `v*` or manual dispatch
 - **Platforms**: `linux/amd64`, `linux/arm64` (via QEMU + Buildx)
-- **Registry**: `ghcr.io/prih/mcp-graph-memory`
+- **Registry**: `ghcr.io/graph-memory/graphmemory`
 - **Tags**: `latest`, git SHA, semver (`1.0.4`, `1.0`, `1`)
 
 ### Building locally
 
 ```bash
-docker build -t mcp-graph-memory .
+docker build -t graphmemory .
 docker run -p 3000:3000 \
   -v $(pwd)/graph-memory.yaml:/data/config/graph-memory.yaml:ro \
   -v /path/to/my-app:/data/projects/my-app \
-  mcp-graph-memory
+  graphmemory
 ```
 
 ## Multiple projects
@@ -175,7 +175,7 @@ Mount each project directory separately:
 ```yaml
 services:
   graph-memory:
-    image: ghcr.io/prih/mcp-graph-memory
+    image: ghcr.io/graph-memory/graphmemory
     ports:
       - "3000:3000"
     volumes:

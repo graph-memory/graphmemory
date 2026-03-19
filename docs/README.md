@@ -2,7 +2,7 @@
 
 ## General
 
-- [Overview](overview.md) — what mcp-graph-memory is and what it does
+- [Overview](overview.md) — what Graph Memory is and what it does
 - [Architecture](architecture.md) — system architecture, layers, data flow, directory structure
 
 ## Concepts
@@ -59,7 +59,7 @@
 
 ## Deployment
 
-- [npm Package](npm-package.md) — `@prih/mcp-graph-memory` installation and usage
+- [npm Package](npm-package.md) — `@graphmemory/server` installation and usage
 - [Docker](docker.md) — Docker image, Docker Compose, volume mounts
 
 ## UI

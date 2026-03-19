@@ -103,7 +103,7 @@ The middleware checks in order:
 Use the CLI to add users interactively:
 
 ```bash
-mcp-graph-memory users add --config graph-memory.yaml
+graphmemory users add --config graph-memory.yaml
 ```
 
 This prompts for userId, name, email, password (hidden, with confirmation), generates:

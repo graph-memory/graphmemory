@@ -14,7 +14,7 @@ The code tools let you search and navigate your indexed TypeScript/JavaScript so
 
 ## What gets indexed
 
-The code parser uses `ts-morph` to extract:
+The code parser uses tree-sitter to extract:
 - **Functions** — name, signature, JSDoc, line range, exported flag
 - **Classes** — name, methods, extends/implements relationships
 - **Interfaces** and **Types** — name, signature
@@ -24,7 +24,7 @@ The code parser uses `ts-morph` to extract:
 
 Edges capture structural relationships:
 - `contains` — file → symbol, class → method
-- `imports` — file → imported file (resolved by ts-morph)
+- `imports` — file → imported file (resolved by import resolver)
 - `extends` — class → base class
 - `implements` — class → interface
 
@@ -133,4 +133,4 @@ Semantic search at file level using file path embeddings.
 - `search_files` is useful as a first step when exploring unfamiliar codebases
 - The `cross_references` tool (see dedicated guide) is the most comprehensive way to understand a symbol
 - BFS expansion in `search_code` follows `imports`, `contains`, and `extends` edges — set `bfsDepth: 2` to discover related modules
-- Code graph edges track `imports` only when `tsconfig.json` is available with module resolution; without it, import edges are disabled
+- Code graph edges track `imports` for relative imports only (`./ ../` paths); external packages are skipped

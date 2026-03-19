@@ -19,8 +19,8 @@ Graph Memory maintains six separate but interconnected graphs:
 
 | Graph | What it indexes | Created from |
 |-------|----------------|--------------|
-| **DocGraph** | Markdown sections, headings, code blocks | Files matching `docsPattern` |
-| **CodeGraph** | Functions, classes, methods, imports | Files matching `codePattern` |
+| **DocGraph** | Markdown sections, headings, code blocks | Files matching `graphs.docs.pattern` |
+| **CodeGraph** | Functions, classes, methods, imports | Files matching `graphs.code.pattern` |
 | **FileIndexGraph** | All files and directories with metadata | Entire project directory |
 | **KnowledgeGraph** | User-created notes, facts, decisions | Manual creation via tools |
 | **TaskGraph** | Tasks with status, priority, dependencies | Manual creation via tools |
@@ -41,7 +41,7 @@ This means `"how to authenticate users"` will find documentation about auth even
 ## Quick start workflow
 
 1. **Configure** your project in `graph-memory.yaml` with `graphs.docs.pattern` and `graphs.code.pattern`
-2. **Start** the server: `node dist/cli/index.js serve --config graph-memory.yaml`
+2. **Start** the server: `mcp-graph-memory serve --config graph-memory.yaml`
 3. **Browse** your indexed content in the UI
 4. **Search** across all graphs using natural language
 5. **Create notes** to capture knowledge and decisions

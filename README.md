@@ -1,16 +1,16 @@
 # mcp-graph-memory
 
 An MCP server that builds a **semantic graph memory** from a project directory.
-It indexes markdown documentation and TypeScript/JavaScript source code into graph structures,
-then exposes them as MCP tools that any AI assistant can use to navigate and search the project.
+Indexes markdown docs, TypeScript/JavaScript source code, and all project files into six graph structures,
+then exposes them as **58 MCP tools** + **REST API** + **Web UI**.
 
-## Quick start with Docker
+## Quick start
 
-### 1. Create a config file
+### Docker (recommended)
 
-Create `graph-memory.yaml` — paths must be relative to the container filesystem:
-
-```yaml
+```bash
+# 1. Create graph-memory.yaml
+cat > graph-memory.yaml << 'EOF'
 server:
   host: "0.0.0.0"
   port: 3000
@@ -19,14 +19,9 @@ server:
 projects:
   my-app:
     projectDir: "/data/projects/my-app"
-    docsPattern: "docs/**/*.md"
-    codePattern: "src/**/*.{ts,tsx}"
-    excludePattern: "node_modules/**,dist/**"
-```
+EOF
 
-### 2. Run with Docker
-
-```bash
+# 2. Run
 docker run -d \
   --name graph-memory \
   -p 3000:3000 \
@@ -36,19 +31,175 @@ docker run -d \
   ghcr.io/prih/mcp-graph-memory
 ```
 
-Three mounts:
-| Mount | Container path | Description |
-|-------|---------------|-------------|
-| **Config** | `/data/config/graph-memory.yaml` | Your config file (read-only) |
-| **Projects** | `/data/projects/` | Project directories to index (read-only, unless you use knowledge/tasks/skills — then remove `:ro`) |
-| **Models** | `/data/models/` | Embedding model cache — use a named volume so models persist across container restarts |
+Open http://localhost:3000 — the web UI is ready. The embedding model (~560 MB) downloads on first startup.
 
-The embedding model (`Xenova/bge-m3`, ~560MB) is downloaded on first startup. Subsequent starts use the cached model from the volume.
+### npm
 
-### 3. Run with Docker Compose
+```bash
+npm install -g @prih/mcp-graph-memory
+mcp-graph-memory serve --config graph-memory.yaml
+```
+
+### From source
+
+```bash
+git clone https://github.com/prih/mcp-graph-memory.git
+cd mcp-graph-memory
+npm install && cd ui && npm install && cd ..
+npm run build
+node dist/cli/index.js serve --config graph-memory.yaml
+```
+
+## Connect an MCP client
+
+### Stdio (single project)
+
+After `npm install -g @prih/mcp-graph-memory`:
+
+**Claude Desktop** — in `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "project-memory": {
+      "command": "mcp-graph-memory",
+      "args": ["mcp", "--config", "/path/to/graph-memory.yaml", "--project", "my-app"]
+    }
+  }
+}
+```
+
+**Claude Code** — in `.mcp.json` at project root:
+
+```json
+{
+  "mcpServers": {
+    "project-memory": {
+      "type": "stdio",
+      "command": "mcp-graph-memory",
+      "args": ["mcp", "--config", "/path/to/graph-memory.yaml", "--project", "my-app"]
+    }
+  }
+}
+```
+
+### HTTP (multi-project, shared server)
+
+Start the server, then connect MCP clients to `http://localhost:3000/mcp/{projectId}`.
+
+**Claude Desktop** — add via **Settings > Connectors** in the app, enter the URL:
+
+```
+http://localhost:3000/mcp/my-app
+```
+
+**Claude Code** — in `.mcp.json` at project root:
+
+```json
+{
+  "mcpServers": {
+    "project-memory": {
+      "type": "http",
+      "url": "http://localhost:3000/mcp/my-app"
+    }
+  }
+}
+```
+
+**Cursor / Windsurf / other clients** — enter the URL directly in settings:
+
+```
+http://localhost:3000/mcp/my-app
+```
+
+## What it does
+
+| Feature | Description |
+|---------|-------------|
+| **Docs indexing** | Parses markdown into heading-based chunks with cross-file links and code block extraction |
+| **Code indexing** | Extracts AST symbols (functions, classes, interfaces) via tree-sitter |
+| **File index** | Indexes all project files with metadata, language detection, directory hierarchy |
+| **Knowledge graph** | Persistent notes and facts with typed relations and cross-graph links |
+| **Task management** | Kanban workflow with priorities, assignees, and cross-graph context |
+| **Skills** | Reusable recipes with steps, triggers, and usage tracking |
+| **Hybrid search** | BM25 keyword + vector cosine similarity with BFS graph expansion |
+| **Real-time** | File watching + WebSocket push to UI |
+| **Multi-project** | One process manages multiple projects with YAML hot-reload |
+| **Workspaces** | Share knowledge/tasks/skills across related projects |
+| **Auth & ACL** | Password login (JWT), API keys, 4-level access control |
+
+## 58 MCP tools
+
+| Group | Tools |
+|-------|-------|
+| **Context** | `get_context` |
+| **Docs** | `list_topics`, `get_toc`, `search`, `get_node`, `search_topic_files` |
+| **Code blocks** | `find_examples`, `search_snippets`, `list_snippets`, `explain_symbol` |
+| **Cross-graph** | `cross_references` |
+| **Code** | `list_files`, `get_file_symbols`, `search_code`, `get_symbol`, `search_files` |
+| **Files** | `list_all_files`, `search_all_files`, `get_file_info` |
+| **Knowledge** | `create_note`, `update_note`, `delete_note`, `get_note`, `list_notes`, `search_notes`, `create_relation`, `delete_relation`, `list_relations`, `find_linked_notes`, `add_note_attachment`, `remove_note_attachment` |
+| **Tasks** | `create_task`, `update_task`, `delete_task`, `get_task`, `list_tasks`, `search_tasks`, `move_task`, `link_task`, `create_task_link`, `delete_task_link`, `find_linked_tasks`, `add_task_attachment`, `remove_task_attachment` |
+| **Skills** | `create_skill`, `update_skill`, `delete_skill`, `get_skill`, `list_skills`, `search_skills`, `recall_skills`, `bump_skill_usage`, `link_skill`, `create_skill_link`, `delete_skill_link`, `find_linked_skills`, `add_skill_attachment`, `remove_skill_attachment` |
+
+## Web UI
+
+Dashboard, Knowledge (notes CRUD), Tasks (kanban board with drag-drop), Skills (recipes),
+Docs browser, Files browser, Prompts (AI prompt generator), Search (cross-graph),
+Graph (Cytoscape.js visualization), Tools (MCP explorer), Help.
+
+Light/dark theme. Real-time WebSocket updates. Login page when auth is configured.
+
+## Configuration
+
+All configuration via `graph-memory.yaml`. Only `projects.<id>.projectDir` is required:
 
 ```yaml
-# docker-compose.yaml
+server:
+  host: "127.0.0.1"
+  port: 3000
+  embedding:
+    model: "Xenova/bge-m3"
+
+projects:
+  my-app:
+    projectDir: "/path/to/my-app"
+    graphs:
+      docs:
+        pattern: "docs/**/*.md"
+      code:
+        pattern: "src/**/*.{ts,tsx}"
+        enabled: true
+      skills:
+        enabled: false
+```
+
+See [docs/configuration.md](docs/configuration.md) for full reference and [graph-memory.yaml.example](graph-memory.yaml.example) for all options.
+
+## Authentication
+
+```yaml
+users:
+  alice:
+    name: "Alice"
+    email: "alice@example.com"
+    apiKey: "mgm-key-abc123"
+    passwordHash: "$scrypt$..."   # generated by: mcp-graph-memory users add
+
+server:
+  jwtSecret: "your-secret"
+  defaultAccess: rw
+```
+
+- **UI login**: email + password → JWT cookies (httpOnly, SameSite=Strict)
+- **API access**: `Authorization: Bearer <apiKey>`
+- **ACL**: graph > project > workspace > server > defaultAccess (`deny` / `r` / `rw`)
+
+See [docs/authentication.md](docs/authentication.md).
+
+## Docker Compose
+
+```yaml
 services:
   graph-memory:
     image: ghcr.io/prih/mcp-graph-memory
@@ -64,573 +215,28 @@ volumes:
   models:
 ```
 
-```bash
-docker compose up -d
-```
-
-### 4. Connect
-
-- **Web UI**: `http://localhost:3000`
-- **MCP (Streamable HTTP)**: `http://localhost:3000/mcp/my-app`
-- **REST API**: `http://localhost:3000/api/projects`
-
-To force re-index all projects from scratch:
-
-```bash
-docker run --rm \
-  -v $(pwd)/graph-memory.yaml:/data/config/graph-memory.yaml:ro \
-  -v /path/to/my-app:/data/projects/my-app \
-  -v graph-memory-models:/data/models \
-  ghcr.io/prih/mcp-graph-memory serve --config /data/config/graph-memory.yaml --reindex
-```
-
-To index once and exit (useful in CI or as a pre-start step):
-
-```bash
-# Docker
-docker run --rm \
-  -v $(pwd)/graph-memory.yaml:/data/config/graph-memory.yaml:ro \
-  -v /path/to/my-app:/data/projects/my-app \
-  -v graph-memory-models:/data/models \
-  ghcr.io/prih/mcp-graph-memory index --config /data/config/graph-memory.yaml
-
-# Docker Compose (uses volumes defined in your compose file)
-docker compose run --rm graph-memory index --config /data/config/graph-memory.yaml
-```
-
-> **Multiple projects**: mount each project directory separately and add entries to `graph-memory.yaml`. The config file is watched for changes — add or remove projects without restarting the container.
-
-## What it does
-
-- Parses **markdown files** into heading-based chunks, links related files via graph edges
-- Extracts **fenced code blocks** from markdown — parses TS/JS blocks with ts-morph for symbol extraction
-- Parses **TypeScript/JavaScript source** via ts-morph — extracts functions, classes, interfaces,
-  types, enums, and their relationships (`contains`, `imports`, `extends`, `implements`)
-- Indexes **all project files** into a file index graph with directory hierarchy, language/MIME detection
-- Stores **facts and notes** in a dedicated knowledge graph with typed relations, file attachments, and cross-graph links; mirrors to `.notes/{id}/` directories
-- Tracks **tasks** in a task graph with status (kanban), priority, due dates, estimates, assignee, file attachments, and cross-graph links; mirrors to `.tasks/{id}/` directories
-- Manages **skills** (recipes/procedures) in a skill graph with steps, triggers, usage tracking, file attachments, and cross-graph links; mirrors to `.skills/{id}/` directories
-- Embeds every node locally using `Xenova/bge-m3` by default (no external API calls); supports per-graph models with configurable pooling, normalization, dtype, and query/document prefixes
-- Answers search queries via **hybrid search** (BM25 keyword + vector cosine similarity) with BFS graph expansion
-- Watches for file changes and re-indexes incrementally
-
-## MCP tools (58)
-
-### Context tool (always enabled)
-
-| Tool               | Description                                                    |
-|--------------------|----------------------------------------------------------------|
-| `get_context`      | Returns current project and workspace context (project ID, workspace ID, workspace projects, available graphs) |
-
-### Docs tools (enabled when `--docs-pattern` is set)
-
-| Tool               | Description                                                    |
-|--------------------|----------------------------------------------------------------|
-| `list_topics`      | List all indexed markdown files with title and chunk count     |
-| `get_toc`          | Return the table of contents for a specific file               |
-| `search`           | Hybrid search over docs (BM25 + vector) with BFS expansion    |
-| `get_node`         | Fetch full content of a specific doc chunk by ID               |
-| `search_topic_files` | Semantic file-level search over docs (by file path + title) |
-
-### Code block tools (enabled when `--docs-pattern` is set)
-
-| Tool               | Description                                                    |
-|--------------------|----------------------------------------------------------------|
-| `find_examples`    | Find code blocks in docs containing a specific symbol          |
-| `search_snippets`  | Semantic search over code blocks extracted from docs           |
-| `list_snippets`    | List code blocks with filters (file, language, content)        |
-| `explain_symbol`   | Find code example + surrounding text explanation for a symbol  |
-
-### Cross-graph tools (requires both docs + code)
-
-| Tool               | Description                                                    |
-|--------------------|----------------------------------------------------------------|
-| `cross_references` | Full picture: definitions (code) + examples + docs for a symbol |
-
-### Code tools (enabled when `--code-pattern` is set)
-
-| Tool               | Description                                                    |
-|--------------------|----------------------------------------------------------------|
-| `list_files`       | List all indexed source files with symbol counts               |
-| `get_file_symbols` | List all symbols in a file (sorted by line)                    |
-| `search_code`      | Hybrid search over code (BM25 + vector) with BFS expansion    |
-| `get_symbol`       | Fetch full source body of a specific symbol by ID              |
-| `search_files`     | Semantic file-level search over code (by file path)            |
-
-### File index tools (always enabled)
-
-| Tool               | Description                                                    |
-|--------------------|----------------------------------------------------------------|
-| `list_all_files`   | List all project files/dirs with filters (directory, extension, language) |
-| `search_all_files` | Semantic search over files by path                             |
-| `get_file_info`    | Get full metadata for a file or directory                      |
-
-### Knowledge tools (always enabled)
-
-| Tool               | Description                                                    |
-|--------------------|----------------------------------------------------------------|
-| `create_note`      | Create a note with title, content, and tags                    |
-| `update_note`      | Update an existing note's title, content, or tags              |
-| `delete_note`      | Delete a note and its relations                                |
-| `get_note`         | Fetch a note by ID                                             |
-| `list_notes`       | List notes with optional filter and tag                        |
-| `search_notes`     | Hybrid search over notes (BM25 + vector) with BFS expansion   |
-| `create_relation`  | Create a relation between notes or to doc/code/files/task nodes |
-| `delete_relation`  | Delete a relation (note-to-note or cross-graph)                |
-| `list_relations`   | List all relations for a note (includes cross-graph links)     |
-| `find_linked_notes`| Reverse lookup: find all notes that link to a doc/code/file/task node |
-| `add_note_attachment` | Attach a file to a note (by absolute path)                    |
-| `remove_note_attachment` | Remove an attachment from a note                          |
-
-### Task tools (always enabled)
-
-| Tool               | Description                                                    |
-|--------------------|----------------------------------------------------------------|
-| `create_task`      | Create a task with title, description, priority, tags, status, dueDate, estimate, assignee |
-| `update_task`      | Update any task fields (partial update)                        |
-| `delete_task`      | Delete a task and its relations                                |
-| `get_task`         | Fetch a task with subtasks, blockedBy, blocks, and related     |
-| `list_tasks`       | List tasks with filters (status, priority, tag, filter text)   |
-| `search_tasks`     | Hybrid search over tasks (BM25 + vector) with BFS expansion   |
-| `move_task`        | Change task status with auto completedAt management            |
-| `link_task`        | Create task↔task relations (subtask_of, blocks, related_to)    |
-| `create_task_link` | Link a task to a doc/code/file/knowledge node                  |
-| `delete_task_link` | Remove a cross-graph link from a task                          |
-| `find_linked_tasks`| Reverse lookup: find all tasks that link to a target node      |
-| `add_task_attachment` | Attach a file to a task (by absolute path)                  |
-| `remove_task_attachment` | Remove an attachment from a task                         |
-
-### Skill tools (always enabled)
-
-| Tool               | Description                                                    |
-|--------------------|----------------------------------------------------------------|
-| `create_skill`     | Create a skill (recipe/procedure) with steps, triggers, and metadata |
-| `update_skill`     | Update any skill fields (partial update)                       |
-| `delete_skill`     | Delete a skill and its relations                               |
-| `get_skill`        | Fetch a skill with dependsOn/dependedBy/related/variants + cross-links |
-| `list_skills`      | List skills with filters (source, tag, filter text)            |
-| `search_skills`    | Hybrid search over skills (BM25 + vector) with BFS expansion  |
-| `link_skill`       | Create skill↔skill relations (depends_on, related_to, variant_of) |
-| `create_skill_link`| Link a skill to a doc/code/file/knowledge/task node            |
-| `delete_skill_link`| Remove a cross-graph link from a skill                         |
-| `find_linked_skills`| Reverse lookup: find all skills that link to a target node    |
-| `add_skill_attachment` | Attach a file to a skill (by absolute path)               |
-| `remove_skill_attachment` | Remove an attachment from a skill                      |
-| `recall_skills`    | Recall relevant skills for a task context (lower minScore for higher recall) |
-| `bump_skill_usage` | Increment skill usage counter + set lastUsedAt                 |
-
-## Installation (from source)
-
-```bash
-npm install
-npm run build
-```
-
-## Usage
-
-### 1. Create `graph-memory.yaml`
-
-```yaml
-server:
-  host: "127.0.0.1"
-  port: 3000
-  sessionTimeout: 1800
-  embedding:
-    model: "Xenova/bge-m3"              # default for all graphs
-
-projects:
-  my-app:
-    projectDir: "/path/to/my-app"
-    docsPattern: "docs/**/*.md"
-    codePattern: "src/**/*.{ts,tsx}"
-    excludePattern: "node_modules/**,dist/**"
-    tsconfig: "./tsconfig.json"
-    # Per-graph embedding overrides (optional):
-    graphs:
-      code:
-        model: "Xenova/bge-base-en-v1.5"
-        pooling: "cls"
-        queryPrefix: "Represent this sentence for searching relevant passages: "
-```
-
-Embedding config uses inheritance: `graphs.<name>` → `project.embedding` → `server.embedding` → defaults. The same model is loaded only once (deduplication). See [`graph-memory.yaml.example`](graph-memory.yaml.example) for all options and model examples.
-
-All fields are optional except `projectDir` — see [`graph-memory.yaml.example`](graph-memory.yaml.example) for the full list.
-
-### 2. Run
-
-```bash
-# Multi-project HTTP server (primary mode — serves all projects)
-node /path/to/mcp-graph-memory/dist/cli/index.js serve --config graph-memory.yaml
-
-# Single-project stdio (for MCP clients like Claude Desktop)
-node /path/to/mcp-graph-memory/dist/cli/index.js mcp --config graph-memory.yaml --project my-app
-
-# Index one project and exit
-node /path/to/mcp-graph-memory/dist/cli/index.js index --config graph-memory.yaml --project my-app
-
-# Force re-index from scratch (discard persisted graphs)
-node /path/to/mcp-graph-memory/dist/cli/index.js serve --config graph-memory.yaml --reindex
-```
-
-All three commands (`serve`, `mcp`, `index`) support `--reindex` to discard persisted graph JSON files and re-create graphs from scratch.
-
-### Claude Desktop / MCP client configuration
-
-**Stdio transport** (one project per process):
-
-```json
-{
-  "mcpServers": {
-    "project-memory": {
-      "command": "node",
-      "args": [
-        "/path/to/mcp-graph-memory/dist/cli/index.js",
-        "mcp",
-        "--config", "/path/to/graph-memory.yaml",
-        "--project", "my-app"
-      ]
-    }
-  }
-}
-```
-
-**HTTP transport** (multi-project, multiple clients share one server):
-
-Start the server:
-```bash
-node /path/to/mcp-graph-memory/dist/cli/index.js serve --config graph-memory.yaml
-```
-
-Then connect your MCP client to `http://localhost:3000/mcp/{projectId}` using the Streamable HTTP transport.
-
-For Claude Desktop with HTTP transport:
-```json
-{
-  "mcpServers": {
-    "project-memory": {
-      "type": "streamable-http",
-      "url": "http://localhost:3000/mcp/my-app"
-    }
-  }
-}
-```
-
-For Cursor, Windsurf, or other MCP clients — use the Streamable HTTP URL:
-```
-http://localhost:3000/mcp/{projectId}
-```
-
-Each project configured in `graph-memory.yaml` gets its own MCP endpoint at `/mcp/{projectId}`. Multiple clients can connect to the same server simultaneously — each session gets its own MCP instance but shares graph data.
-
-The server watches `graph-memory.yaml` for changes — add, remove, or update projects without restarting.
-
-## Configuration
-
-### `graph-memory.yaml`
-
-YAML config file. All fields optional except `projects.*.projectDir`:
-
-**Server settings** (`server:`):
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `host` | `string` | `127.0.0.1` | HTTP server bind address |
-| `port` | `number` | `3000` | HTTP server port |
-| `sessionTimeout` | `number` | `1800` | Idle session timeout in seconds |
-| `modelsDir` | `string` | `~/.graph-memory/models` | Local model cache directory |
-| `corsOrigins` | `string[]` | — | Allowed CORS origins (omit for permissive CORS) |
-| `defaultAccess` | `string` | `rw` | Default access for unknown users: `deny`, `r`, or `rw` |
-| `access` | `object` | — | Server-level per-user access overrides (e.g. `alice: rw`) |
-| `embedding` | `object` | (see below) | Default embedding config (fallback for all graphs) |
-| `embeddingApi` | `object` | — | Expose the embedding model via `POST /api/embed` (see below) |
-
-**Embedding config** (`server.embedding`, `projects.<id>.embedding`, `projects.<id>.graphs.<name>`):
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `model` | `string` | `Xenova/bge-m3` | Embedding model from HuggingFace |
-| `pooling` | `string` | `cls` | Pooling strategy: `mean` or `cls` |
-| `normalize` | `boolean` | `true` | L2-normalize output vectors |
-| `dtype` | `string` | — | Quantization: `fp32`, `fp16`, `q8`, `q4` |
-| `queryPrefix` | `string` | `""` | Prefix prepended to search queries |
-| `documentPrefix` | `string` | `""` | Prefix prepended to documents during indexing |
-| `batchSize` | `number` | `1` | Texts per ONNX forward pass (increase for faster indexing, more memory) |
-| `remote` | `string` | — | Remote embedding API URL (replaces local ONNX model) |
-| `remoteApiKey` | `string` | — | API key for the remote embedding endpoint |
-
-Config inheritance: `graphs.<name>` → `project.embedding` → `server.embedding` → defaults.
-
-**Per-project settings** (`projects.<id>:`):
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `projectDir` | `string` | **(required)** | Root directory to index |
-| `graphMemory` | `string` | `{projectDir}/.graph-memory` | Where to store graph JSON files |
-| `docsPattern` | `string` | `**/*.md` | Glob for markdown files (legacy shorthand; prefer `graphs.docs.pattern`) |
-| `codePattern` | `string` | `**/*.{js,ts,jsx,tsx}` | Glob for source files (legacy shorthand; prefer `graphs.code.pattern`) |
-| `excludePattern` | `string` | `node_modules/**` | Glob to exclude from indexing (project-level fallback) |
-| `tsconfig` | `string` | — | Path to tsconfig.json |
-| `embedding` | `object` | (server default) | Project-level embedding config |
-| `graphs` | `object` | — | Per-graph config (see below) |
-| `access` | `object` | — | Per-project per-user access overrides |
-| `chunkDepth` | `number` | `4` | Max heading depth to chunk at |
-| `maxTokensDefault` | `number` | `4000` | Default max tokens for responses |
-| `embedMaxChars` | `number` | `2000` | Max chars fed to embedder per node |
-
-**Per-graph configuration** (`projects.<id>.graphs.<name>:`):
-
-Each of the six graphs (`docs`, `code`, `knowledge`, `tasks`, `files`, `skills`) can be individually configured:
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `enabled` | `boolean` | `true` | Set `false` to disable this graph entirely |
-| `pattern` | `string` | (depends on graph) | Glob for docs/code graphs (e.g. `"docs/**/*.md"`) |
-| `excludePattern` | `string` | (project fallback) | Overrides the project-level `excludePattern` |
-| `embedding` | `object` | (project/server fallback) | Full embedding config — **first-defined-wins, no field-by-field merge** |
-| `access` | `object` | — | Per-graph per-user access overrides (e.g. `bob: rw`) |
-
-Example:
-
-```yaml
-graphs:
-  docs:
-    pattern: "content/**/*.md"
-    excludePattern: "changelog/**"
-    embedding:
-      model: "Xenova/bge-m3"
-      pooling: "cls"
-  code:
-    enabled: false           # disable code indexing
-  knowledge:
-    access:
-      bob: rw                # bob gets rw on knowledge even if project says r
-```
-
-## Authentication & Access Control
-
-When `users` are defined in the config, the REST API and MCP HTTP endpoints require authentication via Bearer token:
-
-```yaml
-users:
-  alice:
-    name: "Alice"
-    email: "alice@example.com"
-    apiKey: "mgm-key-abc123"
-  bob:
-    name: "Bob"
-    email: "bob@example.com"
-    apiKey: "mgm-key-def456"
-```
-
-Clients authenticate with `Authorization: Bearer <apiKey>`. MCP stdio mode does not use authentication -- identity comes from the `author` config.
-
-**4-level ACL resolution** (first match wins):
-
-1. `graphs.<name>.access[userId]` -- per-graph override
-2. `projects.<id>.access[userId]` -- per-project override
-3. `workspaces.<id>.access[userId]` -- per-workspace override
-4. `server.access[userId]` -- server-level default for that user
-5. `server.defaultAccess` -- fallback for unknown users (default: `rw`)
-
-Access levels: `deny` (no access), `r` (read-only), `rw` (read-write).
-
-The web UI shows a login page when authentication is configured. API key comparison uses timing-safe equality to prevent timing attacks.
-
-## Team Management
-
-Team members are stored as `.team/{id}.md` files inside the project (or workspace mirror) directory. Each file has YAML frontmatter with `name` and `email`:
-
-```markdown
----
-name: Alice
-email: alice@example.com
----
-# Alice
-```
-
-The configured `author` is automatically created as a team member file on first mutation. Team members are used as task assignees (see below).
-
-## Embedding API
-
-The server can expose its local embedding model as a REST endpoint for other services:
-
-```yaml
-server:
-  embeddingApi:
-    enabled: true
-    apiKey: "emb-secret-key"     # optional, separate from user apiKeys
-```
-
-**`POST /api/embed`** -- embed an array of texts:
-
-```json
-{
-  "texts": ["first document", "second document"]
-}
-```
-
-Returns `{ "embeddings": [[...], [...]] }`. When `apiKey` is set, requests must include `Authorization: Bearer <apiKey>`.
-
-**Remote embedding**: instead of loading a local ONNX model, a project can delegate embedding to a remote server (e.g. a GPU machine running the embedding API above):
-
-```yaml
-server:
-  embedding:
-    remote: "http://gpu-server:3000/api/embed"
-    remoteApiKey: "emb-secret-key"
-```
-
-Remote URLs are validated to use `http:` or `https:` protocols only.
-
-## Security
-
-- **Timing-safe API key comparison** -- all API key checks (`users`, `embeddingApi`) use `crypto.timingSafeEqual` to prevent timing attacks
-- **SSRF protection** -- remote embedding URLs are validated to use `http:` or `https:` protocols only
-- **Filename validation** -- attachment filenames are sanitized (path separators, `..`, and null bytes stripped) to prevent path traversal
-- **Content-Disposition** -- attachment downloads use RFC 5987 encoding (`filename*=UTF-8''...`) with `X-Content-Type-Options: nosniff`
-
-## How graph IDs work
-
-**Doc nodes**: `"docs/auth.md"` (file root), `"docs/auth.md::JWT Tokens"` (section),
-`"docs/auth.md::Notes::2"` (duplicate heading)
-
-**Code block nodes**: `"docs/auth.md::JWT Tokens::code-1"` (first code block in section)
-
-**Code nodes**: `"src/lib/graph.ts"` (file), `"src/lib/graph.ts::updateFile"` (function),
-`"src/lib/graph.ts::GraphStore::set"` (method)
-
-**Knowledge nodes**: `"auth-uses-jwt"` (slug from title), `"auth-uses-jwt::2"` (dedup)
-
-**File index nodes**: `"src/lib/config.ts"` (file), `"src/lib"` (directory), `"."` (root)
-
-**Task nodes**: `"implement-auth"` (slug from title), `"implement-auth::2"` (dedup)
-
-**Skill nodes**: `"add-rest-endpoint"` (slug from title), `"add-rest-endpoint::2"` (dedup)
-
-**Cross-graph proxy nodes**: `"@docs::docs/auth.md::JWT Tokens"`, `"@code::src/auth.ts::Foo"`, `"@files::src/config.ts"`, `"@tasks::implement-auth"`, `"@knowledge::my-note"`, `"@skills::add-rest-endpoint"` (internal — resolved transparently in `list_relations`)
-
-Pass these IDs to `get_node`, `get_symbol`, or `get_note` to fetch full content.
-
-## Web UI
-
-The `serve` command starts a web UI at `http://localhost:3000` with:
-
-- **Dashboard** — project stats (notes, tasks, skills, docs, code, files) + recent activity
-- **Knowledge** — notes CRUD, semantic search, relations, cross-graph links
-- **Tasks** — kanban board with configurable columns, drag-drop with drop-zone highlights, inline task creation, filter bar (search/priority/tags/assignee), due date and estimate badges, assignee display with team member name resolution, quick actions on hover, scrollable columns
-- **Skills** — skill/recipe management with triggers, steps, and usage tracking
-- **Docs** — browse and search indexed markdown documentation
-- **Files** — file browser with directory navigation, metadata, search
-- **Prompts** — AI prompt generator with scenario presets, role/style/graph selection, live preview, copy & export as skill
-- **Search** — unified semantic search across all 6 graphs
-- **Graph** — interactive force-directed graph visualization (Cytoscape.js)
-- **Tools** — MCP tools explorer with live execution from the browser
-- **Help** — built-in searchable documentation on all tools and concepts
-
-Light/dark theme toggle. Real-time updates via WebSocket. Login page when authentication is configured.
-
-### REST API
-
-The HTTP server also exposes a REST API at `/api/*`:
-
-```
-GET    /api/projects                                  → list projects with stats
-GET    /api/projects/:id/stats                        → per-graph node/edge counts
-
-GET    /api/projects/:id/knowledge/notes              → list notes
-POST   /api/projects/:id/knowledge/notes              → create note
-GET    /api/projects/:id/knowledge/notes/:noteId      → get note
-PUT    /api/projects/:id/knowledge/notes/:noteId      → update note
-DELETE /api/projects/:id/knowledge/notes/:noteId      → delete note
-GET    /api/projects/:id/knowledge/search?q=...       → search notes
-POST   /api/projects/:id/knowledge/relations          → create relation
-DELETE /api/projects/:id/knowledge/relations          → delete relation
-GET    /api/projects/:id/knowledge/notes/:noteId/relations → list note relations
-GET    /api/projects/:id/knowledge/linked?targetGraph=...&targetNodeId=... → find linked notes
-POST   /api/projects/:id/knowledge/notes/:noteId/attachments  → upload attachment
-GET    /api/projects/:id/knowledge/notes/:noteId/attachments  → list attachments
-GET    /api/projects/:id/knowledge/notes/:noteId/attachments/:filename → download attachment
-DELETE /api/projects/:id/knowledge/notes/:noteId/attachments/:filename → delete attachment
-
-GET    /api/projects/:id/tasks                        → list tasks
-POST   /api/projects/:id/tasks                        → create task
-GET    /api/projects/:id/tasks/:taskId                → get task
-PUT    /api/projects/:id/tasks/:taskId                → update task
-DELETE /api/projects/:id/tasks/:taskId                → delete task
-POST   /api/projects/:id/tasks/:taskId/move           → move task status
-GET    /api/projects/:id/tasks/search?q=...           → search tasks
-POST   /api/projects/:id/tasks/links                  → create task link
-DELETE /api/projects/:id/tasks/links                  → delete task link
-GET    /api/projects/:id/tasks/:taskId/relations      → list task relations
-GET    /api/projects/:id/tasks/linked?targetGraph=...&targetNodeId=... → find linked tasks
-POST   /api/projects/:id/tasks/:taskId/attachments    → upload attachment
-GET    /api/projects/:id/tasks/:taskId/attachments    → list attachments
-GET    /api/projects/:id/tasks/:taskId/attachments/:filename → download attachment
-DELETE /api/projects/:id/tasks/:taskId/attachments/:filename → delete attachment
-
-GET    /api/projects/:id/skills                        → list skills
-POST   /api/projects/:id/skills                        → create skill
-GET    /api/projects/:id/skills/:skillId               → get skill
-PUT    /api/projects/:id/skills/:skillId               → update skill
-DELETE /api/projects/:id/skills/:skillId               → delete skill
-GET    /api/projects/:id/skills/search?q=...           → search skills
-GET    /api/projects/:id/skills/recall?q=...           → recall skills (lower minScore)
-POST   /api/projects/:id/skills/links                  → create skill link
-DELETE /api/projects/:id/skills/links                  → delete skill link
-GET    /api/projects/:id/skills/:skillId/relations     → list skill relations
-GET    /api/projects/:id/skills/linked?targetGraph=...&targetNodeId=... → find linked skills
-POST   /api/projects/:id/skills/:skillId/attachments   → upload attachment
-GET    /api/projects/:id/skills/:skillId/attachments   → list attachments
-GET    /api/projects/:id/skills/:skillId/attachments/:filename → download attachment
-DELETE /api/projects/:id/skills/:skillId/attachments/:filename → delete attachment
-
-GET    /api/projects/:id/team                          → list team members
-
-GET    /api/projects/:id/docs/search?q=...            → search docs
-GET    /api/projects/:id/code/search?q=...            → search code
-GET    /api/projects/:id/files                        → list files
-GET    /api/projects/:id/files/search?q=...           → search files
-GET    /api/projects/:id/graph?scope=...              → graph export
-
-GET    /api/projects/:id/tools                        → list MCP tools
-GET    /api/projects/:id/tools/:toolName              → tool details + schema
-POST   /api/projects/:id/tools/:toolName/call         → call a tool
-
-POST   /api/embed                                     → embed texts (requires embeddingApi.enabled)
-```
-
-## Demo Project
-
-A demo project (`demo-project/`) is included — a fictional "TaskFlow" project management API with:
-
-- **18 TypeScript files** — models, services, controllers, middleware, utilities
-- **11 markdown docs** — architecture, API reference, guides, changelog
-- **Seed script** — creates 15 notes + 20 tasks + 10 skills + relations + cross-graph links via REST API
-
-To try it:
-
-```bash
-# 1. Start the server (indexes code + docs automatically)
-npm run build
-node dist/cli/index.js serve --config graph-memory.yaml
-
-# 2. Seed notes, tasks, and relations
-./demo-project/scripts/seed.sh
-```
-
-The `demo-taskflow` project is pre-configured in `graph-memory.yaml`. Open `http://localhost:3000` to explore the data.
+See [docs/docker.md](docs/docker.md).
 
 ## Development
 
 ```bash
-npm run dev   # watch mode (backend)
-cd ui && npm run dev   # Vite dev server on :5173, proxies /api → :3000
+npm run dev              # tsc --watch (backend)
+cd ui && npm run dev     # Vite on :5173, proxies /api → :3000
+npm test                 # 1240 tests across 28 suites
 ```
 
-Run tests:
-```bash
-npm test                                   # all tests (1216 tests across 27 suites)
-npm test -- --testPathPatterns=search       # run a specific test file
-npm run test:watch                         # watch mode
-```
+## Documentation
+
+Full documentation is in [docs/](docs/README.md):
+
+- **Concepts**: [docs indexing](docs/concepts-docs-indexing.md), [code indexing](docs/concepts-code-indexing.md), [tasks](docs/concepts-tasks.md), [skills](docs/concepts-skills.md), [knowledge](docs/concepts-knowledge.md), [file index](docs/concepts-file-index.md)
+- **Architecture**: [system architecture](docs/architecture.md), [graphs overview](docs/graphs-overview.md), [search algorithms](docs/search.md), [embeddings](docs/embeddings.md)
+- **API**: [REST API](docs/api-rest.md), [MCP tools guide](docs/mcp-tools-guide.md), [WebSocket](docs/api-websocket.md)
+- **Operations**: [CLI](docs/cli.md), [configuration](docs/configuration.md), [Docker](docs/docker.md), [npm](docs/npm-package.md)
+- **Security**: [authentication](docs/authentication.md), [security](docs/security.md)
+- **UI**: [architecture](docs/ui-architecture.md), [features](docs/ui-features.md), [patterns](docs/ui-patterns.md)
+- **Development**: [testing](docs/testing.md), [API patterns](docs/api-patterns.md)
+
+## License
+
+ISC

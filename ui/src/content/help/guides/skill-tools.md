@@ -40,7 +40,7 @@ Skills here are tightly integrated with your project's knowledge graph:
 | `description` | string | Markdown | Full skill description |
 | `steps` | string[] | Ordered list | Step-by-step procedure |
 | `triggers` | string[] | Free-form | When to apply this skill |
-| `source` | enum | `learned`, `manual`, `imported` | How the skill was created |
+| `source` | enum | `user`, `learned` | How the skill was created |
 | `tags` | string[] | Free-form | For filtering |
 | `usageCount` | number | Auto-managed | Incremented by `bump_skill_usage` |
 | `lastUsedAt` | number | Unix timestamp (auto) | Set by `bump_skill_usage` |
@@ -65,7 +65,7 @@ Create a new skill. Automatically embedded for semantic search.
 | `description` | string | Yes | -- | Full description (markdown) |
 | `steps` | string[] | No | `[]` | Ordered steps of the procedure |
 | `triggers` | string[] | No | `[]` | When this skill should be applied |
-| `source` | enum | No | `"manual"` | `"learned"`, `"manual"`, `"imported"` |
+| `source` | enum | No | `"user"` | `"user"`, `"learned"` |
 | `tags` | string[] | No | `[]` | Tags for filtering |
 
 **Returns:** `{ skillId }`
@@ -124,7 +124,7 @@ List skills with optional filters. Sorted by usage count (most used first).
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `source` | enum | No | -- | Filter by source (`learned`, `manual`, `imported`) |
+| `source` | enum | No | -- | Filter by source (`user`, `learned`) |
 | `tag` | string | No | -- | Filter by tag (exact match, case-insensitive) |
 | `filter` | string | No | -- | Substring match on title or ID |
 | `limit` | number | No | 50 | Maximum results |
@@ -258,7 +258,7 @@ Remove an attachment from a skill. Deletes the file from disk.
 - Use `recall_skills` when starting a task to find relevant procedures -- it uses a lower threshold for better recall
 - Call `bump_skill_usage` after applying a skill to track which skills are most useful
 - Skills with `source: "learned"` are typically created by AI agents that discover patterns
-- Skills with `source: "manual"` are created by humans documenting their procedures
+- Skills with `source: "user"` are created by humans documenting their procedures
 - Link skills to code files they apply to -- makes it easy to find relevant skills when working on code
 - Use `search_skills` to find skills by meaning, not just title keywords
 - `update_skill` with `tags` replaces the entire array -- include all tags you want to keep

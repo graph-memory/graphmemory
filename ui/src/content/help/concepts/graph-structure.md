@@ -19,7 +19,7 @@ Indexes markdown documentation by parsing files into a hierarchy of sections.
 
 ## CodeGraph
 
-Indexes TypeScript/JavaScript source code using `ts-morph` AST parsing.
+Indexes TypeScript/JavaScript source code using tree-sitter AST parsing.
 
 **Nodes:**
 - **File** — represents the source file
@@ -27,7 +27,7 @@ Indexes TypeScript/JavaScript source code using `ts-morph` AST parsing.
 
 **Edges:**
 - `contains` — file → symbol, class → method
-- `imports` — file → imported file (resolved by ts-morph)
+- `imports` — file → imported file (resolved by import resolver)
 - `extends` — class → base class
 - `implements` — class → interface
 
@@ -73,7 +73,7 @@ Task management with kanban workflow. Also manually curated.
 Stores reusable recipes and procedures. Also manually curated.
 
 **Nodes:**
-- **Skills** — title, description, steps[], triggers[], source (learned|manual|imported), tags, usageCount, lastUsedAt, embedding
+- **Skills** — title, description, steps[], triggers[], source (`user`|`learned`), tags, usageCount, lastUsedAt, confidence, embedding
 
 **Edges:**
 - `depends_on` — skill requires another skill

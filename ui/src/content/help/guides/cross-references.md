@@ -65,7 +65,7 @@ A single symbol name can have multiple definitions (e.g., overloaded functions, 
 The tool iterates over all nodes in the DocGraph, checking the `symbols` array of code block nodes. When markdown is indexed, fenced code blocks are parsed:
 
 1. The code block's language is detected from the fence tag (` ```ts `, ` ```javascript `, etc.)
-2. TypeScript/JavaScript blocks are parsed with `ts-morph` using a virtual in-memory file
+2. TypeScript/JavaScript blocks are parsed with `tree-sitter` using a virtual in-memory file
 3. Top-level symbol names are extracted: function declarations, class declarations, variable declarations
 4. These are stored in the `symbols` field
 

@@ -1,12 +1,14 @@
 # Connecting MCP Clients
 
-Graph Memory supports two transport modes for MCP clients: **stdio** (single project) and **Streamable HTTP** (multi-project). Choose the right one for your setup.
+Graph Memory supports two transport modes for MCP clients: **stdio** (single project) and **HTTP** (multi-project). Choose the right one for your setup.
 
 ## Stdio transport
 
 Best for: single-project setups, IDE integrations where each project gets its own MCP server process.
 
 The MCP client launches the server as a subprocess. Communication happens over stdin/stdout.
+
+After `npm install -g @prih/mcp-graph-memory`:
 
 ### Claude Desktop (stdio)
 
@@ -16,19 +18,14 @@ Add to your Claude Desktop config (`claude_desktop_config.json`):
 {
   "mcpServers": {
     "project-memory": {
-      "command": "node",
-      "args": [
-        "/path/to/mcp-graph-memory/dist/cli/index.js",
-        "mcp",
-        "--config", "/path/to/graph-memory.yaml",
-        "--project", "my-app"
-      ]
+      "command": "mcp-graph-memory",
+      "args": ["mcp", "--config", "/path/to/graph-memory.yaml", "--project", "my-app"]
     }
   }
 }
 ```
 
-Replace `/path/to/mcp-graph-memory` with the actual install path, and `my-app` with the project ID from your `graph-memory.yaml`.
+Replace `my-app` with the project ID from your `graph-memory.yaml`.
 
 ### Claude Code (stdio)
 
@@ -38,37 +35,43 @@ Add to your project's `.mcp.json`:
 {
   "mcpServers": {
     "project-memory": {
-      "command": "node",
-      "args": [
-        "/path/to/mcp-graph-memory/dist/cli/index.js",
-        "mcp",
-        "--config", "/path/to/graph-memory.yaml",
-        "--project", "my-app"
-      ]
+      "type": "stdio",
+      "command": "mcp-graph-memory",
+      "args": ["mcp", "--config", "/path/to/graph-memory.yaml", "--project", "my-app"]
     }
   }
 }
 ```
 
-## HTTP transport (Streamable HTTP)
+## HTTP transport
 
 Best for: multi-project setups, shared team servers, or when multiple clients need to access the same graphs simultaneously.
 
 Start the server first:
 
 ```bash
-node /path/to/mcp-graph-memory/dist/cli/index.js serve --config graph-memory.yaml
+mcp-graph-memory serve --config graph-memory.yaml
 ```
 
 Each project gets its own MCP endpoint at `http://localhost:3000/mcp/{projectId}`.
 
 ### Claude Desktop (HTTP)
 
+Add via **Settings > Connectors** in the Claude Desktop app, enter the URL:
+
+```
+http://localhost:3000/mcp/my-app
+```
+
+### Claude Code (HTTP)
+
+Add to your project's `.mcp.json`:
+
 ```json
 {
   "mcpServers": {
     "project-memory": {
-      "type": "streamable-http",
+      "type": "http",
       "url": "http://localhost:3000/mcp/my-app"
     }
   }
@@ -77,13 +80,11 @@ Each project gets its own MCP endpoint at `http://localhost:3000/mcp/{projectId}
 
 ### Cursor / Windsurf / Other clients
 
-Use the Streamable HTTP URL directly:
+Enter the MCP URL directly in your client's server configuration:
 
 ```
 http://localhost:3000/mcp/{projectId}
 ```
-
-Most MCP clients support Streamable HTTP transport. Enter the URL in your client's MCP server configuration.
 
 ## Docker
 

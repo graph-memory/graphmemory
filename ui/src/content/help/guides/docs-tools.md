@@ -41,7 +41,7 @@ Use `get_toc` with a file ID to see the full heading hierarchy. This helps when 
 
 ## Code block tools
 
-When markdown is indexed, fenced code blocks (` ```lang ... ``` `) are extracted as child nodes. TypeScript/JavaScript blocks are additionally parsed with `ts-morph` to extract top-level symbol names into the `symbols` field. This enables powerful code example discovery.
+When markdown is indexed, fenced code blocks (` ```lang ... ``` `) are extracted as child nodes. TypeScript/JavaScript blocks are additionally parsed with tree-sitter to extract top-level symbol names into the `symbols` field. This enables powerful code example discovery.
 
 ### find_examples
 

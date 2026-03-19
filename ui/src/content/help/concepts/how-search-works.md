@@ -23,7 +23,7 @@ Similar concepts produce similar vectors:
 | FileIndexGraph | Each file | File path |
 | KnowledgeGraph | Each note | Note title + content |
 | TaskGraph | Each task | Task title + description |
-| SkillGraph | Each skill | Skill title + description + triggers + tags |
+| SkillGraph | Each skill | Skill title + description |
 
 ### Per-graph models
 
@@ -36,18 +36,15 @@ projects:
       model: Xenova/bge-m3        # default for all graphs
     graphs:
       docs:
-        model: Xenova/bge-m3      # override for docs
+        embedding:
+          model: Xenova/bge-m3    # override for docs (full config, no merge)
       code:
-        model: Xenova/bge-m3      # override for code
-      knowledge:
-        model: ...                # override for knowledge
-      tasks:
-        model: ...                # override for tasks
-      files:
-        model: ...                # override for file index
-      skills:
-        model: ...                # override for skills
+        embedding:
+          model: Xenova/bge-base-en-v1.5
+      # knowledge, tasks, files, skills inherit project.embedding
 ```
+
+Resolution: `graph.embedding → project.embedding → server.embedding → defaults`. Each level is a complete config block — no field-by-field merge.
 
 ## Cosine similarity
 

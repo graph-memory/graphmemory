@@ -28,7 +28,7 @@ docker run -d \
   -v $(pwd)/graph-memory.yaml:/data/config/graph-memory.yaml:ro \
   -v /path/to/my-app:/data/projects/my-app:ro \
   -v graph-memory-models:/data/models \
-  ghcr.io/graph-memory/graphmemory
+  ghcr.io/graph-memory/graphmemory-server
 ```
 
 Open http://localhost:3000 — the web UI is ready. The embedding model (~560 MB) downloads on first startup.
@@ -171,7 +171,7 @@ See [docs/authentication.md](docs/authentication.md).
 ```yaml
 services:
   graph-memory:
-    image: ghcr.io/graph-memory/graphmemory
+    image: ghcr.io/graph-memory/graphmemory-server
     ports:
       - "3000:3000"
     volumes:

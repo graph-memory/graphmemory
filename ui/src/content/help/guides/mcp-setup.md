@@ -97,7 +97,7 @@ docker run -d \
   -v $(pwd)/graph-memory.yaml:/data/config/graph-memory.yaml:ro \
   -v /path/to/my-app:/data/projects/my-app \
   -v graph-memory-models:/data/models \
-  ghcr.io/graph-memory/graphmemory
+  ghcr.io/graph-memory/graphmemory-server
 ```
 
 Then connect your MCP client to `http://localhost:3000/mcp/my-app`.
@@ -110,7 +110,7 @@ docker run --rm \
   -v $(pwd)/graph-memory.yaml:/data/config/graph-memory.yaml:ro \
   -v /path/to/my-app:/data/projects/my-app \
   -v graph-memory-models:/data/models \
-  ghcr.io/graph-memory/graphmemory index --config /data/config/graph-memory.yaml
+  ghcr.io/graph-memory/graphmemory-server index --config /data/config/graph-memory.yaml
 
 # Docker Compose (uses volumes defined in your compose file)
 docker compose run --rm graph-memory index --config /data/config/graph-memory.yaml

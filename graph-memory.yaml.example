@@ -61,6 +61,7 @@ server:
   #   queryPrefix: ""                           # Prefix prepended to search queries
   #   documentPrefix: ""                        # Prefix prepended to documents during indexing
   #   batchSize: 1                              # Texts per ONNX forward pass (increase for faster indexing, more memory)
+  #   maxChars: 8000                            # Max chars fed to embedder per node
   #   remote: "http://gpu-server:3000/api/embed" # Use remote embedding API instead of local ONNX
   #   remoteApiKey: "emb-secret-key"             # API key for remote embedding
 
@@ -87,12 +88,10 @@ projects:
 
     # Parsing
     # chunkDepth: 4                             # Max heading depth to chunk at
-    # maxTokensDefault: 4000                    # Default max tokens for responses
-    # embedMaxChars: 2000                       # Max chars fed to embedder per node
-
     # Per-project embedding config (overrides server.embedding — used as fallback for graphs)
     # embedding:
     #   model: "Xenova/bge-m3"
+    #   maxChars: 8000                           # Max chars fed to embedder per node
 
     # Per-project author (overrides root author)
     # author:

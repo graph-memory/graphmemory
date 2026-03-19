@@ -23,6 +23,8 @@ const embeddingConfigSchema = z.object({
   queryPrefix:     z.string().optional(),
   documentPrefix:  z.string().optional(),
   batchSize:       z.number().int().positive().optional(),
+  maxChars:        z.number().int().positive().optional(),
+  cacheSize:       z.number().int().min(0).optional(),
   remote:          z.string().optional(),    // Remote embedding API URL
   remoteApiKey:    z.string().optional(),    // API key for remote embedding
 });
@@ -69,8 +71,6 @@ const projectSchema = z.object({
   codePattern:     z.string().optional(),     // deprecated → graphs.code.pattern
   excludePattern:  z.string().optional(),
   chunkDepth:      z.number().int().positive().optional(),
-  maxTokensDefault: z.number().int().positive().optional(),
-  embedMaxChars:   z.number().int().positive().optional(),
   embedding:       embeddingConfigSchema.optional(),
   graphs:          graphsConfigSchema.optional(),
   author:          authorSchema.optional(),
@@ -165,6 +165,8 @@ export interface EmbeddingConfig {
   queryPrefix: string;
   documentPrefix: string;
   batchSize: number;
+  maxChars: number;
+  cacheSize: number;
   remote?: string;       // Remote embedding API URL (replaces local ONNX)
   remoteApiKey?: string; // API key for remote embedding
 }
@@ -213,8 +215,6 @@ export interface ProjectConfig {
   graphMemory: string;
   excludePattern: string;
   chunkDepth: number;
-  maxTokensDefault: number;
-  embedMaxChars: number;
   embedding: EmbeddingConfig;
   graphConfigs: Record<GraphName, GraphConfig>;
   author: AuthorConfig;
@@ -267,6 +267,8 @@ const EMBEDDING_DEFAULTS: EmbeddingConfig = {
   queryPrefix:    '',
   documentPrefix: '',
   batchSize:      1,
+  maxChars:       8000,
+  cacheSize:      10_000,
 };
 
 const SERVER_DEFAULTS: Omit<ServerConfig, 'embedding'> & { embedding: EmbeddingConfig } = {
@@ -285,8 +287,6 @@ const PROJECT_DEFAULTS = {
   codePattern:     '**/*.{js,ts,jsx,tsx}',
   excludePattern:  'node_modules/**',
   chunkDepth:      4,
-  maxTokensDefault: 4000,
-  embedMaxChars:   2000,
 };
 
 // ---------------------------------------------------------------------------
@@ -310,6 +310,8 @@ function mergeEmbeddingConfig(
     queryPrefix:    override.queryPrefix    ?? base.queryPrefix,
     documentPrefix: override.documentPrefix ?? base.documentPrefix,
     batchSize:      override.batchSize      ?? base.batchSize,
+    maxChars:       override.maxChars       ?? base.maxChars,
+    cacheSize:      override.cacheSize      ?? base.cacheSize,
   };
 }
 
@@ -330,6 +332,8 @@ function resolveEmbeddingConfig(
     queryPrefix:    raw.queryPrefix     ?? fallback.queryPrefix,
     documentPrefix: raw.documentPrefix  ?? fallback.documentPrefix,
     batchSize:      raw.batchSize       ?? fallback.batchSize,
+    maxChars:       raw.maxChars        ?? fallback.maxChars,
+    cacheSize:      raw.cacheSize       ?? fallback.cacheSize,
     remote:         raw.remote          ?? fallback.remote,
     remoteApiKey:   raw.remoteApiKey    ?? fallback.remoteApiKey,
   };
@@ -442,8 +446,6 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
       graphMemory,
       excludePattern:  raw.excludePattern  ?? PROJECT_DEFAULTS.excludePattern,
       chunkDepth:      raw.chunkDepth      ?? PROJECT_DEFAULTS.chunkDepth,
-      maxTokensDefault: raw.maxTokensDefault ?? PROJECT_DEFAULTS.maxTokensDefault,
-      embedMaxChars:   raw.embedMaxChars   ?? PROJECT_DEFAULTS.embedMaxChars,
       embedding:       projectEmbedding,
       graphConfigs,
       author:          raw.author          ?? globalAuthor,

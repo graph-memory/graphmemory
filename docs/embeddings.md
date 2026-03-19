@@ -55,6 +55,7 @@ If a graph defines its own `embedding` block, it is used completely. Otherwise t
 | `queryPrefix` | string | `""` | Prefix prepended to search queries |
 | `documentPrefix` | string | `""` | Prefix prepended to documents during indexing |
 | `batchSize` | number | `1` | Texts per ONNX forward pass |
+| `maxChars` | number | `8000` | Max characters fed to embedder per node |
 | `remote` | string | — | Remote embedding API URL |
 | `remoteApiKey` | string | — | API key for remote endpoint |
 

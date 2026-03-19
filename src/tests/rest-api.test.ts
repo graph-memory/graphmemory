@@ -24,7 +24,7 @@ function fakeEmbed(q: string): Promise<number[]> {
   return Promise.resolve(unitVec(q.length % DIM));
 }
 
-const TEST_EMBEDDING = { model: 'test', pooling: 'mean' as const, normalize: true, queryPrefix: '', documentPrefix: '', batchSize: 1 };
+const TEST_EMBEDDING = { model: 'test', pooling: 'mean' as const, normalize: true, queryPrefix: '', documentPrefix: '', batchSize: 1, maxChars: 2000, cacheSize: 0 };
 
 function testGraphConfigs() {
   return Object.fromEntries(
@@ -51,8 +51,7 @@ function createTestProject(): ProjectInstance {
       graphMemory: '/tmp/test/.graph-memory',
       excludePattern: 'node_modules/**',
       chunkDepth: 4,
-      maxTokensDefault: 4000,
-      embedMaxChars: 2000,
+
       embedding: { ...TEST_EMBEDDING },
       graphConfigs: testGraphConfigs(),
       author: { name: '', email: '' },
@@ -486,8 +485,7 @@ describe('Attachment REST endpoints', () => {
         graphMemory: path.join(dir, '.graph-memory'),
         excludePattern: 'node_modules/**',
         chunkDepth: 4,
-        maxTokensDefault: 4000,
-        embedMaxChars: 2000,
+  
         embedding: { ...TEST_EMBEDDING },
         graphConfigs: testGraphConfigs(),
         author: { name: '', email: '' },
@@ -856,7 +854,7 @@ describe('REST API — Embedding API', () => {
   beforeEach(async () => {
     resetEmbedder();
     await loadModel(
-      { model: 'test', pooling: 'mean', normalize: true, queryPrefix: '', documentPrefix: '', batchSize: 1 },
+      { model: 'test', pooling: 'mean', normalize: true, queryPrefix: '', documentPrefix: '', batchSize: 1, maxChars: 4000, cacheSize: 0 },
       '/tmp/models', 4000, EMBED_MODEL_NAME,
     );
 

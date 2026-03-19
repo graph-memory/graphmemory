@@ -176,9 +176,9 @@ export class ProjectManager extends EventEmitter {
     if (!ws) throw new Error(`Workspace "${id}" not found`);
 
     const gc = ws.config.graphConfigs;
-    await loadModel(gc.knowledge.embedding, this.serverConfig.modelsDir, 2000, `${id}:knowledge`);
-    await loadModel(gc.tasks.embedding, this.serverConfig.modelsDir, 2000, `${id}:tasks`);
-    await loadModel(gc.skills.embedding, this.serverConfig.modelsDir, 2000, `${id}:skills`);
+    await loadModel(gc.knowledge.embedding, this.serverConfig.modelsDir, gc.knowledge.embedding.maxChars, `${id}:knowledge`);
+    await loadModel(gc.tasks.embedding, this.serverConfig.modelsDir, gc.tasks.embedding.maxChars, `${id}:tasks`);
+    await loadModel(gc.skills.embedding, this.serverConfig.modelsDir, gc.skills.embedding.maxChars, `${id}:skills`);
   }
 
   /**
@@ -338,7 +338,7 @@ export class ProjectManager extends EventEmitter {
     for (const gn of GRAPH_NAMES) {
       if (skipGraphs.has(gn)) continue;
       if (!gc[gn].enabled) continue;
-      await loadModel(gc[gn].embedding, this.serverConfig.modelsDir, instance.config.embedMaxChars, `${id}:${gn}`);
+      await loadModel(gc[gn].embedding, this.serverConfig.modelsDir, gc[gn].embedding.maxChars, `${id}:${gn}`);
     }
   }
 

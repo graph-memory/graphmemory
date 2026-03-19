@@ -26,8 +26,7 @@ projects:
     expect(p.graphConfigs.code.pattern).toBe('**/*.{js,ts,jsx,tsx}');
     expect(p.excludePattern).toBe('node_modules/**');
     expect(p.chunkDepth).toBe(4);
-    expect(p.maxTokensDefault).toBe(4000);
-    expect(p.embedMaxChars).toBe(2000);
+    expect(p.embedding.maxChars).toBe(8000);
     expect(p.embedding.model).toBe('Xenova/bge-m3');
     // All graphs enabled by default
     for (const gn of ['docs', 'code', 'knowledge', 'tasks', 'files', 'skills'] as const) {

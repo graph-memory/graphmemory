@@ -134,7 +134,8 @@ projects:
   my-app:
     projectDir: "/path/to/my-app"
     chunkDepth: 4                   # heading depth for chunk boundaries
-    embedMaxChars: 2000             # max chars per chunk for embedding
+    embedding:
+      maxChars: 8000                # max chars per chunk for embedding
     graphs:
       docs:
         pattern: "docs/**/*.md"     # which files to index

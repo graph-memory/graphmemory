@@ -1,6 +1,6 @@
 # Overview
 
-**mcp-graph-memory** is an MCP (Model Context Protocol) server that turns a project directory into a queryable semantic knowledge base. It indexes markdown documentation, TypeScript/JavaScript source code, and all project files into six interconnected graph structures, then exposes them as 58 MCP tools + REST API + web UI.
+**graphmemory** is an MCP (Model Context Protocol) server that turns a project directory into a queryable semantic knowledge base. It indexes markdown documentation, TypeScript/JavaScript source code, and all project files into six interconnected graph structures, then exposes them as 58 MCP tools + REST API + web UI.
 
 ## What it does
 
@@ -52,4 +52,4 @@
 
 - GitHub: https://github.com/graph-memory/graphmemory
 - npm: `@graphmemory/server`
-- Docker: `ghcr.io/graph-memory/graphmemory`
+- Docker: `ghcr.io/graph-memory/graphmemory-server`

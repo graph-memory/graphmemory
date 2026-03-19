@@ -63,13 +63,12 @@ projects:
     excludePattern: "node_modules/**"
     tsconfig: "./tsconfig.json"
     chunkDepth: 4
-    maxTokensDefault: 4000
-    embedMaxChars: 2000
     author:
       name: "Project Bot"
       email: "bot@example.com"
     embedding:
       model: "Xenova/bge-m3"
+      maxChars: 8000
     access:
       bob: r
     graphs:
@@ -145,6 +144,7 @@ graph.embedding → project.embedding → server.embedding → defaults
 | `queryPrefix` | string | `""` | Prefix prepended to search queries |
 | `documentPrefix` | string | `""` | Prefix prepended to documents during indexing |
 | `batchSize` | number | `1` | Texts per ONNX forward pass |
+| `maxChars` | number | `8000` | Max chars fed to embedder per node |
 | `remote` | string | — | Remote embedding API URL (replaces local ONNX) |
 | `remoteApiKey` | string | — | API key for remote embedding endpoint |
 
@@ -157,8 +157,6 @@ graph.embedding → project.embedding → server.embedding → defaults
 | `excludePattern` | string | `node_modules/**` | Glob to exclude from indexing (project-level fallback) |
 | `tsconfig` | string | — | Path to tsconfig.json for import resolution |
 | `chunkDepth` | number | `4` | Max heading depth for chunk boundaries |
-| `maxTokensDefault` | number | `4000` | Default max tokens for responses |
-| `embedMaxChars` | number | `2000` | Max chars fed to embedder per node |
 | `embedding` | object | (server default) | Project-level embedding config |
 | `access` | object | — | Per-user access overrides for this project |
 | `author` | object | (root author) | Author for notes/tasks/skills in this project |

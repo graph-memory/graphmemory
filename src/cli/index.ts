@@ -54,7 +54,7 @@ function resolveProject(configPath: string, projectId?: string): { id: string; p
 async function loadAllModels(projectId: string, config: ProjectConfig, modelsDir: string): Promise<void> {
   for (const gn of GRAPH_NAMES) {
     if (!config.graphConfigs[gn].enabled) continue;
-    await loadModel(config.graphConfigs[gn].embedding, modelsDir, config.embedMaxChars, `${projectId}:${gn}`);
+    await loadModel(config.graphConfigs[gn].embedding, modelsDir, config.graphConfigs[gn].embedding.maxChars, `${projectId}:${gn}`);
   }
 }
 

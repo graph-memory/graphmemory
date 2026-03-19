@@ -63,7 +63,7 @@ Each project needs at least `projectDir`:
 | `excludePattern` | `node_modules/**` | Glob to exclude (project-level fallback, overridden by graph-level) |
 | `tsconfig` | — | Path to tsconfig.json (enables import resolution in code graph) |
 | `chunkDepth` | `4` | Max heading depth for markdown chunking |
-| `embedMaxChars` | `2000` | Max characters fed to the embedding model per node |
+| `embedding.maxChars` | `8000` | Max characters fed to the embedding model per node (inherits: graph → project → workspace → server) |
 | `access` | — | Per-user access overrides for this project |
 
 > **Legacy fields:** `docsPattern` and `codePattern` still work but are deprecated. Use `graphs.docs.pattern` and `graphs.code.pattern` instead.

@@ -11,14 +11,14 @@ const EMBED: EmbeddingConfig = {
 };
 
 function makeGraphConfig(overrides?: Partial<GraphConfig>): GraphConfig {
-  return { enabled: true, model: MODEL, embedding: EMBED, ...overrides };
+  return { enabled: true, exclude: [], model: MODEL, embedding: EMBED, ...overrides };
 }
 
 function makeProjectConfig(overrides?: Partial<ProjectConfig>): ProjectConfig {
   return {
     projectDir: '/tmp/test',
     graphMemory: '/tmp/test/.graph-memory',
-    excludePattern: '',
+    exclude: [],
     chunkDepth: 4,
     maxFileSize: 1048576,
     model: MODEL,
@@ -35,7 +35,7 @@ function makeProjectConfig(overrides?: Partial<ProjectConfig>): ProjectConfig {
 function makeServerConfig(overrides?: Partial<ServerConfig>): ServerConfig {
   return {
     host: '127.0.0.1', port: 3000, sessionTimeout: 1800,
-    modelsDir: '/tmp/models', model: MODEL, embedding: EMBED, defaultAccess: 'rw',
+    modelsDir: '/tmp/models', model: MODEL, embedding: EMBED, defaultAccess: 'rw', exclude: [],
     accessTokenTtl: '15m', refreshTokenTtl: '7d',
     rateLimit: { global: 200, search: 60, auth: 10 },
     maxFileSize: 1048576,
@@ -67,7 +67,7 @@ describe('resolveAccess', () => {
     const server = makeServerConfig({ defaultAccess: 'deny', access: { alice: 'r' } });
     const project = makeProjectConfig();
     const ws: WorkspaceConfig = {
-      projects: [], graphMemory: '', mirrorDir: '', model: MODEL, embedding: EMBED,      graphConfigs: { knowledge: makeGraphConfig(), tasks: makeGraphConfig(), skills: makeGraphConfig() },
+      projects: [], graphMemory: '', mirrorDir: '', model: MODEL, embedding: EMBED, exclude: [],      graphConfigs: { knowledge: makeGraphConfig(), tasks: makeGraphConfig(), skills: makeGraphConfig() },
       author: { name: '', email: '' },
       access: { alice: 'rw' },
     };
@@ -77,7 +77,7 @@ describe('resolveAccess', () => {
   it('project.access overrides workspace.access', () => {
     const server = makeServerConfig({ defaultAccess: 'rw' });
     const ws: WorkspaceConfig = {
-      projects: [], graphMemory: '', mirrorDir: '', model: MODEL, embedding: EMBED,      graphConfigs: { knowledge: makeGraphConfig(), tasks: makeGraphConfig(), skills: makeGraphConfig() },
+      projects: [], graphMemory: '', mirrorDir: '', model: MODEL, embedding: EMBED, exclude: [],      graphConfigs: { knowledge: makeGraphConfig(), tasks: makeGraphConfig(), skills: makeGraphConfig() },
       author: { name: '', email: '' },
       access: { alice: 'rw' },
     };
@@ -104,7 +104,7 @@ describe('resolveAccess', () => {
   it('full chain: graph > project > workspace > server > default', () => {
     const server = makeServerConfig({ defaultAccess: 'deny', access: { eve: 'r' } });
     const ws: WorkspaceConfig = {
-      projects: [], graphMemory: '', mirrorDir: '', model: MODEL, embedding: EMBED,      graphConfigs: { knowledge: makeGraphConfig(), tasks: makeGraphConfig(), skills: makeGraphConfig() },
+      projects: [], graphMemory: '', mirrorDir: '', model: MODEL, embedding: EMBED, exclude: [],      graphConfigs: { knowledge: makeGraphConfig(), tasks: makeGraphConfig(), skills: makeGraphConfig() },
       author: { name: '', email: '' },
     };
     const project = makeProjectConfig();

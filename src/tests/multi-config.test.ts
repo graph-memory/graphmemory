@@ -22,9 +22,9 @@ projects:
     const p = mc.projects.get('my-app')!;
     expect(p.projectDir).toBe('/tmp/my-app');
     expect(p.graphMemory).toBe('/tmp/my-app/.graph-memory');
-    expect(p.graphConfigs.docs.pattern).toBe('**/*.md');
-    expect(p.graphConfigs.code.pattern).toBe('**/*.{js,ts,jsx,tsx}');
-    expect(p.excludePattern).toBe('node_modules/**');
+    expect(p.graphConfigs.docs.include).toBe('**/*.md');
+    expect(p.graphConfigs.code.include).toBe('**/*.{js,ts,jsx,tsx}');
+    expect(p.exclude).toContain('**/node_modules/**');
     expect(p.chunkDepth).toBe(4);
     expect(p.embedding.maxChars).toBe(8000);
     expect(p.model.name).toBe('Xenova/bge-m3');
@@ -89,7 +89,7 @@ projects:
       name: custom/app1
     graphs:
       docs:
-        pattern: "docs/**/*.md"
+        include: "docs/**/*.md"
       code:
         enabled: false
   app2:
@@ -101,7 +101,7 @@ projects:
     expect(mc.projects.size).toBe(2);
 
     const app1 = mc.projects.get('app1')!;
-    expect(app1.graphConfigs.docs.pattern).toBe('docs/**/*.md');
+    expect(app1.graphConfigs.docs.include).toBe('docs/**/*.md');
     expect(app1.graphConfigs.code.enabled).toBe(false);
     expect(app1.model.name).toBe('custom/app1');
 
@@ -179,7 +179,7 @@ projects:
     graphs:
       docs:
         enabled: true
-        pattern: "content/**/*.md"
+        include: "content/**/*.md"
       code:
         enabled: false
       knowledge:
@@ -194,7 +194,7 @@ projects:
     const mc = loadMultiConfig(yamlPath);
     const x = mc.projects.get('x')!;
     expect(x.graphConfigs.docs.enabled).toBe(true);
-    expect(x.graphConfigs.docs.pattern).toBe('content/**/*.md');
+    expect(x.graphConfigs.docs.include).toBe('content/**/*.md');
     expect(x.graphConfigs.code.enabled).toBe(false);
     expect(x.graphConfigs.knowledge.enabled).toBe(false);
     expect(x.graphConfigs.tasks.enabled).toBe(true);
@@ -202,25 +202,28 @@ projects:
     expect(x.graphConfigs.files.enabled).toBe(true);
   });
 
-  it('graph-level excludePattern overrides project-level', () => {
+  it('graph-level exclude overrides project-level', () => {
     const yamlPath = tmpYaml(`
 projects:
   x:
     projectDir: /tmp/x
-    excludePattern: "node_modules/**"
+    exclude:
+      - "node_modules/**"
     graphs:
       docs:
-        excludePattern: "changelog/**"
+        exclude:
+          - "changelog/**"
       code:
-        excludePattern: "test/**,dist/**"
+        exclude:
+          - "test/**"
+          - "dist/**"
 `);
     const mc = loadMultiConfig(yamlPath);
     const x = mc.projects.get('x')!;
-    expect(x.excludePattern).toBe('node_modules/**');
-    expect(x.graphConfigs.docs.excludePattern).toBe('changelog/**');
-    expect(x.graphConfigs.code.excludePattern).toBe('test/**,dist/**');
-    // files has no graph-level exclude — undefined (caller uses project-level fallback)
-    expect(x.graphConfigs.files.excludePattern).toBeUndefined();
+    expect(x.exclude).toContain('node_modules/**');
+    expect(x.graphConfigs.docs.exclude).toContain('changelog/**');
+    expect(x.graphConfigs.code.exclude).toContain('test/**');
+    expect(x.graphConfigs.code.exclude).toContain('dist/**');
   });
 
   it('throws on invalid YAML (missing projects)', () => {

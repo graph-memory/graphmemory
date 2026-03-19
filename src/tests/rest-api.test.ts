@@ -31,7 +31,8 @@ function testGraphConfigs() {
   return Object.fromEntries(
     ['docs', 'code', 'knowledge', 'tasks', 'files', 'skills'].map(g => [g, {
       enabled: true,
-      pattern: g === 'docs' ? '**/*.md' : g === 'code' ? '**/*.ts' : undefined,
+      include: g === 'docs' ? '**/*.md' : g === 'code' ? '**/*.ts' : undefined,
+      exclude: [],
       model: { ...TEST_MODEL },
       embedding: { ...TEST_EMBEDDING },
     }]),
@@ -51,7 +52,7 @@ function createTestProject(): ProjectInstance {
     config: {
       projectDir: '/tmp/test',
       graphMemory: '/tmp/test/.graph-memory',
-      excludePattern: 'node_modules/**',
+      exclude: [],
       chunkDepth: 4,
       maxFileSize: 1048576,
       model: { ...TEST_MODEL },
@@ -486,7 +487,7 @@ describe('Attachment REST endpoints', () => {
       config: {
         projectDir: dir,
         graphMemory: path.join(dir, '.graph-memory'),
-        excludePattern: 'node_modules/**',
+        exclude: [],
         chunkDepth: 4,
         maxFileSize: 1048576,
         model: { ...TEST_MODEL },
@@ -766,7 +767,7 @@ describe('REST API — Auth & ACL', () => {
         embedding: { ...TEST_EMBEDDING },
         defaultAccess: 'deny',
         access: { admin: 'rw' },
-        accessTokenTtl: '15m', refreshTokenTtl: '7d', rateLimit: { global: 0, search: 0, auth: 0 }, maxFileSize: 1048576,
+        accessTokenTtl: '15m', refreshTokenTtl: '7d', rateLimit: { global: 0, search: 0, auth: 0 }, maxFileSize: 1048576, exclude: [],
       },
       users: {
         admin: { name: 'Admin', email: 'admin@test.com', apiKey: 'key-admin' },
@@ -814,7 +815,7 @@ describe('REST API — Auth & ACL', () => {
         embedding: { ...TEST_EMBEDDING },
         defaultAccess: 'deny',
         access: { reader: 'r' },
-        accessTokenTtl: '15m', refreshTokenTtl: '7d', rateLimit: { global: 0, search: 0, auth: 0 }, maxFileSize: 1048576,
+        accessTokenTtl: '15m', refreshTokenTtl: '7d', rateLimit: { global: 0, search: 0, auth: 0 }, maxFileSize: 1048576, exclude: [],
       },
       users: {
         reader: { name: 'Reader', email: 'reader@test.com', apiKey: 'key-reader' },
@@ -881,7 +882,7 @@ describe('REST API — Embedding API', () => {
         embedding: { ...TEST_EMBEDDING },
         embeddingApi: { enabled: true, apiKey: 'emb-secret' },
         defaultAccess: 'rw',
-        accessTokenTtl: '15m', refreshTokenTtl: '7d', rateLimit: { global: 0, search: 0, auth: 0 }, maxFileSize: 1048576,
+        accessTokenTtl: '15m', refreshTokenTtl: '7d', rateLimit: { global: 0, search: 0, auth: 0 }, maxFileSize: 1048576, exclude: [],
       },
       embeddingApiModelName: EMBED_MODEL_NAME,
     });
@@ -950,7 +951,7 @@ describe('REST API — Embedding API', () => {
         model: { ...TEST_MODEL },
         embedding: { ...TEST_EMBEDDING },
         defaultAccess: 'rw',
-        accessTokenTtl: '15m', refreshTokenTtl: '7d', rateLimit: { global: 0, search: 0, auth: 0 }, maxFileSize: 1048576,
+        accessTokenTtl: '15m', refreshTokenTtl: '7d', rateLimit: { global: 0, search: 0, auth: 0 }, maxFileSize: 1048576, exclude: [],
       },
     });
     const res = await request(noEmbedApp).post('/api/embed').send({ texts: ['test'] });
@@ -991,7 +992,7 @@ describe('REST API — JWT Cookie Auth', () => {
         defaultAccess: 'deny',
         access: { admin: 'rw' },
         jwtSecret: JWT_SECRET,
-        accessTokenTtl: '15m', refreshTokenTtl: '7d', rateLimit: { global: 0, search: 0, auth: 0 }, maxFileSize: 1048576,
+        accessTokenTtl: '15m', refreshTokenTtl: '7d', rateLimit: { global: 0, search: 0, auth: 0 }, maxFileSize: 1048576, exclude: [],
       },
       users: {
         admin: { name: 'Admin', email: 'admin@test.com', apiKey: 'key-admin', passwordHash: adminPasswordHash },

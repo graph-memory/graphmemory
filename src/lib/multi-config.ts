@@ -37,6 +37,9 @@ const embeddingConfigSchema = z.object({
 const accessLevelSchema = z.enum(['deny', 'r', 'rw']);
 const accessMapSchema = z.record(z.string(), accessLevelSchema).optional();
 
+// Exclude accepts string ("a,b") or array (["a", "b"]) in YAML
+const excludeSchema = z.union([z.string(), z.array(z.string())]).optional();
+
 const userSchema = z.object({
   name:         z.string(),
   email:        z.string(),
@@ -46,8 +49,8 @@ const userSchema = z.object({
 
 const graphConfigSchema = z.object({
   enabled:        z.boolean().optional(),
-  pattern:        z.string().optional(),
-  excludePattern: z.string().optional(),
+  include:        z.string().optional(),
+  exclude:        excludeSchema,
   model:          modelConfigSchema.optional(),
   embedding:      embeddingConfigSchema.optional(),
   access:         accessMapSchema,
@@ -65,7 +68,7 @@ const graphsConfigSchema = z.object({
 const projectSchema = z.object({
   projectDir:      z.string(),
   graphMemory:     z.string().optional(),
-  excludePattern:  z.string().optional(),
+  exclude:         excludeSchema,
   chunkDepth:      z.number().int().positive().optional(),
   maxFileSize:     z.number().int().positive().optional(),
   model:           modelConfigSchema.optional(),
@@ -102,10 +105,12 @@ const serverSchema = z.object({
   refreshTokenTtl: z.string().optional(),
   rateLimit:       rateLimitSchema.optional(),
   maxFileSize:     z.number().int().positive().optional(),
+  exclude:         excludeSchema,
 });
 
 const wsGraphConfigSchema = z.object({
   enabled:        z.boolean().optional(),
+  exclude:        excludeSchema,
   model:          modelConfigSchema.optional(),
   embedding:      embeddingConfigSchema.optional(),
   access:         accessMapSchema,
@@ -127,6 +132,7 @@ const workspaceSchema = z.object({
   author:         authorSchema.optional(),
   access:         accessMapSchema,
   maxFileSize:    z.number().int().positive().optional(),
+  exclude:        excludeSchema,
 });
 
 const configFileSchema = z.object({
@@ -218,12 +224,13 @@ export interface ServerConfig {
   refreshTokenTtl: string;
   rateLimit: RateLimitConfig;
   maxFileSize: number;
+  exclude: string[];
 }
 
 export interface GraphConfig {
   enabled: boolean;
-  pattern?: string;
-  excludePattern?: string;
+  include?: string;
+  exclude: string[];   // accumulated: server + workspace + project + graph
   model: ModelConfig;
   embedding: EmbeddingConfig;
   access?: AccessMap;
@@ -232,7 +239,7 @@ export interface GraphConfig {
 export interface ProjectConfig {
   projectDir: string;
   graphMemory: string;
-  excludePattern: string;
+  exclude: string[];   // accumulated: server + workspace + project
   chunkDepth: number;
   maxFileSize: number;
   model: ModelConfig;
@@ -254,6 +261,7 @@ export interface WorkspaceConfig {
   author: AuthorConfig;
   access?: AccessMap;
   maxFileSize?: number;
+  exclude: string[];   // accumulated: server + workspace
 }
 
 export interface MultiConfig {
@@ -315,14 +323,21 @@ const SERVER_DEFAULTS: Omit<ServerConfig, 'embedding'> & { embedding: EmbeddingC
   refreshTokenTtl: '7d',
   rateLimit:       RATE_LIMIT_DEFAULTS,
   maxFileSize:     1 * 1024 * 1024,  // 1 MB
+  exclude:         ['**/node_modules/**', '**/dist/**'],
 };
 
 const PROJECT_DEFAULTS = {
-  docsPattern:     '**/*.md',
-  codePattern:     '**/*.{js,ts,jsx,tsx}',
-  excludePattern:  'node_modules/**',
+  docsInclude:     '**/*.md',
+  codeInclude:     '**/*.{js,ts,jsx,tsx}',
   chunkDepth:      4,
 };
+
+/** Parse comma-separated exclude string into array of patterns. */
+function parseExclude(raw?: string | string[]): string[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw.map(p => p.trim()).filter(Boolean);
+  return raw.split(',').map(p => p.trim()).filter(Boolean);
+}
 
 // ---------------------------------------------------------------------------
 // Resolution
@@ -404,6 +419,7 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
       auth:   srv.rateLimit?.auth   ?? RATE_LIMIT_DEFAULTS.auth,
     },
     maxFileSize:     srv.maxFileSize     ?? SERVER_DEFAULTS.maxFileSize,
+    exclude:         [...SERVER_DEFAULTS.exclude, ...parseExclude(srv.exclude)],
   };
 
   // Users
@@ -422,21 +438,23 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
       ? path.resolve(projectDir, raw.graphMemory)
       : path.join(projectDir, '.graph-memory');
 
-    // Project-level: model (whole object) + embedding (per-field), inherits from server
     const projectModel = resolveModel(raw.model, serverModel);
     const projectEmbedding = resolveEmbedding(raw.embedding, serverEmbedding);
+    // Exclude accumulates: server + project
+    const projectExclude = [...server.exclude, ...parseExclude(raw.exclude)];
 
     const rawGraphs = raw.graphs ?? {};
 
-    // Resolve per-graph configs
     const graphConfigs = {} as Record<GraphName, GraphConfig>;
     for (const gn of GRAPH_NAMES) {
       const gc = rawGraphs[gn as keyof typeof rawGraphs];
+      // Exclude accumulates: server + project + graph
+      const graphExclude = [...projectExclude, ...parseExclude(gc?.exclude)];
 
       graphConfigs[gn] = {
         enabled: gc?.enabled ?? true,
-        pattern: gc?.pattern ?? (gn === 'docs' ? PROJECT_DEFAULTS.docsPattern : gn === 'code' ? PROJECT_DEFAULTS.codePattern : undefined),
-        excludePattern: gc?.excludePattern,
+        include: gc?.include ?? (gn === 'docs' ? PROJECT_DEFAULTS.docsInclude : gn === 'code' ? PROJECT_DEFAULTS.codeInclude : undefined),
+        exclude: graphExclude,
         model: resolveModel(gc?.model, projectModel),
         embedding: resolveEmbedding(gc?.embedding, projectEmbedding),
         access: gc?.access ?? undefined,
@@ -446,9 +464,9 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
     projects.set(id, {
       projectDir,
       graphMemory,
-      excludePattern:  raw.excludePattern  ?? PROJECT_DEFAULTS.excludePattern,
+      exclude:         projectExclude,
       chunkDepth:      raw.chunkDepth      ?? PROJECT_DEFAULTS.chunkDepth,
-      maxFileSize:     raw.maxFileSize     ?? -1, // -1 = unset, resolved after workspace parsing
+      maxFileSize:     raw.maxFileSize     ?? -1,
       model:           projectModel,
       embedding:       projectEmbedding,
       graphConfigs,
@@ -476,11 +494,11 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
         ? path.resolve(raw.mirrorDir)
         : graphMemory;
 
-      // Workspace-level: model + embedding, inherits from server
       const wsModel = resolveModel(raw.model, serverModel);
       const wsEmbedding = resolveEmbedding(raw.embedding, serverEmbedding);
+      // Exclude accumulates: server + workspace
+      const wsExclude = [...server.exclude, ...parseExclude(raw.exclude)];
 
-      // Per-graph configs for workspace's shared graphs (knowledge, tasks, skills)
       const rawGraphs = raw.graphs ?? {};
       const WS_GRAPH_NAMES: WsGraphName[] = ['knowledge', 'tasks', 'skills'];
       const graphConfigs = {} as Record<WsGraphName, GraphConfig>;
@@ -489,6 +507,7 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
         const gc = rawGraphs[gn];
         graphConfigs[gn] = {
           enabled: gc?.enabled ?? true,
+          exclude: [...wsExclude, ...parseExclude(gc?.exclude)],
           model: resolveModel(gc?.model, wsModel),
           embedding: resolveEmbedding(gc?.embedding, wsEmbedding),
           access: gc?.access ?? undefined,
@@ -505,19 +524,31 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
         author:         raw.author ?? globalAuthor,
         access:         raw.access ?? undefined,
         maxFileSize:    raw.maxFileSize,
+        exclude:        wsExclude,
       });
     }
   }
 
-  // --- Resolve maxFileSize: project → workspace → server ---
+  // --- Post-parse: inject workspace-level settings into member projects ---
   const wsForProject = new Map<string, WorkspaceConfig>();
   for (const ws of workspaces.values()) {
     for (const pid of ws.projects) wsForProject.set(pid, ws);
   }
   for (const [pid, proj] of projects) {
+    const ws = wsForProject.get(pid);
+    // maxFileSize: project → workspace → server
     if (proj.maxFileSize === -1) {
-      const ws = wsForProject.get(pid);
       proj.maxFileSize = ws?.maxFileSize ?? server.maxFileSize;
+    }
+    // Inject workspace excludes into project + graph excludes
+    if (ws) {
+      const wsExtra = ws.exclude.filter(e => !server.exclude.includes(e)); // ws-only patterns
+      if (wsExtra.length > 0) {
+        proj.exclude = [...proj.exclude, ...wsExtra];
+        for (const gn of GRAPH_NAMES) {
+          proj.graphConfigs[gn].exclude = [...proj.graphConfigs[gn].exclude, ...wsExtra];
+        }
+      }
     }
   }
 

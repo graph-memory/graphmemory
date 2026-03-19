@@ -20,11 +20,11 @@ export interface ProjectIndexerConfig {
   projectId?: string;
   projectDir: string;
   maxFileSize?: number;
-  docsPattern?: string;
-  codePattern?: string;
-  docsExcludePattern?: string;
-  codeExcludePattern?: string;
-  filesExcludePattern?: string;
+  docsInclude?: string;
+  docsExclude: string[];
+  codeInclude?: string;
+  codeExclude: string[];
+  filesExclude: string[];
   chunkDepth: number;
   docsModelName?: string;
   codeModelName?: string;
@@ -190,56 +190,47 @@ export function createProjectIndexer(
   // Dispatch: match a file against both patterns, enqueue as needed
   // ---------------------------------------------------------------------------
 
-  // Per-graph exclude patterns
-  function parseExclude(pat?: string): string[] {
-    return pat ? pat.split(',').map(p => p.trim()).filter(Boolean) : [];
-  }
-  const docsExcludePatterns  = parseExclude(config.docsExcludePattern);
-  const codeExcludePatterns  = parseExclude(config.codeExcludePattern);
-  const filesExcludePatterns = parseExclude(config.filesExcludePattern);
-  // Union of all exclude patterns for directory pruning during scan
-  const allExcludePatterns = [...new Set([...docsExcludePatterns, ...codeExcludePatterns, ...filesExcludePatterns])];
+  // Pre-accumulated exclude arrays (already includes server + workspace + project + graph)
+  const docsExclude  = config.docsExclude;
+  const codeExclude  = config.codeExclude;
+  const filesExclude = config.filesExclude;
+  // Union for directory pruning during scan
+  const allExcludePatterns = [...new Set([...docsExclude, ...codeExclude, ...filesExclude])];
 
-  function isDocsExcluded(rel: string): boolean {
-    return docsExcludePatterns.length > 0 && micromatch.isMatch(rel, docsExcludePatterns);
-  }
-  function isCodeExcluded(rel: string): boolean {
-    return codeExcludePatterns.length > 0 && micromatch.isMatch(rel, codeExcludePatterns);
-  }
-  function isFilesExcluded(rel: string): boolean {
-    return filesExcludePatterns.length > 0 && micromatch.isMatch(rel, filesExcludePatterns);
+  function isExcluded(rel: string, patterns: string[]): boolean {
+    return patterns.length > 0 && micromatch.isMatch(rel, patterns);
   }
 
   function dispatchAdd(absolutePath: string): void {
     const rel = path.relative(config.projectDir, absolutePath);
-    if (config.docsPattern && !isDocsExcluded(rel) && micromatch.isMatch(rel, config.docsPattern)) {
+    if (config.docsInclude && !isExcluded(rel, docsExclude) && micromatch.isMatch(rel, config.docsInclude)) {
       enqueueDoc(() => indexDocFile(absolutePath));
     }
-    if (codeGraph && config.codePattern && !isCodeExcluded(rel) && micromatch.isMatch(rel, config.codePattern)) {
+    if (codeGraph && config.codeInclude && !isExcluded(rel, codeExclude) && micromatch.isMatch(rel, config.codeInclude)) {
       enqueueCode(() => indexCodeFile(absolutePath));
     }
-    if (fileIndexGraph && !isFilesExcluded(rel)) {
+    if (fileIndexGraph && !isExcluded(rel, filesExclude)) {
       enqueueFile(() => indexFileEntry(absolutePath));
     }
   }
 
   function dispatchRemove(absolutePath: string): void {
     const rel = path.relative(config.projectDir, absolutePath);
-    if (docGraph && config.docsPattern && !isDocsExcluded(rel) && micromatch.isMatch(rel, config.docsPattern)) {
+    if (docGraph && config.docsInclude && !isExcluded(rel, docsExclude) && micromatch.isMatch(rel, config.docsInclude)) {
       removeFile(docGraph, rel);
       if (knowledgeGraph) cleanupKnowledgeProxies(knowledgeGraph, 'docs', docGraph, config.projectId);
       if (taskGraph) cleanupTaskProxies(taskGraph, 'docs', docGraph, config.projectId);
       if (skillGraph) cleanupSkillProxies(skillGraph, 'docs', docGraph, config.projectId);
       process.stderr.write(`[indexer] removed doc  ${rel}\n`);
     }
-    if (codeGraph && config.codePattern && !isCodeExcluded(rel) && micromatch.isMatch(rel, config.codePattern)) {
+    if (codeGraph && config.codeInclude && !isExcluded(rel, codeExclude) && micromatch.isMatch(rel, config.codeInclude)) {
       removeCodeFile(codeGraph, rel);
       if (knowledgeGraph) cleanupKnowledgeProxies(knowledgeGraph, 'code', codeGraph, config.projectId);
       if (taskGraph) cleanupTaskProxies(taskGraph, 'code', codeGraph, config.projectId);
       if (skillGraph) cleanupSkillProxies(skillGraph, 'code', codeGraph, config.projectId);
       process.stderr.write(`[indexer] removed code ${rel}\n`);
     }
-    if (fileIndexGraph && !isFilesExcluded(rel)) {
+    if (fileIndexGraph && !isExcluded(rel, filesExclude)) {
       removeFileEntry(fileIndexGraph, rel);
       if (knowledgeGraph) cleanupKnowledgeProxies(knowledgeGraph, 'files', fileIndexGraph, config.projectId);
       if (taskGraph) cleanupTaskProxies(taskGraph, 'files', fileIndexGraph, config.projectId);

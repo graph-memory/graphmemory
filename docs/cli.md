@@ -121,40 +121,9 @@ Each graph JSON file stores the embedding model fingerprint (model + pooling + n
 
 ## MCP client configuration
 
-### stdio transport (single project)
+### HTTP transport (recommended)
 
-After `npm install -g @prih/mcp-graph-memory`:
-
-**Claude Desktop** — in `claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "project-memory": {
-      "command": "mcp-graph-memory",
-      "args": ["mcp", "--config", "/path/to/graph-memory.yaml", "--project", "my-app"]
-    }
-  }
-}
-```
-
-**Claude Code** — in `.mcp.json` at project root:
-
-```json
-{
-  "mcpServers": {
-    "project-memory": {
-      "type": "stdio",
-      "command": "mcp-graph-memory",
-      "args": ["mcp", "--config", "/path/to/graph-memory.yaml", "--project", "my-app"]
-    }
-  }
-}
-```
-
-### HTTP transport (multi-project)
-
-Start the server, then connect MCP clients to `http://localhost:3000/mcp/{projectId}`.
+The primary connection method. Start the server with `serve`, then connect MCP clients to `http://localhost:3000/mcp/{projectId}`.
 
 **Claude Desktop** — add via **Settings > Connectors** in the app, enter the URL:
 
@@ -182,6 +151,18 @@ http://localhost:3000/mcp/my-app
 ```
 
 Multiple clients can connect to the same server simultaneously. Each session gets its own MCP instance but shares graph data.
+
+### stdio transport (debugging / single project)
+
+The `mcp` command runs a single-project MCP server over stdin/stdout. Primarily useful for debugging or testing a single project without starting the full HTTP server.
+
+```bash
+mcp-graph-memory mcp --config graph-memory.yaml --project my-app
+```
+
+The MCP client launches this as a subprocess. No web UI, no REST API, no WebSocket — just the MCP tool interface over stdio.
+
+For most use cases, prefer the HTTP transport above — it provides the full feature set (multi-project, web UI, REST API, real-time updates) and supports multiple concurrent clients.
 
 ## Development commands
 

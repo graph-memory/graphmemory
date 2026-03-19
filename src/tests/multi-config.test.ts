@@ -427,7 +427,7 @@ projects:
     projectDir: /tmp/a
 `);
     const mc = loadMultiConfig(yamlPath);
-    expect(mc.server.embeddingApi).toEqual({ enabled: true, apiKey: 'emb-secret-key' });
+    expect(mc.server.embeddingApi).toEqual({ enabled: true, apiKey: 'emb-secret-key', maxTexts: 100, maxTextChars: 10_000 });
   });
 
   it('defaults embeddingApi to undefined', () => {

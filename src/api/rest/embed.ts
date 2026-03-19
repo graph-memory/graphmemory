@@ -4,16 +4,16 @@ import { z } from 'zod';
 import { embedBatch } from '@/lib/embedder';
 import type { EmbeddingApiConfig } from '@/lib/multi-config';
 
-const embedRequestSchema = z.object({
-  texts: z.array(z.string().max(10_000)).min(1).max(100),
-});
-
 /**
  * Create an Express router for the embedding API.
  * POST /api/embed — embed texts using the server's embedding model.
  */
 export function createEmbedRouter(apiConfig: EmbeddingApiConfig, modelName: string): Router {
   const router = Router();
+
+  const embedRequestSchema = z.object({
+    texts: z.array(z.string().max(apiConfig.maxTextChars)).min(1).max(apiConfig.maxTexts),
+  });
 
   router.post('/', async (req, res, next) => {
     try {

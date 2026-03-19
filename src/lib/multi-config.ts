@@ -79,8 +79,10 @@ const projectSchema = z.object({
 });
 
 const embeddingApiSchema = z.object({
-  enabled: z.boolean().optional(),
-  apiKey:  z.string().optional(),
+  enabled:      z.boolean().optional(),
+  apiKey:       z.string().optional(),
+  maxTexts:     z.number().int().positive().optional(),    // max texts per request
+  maxTextChars: z.number().int().positive().optional(),    // max chars per text
 });
 
 const rateLimitSchema = z.object({
@@ -192,6 +194,8 @@ export interface ResolvedEmbedding {
 export interface EmbeddingApiConfig {
   enabled: boolean;
   apiKey?: string;
+  maxTexts: number;
+  maxTextChars: number;
 }
 
 /**
@@ -407,7 +411,7 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
     corsOrigins:     srv.corsOrigins,
     model:           serverModel,
     embedding:       serverEmbedding,
-    embeddingApi:    srv.embeddingApi ? { enabled: !!srv.embeddingApi.enabled, apiKey: srv.embeddingApi.apiKey } : undefined,
+    embeddingApi:    srv.embeddingApi ? { enabled: !!srv.embeddingApi.enabled, apiKey: srv.embeddingApi.apiKey, maxTexts: srv.embeddingApi.maxTexts ?? 100, maxTextChars: srv.embeddingApi.maxTextChars ?? 10_000 } : undefined,
     defaultAccess:   srv.defaultAccess   ?? SERVER_DEFAULTS.defaultAccess,
     access:          srv.access          ?? undefined,
     jwtSecret:       srv.jwtSecret,

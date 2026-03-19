@@ -880,7 +880,7 @@ describe('REST API — Embedding API', () => {
         modelsDir: '/tmp/models',
         model: { ...TEST_MODEL },
         embedding: { ...TEST_EMBEDDING },
-        embeddingApi: { enabled: true, apiKey: 'emb-secret' },
+        embeddingApi: { enabled: true, apiKey: 'emb-secret', maxTexts: 100, maxTextChars: 10_000 },
         defaultAccess: 'rw',
         accessTokenTtl: '15m', refreshTokenTtl: '7d', rateLimit: { global: 0, search: 0, auth: 0 }, maxFileSize: 1048576, exclude: [],
       },

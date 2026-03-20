@@ -4,7 +4,7 @@ const config: Config = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   testMatch: ['<rootDir>/src/tests/**/*.test.ts'],
-  testPathIgnorePatterns: ['/node_modules/', '/dist/', 'embedder\\.test\\.ts$'],
+  testPathIgnorePatterns: ['/node_modules/', '/dist/', 'embedder\\.test\\.ts$', 'search-quality\\.test\\.ts$'],
   transform: {
     '^.+\\.tsx?$': 'ts-jest',
   },

@@ -1,14 +1,23 @@
 import { loadModel, embed, embedQuery, cosineSimilarity } from '@/lib/embedder';
+import type { ModelConfig, EmbeddingConfig } from '@/lib/multi-config';
+
+const MODEL: ModelConfig = {
+  name: 'Xenova/bge-m3',
+  pooling: 'cls',
+  normalize: true,
+  queryPrefix: '',
+  documentPrefix: '',
+};
+
+const EMBEDDING: EmbeddingConfig = {
+  batchSize: 32,
+  maxChars: 4000,
+  cacheSize: 10_000,
+};
 
 describe('embedder', () => {
   beforeAll(async () => {
-    await loadModel({
-      model: 'Xenova/bge-m3',
-      pooling: 'cls',
-      normalize: true,
-      queryPrefix: '',
-      documentPrefix: '',
-    }, './models', 4000);
+    await loadModel(MODEL, EMBEDDING, './models');
   }, 60_000);
 
   it.each([

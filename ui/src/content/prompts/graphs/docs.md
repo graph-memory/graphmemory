@@ -1,15 +1,15 @@
-### Documentation Graph
+#### Documentation Graph
 
-Indexed markdown documentation — sections, headings, code blocks, and cross-file links.
+Indexed markdown documentation — every `.md` file is parsed into a tree of sections by heading hierarchy. Each section, code block, and cross-file link becomes a searchable node.
 
-| Tool | Purpose |
-|------|---------|
-| `search` | Hybrid search over doc sections by meaning |
-| `search_topic_files` | File-level semantic search over docs |
-| `list_topics` | List all indexed markdown files |
-| `get_toc` | Table of contents for a doc file |
-| `get_node` | Full content of a doc section by ID |
-| `find_examples` | Find code blocks containing a specific symbol |
-| `search_snippets` | Semantic search over code blocks in docs |
-| `list_snippets` | List code blocks with filters |
-| `explain_symbol` | Code example + surrounding explanation for a symbol |
+**What gets indexed:** heading sections with content, fenced code blocks (with language detection), internal links between documents, front matter metadata.
+
+**Example queries:**
+- `search({ query: "authentication flow" })` → finds the doc section describing JWT auth
+- `find_examples({ symbol: "createServer" })` → finds code blocks mentioning `createServer`
+- `explain_symbol({ symbol: "middleware" })` → returns code example + surrounding explanation
+
+**Connections to other graphs (when enabled):**
+- Code Graph: `cross_references` links code symbols to their documentation
+- Knowledge Graph: notes can reference doc sections via `create_relation`
+- Task Graph: tasks can link to doc sections they affect via `create_task_link`

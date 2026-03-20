@@ -50,6 +50,8 @@ export default function App() {
         <Route path="files/view/*" element={<FileDetailPage />} />
         <Route path="search" element={<SearchPage />} />
         <Route path="graph" element={<GraphPage />} />
+        <Route path="prompts/simple" element={<PromptsPage />} />
+        <Route path="prompts/advanced" element={<PromptsPage />} />
         <Route path="prompts" element={<PromptsPage />} />
         <Route path="tools" element={<ToolsPage />} />
         <Route path="tools/:toolName" element={<ToolDetailPage2 />} />

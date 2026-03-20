@@ -8,7 +8,7 @@ import '@/app/styles.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
+    <BrowserRouter basename="/ui">
       <ThemeModeProvider>
         <AuthGate>
           <App />

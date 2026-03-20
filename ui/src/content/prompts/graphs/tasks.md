@@ -1,19 +1,24 @@
-### Task Graph
+#### Task Graph
 
-Kanban task management — status workflow (backlog, todo, in_progress, review, done, cancelled), priorities, due dates, estimates, and cross-graph links. Mirrored to `.tasks/` directory.
+Kanban-style task management with a status workflow, priorities, due dates, time estimates, and cross-graph links. Tasks are automatically mirrored to `.tasks/` directory as markdown files.
 
-| Tool | Purpose |
-|------|---------|
-| `create_task` | Create a task with title, description, priority, status, tags |
-| `update_task` | Update any task fields |
-| `delete_task` | Delete a task and all its relations |
-| `get_task` | Fetch task with subtasks, blockers, and related |
-| `list_tasks` | List tasks with filters (status, priority, tag) |
-| `search_tasks` | Hybrid search over tasks |
-| `move_task` | Change task status (auto-manages completedAt) |
-| `link_task` | Create task-to-task relation (subtask_of, blocks, related_to) |
-| `create_task_link` | Link task to a doc/code/file/knowledge node |
-| `delete_task_link` | Remove a cross-graph link |
-| `find_linked_tasks` | Find tasks linked to a target node |
-| `add_task_attachment` | Attach a file to a task |
-| `remove_task_attachment` | Remove an attachment |
+**Status workflow:** `backlog` → `todo` → `in_progress` → `review` → `done` (or `cancelled` at any point). Use `move_task` to transition — it auto-manages `completedAt` timestamps.
+
+**What it stores:** tasks with title, description, status, priority (low/medium/high/critical), tags, assignee, due date, time estimate, and typed relations to other tasks (subtask_of, blocks, related_to).
+
+**Example queries:**
+- `list_tasks({ status: "in_progress" })` → shows what's currently being worked on
+- `search_tasks({ query: "fix authentication timeout" })` → finds tasks by meaning
+- `find_linked_tasks({ targetId: "src/auth/middleware.ts" })` → finds tasks touching auth code
+
+**Task relationships:**
+- `subtask_of` — breaks large tasks into smaller pieces
+- `blocks` — indicates one task must complete before another can start
+- `related_to` — loose connection between related work items
+
+**Connections to other graphs (when enabled):**
+- Code Graph: link tasks to code they affect with `create_task_link`
+- Docs Graph: link tasks to documentation they update
+- Knowledge Graph: link notes that describe the context or decision
+- Skill Graph: use `recall_skills` to find procedures for completing the task
+- File Index: attach files to tasks with `add_task_attachment`

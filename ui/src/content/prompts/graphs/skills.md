@@ -1,20 +1,26 @@
-### Skill Graph
+#### Skill Graph
 
-Reusable recipes, procedures, and troubleshooting guides with steps, triggers, and usage tracking. Mirrored to `.skills/` directory.
+Reusable recipes, procedures, troubleshooting guides, and established workflows with step-by-step instructions, trigger conditions, and usage tracking. Skills are automatically mirrored to `.skills/` directory as markdown files.
 
-| Tool | Purpose |
-|------|---------|
-| `create_skill` | Create a skill with steps, triggers, and metadata |
-| `update_skill` | Update any skill fields |
-| `delete_skill` | Delete a skill and all its relations |
-| `get_skill` | Fetch skill with relations and cross-links |
-| `list_skills` | List skills with filters (source, tag) |
-| `search_skills` | Hybrid search over skills |
-| `recall_skills` | Recall relevant skills for a task context |
-| `bump_skill_usage` | Increment usage counter |
-| `link_skill` | Create skill-to-skill relation (depends_on, related_to, variant_of) |
-| `create_skill_link` | Link skill to a doc/code/file/knowledge/task node |
-| `delete_skill_link` | Remove a cross-graph link |
-| `find_linked_skills` | Find skills linked to a target node |
-| `add_skill_attachment` | Attach a file to a skill |
-| `remove_skill_attachment` | Remove an attachment |
+**What it stores:** skills with title, description, ordered steps, trigger keywords (when to apply), source (manual/extracted/generated), confidence level, usage count, and tags.
+
+**Example queries:**
+- `recall_skills({ context: "deploying to production" })` → finds deployment procedures relevant to the task
+- `search_skills({ query: "debug memory leak" })` → finds troubleshooting guides by meaning
+- `list_skills({ tag: "ci-cd" })` → lists all CI/CD related skills
+
+**Key feature — `recall_skills`:** This is the primary way to use skills. Give it a task context (what you're about to do) and it returns the most relevant skills. Use this at the start of any workflow to avoid reinventing solutions.
+
+**Usage tracking:** Call `bump_skill_usage` after applying a skill. This helps identify which procedures are most valuable and which may be outdated (low usage).
+
+**Skill relationships:**
+- `depends_on` — skill A requires skill B to be applied first
+- `related_to` — skills that address similar concerns
+- `variant_of` — alternative approach to the same problem
+
+**Connections to other graphs (when enabled):**
+- Code Graph: link skills to the code areas they apply to with `create_skill_link`
+- Docs Graph: link skills to documentation they reference
+- Knowledge Graph: link skills to notes that provide background context
+- Task Graph: link skills to tasks they help complete
+- File Index: attach reference files to skills with `add_skill_attachment`

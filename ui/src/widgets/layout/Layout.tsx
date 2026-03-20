@@ -139,7 +139,7 @@ export default function Layout() {
   }, [documentTitle]);
 
   const handleProjectChange = (id: string) => {
-    const segment = location.pathname.split('/').slice(2).join('/') || 'knowledge';
+    const segment = location.pathname.split('/').slice(2).join('/') || 'dashboard';
     navigate(`/${id}/${segment}`);
   };
 
@@ -156,7 +156,7 @@ export default function Layout() {
         <Select
           fullWidth
           size="small"
-          value={projectId || ''}
+          value={!loading && projects.some(p => p.id === projectId) ? projectId : ''}
           onChange={(e) => handleProjectChange(e.target.value)}
           disabled={loading}
           displayEmpty

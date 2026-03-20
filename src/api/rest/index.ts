@@ -374,16 +374,23 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
     app.use('/api/embed', createEmbedRouter(serverConfig.embeddingApi, options.embeddingApiModelName));
   }
 
-  // Serve UI static files — check dist/ui/ (npm package) then ui/dist/ (dev)
+  // Serve UI at /ui/ path — check dist/ui/ (npm package) then ui/dist/ (dev)
   const uiDistPkg = path.resolve(__dirname, '../../ui');
   const uiDistDev = path.resolve(__dirname, '../../../ui/dist');
   const uiDist = fs.existsSync(uiDistPkg) ? uiDistPkg : uiDistDev;
-  app.use(express.static(uiDist));
 
-  // SPA fallback: serve index.html for non-API routes
-  app.get('/{*splat}', (_req, res, next) => {
-    if (_req.path.startsWith('/api/')) return next();
-    res.sendFile(path.join(uiDist, 'index.html'), (err) => {
+  // Redirect root to /ui/
+  app.get('/', (_req, res) => { res.redirect('/ui/'); });
+
+  // Static files under /ui/
+  app.use('/ui', express.static(uiDist, { redirect: false, index: false }));
+
+  // SPA fallback: serve index.html for all /ui/* routes
+  const indexHtml = path.join(uiDist, 'index.html');
+  app.use('/ui', (_req, res, next) => {
+    // Skip requests for actual files (assets with extensions like .js, .css, .png)
+    if (_req.path.includes('.') && !_req.path.endsWith('.html')) return next();
+    res.sendFile(indexHtml, (err) => {
       if (err) next();
     });
   });

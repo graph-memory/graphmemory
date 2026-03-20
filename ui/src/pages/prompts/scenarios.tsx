@@ -9,6 +9,9 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import ViewKanbanIcon from '@mui/icons-material/ViewKanban';
 import LightbulbIcon from '@mui/icons-material/Lightbulb';
 import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import AccountTreeIcon from '@mui/icons-material/AccountTree';
+import AssessmentIcon from '@mui/icons-material/Assessment';
 import TuneIcon from '@mui/icons-material/Tune';
 import type { GraphName, RoleName, StyleName } from '@/content/prompts/index.ts';
 
@@ -32,7 +35,7 @@ export const SCENARIOS: ScenarioConfig[] = [
     icon: <SchoolIcon />,
     defaultGraphs: ['docs', 'code', 'files', 'knowledge', 'tasks', 'skills'],
     defaultRole: 'developer',
-    defaultStyle: 'reactive',
+    defaultStyle: 'balanced',
     focusTools: ['search', 'search_code', 'cross_references', 'explain_symbol', 'get_toc', 'list_topics', 'get_symbol', 'search_all_files'],
     triggers: ['onboarding', 'new developer', 'explore project'],
   },
@@ -134,6 +137,39 @@ export const SCENARIOS: ScenarioConfig[] = [
     defaultStyle: 'read-only',
     focusTools: ['explain_symbol', 'cross_references', 'get_toc', 'search', 'search_code', 'get_symbol', 'get_node', 'list_topics'],
     triggers: ['mentoring', 'explain code', 'teach', 'onboard junior'],
+  },
+  {
+    id: 'incident-response',
+    label: 'Incident Response',
+    description: 'Investigate production issues, find root cause, track fix',
+    icon: <WarningAmberIcon />,
+    defaultGraphs: ['code', 'knowledge', 'tasks', 'files', 'skills'],
+    defaultRole: 'developer',
+    defaultStyle: 'proactive',
+    focusTools: ['search_code', 'get_symbol', 'search_notes', 'recall_skills', 'create_task', 'create_note', 'find_linked_tasks', 'search_all_files'],
+    triggers: ['incident', 'production issue', 'outage', 'critical bug'],
+  },
+  {
+    id: 'dependency-audit',
+    label: 'Dependency Audit',
+    description: 'Analyze project dependencies, imports, and module structure',
+    icon: <AccountTreeIcon />,
+    defaultGraphs: ['code', 'files', 'knowledge', 'tasks'],
+    defaultRole: 'architect',
+    defaultStyle: 'balanced',
+    focusTools: ['search_all_files', 'list_all_files', 'get_file_info', 'search_code', 'get_file_symbols', 'list_files', 'create_note'],
+    triggers: ['dependency audit', 'audit dependencies', 'package analysis'],
+  },
+  {
+    id: 'sprint-retrospective',
+    label: 'Sprint Retrospective',
+    description: 'Review completed work, extract learnings, plan improvements',
+    icon: <AssessmentIcon />,
+    defaultGraphs: ['tasks', 'knowledge', 'skills', 'code'],
+    defaultRole: 'team-lead',
+    defaultStyle: 'proactive',
+    focusTools: ['list_tasks', 'search_tasks', 'list_notes', 'search_notes', 'recall_skills', 'create_note', 'create_task', 'create_skill'],
+    triggers: ['retrospective', 'retro', 'sprint review', 'post-mortem'],
   },
   {
     id: 'custom',

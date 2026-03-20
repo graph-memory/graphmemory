@@ -28,7 +28,7 @@ export default function ProjectRedirect() {
   }
 
   if (firstId) {
-    return <Navigate to={`/${firstId}/knowledge`} replace />;
+    return <Navigate to={`/${firstId}/dashboard`} replace />;
   }
 
   return (

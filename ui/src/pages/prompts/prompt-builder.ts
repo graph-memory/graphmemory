@@ -1,5 +1,5 @@
 import {
-  TEMPLATE, ROLES, STYLES, GRAPHS, WORKFLOWS, TOOL_CATALOG,
+  TEMPLATE, ROLES, STYLES, GRAPHS, WORKFLOWS, TOOL_CATALOG, GRAPH_LABELS,
   type GraphName, type RoleName, type StyleName,
 } from '@/content/prompts/index.ts';
 
@@ -32,18 +32,15 @@ export function buildPrompt(
   // Style
   const styleContent = STYLES[state.style] || '';
 
-  // Graphs — short descriptions with node counts (no tool tables)
+  // Graphs — insert full .md content as-is, append node count
   let graphsContent = '';
   if (enabledGraphs.length > 0) {
     graphsContent = enabledGraphs
       .map(g => {
-        // Take only the first line (### title) and the description paragraph from graph md
-        const lines = GRAPHS[g.name].split('\n').filter(l => l.trim());
-        const title = lines[0]?.replace(/^#+\s*/, '') || g.name;
-        const desc = lines[1] || '';
-        return `- **${title}** — ${desc}`;
+        const content = GRAPHS[g.name].trimEnd();
+        return `${content}\n\n**Indexed:** ${g.nodeCount} nodes`;
       })
-      .join('\n');
+      .join('\n\n');
   } else {
     graphsContent = '*No graphs indexed yet.*';
   }
@@ -65,21 +62,27 @@ export function buildPrompt(
       }
     }
 
-    // Remaining tools — compact list
+    // Remaining tools — grouped by graph
     const focusSet = new Set(focusEntries);
-    const remaining = availableTools
-      .filter(([name]) => !focusSet.has(name))
-      .map(([name]) => `\`${name}\``);
+    const remaining = availableTools.filter(([name]) => !focusSet.has(name));
 
     if (remaining.length > 0) {
-      toolsContent += `\n\nAlso available: ${remaining.join(', ')}`;
+      toolsContent += '\n\n**Also available:**';
+      for (const g of enabledGraphs) {
+        const graphTools = remaining
+          .filter(([, info]) => info.graph === g.name)
+          .map(([name]) => `\`${name}\``);
+        if (graphTools.length > 0) {
+          toolsContent += `\n- **${GRAPH_LABELS[g.name]}:** ${graphTools.join(', ')}`;
+        }
+      }
     }
   } else {
     // Custom scenario — show all tools grouped by graph
     for (const g of enabledGraphs) {
       const graphTools = availableTools.filter(([, info]) => info.graph === g.name);
       if (graphTools.length > 0) {
-        toolsContent += `\n\n**${g.name}:** ${graphTools.map(([name]) => `\`${name}\``).join(', ')}`;
+        toolsContent += `\n\n**${GRAPH_LABELS[g.name]}:** ${graphTools.map(([name]) => `\`${name}\``).join(', ')}`;
       }
     }
     toolsContent = toolsContent.trim();

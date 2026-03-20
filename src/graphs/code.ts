@@ -25,9 +25,16 @@ export function updateCodeFile(graph: CodeGraph, parsed: ParsedFile): void {
   }
 
   const pendingImports: string[] = [];
+  const pendingEdges: Array<{ from: string; toName: string; kind: 'extends' | 'implements' }> = [];
   for (const { from, to, attrs } of parsed.edges) {
     if (!graph.hasNode(to)) {
-      if (attrs.kind === 'imports') pendingImports.push(to);
+      if (attrs.kind === 'imports') {
+        pendingImports.push(to);
+      } else if (attrs.kind === 'extends' || attrs.kind === 'implements') {
+        // Target class/interface may be in another file — defer resolution
+        const toName = to.split('::').pop()!;
+        pendingEdges.push({ from, toName, kind: attrs.kind });
+      }
       continue;
     }
     if (graph.hasNode(from) && !graph.hasEdge(from, to)) {
@@ -35,9 +42,14 @@ export function updateCodeFile(graph: CodeGraph, parsed: ParsedFile): void {
     }
   }
 
-  // Store pending imports on the file node for post-drain resolution
-  if (pendingImports.length > 0 && graph.hasNode(parsed.fileId)) {
-    graph.setNodeAttribute(parsed.fileId, 'pendingImports', pendingImports);
+  // Store pending data on the file node for post-drain resolution
+  if (graph.hasNode(parsed.fileId)) {
+    if (pendingImports.length > 0) {
+      graph.setNodeAttribute(parsed.fileId, 'pendingImports', pendingImports);
+    }
+    if (pendingEdges.length > 0) {
+      graph.setNodeAttribute(parsed.fileId, 'pendingEdges', pendingEdges);
+    }
   }
 }
 
@@ -62,6 +74,43 @@ export function resolvePendingImports(graph: CodeGraph): number {
       }
     }
     graph.setNodeAttribute(id, 'pendingImports', remaining.length > 0 ? remaining : undefined);
+  });
+  return created;
+}
+
+/**
+ * Resolve pending extends/implements edges after all files have been indexed.
+ * Searches the entire graph for nodes matching toName (by symbol name).
+ */
+export function resolvePendingEdges(graph: CodeGraph): number {
+  // Build name → nodeId index for fast lookup
+  const nameIndex = new Map<string, string[]>();
+  graph.forEachNode((id, attrs: CodeNodeAttributes) => {
+    if (attrs.kind === 'class' || attrs.kind === 'interface') {
+      const list = nameIndex.get(attrs.name) ?? [];
+      list.push(id);
+      nameIndex.set(attrs.name, list);
+    }
+  });
+
+  let created = 0;
+  graph.forEachNode((id, attrs: CodeNodeAttributes) => {
+    if (!attrs.pendingEdges || attrs.pendingEdges.length === 0) return;
+    const remaining: typeof attrs.pendingEdges = [];
+    for (const edge of attrs.pendingEdges) {
+      const candidates = nameIndex.get(edge.toName);
+      if (candidates && candidates.length > 0 && graph.hasNode(edge.from)) {
+        // Use first match (ambiguity is rare in practice)
+        const toId = candidates[0];
+        if (toId !== edge.from && !graph.hasEdge(edge.from, toId)) {
+          graph.addEdgeWithKey(`${edge.from}→${toId}`, edge.from, toId, { kind: edge.kind });
+          created++;
+        }
+      } else {
+        remaining.push(edge);
+      }
+    }
+    graph.setNodeAttribute(id, 'pendingEdges', remaining.length > 0 ? remaining : undefined);
   });
   return created;
 }
@@ -158,7 +207,7 @@ export function loadCodeGraph(graphMemory: string, fresh = false, embeddingFinge
 // ---------------------------------------------------------------------------
 
 export class CodeGraphManager {
-  private _bm25Index = new BM25Index<CodeNodeAttributes>((attrs) => `${attrs.name} ${attrs.signature} ${attrs.docComment}`);
+  private _bm25Index = new BM25Index<CodeNodeAttributes>((attrs) => `${attrs.name} ${attrs.signature} ${attrs.docComment} ${attrs.body}`);
 
   constructor(
     private _graph: CodeGraph,

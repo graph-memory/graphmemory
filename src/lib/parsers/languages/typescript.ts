@@ -452,9 +452,7 @@ const typescriptMapper: LanguageMapper = {
         const source = child.childForFieldName('source');
         if (source) {
           const specifier = source.text.replace(/^['"]|['"]$/g, '');
-          if (specifier.startsWith('./') || specifier.startsWith('../')) {
-            imports.push({ specifier });
-          }
+          imports.push({ specifier });
         }
       }
       // Re-exports: export { ... } from '...' and export * from '...'
@@ -462,9 +460,7 @@ const typescriptMapper: LanguageMapper = {
         const source = child.childForFieldName('source');
         if (source) {
           const specifier = source.text.replace(/^['"]|['"]$/g, '');
-          if (specifier.startsWith('./') || specifier.startsWith('../')) {
-            imports.push({ specifier });
-          }
+          imports.push({ specifier });
         }
       }
     }

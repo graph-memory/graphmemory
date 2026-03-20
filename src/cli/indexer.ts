@@ -5,7 +5,7 @@ import { embed, embedBatch } from '@/lib/embedder';
 import { parseFile } from '@/lib/parsers/docs';
 import { updateFile, removeFile, getFileMtime, resolvePendingLinks, type DocGraph } from '@/graphs/docs';
 import { parseCodeFile } from '@/lib/parsers/code';
-import { updateCodeFile, removeCodeFile, getCodeFileMtime, resolvePendingImports, type CodeGraph } from '@/graphs/code';
+import { updateCodeFile, removeCodeFile, getCodeFileMtime, resolvePendingImports, resolvePendingEdges, type CodeGraph } from '@/graphs/code';
 import { startWatcher, ALWAYS_IGNORED, type WatcherHandle } from '@/lib/watcher';
 import type { KnowledgeGraph } from '@/graphs/knowledge-types';
 import { cleanupProxies as cleanupKnowledgeProxies } from '@/graphs/knowledge';
@@ -50,35 +50,52 @@ export function createProjectIndexer(
   skillGraph?: SkillGraph,
 ): ProjectIndexer {
   // Three independent serial queues — docs, code, and file index.
-  let docsQueue: Promise<void> = Promise.resolve();
-  let codeQueue: Promise<void> = Promise.resolve();
-  let fileQueue: Promise<void> = Promise.resolve();
+  // Array-based to avoid promise chain memory accumulation during scan.
 
-  // Error tracking
-  let docErrors = 0;
-  let codeErrors = 0;
-  let fileErrors = 0;
+  type TaskFn = () => Promise<void>;
 
-  function enqueueDoc(fn: () => Promise<void>): void {
-    docsQueue = docsQueue.then(fn).catch((err: unknown) => {
-      docErrors++;
-      process.stderr.write(`[indexer] Doc error: ${err}\n`);
-    });
+  function createSerialQueue(label: string) {
+    const pending: TaskFn[] = [];
+    let running = false;
+    let errors = 0;
+    let idleResolve: (() => void) | null = null;
+    let idlePromise: Promise<void> = Promise.resolve();
+
+    async function pump(): Promise<void> {
+      running = true;
+      while (pending.length > 0) {
+        const fn = pending.shift()!;
+        try { await fn(); } catch (err: unknown) {
+          errors++;
+          process.stderr.write(`[indexer] ${label} error: ${err}\n`);
+        }
+      }
+      running = false;
+      if (idleResolve) { idleResolve(); idleResolve = null; }
+    }
+
+    return {
+      enqueue(fn: TaskFn): void {
+        pending.push(fn);
+        if (!running) {
+          idlePromise = new Promise<void>(r => { idleResolve = r; });
+          void pump();
+        }
+      },
+      waitIdle(): Promise<void> {
+        return (pending.length === 0 && !running) ? Promise.resolve() : idlePromise;
+      },
+      get errors() { return errors; },
+    };
   }
 
-  function enqueueCode(fn: () => Promise<void>): void {
-    codeQueue = codeQueue.then(fn).catch((err: unknown) => {
-      codeErrors++;
-      process.stderr.write(`[indexer] Code error: ${err}\n`);
-    });
-  }
+  const docsQueue = createSerialQueue('Doc');
+  const codeQueue = createSerialQueue('Code');
+  const fileQueue = createSerialQueue('File index');
 
-  function enqueueFile(fn: () => Promise<void>): void {
-    fileQueue = fileQueue.then(fn).catch((err: unknown) => {
-      fileErrors++;
-      process.stderr.write(`[indexer] File index error: ${err}\n`);
-    });
-  }
+  function enqueueDoc(fn: TaskFn): void { docsQueue.enqueue(fn); }
+  function enqueueCode(fn: TaskFn): void { codeQueue.enqueue(fn); }
+  function enqueueFile(fn: TaskFn): void { fileQueue.enqueue(fn); }
 
   // ---------------------------------------------------------------------------
   // Per-file indexing
@@ -152,7 +169,16 @@ export function createProjectIndexer(
     const parsed = await parseCodeFile(absolutePath, config.projectDir, mtime);
     // Batch-embed all symbols + file-level in one forward pass
     const batchInputs = parsed.nodes.map(({ attrs }) => ({ title: attrs.signature, content: attrs.docComment }));
-    batchInputs.push({ title: fileId, content: '' });
+    // File-level embedding: path + exported symbol names + import summary
+    const fileNode = parsed.nodes.find(n => n.attrs.kind === 'file');
+    const exportedNames = parsed.nodes
+      .filter(n => n.attrs.isExported && n.attrs.kind !== 'file')
+      .map(n => n.attrs.name);
+    const fileEmbedTitle = exportedNames.length > 0
+      ? `${fileId} ${exportedNames.join(' ')}`
+      : fileId;
+    const fileEmbedContent = fileNode?.attrs.body ?? ''; // body = importSummary for file nodes
+    batchInputs.push({ title: fileEmbedTitle, content: fileEmbedContent });
     const embeddings = await embedBatch(batchInputs, config.codeModelName);
     for (let i = 0; i < parsed.nodes.length; i++) {
       parsed.nodes[i].attrs.embedding = embeddings[i];
@@ -277,7 +303,7 @@ export function createProjectIndexer(
   }
 
   async function drain(): Promise<void> {
-    await Promise.all([docsQueue, codeQueue, fileQueue]);
+    await Promise.all([docsQueue.waitIdle(), codeQueue.waitIdle(), fileQueue.waitIdle()]);
     if (fileIndexGraph) rebuildDirectoryStats(fileIndexGraph);
 
     // Resolve cross-file edges that were deferred during indexing
@@ -288,11 +314,13 @@ export function createProjectIndexer(
     if (codeGraph) {
       const codeImports = resolvePendingImports(codeGraph);
       if (codeImports > 0) process.stderr.write(`[indexer] Resolved ${codeImports} deferred code import edge(s)\n`);
+      const codeEdges = resolvePendingEdges(codeGraph);
+      if (codeEdges > 0) process.stderr.write(`[indexer] Resolved ${codeEdges} deferred code extends/implements edge(s)\n`);
     }
 
-    const totalErrors = docErrors + codeErrors + fileErrors;
+    const totalErrors = docsQueue.errors + codeQueue.errors + fileQueue.errors;
     if (totalErrors > 0) {
-      process.stderr.write(`[indexer] Completed with ${totalErrors} error(s): docs=${docErrors}, code=${codeErrors}, files=${fileErrors}\n`);
+      process.stderr.write(`[indexer] Completed with ${totalErrors} error(s): docs=${docsQueue.errors}, code=${codeQueue.errors}, files=${fileQueue.errors}\n`);
     }
   }
 

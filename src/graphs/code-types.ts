@@ -30,6 +30,7 @@ export interface CodeNodeAttributes {
   fileEmbedding: number[]; // file-level embedding (only on kind='file' nodes); [] until filled
   mtime: number;           // file mtimeMs at index time
   pendingImports?: string[];  // import targets not yet in graph at index time
+  pendingEdges?: Array<{ from: string; toName: string; kind: 'extends' | 'implements' }>;
 }
 
 export interface CodeEdgeAttributes {

@@ -17,35 +17,125 @@ export interface ParsedFile {
 
 const RESOLVE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mts', '.cts', '.mjs', '.cjs'];
 
-/** Resolve a relative import specifier to an absolute file path, or null. */
-function resolveRelativeImport(fromFile: string, specifier: string): string | null {
-  const dir = path.dirname(fromFile);
-  const base = path.resolve(dir, specifier);
-
-  // Exact match (e.g. './foo.ts')
-  if (hasFile(base)) return base;
-
-  // Try adding extensions (e.g. './foo' → './foo.ts')
-  for (const ext of RESOLVE_EXTENSIONS) {
-    const candidate = base + ext;
-    if (hasFile(candidate)) return candidate;
-  }
-
-  // Try index files (e.g. './foo' → './foo/index.ts')
-  for (const ext of RESOLVE_EXTENSIONS) {
-    const candidate = path.join(base, 'index' + ext);
-    if (hasFile(candidate)) return candidate;
-  }
-
-  return null;
-}
-
 function hasFile(p: string): boolean {
   try {
     return fs.statSync(p).isFile();
   } catch {
     return false;
   }
+}
+
+/** Try resolving a base path with extensions and index files. */
+function tryResolve(base: string): string | null {
+  if (hasFile(base)) return base;
+  for (const ext of RESOLVE_EXTENSIONS) {
+    if (hasFile(base + ext)) return base + ext;
+  }
+  for (const ext of RESOLVE_EXTENSIONS) {
+    const idx = path.join(base, 'index' + ext);
+    if (hasFile(idx)) return idx;
+  }
+  return null;
+}
+
+/** Resolve a relative import specifier to an absolute file path, or null. */
+function resolveRelativeImport(fromFile: string, specifier: string): string | null {
+  const dir = path.dirname(fromFile);
+  return tryResolve(path.resolve(dir, specifier));
+}
+
+// ---------------------------------------------------------------------------
+// tsconfig path alias resolution
+// ---------------------------------------------------------------------------
+
+interface PathMapping {
+  prefix: string;  // e.g. "@/" or "@utils/"
+  targets: string[]; // absolute directory paths to try
+}
+
+/** Cache: directory → parsed path mappings (null = no tsconfig found up to root). */
+const _pathMappings = new Map<string, PathMapping[] | null>();
+
+/**
+ * Find the nearest tsconfig.json / jsconfig.json walking up from `dir` to `root`.
+ * Cached per directory — each directory remembers its resolved mappings.
+ */
+function findPathMappings(dir: string, root: string): PathMapping[] | null {
+  if (_pathMappings.has(dir)) return _pathMappings.get(dir)!;
+
+  // Try this directory
+  const result = _parseTsConfig(dir);
+  if (result) {
+    _pathMappings.set(dir, result);
+    return result;
+  }
+
+  // Walk up unless we've reached the project root
+  const parent = path.dirname(dir);
+  if (dir === root || parent === dir) {
+    _pathMappings.set(dir, null);
+    return null;
+  }
+
+  const parentResult = findPathMappings(parent, root);
+  _pathMappings.set(dir, parentResult);
+  return parentResult;
+}
+
+function _parseTsConfig(dir: string): PathMapping[] | null {
+  for (const name of ['tsconfig.json', 'jsconfig.json']) {
+    const configPath = path.join(dir, name);
+    if (!hasFile(configPath)) continue;
+
+    try {
+      // Strip comments (// and /* */) for JSONC support
+      const raw = fs.readFileSync(configPath, 'utf-8')
+        .replace(/\/\/[^\n]*/g, '')
+        .replace(/\/\*[\s\S]*?\*\//g, '');
+      const config = JSON.parse(raw);
+      const compilerOptions = config.compilerOptions;
+      if (!compilerOptions?.paths) continue;
+
+      const baseUrl = compilerOptions.baseUrl
+        ? path.resolve(dir, compilerOptions.baseUrl)
+        : dir;
+
+      const mappings: PathMapping[] = [];
+      for (const [pattern, targets] of Object.entries<string[]>(compilerOptions.paths)) {
+        // Pattern like "@/*" → prefix "@/", or "utils/*" → prefix "utils/"
+        const prefix = pattern.endsWith('/*') ? pattern.slice(0, -1) : pattern;
+        const resolvedTargets = (targets as string[])
+          .map(t => {
+            const target = t.endsWith('/*') ? t.slice(0, -1) : t;
+            return path.resolve(baseUrl, target);
+          });
+        mappings.push({ prefix, targets: resolvedTargets });
+      }
+
+      if (mappings.length > 0) return mappings;
+    } catch {
+      // Malformed config — skip
+    }
+  }
+  return null;
+}
+
+/** Resolve a path-aliased import (e.g. @/lib/foo) using nearest tsconfig paths. */
+function resolveAliasImport(specifier: string, fromFile: string, projectDir: string): string | null {
+  const fileDir = path.dirname(fromFile);
+  const mappings = findPathMappings(fileDir, projectDir);
+  if (!mappings) return null;
+
+  for (const mapping of mappings) {
+    if (specifier.startsWith(mapping.prefix)) {
+      const rest = specifier.slice(mapping.prefix.length);
+      for (const targetDir of mapping.targets) {
+        const resolved = tryResolve(path.join(targetDir, rest));
+        if (resolved) return resolved;
+      }
+    }
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -174,12 +264,20 @@ export async function parseCodeFile(
 
   // --- Import edges: file → imported file ---
   for (const imp of imports) {
-    const targetAbsolute = resolveRelativeImport(absolutePath, imp.specifier);
-    if (!targetAbsolute) continue;
-    const targetRel = path.relative(codeDir, targetAbsolute);
-    if (targetRel.startsWith('..') || path.isAbsolute(targetRel)) continue;
+    let targetAbsolute: string | null = null;
 
+    if (imp.specifier.startsWith('./') || imp.specifier.startsWith('../')) {
+      // Relative import
+      targetAbsolute = resolveRelativeImport(absolutePath, imp.specifier);
+    } else {
+      // Try path alias resolution (e.g. @/lib/foo, ~/utils)
+      targetAbsolute = resolveAliasImport(imp.specifier, absolutePath, codeDir);
+    }
+
+    if (!targetAbsolute) continue;
     const targetFileId = path.relative(codeDir, targetAbsolute);
+    if (targetFileId.startsWith('..') || path.isAbsolute(targetFileId)) continue;
+
     if (targetFileId !== fileNodeId) {
       edges.push({
         from: fileNodeId,

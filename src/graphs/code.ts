@@ -265,7 +265,7 @@ export class CodeGraphManager {
 
   async search(query: string, opts?: {
     topK?: number; bfsDepth?: number; maxResults?: number; minScore?: number; bfsDecay?: number;
-    searchMode?: SearchMode;
+    searchMode?: SearchMode; includeBody?: boolean;
   }): Promise<CodeSearchResult[]> {
     const embedding = opts?.searchMode === 'keyword' ? [] : await this.embedFns.query(query);
     return searchCode(this._graph, embedding, { ...opts, queryText: query, bm25Index: this._bm25Index });

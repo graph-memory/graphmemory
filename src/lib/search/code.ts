@@ -9,6 +9,7 @@ export interface CodeSearchResult {
   name: string;
   signature: string;
   docComment: string;
+  body?: string;
   startLine: number;
   endLine: number;
   score: number;
@@ -31,9 +32,11 @@ export function searchCode(
     maxResults?: number;
     minScore?: number;
     bfsDecay?: number;
+    includeBody?: boolean;
   } & HybridOptions = {},
 ): CodeSearchResult[] {
-  const { topK = 5, bfsDepth = 1, maxResults = 20, minScore = 0.5, bfsDecay = 0.8,
+  const { topK = 5, bfsDepth = 1, maxResults = 20, minScore = 0.3, bfsDecay = 0.8,
+    includeBody = false,
     queryText, bm25Index, searchMode = 'hybrid', rrfK = 60 } = options;
 
   const useVector = searchMode !== 'keyword';
@@ -98,8 +101,14 @@ export function searchCode(
       if (item.score * bfsDecay < minS) continue;
 
       const nextScore = item.score * bfsDecay;
+      // Follow all outgoing edges (contains, imports, extends, implements)
       graph.outNeighbors(item.id).forEach(n => queue.push({ id: n, depth: item.depth + 1, score: nextScore }));
-      graph.inNeighbors(item.id).forEach(n => queue.push({ id: n, depth: item.depth + 1, score: nextScore }));
+      // Follow incoming edges, but NOT reverse imports (avoids noise from popular utility files)
+      graph.forEachInEdge(item.id, (_edge, attrs, source) => {
+        if (attrs.kind !== 'imports') {
+          queue.push({ id: source, depth: item.depth + 1, score: nextScore });
+        }
+      });
     }
   }
 
@@ -112,7 +121,7 @@ export function searchCode(
     .filter(([, score]) => score >= minS)
     .map(([id, score]) => {
       const attrs = graph.getNodeAttributes(id);
-      return {
+      const result: CodeSearchResult = {
         id,
         fileId: attrs.fileId,
         kind: attrs.kind,
@@ -123,6 +132,8 @@ export function searchCode(
         endLine: attrs.endLine,
         score,
       };
+      if (includeBody) result.body = attrs.body;
+      return result;
     })
     .sort((a, b) => b.score - a.score)
     .slice(0, maxResults);

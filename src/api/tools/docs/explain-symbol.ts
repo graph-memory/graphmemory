@@ -20,6 +20,7 @@ export function register(server: McpServer, mgr: DocGraphManager): void {
       },
     },
     async ({ symbol, limit = 10 }) => {
+      const symbolLower = symbol.toLowerCase();
       const results: Array<{
         codeBlock: { id: string; language: string | undefined; symbols: string[]; content: string };
         explanation: { id: string; title: string; content: string } | null;
@@ -29,7 +30,7 @@ export function register(server: McpServer, mgr: DocGraphManager): void {
       graph.forEachNode((id, attrs: NodeAttributes) => {
         if (results.length >= limit) return;
         if (attrs.symbols.length === 0) return;
-        if (!attrs.symbols.includes(symbol)) return;
+        if (!attrs.symbols.some(s => s === symbol || s.toLowerCase() === symbolLower)) return;
 
         // Find the parent text section
         const parent = findParentTextSection(graph, id, attrs);

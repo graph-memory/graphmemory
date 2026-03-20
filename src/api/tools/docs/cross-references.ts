@@ -34,8 +34,9 @@ export function register(server: McpServer, docMgr: DocGraphManager, codeMgr: Co
         endLine: number;
       }> = [];
 
+      const symbolLower = symbol.toLowerCase();
       codeGraph.forEachNode((id, attrs) => {
-        if (attrs.name === symbol) {
+        if (attrs.name === symbol || attrs.name.toLowerCase() === symbolLower) {
           definitions.push({
             id,
             fileId: attrs.fileId,
@@ -69,7 +70,7 @@ export function register(server: McpServer, docMgr: DocGraphManager, codeMgr: Co
 
       docGraph.forEachNode((id, attrs: NodeAttributes) => {
         if (attrs.symbols.length === 0) return;
-        if (!attrs.symbols.includes(symbol)) return;
+        if (!attrs.symbols.some(s => s === symbol || s.toLowerCase() === symbolLower)) return;
 
         examples.push({
           id,

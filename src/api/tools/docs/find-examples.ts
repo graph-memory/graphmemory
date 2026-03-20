@@ -20,6 +20,7 @@ export function register(server: McpServer, mgr: DocGraphManager): void {
       },
     },
     async ({ symbol, limit = 20 }) => {
+      const symbolLower = symbol.toLowerCase();
       const results: Array<{
         id: string;
         fileId: string;
@@ -33,7 +34,7 @@ export function register(server: McpServer, mgr: DocGraphManager): void {
       graph.forEachNode((id, attrs: NodeAttributes) => {
         if (results.length >= limit) return;
         if (attrs.symbols.length === 0) return;
-        if (!attrs.symbols.includes(symbol)) return;
+        if (!attrs.symbols.some(s => s === symbol || s.toLowerCase() === symbolLower)) return;
 
         // Find parent text section (previous node with lower level and no language)
         const parentId = findParentSection(graph, id, attrs);

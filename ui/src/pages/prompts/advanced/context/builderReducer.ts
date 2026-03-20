@@ -27,7 +27,8 @@ export type BuilderAction =
   | { type: 'TOGGLE_SECTION'; sectionId: string }
   | { type: 'SET_CUSTOM_SECTIONS'; sections: CustomSection[] }
   | { type: 'SET_PRESET_NAME'; name: string | null }
-  | { type: 'LOAD_STATE'; state: MegaBuilderState };
+  | { type: 'LOAD_STATE'; state: MegaBuilderState }
+  | { type: 'ENSURE_SECTION_ENABLED'; sectionId: string };
 
 export function builderReducer(state: MegaBuilderState, action: BuilderAction): MegaBuilderState {
   switch (action.type) {
@@ -77,6 +78,15 @@ export function builderReducer(state: MegaBuilderState, action: BuilderAction): 
       return { ...state, presetName: action.name };
     case 'LOAD_STATE':
       return action.state;
+    case 'ENSURE_SECTION_ENABLED': {
+      const s = state.promptSections.find(s => s.id === action.sectionId);
+      if (s && !s.enabled) {
+        return { ...state, promptSections: state.promptSections.map(sec =>
+          sec.id === action.sectionId ? { ...sec, enabled: true } : sec,
+        ) };
+      }
+      return state;
+    }
     default:
       return state;
   }

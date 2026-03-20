@@ -17,18 +17,16 @@ export function buildSearchSection(config: SearchStrategyConfig): string | null 
   };
   lines.push(crossGraph[config.crossGraphExpansion]);
 
-  if (config.bfsHops !== 2) {
-    lines.push(`When traversing graph relationships, explore up to **${config.bfsHops}** hops from the starting node.`);
-  }
+  lines.push(`When traversing graph relationships, explore up to **${config.bfsHops}** hops from the starting node.`);
 
-  if (config.resultCount !== 10) {
-    lines.push(`Request up to **${config.resultCount}** results per search query.`);
-  }
+  lines.push(`Request up to **${config.resultCount}** results per search query.`);
 
   if (config.keywordWeight < 30) {
     lines.push('Favor **semantic search** — use natural language descriptions rather than exact keywords.');
   } else if (config.keywordWeight > 70) {
     lines.push('Favor **keyword search** — use specific function names, class names, and exact terms.');
+  } else {
+    lines.push('Use a **balanced mix** of semantic and keyword search.');
   }
 
   return lines.join('\n');

@@ -18,13 +18,19 @@ export function buildCollaborationSection(config: CollaborationConfig): string |
   };
   lines.push(strictnessMap[config.reviewStrictness]);
 
-  if (config.commitStyle !== 'conventional') {
-    const commitMap: Record<string, string> = {
-      descriptive: 'Use descriptive commit messages that explain the why, not just the what.',
-      minimal: 'Use minimal commit messages — short and to the point.',
-    };
-    if (commitMap[config.commitStyle]) lines.push(commitMap[config.commitStyle]);
-  }
+  const commitMap: Record<string, string> = {
+    conventional: 'Use conventional commit messages (e.g., `feat:`, `fix:`, `refactor:`).',
+    descriptive: 'Use descriptive commit messages that explain the why, not just the what.',
+    minimal: 'Use minimal commit messages — short and to the point.',
+  };
+  lines.push(commitMap[config.commitStyle]);
+
+  const prMap: Record<string, string> = {
+    detailed: 'Write detailed PR descriptions with context, changes breakdown, testing steps, and screenshots.',
+    standard: 'Write standard PR descriptions with a summary and key changes.',
+    minimal: 'Write minimal PR descriptions — summary only.',
+  };
+  lines.push(prMap[config.prFormat]);
 
   return lines.join('\n');
 }

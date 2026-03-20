@@ -5,6 +5,7 @@ import TextField from '@mui/material/TextField';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
 import { useBuilderContext } from '../context/BuilderContext.tsx';
+import SectionToggle from './SectionToggle.tsx';
 import type { ProjectRulesConfig } from '../types.ts';
 
 function EditableList({
@@ -56,16 +57,17 @@ function EditableList({
 }
 
 export default function ProjectRulesTab() {
-  const { state, dispatch } = useBuilderContext();
+  const { state, dispatch, ensureSectionEnabled } = useBuilderContext();
   const r = state.projectRules;
 
   const update = (patch: Partial<ProjectRulesConfig>) => {
     dispatch({ type: 'SET_PROJECT_RULES', rules: { ...r, ...patch } });
+    ensureSectionEnabled('rules');
   };
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <Typography variant="overline" sx={{ color: 'text.secondary' }}>Project Rules</Typography>
+      <SectionToggle sectionId="rules" label="Project Rules" />
 
       <EditableList
         label="Focus Patterns"

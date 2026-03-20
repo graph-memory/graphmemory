@@ -9,6 +9,6 @@ export function buildGraphsSection(
   if (enabled.length === 0) return '### Available Graphs\n\n*No graphs indexed yet.*';
 
   return '### Available Graphs\n\n' + enabled
-    .map(g => GRAPHS[g.name].trimEnd())
+    .map(g => `${GRAPHS[g.name].trimEnd()}\n\n**Indexed:** ${g.nodeCount} nodes`)
     .join('\n\n');
 }

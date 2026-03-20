@@ -13,19 +13,19 @@ function buildToolConfigs(): Record<string, ToolConfig> {
 }
 
 const DEFAULT_SECTIONS: PromptSection[] = [
-  { id: 'role', title: 'Role', enabled: true, weight: 1, content: null, conditional: false },
-  { id: 'style', title: 'Style', enabled: true, weight: 2, content: null, conditional: false },
-  { id: 'tech-stack', title: 'Tech Stack', enabled: false, weight: 3, content: null, conditional: false },
-  { id: 'graphs', title: 'Available Graphs', enabled: true, weight: 4, content: null, conditional: false },
-  { id: 'tools', title: 'Tools', enabled: true, weight: 5, content: null, conditional: false },
-  { id: 'behavior', title: 'Response Style', enabled: false, weight: 6, content: null, conditional: false },
-  { id: 'memory', title: 'Knowledge Management', enabled: false, weight: 7, content: null, conditional: false },
-  { id: 'search', title: 'Search Strategy', enabled: false, weight: 8, content: null, conditional: false },
-  { id: 'context', title: 'Context Budget', enabled: false, weight: 9, content: null, conditional: false },
-  { id: 'rules', title: 'Project Rules', enabled: false, weight: 10, content: null, conditional: false },
-  { id: 'collaboration', title: 'Collaboration', enabled: false, weight: 11, content: null, conditional: false },
-  { id: 'workflow', title: 'Workflow', enabled: true, weight: 12, content: null, conditional: false },
-  { id: 'custom', title: 'Custom Sections', enabled: false, weight: 13, content: null, conditional: false },
+  { id: 'role', title: 'Role', enabled: true, weight: 1 },
+  { id: 'style', title: 'Style', enabled: true, weight: 2 },
+  { id: 'tech-stack', title: 'Tech Stack', enabled: false, weight: 3 },
+  { id: 'graphs', title: 'Available Graphs', enabled: true, weight: 4 },
+  { id: 'tools', title: 'Tools', enabled: true, weight: 5 },
+  { id: 'behavior', title: 'Response Style', enabled: false, weight: 6 },
+  { id: 'memory', title: 'Knowledge Management', enabled: false, weight: 7 },
+  { id: 'search', title: 'Search Strategy', enabled: false, weight: 8 },
+  { id: 'context', title: 'Context Budget', enabled: false, weight: 9 },
+  { id: 'rules', title: 'Project Rules', enabled: false, weight: 10 },
+  { id: 'collaboration', title: 'Collaboration', enabled: false, weight: 11 },
+  { id: 'workflow', title: 'Workflow', enabled: true, weight: 12 },
+  { id: 'custom', title: 'Custom Sections', enabled: false, weight: 13 },
 ];
 
 export function createDefaultState(): MegaBuilderState {

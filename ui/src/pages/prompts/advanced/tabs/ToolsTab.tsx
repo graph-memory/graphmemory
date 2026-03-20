@@ -5,12 +5,18 @@ import TextField from '@mui/material/TextField';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import Chip from '@mui/material/Chip';
+import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
 import Accordion from '@mui/material/Accordion';
 import AccordionSummary from '@mui/material/AccordionSummary';
 import AccordionDetails from '@mui/material/AccordionDetails';
+import Divider from '@mui/material/Divider';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import AddIcon from '@mui/icons-material/Add';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { TOOL_CATALOG, GRAPH_LABELS, type GraphName } from '@/content/prompts/index.ts';
 import { useBuilderContext } from '../context/BuilderContext.tsx';
+import SectionToggle from './SectionToggle.tsx';
 import type { ToolPriority } from '../types.ts';
 
 const PRIORITY_COLORS: Record<ToolPriority, string> = {
@@ -29,6 +35,8 @@ const PRIORITY_OPTIONS: { value: ToolPriority; label: string }[] = [
   { value: 'disabled', label: 'Disabled' },
 ];
 
+const ALL_TOOL_NAMES = Object.keys(TOOL_CATALOG);
+
 export default function ToolsTab() {
   const { state, dispatch } = useBuilderContext();
   const [filter, setFilter] = useState('');
@@ -44,7 +52,7 @@ export default function ToolsTab() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-      <Typography variant="overline" sx={{ color: 'text.secondary' }}>Tool Configuration</Typography>
+      <SectionToggle sectionId="tools" label="Tools" />
 
       <TextField
         size="small"
@@ -57,7 +65,7 @@ export default function ToolsTab() {
       {(Object.entries(toolsByGraph) as [GraphName, string[]][])
         .filter(([, tools]) => tools.length > 0)
         .map(([graph, tools]) => (
-          <Accordion key={graph} defaultExpanded={false} disableGutters sx={{ '&:before': { display: 'none' } }}>
+          <Accordion key={graph} defaultExpanded={false} disableGutters slotProps={{ transition: { unmountOnExit: true } }} sx={{ '&:before': { display: 'none' } }}>
             <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ minHeight: 36, '& .MuiAccordionSummary-content': { my: 0.5 } }}>
               <Typography variant="subtitle2">
                 {GRAPH_LABELS[graph]}
@@ -120,6 +128,109 @@ export default function ToolsTab() {
             </AccordionDetails>
           </Accordion>
         ))}
+
+      <Divider />
+
+      {/* Tool Chains */}
+      <Typography variant="overline" sx={{ color: 'text.secondary' }}>Tool Chains</Typography>
+      <Typography variant="caption" color="text.secondary">
+        Define tool execution sequences. The prompt will instruct the LLM to follow these chains.
+      </Typography>
+
+      {state.toolChains.map(chain => (
+        <Box key={chain.id} sx={{ border: 1, borderColor: 'divider', borderRadius: 1, p: 1.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+            <TextField
+              size="small"
+              placeholder="Chain name"
+              value={chain.name}
+              onChange={e => {
+                const updated = state.toolChains.map(c =>
+                  c.id === chain.id ? { ...c, name: e.target.value } : c,
+                );
+                dispatch({ type: 'SET_TOOL_CHAINS', chains: updated });
+              }}
+              sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '0.8rem', py: 0.5 } }}
+            />
+            <IconButton
+              size="small"
+              color="error"
+              onClick={() => dispatch({
+                type: 'SET_TOOL_CHAINS',
+                chains: state.toolChains.filter(c => c.id !== chain.id),
+              })}
+            >
+              <DeleteIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Box>
+          <TextField
+            size="small"
+            placeholder="Description (optional)"
+            value={chain.description}
+            onChange={e => {
+              const updated = state.toolChains.map(c =>
+                c.id === chain.id ? { ...c, description: e.target.value } : c,
+              );
+              dispatch({ type: 'SET_TOOL_CHAINS', chains: updated });
+            }}
+            fullWidth
+            sx={{ mb: 1, '& .MuiInputBase-input': { fontSize: '0.75rem', py: 0.5 } }}
+          />
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>
+            {chain.steps.map((tool, i) => (
+              <Box key={`${tool}-${i}`} sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+                {i > 0 && <Typography variant="caption" color="text.secondary">→</Typography>}
+                <Chip
+                  label={tool}
+                  size="small"
+                  onDelete={() => {
+                    const updated = state.toolChains.map(c =>
+                      c.id === chain.id ? { ...c, steps: c.steps.filter((_, j) => j !== i) } : c,
+                    );
+                    dispatch({ type: 'SET_TOOL_CHAINS', chains: updated });
+                  }}
+                  sx={{ height: 20, fontSize: '0.65rem', fontFamily: 'monospace' }}
+                />
+              </Box>
+            ))}
+            <Select
+              size="small"
+              value=""
+              displayEmpty
+              onChange={e => {
+                if (!e.target.value) return;
+                const updated = state.toolChains.map(c =>
+                  c.id === chain.id ? { ...c, steps: [...c.steps, e.target.value as string] } : c,
+                );
+                dispatch({ type: 'SET_TOOL_CHAINS', chains: updated });
+              }}
+              renderValue={() => '+ tool'}
+              sx={{ width: 110, height: 24, fontSize: '0.7rem', '& .MuiSelect-select': { py: 0.25 } }}
+            >
+              {ALL_TOOL_NAMES.map(name => (
+                <MenuItem key={name} value={name} sx={{ fontSize: '0.75rem', fontFamily: 'monospace' }}>{name}</MenuItem>
+              ))}
+            </Select>
+          </Box>
+        </Box>
+      ))}
+
+      <Button
+        startIcon={<AddIcon />}
+        onClick={() => {
+          const id = `chain-${Date.now()}`;
+          dispatch({
+            type: 'SET_TOOL_CHAINS',
+            chains: [...state.toolChains, { id, name: '', steps: [], description: '' }],
+          });
+        }}
+        size="small"
+        variant="outlined"
+        sx={{ textTransform: 'none', alignSelf: 'flex-start' }}
+      >
+        Add chain
+      </Button>
+
     </Box>
   );
 }

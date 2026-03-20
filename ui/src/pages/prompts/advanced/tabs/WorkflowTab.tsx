@@ -2,6 +2,8 @@ import { useCallback } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
 import IconButton from '@mui/material/IconButton';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
@@ -9,8 +11,12 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import AddIcon from '@mui/icons-material/Add';
+import { TOOL_CATALOG } from '@/content/prompts/index.ts';
 import { useBuilderContext } from '../context/BuilderContext.tsx';
+import SectionToggle from './SectionToggle.tsx';
 import type { WorkflowStep } from '../types.ts';
+
+const ALL_TOOL_NAMES = Object.keys(TOOL_CATALOG);
 
 export default function WorkflowTab() {
   const { state, dispatch } = useBuilderContext();
@@ -55,11 +61,7 @@ export default function WorkflowTab() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Typography variant="overline" sx={{ color: 'text.secondary' }}>
-          Custom Workflow {workflow.length > 0 ? `(${workflow.length} steps)` : ''}
-        </Typography>
-      </Box>
+      <SectionToggle sectionId="workflow" label="Workflow" />
 
       {workflow.length === 0 && (
         <Typography variant="caption" color="text.secondary">
@@ -117,21 +119,20 @@ export default function WorkflowTab() {
                 sx={{ height: 20, fontSize: '0.65rem', fontFamily: 'monospace' }}
               />
             ))}
-            <TextField
+            <Select
               size="small"
-              placeholder="+ tool"
-              onKeyDown={e => {
-                if (e.key === 'Enter') {
-                  const input = e.target as HTMLInputElement;
-                  if (input.value.trim()) {
-                    addTool(step.id, input.value.trim());
-                    input.value = '';
-                  }
-                  e.preventDefault();
-                }
+              value=""
+              displayEmpty
+              onChange={e => {
+                if (e.target.value) addTool(step.id, e.target.value as string);
               }}
-              sx={{ width: 100, '& .MuiInputBase-input': { fontSize: '0.7rem', py: 0.25 } }}
-            />
+              renderValue={() => '+ tool'}
+              sx={{ width: 110, height: 24, fontSize: '0.7rem', '& .MuiSelect-select': { py: 0.25 } }}
+            >
+              {ALL_TOOL_NAMES.map(name => (
+                <MenuItem key={name} value={name} sx={{ fontSize: '0.75rem', fontFamily: 'monospace' }}>{name}</MenuItem>
+              ))}
+            </Select>
           </Box>
         </Box>
       ))}
@@ -145,6 +146,7 @@ export default function WorkflowTab() {
       >
         Add step
       </Button>
+
     </Box>
   );
 }

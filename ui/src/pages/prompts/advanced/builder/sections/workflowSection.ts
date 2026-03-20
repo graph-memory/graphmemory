@@ -5,11 +5,12 @@ export function buildWorkflowSection(
   scenarioId: string,
   customWorkflow: WorkflowStep[],
 ): string | null {
-  // Custom workflow takes precedence
-  if (customWorkflow.length > 0) {
+  // Custom workflow takes precedence (skip empty steps)
+  const validSteps = customWorkflow.filter(s => s.description.trim());
+  if (validSteps.length > 0) {
     const lines = ['### Workflow\n'];
-    for (let i = 0; i < customWorkflow.length; i++) {
-      const step = customWorkflow[i];
+    for (let i = 0; i < validSteps.length; i++) {
+      const step = validSteps[i];
       const toolBadges = step.tools.length > 0
         ? ` (${step.tools.map(t => `\`${t}\``).join(', ')})`
         : '';

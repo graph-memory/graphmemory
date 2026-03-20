@@ -4,19 +4,23 @@ import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Divider from '@mui/material/Divider';
 import { useBuilderContext } from '../context/BuilderContext.tsx';
+import SectionToggle from './SectionToggle.tsx';
 import type { CollabMode, ReviewStrictness } from '../types.ts';
 
+const btnSx = { textTransform: 'none', fontSize: '0.7rem', py: 0.75 } as const;
+
 export default function CollaborationTab() {
-  const { state, dispatch } = useBuilderContext();
+  const { state, dispatch, ensureSectionEnabled } = useBuilderContext();
   const c = state.collaboration;
 
   const update = (patch: Partial<typeof c>) => {
     dispatch({ type: 'SET_COLLABORATION', collaboration: { ...c, ...patch } });
+    ensureSectionEnabled('collaboration');
   };
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-      <Typography variant="overline" sx={{ color: 'text.secondary' }}>Collaboration</Typography>
+      <SectionToggle sectionId="collaboration" label="Collaboration" />
 
       {/* Mode */}
       <Box>
@@ -28,9 +32,9 @@ export default function CollaborationTab() {
           size="small"
           fullWidth
         >
-          <ToggleButton value="solo" sx={{ textTransform: 'none', fontSize: '0.7rem', py: 0.75 }}>Solo</ToggleButton>
-          <ToggleButton value="pair" sx={{ textTransform: 'none', fontSize: '0.7rem', py: 0.75 }}>Pair</ToggleButton>
-          <ToggleButton value="team-lead" sx={{ textTransform: 'none', fontSize: '0.7rem', py: 0.75 }}>Team Lead</ToggleButton>
+          <ToggleButton value="solo" sx={btnSx}>Solo</ToggleButton>
+          <ToggleButton value="pair" sx={btnSx}>Pair</ToggleButton>
+          <ToggleButton value="team-lead" sx={btnSx}>Team Lead</ToggleButton>
         </ToggleButtonGroup>
       </Box>
 
@@ -46,10 +50,10 @@ export default function CollaborationTab() {
           size="small"
           fullWidth
         >
-          <ToggleButton value="lenient" sx={{ textTransform: 'none', fontSize: '0.7rem', py: 0.75 }}>Lenient</ToggleButton>
-          <ToggleButton value="standard" sx={{ textTransform: 'none', fontSize: '0.7rem', py: 0.75 }}>Standard</ToggleButton>
-          <ToggleButton value="strict" sx={{ textTransform: 'none', fontSize: '0.7rem', py: 0.75 }}>Strict</ToggleButton>
-          <ToggleButton value="pedantic" sx={{ textTransform: 'none', fontSize: '0.7rem', py: 0.75 }}>Pedantic</ToggleButton>
+          <ToggleButton value="lenient" sx={btnSx}>Lenient</ToggleButton>
+          <ToggleButton value="standard" sx={btnSx}>Standard</ToggleButton>
+          <ToggleButton value="strict" sx={btnSx}>Strict</ToggleButton>
+          <ToggleButton value="pedantic" sx={btnSx}>Pedantic</ToggleButton>
         </ToggleButtonGroup>
       </Box>
 
@@ -65,9 +69,9 @@ export default function CollaborationTab() {
           size="small"
           fullWidth
         >
-          <ToggleButton value="conventional" sx={{ textTransform: 'none', fontSize: '0.7rem', py: 0.75 }}>Conventional</ToggleButton>
-          <ToggleButton value="descriptive" sx={{ textTransform: 'none', fontSize: '0.7rem', py: 0.75 }}>Descriptive</ToggleButton>
-          <ToggleButton value="minimal" sx={{ textTransform: 'none', fontSize: '0.7rem', py: 0.75 }}>Minimal</ToggleButton>
+          <ToggleButton value="conventional" sx={btnSx}>Conventional</ToggleButton>
+          <ToggleButton value="descriptive" sx={btnSx}>Descriptive</ToggleButton>
+          <ToggleButton value="minimal" sx={btnSx}>Minimal</ToggleButton>
         </ToggleButtonGroup>
       </Box>
 
@@ -83,9 +87,9 @@ export default function CollaborationTab() {
           size="small"
           fullWidth
         >
-          <ToggleButton value="detailed" sx={{ textTransform: 'none', fontSize: '0.7rem', py: 0.75 }}>Detailed</ToggleButton>
-          <ToggleButton value="standard" sx={{ textTransform: 'none', fontSize: '0.7rem', py: 0.75 }}>Standard</ToggleButton>
-          <ToggleButton value="minimal" sx={{ textTransform: 'none', fontSize: '0.7rem', py: 0.75 }}>Minimal</ToggleButton>
+          <ToggleButton value="detailed" sx={btnSx}>Detailed</ToggleButton>
+          <ToggleButton value="standard" sx={btnSx}>Standard</ToggleButton>
+          <ToggleButton value="minimal" sx={btnSx}>Minimal</ToggleButton>
         </ToggleButtonGroup>
       </Box>
     </Box>

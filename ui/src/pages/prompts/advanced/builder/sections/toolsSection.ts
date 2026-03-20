@@ -66,10 +66,11 @@ export function buildToolsSection(
     }
   }
 
-  // Tool chains
-  if (toolChains.length > 0) {
+  // Tool chains (skip empty)
+  const validChains = toolChains.filter(c => c.name.trim() && c.steps.length > 0);
+  if (validChains.length > 0) {
     parts.push('\n**Tool chains (follow this order):**');
-    for (const chain of toolChains) {
+    for (const chain of validChains) {
       parts.push(`- **${chain.name}**: ${chain.steps.map(s => `\`${s}\``).join(' → ')}${chain.description ? ` — ${chain.description}` : ''}`);
     }
   }

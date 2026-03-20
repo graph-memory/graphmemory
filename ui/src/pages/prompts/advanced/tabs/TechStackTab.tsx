@@ -3,6 +3,7 @@ import Typography from '@mui/material/Typography';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
 import { useBuilderContext } from '../context/BuilderContext.tsx';
+import SectionToggle from './SectionToggle.tsx';
 import type { TechStackConfig } from '../types.ts';
 import {
   LANGUAGES, RUNTIMES, FRAMEWORKS, FRAMEWORK_GROUPS,
@@ -47,7 +48,7 @@ function ChipGroup({
 }
 
 export default function TechStackTab() {
-  const { state, dispatch } = useBuilderContext();
+  const { state, dispatch, ensureSectionEnabled } = useBuilderContext();
   const ts = state.techStack;
 
   const toggle = (key: keyof TechStackConfig, value: string) => {
@@ -56,10 +57,12 @@ export default function TechStackTab() {
       ? current.filter(v => v !== value)
       : [...current, value];
     dispatch({ type: 'UPDATE_TECH_STACK', key, value: next });
+    ensureSectionEnabled('tech-stack');
   };
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <SectionToggle sectionId="tech-stack" label="Tech Stack" />
       <Typography variant="overline" sx={{ color: 'text.secondary' }}>
         JS/TS Ecosystem
       </Typography>

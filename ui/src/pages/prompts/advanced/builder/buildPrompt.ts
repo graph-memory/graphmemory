@@ -45,15 +45,17 @@ export function buildAdvancedPrompt(
   ];
 
   for (const section of sections) {
-    if (section.content) {
-      // User override
-      parts.push(section.content);
-    } else {
-      const gen = generators[section.id];
-      const output = gen?.();
-      if (output) parts.push(output);
+    const gen = generators[section.id];
+    const output = gen?.();
+    if (output) {
+      parts.push(output);
+      if (section.id === 'tools') {
+        parts.push('**Important:** Only use tools listed in the "Tools" section above. If a tool is mentioned elsewhere in this prompt but not listed under "Tools", it means the corresponding graph is not enabled — do not call it.');
+      }
     }
   }
+
+  parts.push('**Always search Graph Memory before reading files directly — the graph provides faster, more structured access to project context.**');
 
   return parts.join('\n\n').replace(/\n{3,}/g, '\n\n').trim();
 }

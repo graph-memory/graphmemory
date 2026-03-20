@@ -6,17 +6,22 @@ import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
-import Tab from '@mui/material/Tab';
-import Tabs from '@mui/material/Tabs';
 import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import SaveIcon from '@mui/icons-material/Save';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import DownloadIcon from '@mui/icons-material/Download';
 import CategoryIcon from '@mui/icons-material/Category';
+import HubIcon from '@mui/icons-material/Hub';
+import PersonIcon from '@mui/icons-material/Person';
+import StyleIcon from '@mui/icons-material/Style';
 import MemoryIcon from '@mui/icons-material/Memory';
 import BuildIcon from '@mui/icons-material/Build';
 import RouteIcon from '@mui/icons-material/Route';
@@ -34,10 +39,14 @@ import { ALL_GRAPHS } from '@/content/prompts/index.ts';
 import { SCENARIOS } from '../scenarios.tsx';
 import type { GraphStats } from '../prompt-builder.ts';
 import { BuilderProvider, useBuilderContext } from './context/BuilderContext.tsx';
+import { createDefaultState } from './defaults.ts';
 import { buildAdvancedPrompt } from './builder/buildPrompt.ts';
 import { estimateTokens } from './builder/tokenEstimator.ts';
 import { usePresets } from './hooks/usePresets.ts';
 import ScenarioTab from './tabs/ScenarioTab.tsx';
+import GraphsTab from './tabs/GraphsTab.tsx';
+import RoleTab from './tabs/RoleTab.tsx';
+import StyleTab from './tabs/StyleTab.tsx';
 import TechStackTab from './tabs/TechStackTab.tsx';
 import ToolsTab from './tabs/ToolsTab.tsx';
 import WorkflowTab from './tabs/WorkflowTab.tsx';
@@ -50,17 +59,20 @@ import CollaborationTab from './tabs/CollaborationTab.tsx';
 import AdvancedTab from './tabs/AdvancedTab.tsx';
 
 const TAB_CONFIG = [
-  { label: 'Scenario', icon: <CategoryIcon fontSize="small" /> },
-  { label: 'Tech Stack', icon: <MemoryIcon fontSize="small" /> },
-  { label: 'Tools', icon: <BuildIcon fontSize="small" /> },
-  { label: 'Workflow', icon: <RouteIcon fontSize="small" /> },
-  { label: 'Behavior', icon: <TuneIcon fontSize="small" /> },
-  { label: 'Memory', icon: <PsychologyIcon fontSize="small" /> },
-  { label: 'Search', icon: <SearchIcon fontSize="small" /> },
-  { label: 'Context', icon: <DataUsageIcon fontSize="small" /> },
-  { label: 'Rules', icon: <RuleIcon fontSize="small" /> },
-  { label: 'Collab', icon: <GroupsIcon fontSize="small" /> },
-  { label: 'Advanced', icon: <SettingsIcon fontSize="small" /> },
+  { label: 'Scenario', icon: <CategoryIcon fontSize="small" />, sectionId: null },
+  { label: 'Graphs', icon: <HubIcon fontSize="small" />, sectionId: 'graphs' },
+  { label: 'Role', icon: <PersonIcon fontSize="small" />, sectionId: 'role' },
+  { label: 'Style', icon: <StyleIcon fontSize="small" />, sectionId: 'style' },
+  { label: 'Tech Stack', icon: <MemoryIcon fontSize="small" />, sectionId: 'tech-stack' },
+  { label: 'Tools', icon: <BuildIcon fontSize="small" />, sectionId: 'tools' },
+  { label: 'Workflow', icon: <RouteIcon fontSize="small" />, sectionId: 'workflow' },
+  { label: 'Behavior', icon: <TuneIcon fontSize="small" />, sectionId: 'behavior' },
+  { label: 'Memory', icon: <PsychologyIcon fontSize="small" />, sectionId: 'memory' },
+  { label: 'Search', icon: <SearchIcon fontSize="small" />, sectionId: 'search' },
+  { label: 'Context', icon: <DataUsageIcon fontSize="small" />, sectionId: 'context' },
+  { label: 'Rules', icon: <RuleIcon fontSize="small" />, sectionId: 'rules' },
+  { label: 'Collab', icon: <GroupsIcon fontSize="small" />, sectionId: 'collaboration' },
+  { label: 'Advanced', icon: <SettingsIcon fontSize="small" />, sectionId: null },
 ];
 
 function AdvancedBuilderInner() {
@@ -75,7 +87,7 @@ function AdvancedBuilderInner() {
   const [showExport, setShowExport] = useState(false);
   const [presetName, setPresetName] = useState('');
   const [showSavePreset, setShowSavePreset] = useState(false);
-  const { presets, save: savePreset, load: loadPreset } = usePresets();
+  const { presets, save: savePreset, load: loadPreset, remove: removePreset } = usePresets();
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false, message: '', severity: 'success',
   });
@@ -162,7 +174,9 @@ function AdvancedBuilderInner() {
   const handleLoadPreset = useCallback((name: string) => {
     const loaded = loadPreset(name);
     if (loaded) {
-      dispatch({ type: 'LOAD_STATE', state: loaded });
+      // Merge with defaults to handle fields added after the preset was saved
+      const merged = { ...createDefaultState(), ...loaded };
+      dispatch({ type: 'LOAD_STATE', state: merged });
       setSnackbar({ open: true, message: `Preset "${name}" loaded`, severity: 'success' });
     }
   }, [loadPreset, dispatch]);
@@ -178,16 +192,19 @@ function AdvancedBuilderInner() {
   const renderTabContent = () => {
     switch (activeTab) {
       case 0: return <ScenarioTab graphStats={graphStats} />;
-      case 1: return <TechStackTab />;
-      case 2: return <ToolsTab />;
-      case 3: return <WorkflowTab />;
-      case 4: return <BehaviorTab />;
-      case 5: return <MemoryStrategyTab />;
-      case 6: return <SearchStrategyTab />;
-      case 7: return <ContextBudgetTab />;
-      case 8: return <ProjectRulesTab />;
-      case 9: return <CollaborationTab />;
-      case 10: return <AdvancedTab />;
+      case 1: return <GraphsTab graphStats={graphStats} />;
+      case 2: return <RoleTab />;
+      case 3: return <StyleTab />;
+      case 4: return <TechStackTab />;
+      case 5: return <ToolsTab />;
+      case 6: return <WorkflowTab />;
+      case 7: return <BehaviorTab />;
+      case 8: return <MemoryStrategyTab />;
+      case 9: return <SearchStrategyTab />;
+      case 10: return <ContextBudgetTab />;
+      case 11: return <ProjectRulesTab />;
+      case 12: return <CollaborationTab />;
+      case 13: return <AdvancedTab />;
       default: return null;
     }
   };
@@ -197,30 +214,36 @@ function AdvancedBuilderInner() {
       <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
 
         {/* ── Top: Tab bar (full width, wrapping) ── */}
-        <Tabs
-          value={activeTab}
-          onChange={(_, v) => setActiveTab(v)}
-          variant="scrollable"
-          scrollButtons="auto"
-          sx={{
-            borderBottom: 1,
-            borderColor: 'divider',
-            minHeight: 36,
-            flexShrink: 0,
-            '& .MuiTabs-flexContainer': { flexWrap: 'wrap' },
-            '& .MuiTab-root': {
-              minHeight: 36,
-              minWidth: 'auto',
-              px: 1.5,
-              textTransform: 'none',
-              fontSize: '0.75rem',
-            },
-          }}
-        >
-          {TAB_CONFIG.map(tab => (
-            <Tab key={tab.label} icon={tab.icon} label={tab.label} iconPosition="start" />
-          ))}
-        </Tabs>
+        <Box sx={{
+          display: 'flex', flexWrap: 'wrap', gap: 0.25,
+          borderBottom: 1, borderColor: 'divider',
+          px: 0.5, pt: 0.5, flexShrink: 0,
+        }}>
+          {TAB_CONFIG.map((tab, i) => {
+            const included = tab.sectionId
+              ? state.promptSections.find(s => s.id === tab.sectionId)?.enabled ?? false
+              : true;
+            const active = activeTab === i;
+            return (
+              <Box
+                key={tab.label}
+                onClick={() => setActiveTab(i)}
+                sx={{
+                  display: 'flex', alignItems: 'center', gap: 0.5,
+                  px: 1.5, py: 0.75, cursor: 'pointer',
+                  fontSize: '0.75rem',
+                  borderBottom: 2,
+                  borderColor: active ? 'primary.main' : 'transparent',
+                  color: included ? 'primary.main' : 'text.disabled',
+                  '&:hover': { color: 'primary.main' },
+                }}
+              >
+                {tab.icon}
+                {tab.label}
+              </Box>
+            );
+          })}
+        </Box>
 
         {/* ── Main: Config sidebar + Preview ── */}
         <Box sx={{ flex: 1, display: 'grid', gridTemplateColumns: { xs: '1fr', md: '360px 1fr' }, minHeight: 0 }}>
@@ -238,25 +261,23 @@ function AdvancedBuilderInner() {
               display: 'flex', alignItems: 'center', gap: 1,
               px: 2, py: 1, borderBottom: 1, borderColor: 'divider',
             }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
-              ~{tokens} tok
-            </Typography>
-            <Typography variant="caption" color="text.secondary">·</Typography>
-            <Typography variant="caption" color="text.secondary">
-              {enabledSections} sections
-            </Typography>
-            <Typography variant="caption" color="text.secondary">·</Typography>
-            <Typography variant="caption" color="text.secondary">
-              {enabledGraphs.length} graphs
-            </Typography>
-
-            {tokens > 4000 && (
-              <Typography variant="caption" sx={{ color: 'warning.main', fontWeight: 600 }}>
-                (large prompt)
+              <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
+                ~{tokens} tok
               </Typography>
-            )}
-
-            <Box sx={{ flex: 1 }} />
+              <Typography variant="caption" color="text.secondary">·</Typography>
+              <Typography variant="caption" color="text.secondary">
+                {enabledSections} sections
+              </Typography>
+              <Typography variant="caption" color="text.secondary">·</Typography>
+              <Typography variant="caption" color="text.secondary">
+                {enabledGraphs.length} graphs
+              </Typography>
+              {tokens > 8000 && (
+                <Typography variant="caption" sx={{ color: 'warning.main', fontWeight: 600 }}>
+                  (large prompt)
+                </Typography>
+              )}
+              <Box sx={{ flex: 1 }} />
 
             {/* Preset selector */}
             {presets.length > 0 && (
@@ -264,51 +285,29 @@ function AdvancedBuilderInner() {
                 size="small"
                 value=""
                 displayEmpty
-                onChange={e => { if (e.target.value) handleLoadPreset(e.target.value); }}
+                onChange={e => { if (e.target.value) handleLoadPreset(e.target.value as string); }}
                 sx={{ height: 28, fontSize: '0.75rem', minWidth: 120 }}
                 renderValue={() => 'Load preset...'}
               >
                 {presets.map(p => (
-                  <MenuItem key={p.name} value={p.name} sx={{ fontSize: '0.75rem' }}>{p.name}</MenuItem>
+                  <MenuItem key={p.name} value={p.name} sx={{ fontSize: '0.75rem', display: 'flex', justifyContent: 'space-between', gap: 1 }}>
+                    <span>{p.name}</span>
+                    <span
+                      role="button"
+                      onClick={e => {
+                        e.stopPropagation();
+                        removePreset(p.name);
+                        setSnackbar({ open: true, message: `Preset "${p.name}" deleted`, severity: 'success' });
+                      }}
+                      style={{ opacity: 0.5, cursor: 'pointer', fontSize: '0.65rem' }}
+                    >
+                      ✕
+                    </span>
+                  </MenuItem>
                 ))}
               </Select>
             )}
 
-            {showSavePreset ? (
-              <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
-                <TextField
-                  size="small"
-                  placeholder="Preset name"
-                  value={presetName}
-                  onChange={e => setPresetName(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') handleSavePreset();
-                    if (e.key === 'Escape') setShowSavePreset(false);
-                  }}
-                  autoFocus
-                  sx={{ width: 140, '& .MuiInputBase-input': { py: 0.5, fontSize: '0.75rem' } }}
-                />
-                <Button size="small" variant="contained" onClick={handleSavePreset} disabled={!presetName.trim()}>Save</Button>
-                <Button size="small" onClick={() => setShowSavePreset(false)}>Cancel</Button>
-              </Box>
-            ) : showExport ? (
-              <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
-                <TextField
-                  size="small"
-                  placeholder="Skill title"
-                  value={skillTitle}
-                  onChange={e => setSkillTitle(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') handleExport();
-                    if (e.key === 'Escape') setShowExport(false);
-                  }}
-                  autoFocus
-                  sx={{ width: 200 }}
-                />
-                <Button variant="contained" size="small" onClick={handleExport} disabled={!skillTitle.trim()}>Save</Button>
-                <Button size="small" onClick={() => setShowExport(false)}>Cancel</Button>
-              </Box>
-            ) : (
               <Box sx={{ display: 'flex', gap: 0.5 }}>
                 <Tooltip title="Copy to clipboard">
                   <span>
@@ -346,7 +345,6 @@ function AdvancedBuilderInner() {
                   </span>
                 </Tooltip>
               </Box>
-            )}
           </Box>
 
           {/* Preview */}
@@ -362,6 +360,54 @@ function AdvancedBuilderInner() {
         </Box>
         </Box>
       </Box>
+
+      {/* Save Preset Dialog */}
+      <Dialog open={showSavePreset} onClose={() => setShowSavePreset(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ pb: 1 }}>Save Preset</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Save current configuration as a preset. Presets are stored in your browser's local storage.
+          </Typography>
+          <TextField
+            size="small"
+            label="Preset name"
+            placeholder="e.g. My Development Setup"
+            value={presetName}
+            onChange={e => setPresetName(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && presetName.trim()) handleSavePreset(); }}
+            fullWidth
+            autoFocus
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowSavePreset(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleSavePreset} disabled={!presetName.trim()}>Save</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Export as Skill Dialog */}
+      <Dialog open={showExport} onClose={() => setShowExport(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ pb: 1 }}>Export as Skill</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Save the generated prompt as a skill in the project's Skill Graph. It will be searchable via <code>recall_skills</code>.
+          </Typography>
+          <TextField
+            size="small"
+            label="Skill title"
+            placeholder="e.g. Prompt: Development (Advanced)"
+            value={skillTitle}
+            onChange={e => setSkillTitle(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && skillTitle.trim()) handleExport(); }}
+            fullWidth
+            autoFocus
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowExport(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleExport} disabled={!skillTitle.trim()}>Export</Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar
         open={snackbar.open}

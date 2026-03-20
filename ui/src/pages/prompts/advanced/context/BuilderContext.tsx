@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer, type Dispatch, type ReactNode } from 'react';
+import { createContext, useContext, useReducer, useCallback, type Dispatch, type ReactNode } from 'react';
 import type { MegaBuilderState } from '../types.ts';
 import { createDefaultState } from '../defaults.ts';
 import { builderReducer, type BuilderAction } from './builderReducer.ts';
@@ -6,6 +6,7 @@ import { builderReducer, type BuilderAction } from './builderReducer.ts';
 interface BuilderContextValue {
   state: MegaBuilderState;
   dispatch: Dispatch<BuilderAction>;
+  ensureSectionEnabled: (sectionId: string) => void;
 }
 
 const BuilderContext = createContext<BuilderContextValue | null>(null);
@@ -13,8 +14,12 @@ const BuilderContext = createContext<BuilderContextValue | null>(null);
 export function BuilderProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(builderReducer, null, createDefaultState);
 
+  const ensureSectionEnabled = useCallback((sectionId: string) => {
+    dispatch({ type: 'ENSURE_SECTION_ENABLED', sectionId });
+  }, [dispatch]);
+
   return (
-    <BuilderContext.Provider value={{ state, dispatch }}>
+    <BuilderContext.Provider value={{ state, dispatch, ensureSectionEnabled }}>
       {children}
     </BuilderContext.Provider>
   );

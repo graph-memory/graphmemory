@@ -112,8 +112,6 @@ export interface PromptSection {
   title: string;
   enabled: boolean;
   weight: number;
-  content: string | null;  // null = auto-generated
-  conditional: boolean;
 }
 
 export interface CustomSection {

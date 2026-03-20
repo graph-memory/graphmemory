@@ -5,21 +5,23 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import TextField from '@mui/material/TextField';
 import Divider from '@mui/material/Divider';
 import { useBuilderContext } from '../context/BuilderContext.tsx';
+import SectionToggle from './SectionToggle.tsx';
 import type { Verbosity, CodeExamples, ExplanationDepth, FormatPref } from '../types.ts';
 
 const btnSx = { textTransform: 'none', fontSize: '0.7rem', py: 0.75 } as const;
 
 export default function BehaviorTab() {
-  const { state, dispatch } = useBuilderContext();
+  const { state, dispatch, ensureSectionEnabled } = useBuilderContext();
   const b = state.behavior;
 
   const update = (patch: Partial<typeof b>) => {
     dispatch({ type: 'SET_BEHAVIOR', behavior: { ...b, ...patch } });
+    ensureSectionEnabled('behavior');
   };
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-      <Typography variant="overline" sx={{ color: 'text.secondary' }}>Response Behavior</Typography>
+      <SectionToggle sectionId="behavior" label="Response Style" />
 
       <Box>
         <Typography variant="caption" sx={{ fontWeight: 600, mb: 1, display: 'block' }}>Verbosity</Typography>

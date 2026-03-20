@@ -13,7 +13,9 @@ export function buildMemorySection(config: MemoryStrategyConfig): string | null 
 
   if (config.noteDetailLevel <= 2) {
     lines.push('Keep notes brief — title and 1-2 sentences.');
-  } else if (config.noteDetailLevel >= 4) {
+  } else if (config.noteDetailLevel === 3) {
+    lines.push('Write notes with moderate detail — enough context for someone unfamiliar to understand.');
+  } else {
     lines.push('Write detailed notes with full context, alternatives considered, and implications.');
   }
 
@@ -28,7 +30,9 @@ export function buildMemorySection(config: MemoryStrategyConfig): string | null 
   // Skills
   if (config.skillCaptureThreshold <= 2) {
     lines.push('**Skills:** Save procedures as skills frequently — even simple workflows are worth capturing.');
-  } else if (config.skillCaptureThreshold >= 4) {
+  } else if (config.skillCaptureThreshold === 3) {
+    lines.push('**Skills:** Save procedures as skills when they are non-trivial and likely to be reused.');
+  } else {
     lines.push('**Skills:** Only save procedures as skills when they are complex, non-obvious, and likely to be reused.');
   }
 

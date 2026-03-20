@@ -5,6 +5,7 @@ import { getLanguage, getMimeType } from '@/graphs/file-lang';
 import type { EmbedFns, ExternalGraphs, IncomingCrossLink } from '@/graphs/manager-types';
 import { findIncomingCrossLinks } from '@/graphs/manager-types';
 import { searchFileIndex, type FileIndexSearchResult } from '@/lib/search/file-index';
+import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
 
 // ---------------------------------------------------------------------------
 // CRUD
@@ -261,8 +262,15 @@ export function saveFileIndexGraph(graph: FileIndexGraph, graphMemory: string, e
   fs.mkdirSync(graphMemory, { recursive: true });
   const file = path.join(graphMemory, 'file-index.json');
   const tmp = file + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify({ embeddingModel: embeddingFingerprint, graph: graph.export() }));
-  fs.renameSync(tmp, file);
+  try {
+    const exported = graph.export();
+    compressEmbeddings(exported);
+    fs.writeFileSync(tmp, JSON.stringify({ embeddingModel: embeddingFingerprint, graph: exported }));
+    fs.renameSync(tmp, file);
+  } catch (err) {
+    try { fs.unlinkSync(tmp); } catch { /* ignore cleanup error */ }
+    throw err;
+  }
 }
 
 export function loadFileIndexGraph(graphMemory: string, fresh = false, embeddingFingerprint?: string): FileIndexGraph {
@@ -281,6 +289,7 @@ export function loadFileIndexGraph(graphMemory: string, fresh = false, embedding
       return graph;
     }
 
+    decompressEmbeddings(data.graph);
     graph.import(data.graph);
     process.stderr.write(`[file-index] Loaded ${graph.order} nodes, ${graph.size} edges\n`);
   } catch (err) {

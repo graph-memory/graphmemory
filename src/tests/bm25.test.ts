@@ -10,7 +10,7 @@ describe('tokenize', () => {
   });
 
   it('splits camelCase', () => {
-    expect(tokenize('getUserById')).toEqual(['get', 'user', 'by', 'id']);
+    expect(tokenize('getUserById')).toEqual(['get', 'user', 'id']); // 'by' is a stop word
   });
 
   it('splits PascalCase', () => {

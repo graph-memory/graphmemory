@@ -7,6 +7,7 @@ import { findIncomingCrossLinks } from '@/graphs/manager-types';
 import { search, type SearchResult } from '@/lib/search/docs';
 import { searchDocFiles, type DocFileSearchResult } from '@/lib/search/files';
 import { BM25Index, type SearchMode } from '@/lib/search/bm25';
+import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
 
 export interface NodeAttributes {
   fileId: string;
@@ -154,8 +155,15 @@ export function saveGraph(graph: DocGraph, graphMemory: string, embeddingFingerp
   fs.mkdirSync(graphMemory, { recursive: true });
   const file = path.join(graphMemory, 'docs.json');
   const tmp = file + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify({ embeddingModel: embeddingFingerprint, graph: graph.export() }));
-  fs.renameSync(tmp, file);
+  try {
+    const exported = graph.export();
+    compressEmbeddings(exported);
+    fs.writeFileSync(tmp, JSON.stringify({ embeddingModel: embeddingFingerprint, graph: exported }));
+    fs.renameSync(tmp, file);
+  } catch (err) {
+    try { fs.unlinkSync(tmp); } catch { /* ignore cleanup error */ }
+    throw err;
+  }
 }
 
 export function loadGraph(graphMemory: string, fresh = false, embeddingFingerprint?: string): DocGraph {
@@ -174,6 +182,7 @@ export function loadGraph(graphMemory: string, fresh = false, embeddingFingerpri
       return graph;
     }
 
+    decompressEmbeddings(data.graph);
     graph.import(data.graph);
     process.stderr.write(`[graph] Loaded ${graph.order} nodes, ${graph.size} edges\n`);
   } catch (err) {

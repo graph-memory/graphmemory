@@ -12,6 +12,7 @@ import { BM25Index } from '@/lib/search/bm25';
 import { mirrorSkillCreate, mirrorSkillUpdate, mirrorSkillRelation, mirrorAttachmentEvent, deleteMirrorDir, writeAttachment, deleteAttachment, getAttachmentPath as getAttPath, sanitizeFilename } from '@/lib/file-mirror';
 import type { MirrorWriteTracker } from '@/lib/mirror-watcher';
 import type { ParsedSkillFile } from '@/lib/file-import';
+import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
 import { scanAttachments } from '@/graphs/attachment-types';
 import { diffRelations } from '@/lib/file-import';
 import type { RelationFrontmatter } from '@/lib/file-mirror';
@@ -590,8 +591,15 @@ export function saveSkillGraph(graph: SkillGraph, graphMemory: string, embedding
   fs.mkdirSync(graphMemory, { recursive: true });
   const file = path.join(graphMemory, 'skills.json');
   const tmp = file + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify({ embeddingModel: embeddingFingerprint, graph: graph.export() }));
-  fs.renameSync(tmp, file);
+  try {
+    const exported = graph.export();
+    compressEmbeddings(exported);
+    fs.writeFileSync(tmp, JSON.stringify({ embeddingModel: embeddingFingerprint, graph: exported }));
+    fs.renameSync(tmp, file);
+  } catch (err) {
+    try { fs.unlinkSync(tmp); } catch { /* ignore cleanup error */ }
+    throw err;
+  }
 }
 
 export function loadSkillGraph(graphMemory: string, fresh = false, embeddingFingerprint?: string): SkillGraph {
@@ -610,6 +618,7 @@ export function loadSkillGraph(graphMemory: string, fresh = false, embeddingFing
       return graph;
     }
 
+    decompressEmbeddings(data.graph);
     graph.import(data.graph);
     process.stderr.write(`[skill-graph] Loaded ${graph.order} nodes, ${graph.size} edges\n`);
   } catch (err) {

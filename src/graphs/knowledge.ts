@@ -8,6 +8,7 @@ import { resolveExternalGraph, VersionConflictError } from '@/graphs/manager-typ
 import { searchKnowledge, type KnowledgeSearchResult } from '@/lib/search/knowledge';
 import { BM25Index } from '@/lib/search/bm25';
 import { mirrorNoteCreate, mirrorNoteUpdate, mirrorNoteRelation, mirrorAttachmentEvent, deleteMirrorDir, writeAttachment, deleteAttachment, getAttachmentPath as getAttPath, sanitizeFilename } from '@/lib/file-mirror';
+import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
 import type { MirrorWriteTracker } from '@/lib/mirror-watcher';
 import type { ParsedNoteFile } from '@/lib/file-import';
 import type { AttachmentMeta } from '@/graphs/attachment-types';
@@ -407,8 +408,15 @@ export function saveKnowledgeGraph(graph: KnowledgeGraph, graphMemory: string, e
   fs.mkdirSync(graphMemory, { recursive: true });
   const file = path.join(graphMemory, 'knowledge.json');
   const tmp = file + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify({ embeddingModel: embeddingFingerprint, graph: graph.export() }));
-  fs.renameSync(tmp, file);
+  try {
+    const exported = graph.export();
+    compressEmbeddings(exported);
+    fs.writeFileSync(tmp, JSON.stringify({ embeddingModel: embeddingFingerprint, graph: exported }));
+    fs.renameSync(tmp, file);
+  } catch (err) {
+    try { fs.unlinkSync(tmp); } catch { /* ignore cleanup error */ }
+    throw err;
+  }
 }
 
 export function loadKnowledgeGraph(graphMemory: string, fresh = false, embeddingFingerprint?: string): KnowledgeGraph {
@@ -427,6 +435,7 @@ export function loadKnowledgeGraph(graphMemory: string, fresh = false, embedding
       return graph;
     }
 
+    decompressEmbeddings(data.graph);
     graph.import(data.graph);
     process.stderr.write(`[knowledge-graph] Loaded ${graph.order} nodes, ${graph.size} edges\n`);
   } catch (err) {

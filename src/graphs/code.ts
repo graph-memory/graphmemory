@@ -8,6 +8,7 @@ import { findIncomingCrossLinks } from '@/graphs/manager-types';
 import { searchCode, type CodeSearchResult } from '@/lib/search/code';
 import { searchCodeFiles, type CodeFileSearchResult } from '@/lib/search/files';
 import { BM25Index, type SearchMode } from '@/lib/search/bm25';
+import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
 
 export type { CodeGraph };
 export { createCodeGraph };
@@ -173,8 +174,15 @@ export function saveCodeGraph(graph: CodeGraph, graphMemory: string, embeddingFi
   fs.mkdirSync(graphMemory, { recursive: true });
   const file = path.join(graphMemory, 'code.json');
   const tmp = file + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify({ embeddingModel: embeddingFingerprint, graph: graph.export() }));
-  fs.renameSync(tmp, file);
+  try {
+    const exported = graph.export();
+    compressEmbeddings(exported);
+    fs.writeFileSync(tmp, JSON.stringify({ embeddingModel: embeddingFingerprint, graph: exported }));
+    fs.renameSync(tmp, file);
+  } catch (err) {
+    try { fs.unlinkSync(tmp); } catch { /* ignore cleanup error */ }
+    throw err;
+  }
 }
 
 export function loadCodeGraph(graphMemory: string, fresh = false, embeddingFingerprint?: string): CodeGraph {
@@ -193,6 +201,7 @@ export function loadCodeGraph(graphMemory: string, fresh = false, embeddingFinge
       return graph;
     }
 
+    decompressEmbeddings(data.graph);
     graph.import(data.graph);
     process.stderr.write(`[code-graph] Loaded ${graph.order} nodes, ${graph.size} edges\n`);
   } catch (err) {

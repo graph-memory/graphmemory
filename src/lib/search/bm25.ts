@@ -33,6 +33,24 @@ interface DocEntry {
  * "getUserById" → ["get", "user", "by", "id"]
  * "JWT tokens" → ["jwt", "tokens"]
  */
+/**
+ * Minimal stop words for code/doc search.
+ * Only articles, conjunctions, prepositions, and pronouns — words that never
+ * carry meaning in code search. Excludes programming-significant words like
+ * `for`, `do`, `if`, `not`, `is`, `has`, `all`, `can`, `no`.
+ */
+const STOP_WORDS = new Set([
+  'a', 'an', 'the',                                    // articles
+  'and', 'or', 'but', 'nor',                           // conjunctions
+  'of', 'with', 'by', 'from', 'as', 'at', 'on', 'in', 'to', 'into', 'onto',  // prepositions
+  'it', 'its', 'he', 'she', 'we', 'they', 'i', 'me',  // pronouns
+  'my', 'you', 'your', 'his', 'her', 'our', 'their',   // possessives
+  'this', 'that', 'these', 'those',                     // demonstratives
+  'been', 'being', 'were', 'was', 'are',                // be-forms (but not 'be', 'is')
+  'would', 'could', 'should', 'shall', 'might',         // modals (but not 'can', 'may', 'will', 'do')
+  'than', 'such', 'very', 'just', 'also', 'about',     // fillers
+]);
+
 export function tokenize(text: string): string[] {
   if (!text) return [];
 
@@ -42,7 +60,7 @@ export function tokenize(text: string): string[] {
     .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2') // XMLParser → XML Parser
     .split(/[^a-zA-Z0-9]+/)
     .map(t => t.toLowerCase())
-    .filter(t => t.length > 0);
+    .filter(t => t.length > 0 && !STOP_WORDS.has(t));
 
   return parts;
 }

@@ -148,8 +148,11 @@ function extractLinks(
   const results = new Set<string>();
   const fileDir = path.dirname(fromFile);
 
+  // Strip fenced code blocks before extracting links (links inside code are not real references)
+  const textOnly = content.replace(FENCE_RE, '');
+
   // [text](./path.md)
-  const mdLinks = content.matchAll(/\[[^\]]*\]\(([^)#\s]+)/g);
+  const mdLinks = textOnly.matchAll(/\[[^\]]*\]\(([^)#\s]+)/g);
   for (const [, href] of mdLinks) {
     if (isExternal(href)) continue;
     const resolved = path.resolve(fileDir, href);
@@ -158,7 +161,7 @@ function extractLinks(
   }
 
   // [[wiki link]] or [[wiki link|alias]]
-  const wikiLinks = content.matchAll(/\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g);
+  const wikiLinks = textOnly.matchAll(/\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g);
   for (const [, name] of wikiLinks) {
     const resolved = findWikiFile(name.trim(), projectDir);
     if (!resolved) continue;
@@ -187,35 +190,51 @@ function toFileId(absolutePath: string, projectDir: string): string | null {
   return null;
 }
 
+/**
+ * Cache: projectDir → Map<lowercased basename (without .md), absolute path>.
+ * Built once per project via a single recursive walk, then reused for all wiki link lookups.
+ */
+const _wikiIndex = new Map<string, Map<string, string>>();
+
+function getWikiIndex(projectDir: string): Map<string, string> {
+  if (_wikiIndex.has(projectDir)) return _wikiIndex.get(projectDir)!;
+
+  const index = new Map<string, string>();
+  const MAX_DEPTH = 10;
+
+  function walk(dir: string, depth: number): void {
+    if (depth >= MAX_DEPTH) return;
+    let entries: fs.Dirent[];
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const entry of entries) {
+      if (entry.name.startsWith('.')) continue;
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(full, depth + 1);
+      } else if (entry.isFile()) {
+        // Index by basename without extension (lowercased)
+        const key = path.basename(entry.name, path.extname(entry.name)).toLowerCase();
+        if (!index.has(key)) index.set(key, full);
+        // Also index by full filename (lowercased)
+        const fullKey = entry.name.toLowerCase();
+        if (!index.has(fullKey)) index.set(fullKey, full);
+      }
+    }
+  }
+
+  walk(projectDir, 0);
+  _wikiIndex.set(projectDir, index);
+  return index;
+}
+
 function findWikiFile(name: string, projectDir: string): string | null {
+  // Direct path check first (fast path)
   const direct = path.join(projectDir, name);
   if (fs.existsSync(direct)) return direct;
   const withMd = direct + '.md';
   if (fs.existsSync(withMd)) return withMd;
-  return searchRecursive(name, projectDir);
-}
 
-const MAX_SEARCH_DEPTH = 10;
-
-function searchRecursive(name: string, dir: string, depth = 0): string | null {
-  if (depth >= MAX_SEARCH_DEPTH) return null;
-  let entries: fs.Dirent[];
-  try {
-    entries = fs.readdirSync(dir, { withFileTypes: true });
-  } catch {
-    return null;
-  }
-  for (const entry of entries) {
-    if (entry.name.startsWith('.')) continue;
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      const found = searchRecursive(name, full, depth + 1);
-      if (found) return found;
-    } else if (entry.isFile()) {
-      if (entry.name === name || entry.name === `${name}.md` || path.basename(entry.name, '.md') === name) {
-        return full;
-      }
-    }
-  }
-  return null;
+  // Fall back to cached index lookup
+  const index = getWikiIndex(projectDir);
+  return index.get(name.toLowerCase()) ?? index.get(name.toLowerCase() + '.md') ?? null;
 }

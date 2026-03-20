@@ -132,6 +132,36 @@ export interface ToolInfo {
   description: string;
 }
 
+
+export const GRAPH_COLORS: Record<GraphName, string> = {
+  docs: '#ef5350',
+  code: '#42a5f5',
+  files: '#66bb6a',
+  knowledge: '#ffc107',
+  tasks: '#7c4dff',
+  skills: '#ff7043',
+};
+
+export const ROLE_OPTIONS: { value: RoleName; label: string; desc: string }[] = [
+  { value: 'developer', label: 'Developer', desc: 'Write, debug, understand code' },
+  { value: 'architect', label: 'Architect', desc: 'Design structure, evaluate patterns' },
+  { value: 'reviewer', label: 'Reviewer', desc: 'Review changes for correctness' },
+  { value: 'tech-writer', label: 'Tech Writer', desc: 'Write and maintain documentation' },
+  { value: 'team-lead', label: 'Team Lead', desc: 'Manage tasks, track progress' },
+  { value: 'devops', label: 'DevOps', desc: 'CI/CD, infra, deployment' },
+  { value: 'data-analyst', label: 'Data Analyst', desc: 'Mine patterns, extract insights' },
+  { value: 'onboarding-buddy', label: 'Onboarding Buddy', desc: 'Guide newcomers step by step' },
+];
+
+export const STYLE_OPTIONS: { value: StyleName; label: string; desc: string }[] = [
+  { value: 'proactive', label: 'Proactive', desc: 'Act without asking' },
+  { value: 'reactive', label: 'Reactive', desc: 'Suggest, wait for approval' },
+  { value: 'read-only', label: 'Read-only', desc: 'Search only, never mutate' },
+  { value: 'balanced', label: 'Balanced', desc: 'Search freely, ask before changes' },
+  { value: 'aggressive', label: 'Aggressive', desc: 'Maximum automation' },
+  { value: 'guided', label: 'Guided', desc: 'Explain every step' },
+];
+
 export const TOOL_CATALOG: Record<string, ToolInfo> = {
   // Docs (9 tools) — search and browse indexed markdown documentation
   search: { graph: 'docs', description: 'Hybrid semantic + keyword search over doc sections — finds documentation by meaning, not just exact words' },
@@ -202,3 +232,5 @@ export const TOOL_CATALOG: Record<string, ToolInfo> = {
   add_skill_attachment: { graph: 'skills', description: 'Attach a file to a skill for reference' },
   remove_skill_attachment: { graph: 'skills', description: 'Remove a file attachment from a skill' },
 };
+
+export const ALL_TOOL_NAMES: string[] = Object.keys(TOOL_CATALOG);

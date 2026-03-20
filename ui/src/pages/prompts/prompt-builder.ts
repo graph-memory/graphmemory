@@ -77,7 +77,7 @@ export function buildPrompt(
         }
       }
     }
-  } else {
+  } else if (availableTools.length > 0) {
     // Custom scenario — show all tools grouped by graph
     for (const g of enabledGraphs) {
       const graphTools = availableTools.filter(([, info]) => info.graph === g.name);
@@ -86,6 +86,8 @@ export function buildPrompt(
       }
     }
     toolsContent = toolsContent.trim();
+  } else {
+    toolsContent = '*No tools available — enable at least one graph above.*';
   }
 
   // Workflow

@@ -8,14 +8,14 @@ export function buildSearchSection(config: SearchStrategyConfig): string | null 
     medium: 'Use a balanced search approach — start specific, broaden if needed. Follow up with `get_*` tools for details.',
     deep: 'Search thoroughly — query multiple graphs, use broad terms, then narrow down. Always cross-reference across graphs.',
   };
-  lines.push(depthMap[config.defaultDepth]);
+  if (depthMap[config.defaultDepth]) lines.push(depthMap[config.defaultDepth]);
 
   const crossGraph: Record<string, string> = {
     always: 'Always expand search across graphs — when you find something in code, also check docs, notes, and tasks.',
     'when-needed': 'Expand search across graphs when the initial results are insufficient or when you need full context.',
     never: 'Stay within the primary graph for each query. Only cross-reference when explicitly asked.',
   };
-  lines.push(crossGraph[config.crossGraphExpansion]);
+  if (crossGraph[config.crossGraphExpansion]) lines.push(crossGraph[config.crossGraphExpansion]);
 
   lines.push(`When traversing graph relationships, explore up to **${config.bfsHops}** hops from the starting node.`);
 

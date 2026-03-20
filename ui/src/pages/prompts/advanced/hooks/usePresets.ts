@@ -30,16 +30,20 @@ export function usePresets() {
   }, []);
 
   const save = useCallback((name: string, state: MegaBuilderState) => {
-    const next = [...presets.filter(p => p.name !== name), { name, state, createdAt: Date.now() }];
-    savePresets(next);
-    setPresets(next);
-  }, [presets]);
+    setPresets(prev => {
+      const next = [...prev.filter(p => p.name !== name), { name, state, createdAt: Date.now() }];
+      savePresets(next);
+      return next;
+    });
+  }, []);
 
   const remove = useCallback((name: string) => {
-    const next = presets.filter(p => p.name !== name);
-    savePresets(next);
-    setPresets(next);
-  }, [presets]);
+    setPresets(prev => {
+      const next = prev.filter(p => p.name !== name);
+      savePresets(next);
+      return next;
+    });
+  }, []);
 
   const load = useCallback((name: string): MegaBuilderState | null => {
     return presets.find(p => p.name === name)?.state ?? null;

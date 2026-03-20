@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -33,11 +33,10 @@ import RuleIcon from '@mui/icons-material/Rule';
 import GroupsIcon from '@mui/icons-material/Groups';
 import SettingsIcon from '@mui/icons-material/Settings';
 import { MarkdownRenderer } from '@/shared/ui/index.ts';
-import { getProjectStats } from '@/entities/project/index.ts';
 import { createSkill } from '@/entities/skill/index.ts';
 import { ALL_GRAPHS } from '@/content/prompts/index.ts';
 import { SCENARIOS } from '../scenarios.tsx';
-import type { GraphStats } from '../prompt-builder.ts';
+import { useGraphStats } from '../useGraphStats.ts';
 import { BuilderProvider, useBuilderContext } from './context/BuilderContext.tsx';
 import { createDefaultState } from './defaults.ts';
 import { buildAdvancedPrompt } from './builder/buildPrompt.ts';
@@ -47,7 +46,7 @@ import ScenarioTab from './tabs/ScenarioTab.tsx';
 import GraphsTab from './tabs/GraphsTab.tsx';
 import RoleTab from './tabs/RoleTab.tsx';
 import StyleTab from './tabs/StyleTab.tsx';
-import TechStackTab from './tabs/TechStackTab.tsx';
+import StackTab from './tabs/StackTab.tsx';
 import ToolsTab from './tabs/ToolsTab.tsx';
 import WorkflowTab from './tabs/WorkflowTab.tsx';
 import BehaviorTab from './tabs/BehaviorTab.tsx';
@@ -63,7 +62,7 @@ const TAB_CONFIG = [
   { label: 'Graphs', icon: <HubIcon fontSize="small" />, sectionId: 'graphs' },
   { label: 'Role', icon: <PersonIcon fontSize="small" />, sectionId: 'role' },
   { label: 'Style', icon: <StyleIcon fontSize="small" />, sectionId: 'style' },
-  { label: 'Tech Stack', icon: <MemoryIcon fontSize="small" />, sectionId: 'tech-stack' },
+  { label: 'Stack', icon: <MemoryIcon fontSize="small" />, sectionId: 'stack' },
   { label: 'Tools', icon: <BuildIcon fontSize="small" />, sectionId: 'tools' },
   { label: 'Workflow', icon: <RouteIcon fontSize="small" />, sectionId: 'workflow' },
   { label: 'Behavior', icon: <TuneIcon fontSize="small" />, sectionId: 'behavior' },
@@ -81,37 +80,17 @@ function AdvancedBuilderInner() {
   const { state, dispatch } = useBuilderContext();
 
   const [activeTab, setActiveTab] = useState(0);
-  const [graphStats, setGraphStats] = useState<GraphStats[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { graphStats, loading } = useGraphStats(projectId);
   const [skillTitle, setSkillTitle] = useState('');
   const [showExport, setShowExport] = useState(false);
   const [presetName, setPresetName] = useState('');
   const [showSavePreset, setShowSavePreset] = useState(false);
+  const [confirmLoad, setConfirmLoad] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const { presets, save: savePreset, load: loadPreset, remove: removePreset } = usePresets();
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false, message: '', severity: 'success',
   });
-
-  useEffect(() => {
-    if (!projectId) return;
-    setLoading(true);
-    getProjectStats(projectId)
-      .then(stats => {
-        const s = stats as unknown as Record<string, { nodes: number; edges: number } | null>;
-        setGraphStats([
-          { name: 'docs', nodeCount: s.docs?.nodes ?? 0, available: (s.docs?.nodes ?? 0) > 0 },
-          { name: 'code', nodeCount: s.code?.nodes ?? 0, available: (s.code?.nodes ?? 0) > 0 },
-          { name: 'files', nodeCount: s.fileIndex?.nodes ?? 0, available: (s.fileIndex?.nodes ?? 0) > 0 },
-          { name: 'knowledge', nodeCount: s.knowledge?.nodes ?? 0, available: (s.knowledge?.nodes ?? 0) > 0 },
-          { name: 'tasks', nodeCount: s.tasks?.nodes ?? 0, available: (s.tasks?.nodes ?? 0) > 0 },
-          { name: 'skills', nodeCount: s.skills?.nodes ?? 0, available: (s.skills?.nodes ?? 0) > 0 },
-        ]);
-      })
-      .catch(() => {
-        setGraphStats(ALL_GRAPHS.map(name => ({ name, nodeCount: 0, available: false })));
-      })
-      .finally(() => setLoading(false));
-  }, [projectId]);
 
   const prompt = useMemo(
     () => buildAdvancedPrompt(state, graphStats),
@@ -120,7 +99,10 @@ function AdvancedBuilderInner() {
 
   const tokens = useMemo(() => estimateTokens(prompt), [prompt]);
   const enabledSections = state.promptSections.filter(s => s.enabled).length;
-  const enabledGraphs = ALL_GRAPHS.filter(g => state.graphs[g] && graphStats.find(s => s.name === g)?.available);
+  const enabledGraphs = useMemo(
+    () => ALL_GRAPHS.filter(g => state.graphs[g] && graphStats.find(s => s.name === g)?.available),
+    [state.graphs, graphStats],
+  );
 
   const handleCopy = useCallback(async () => {
     try {
@@ -144,8 +126,10 @@ function AdvancedBuilderInner() {
         tags: ['prompt', 'advanced', state.scenarioId],
         source: 'user',
       });
+      if (!skill?.id) throw new Error('Invalid response from server');
       setSnackbar({ open: true, message: 'Skill created', severity: 'success' });
       setShowExport(false);
+      setSkillTitle('');
       navigate(`/${projectId}/skills/${skill.id}`);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to create skill';
@@ -154,13 +138,17 @@ function AdvancedBuilderInner() {
   }, [projectId, skillTitle, prompt, state.scenarioId, selectedScenario, navigate]);
 
   const handleDownload = useCallback(() => {
-    const blob = new Blob([prompt], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `prompt-${state.scenarioId}.md`;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      const blob = new Blob([prompt], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `prompt-${state.scenarioId}.md`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {
+      setSnackbar({ open: true, message: 'Failed to download', severity: 'error' });
+    }
   }, [prompt, state.scenarioId]);
 
   const handleSavePreset = useCallback(() => {
@@ -174,8 +162,31 @@ function AdvancedBuilderInner() {
   const handleLoadPreset = useCallback((name: string) => {
     const loaded = loadPreset(name);
     if (loaded) {
-      // Merge with defaults to handle fields added after the preset was saved
-      const merged = { ...createDefaultState(), ...loaded };
+      // Deep merge with defaults to handle fields added after the preset was saved
+      const defaults = createDefaultState();
+      // Merge promptSections: keep loaded order/enabled, but add any new default sections
+      const loadedIds = new Set((loaded.promptSections ?? []).map(s => s.id));
+      const mergedSections = [
+        ...(loaded.promptSections ?? defaults.promptSections),
+        ...defaults.promptSections.filter(s => !loadedIds.has(s.id)),
+      ];
+      const merged: typeof defaults = {
+        ...defaults,
+        ...loaded,
+        graphs: { ...defaults.graphs, ...loaded.graphs },
+        promptSections: mergedSections,
+        stack: {
+          enabledDomains: loaded.stack?.enabledDomains ?? defaults.stack.enabledDomains,
+          selections: { ...defaults.stack.selections, ...loaded.stack?.selections },
+        },
+        behavior: { ...defaults.behavior, ...loaded.behavior },
+        memoryStrategy: { ...defaults.memoryStrategy, ...loaded.memoryStrategy },
+        searchStrategy: { ...defaults.searchStrategy, ...loaded.searchStrategy },
+        contextBudget: { ...defaults.contextBudget, ...loaded.contextBudget },
+        projectRules: { ...defaults.projectRules, ...loaded.projectRules },
+        collaboration: { ...defaults.collaboration, ...loaded.collaboration },
+        toolConfigs: { ...defaults.toolConfigs, ...loaded.toolConfigs },
+      };
       dispatch({ type: 'LOAD_STATE', state: merged });
       setSnackbar({ open: true, message: `Preset "${name}" loaded`, severity: 'success' });
     }
@@ -183,8 +194,8 @@ function AdvancedBuilderInner() {
 
   if (loading) {
     return (
-      <Box sx={{ p: 3, textAlign: 'center' }}>
-        <Typography color="text.secondary">Loading...</Typography>
+      <Box sx={{ p: 3, textAlign: 'center' }} aria-live="polite">
+        <Typography color="text.secondary">Loading graph data…</Typography>
       </Box>
     );
   }
@@ -195,7 +206,7 @@ function AdvancedBuilderInner() {
       case 1: return <GraphsTab graphStats={graphStats} />;
       case 2: return <RoleTab />;
       case 3: return <StyleTab />;
-      case 4: return <TechStackTab />;
+      case 4: return <StackTab />;
       case 5: return <ToolsTab />;
       case 6: return <WorkflowTab />;
       case 7: return <BehaviorTab />;
@@ -214,7 +225,7 @@ function AdvancedBuilderInner() {
       <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
 
         {/* ── Top: Tab bar (full width, wrapping) ── */}
-        <Box sx={{
+        <Box role="tablist" aria-label="Prompt builder sections" sx={{
           display: 'flex', flexWrap: 'wrap', gap: 0.25,
           borderBottom: 1, borderColor: 'divider',
           px: 0.5, pt: 0.5, flexShrink: 0,
@@ -227,7 +238,13 @@ function AdvancedBuilderInner() {
             return (
               <Box
                 key={tab.label}
+                role="tab"
+                tabIndex={0}
+                aria-selected={active}
+                aria-label={`${tab.label} tab${included ? '' : ' (excluded from prompt)'}`}
+                aria-controls="builder-tab-panel"
                 onClick={() => setActiveTab(i)}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveTab(i); } }}
                 sx={{
                   display: 'flex', alignItems: 'center', gap: 0.5,
                   px: 1.5, py: 0.75, cursor: 'pointer',
@@ -249,7 +266,7 @@ function AdvancedBuilderInner() {
         <Box sx={{ flex: 1, display: 'grid', gridTemplateColumns: { xs: '1fr', md: '360px 1fr' }, minHeight: 0 }}>
 
           {/* Left: Tab content */}
-          <Box sx={{ borderRight: 1, borderColor: 'divider', overflowY: 'auto', overflowX: 'hidden', minHeight: 0, p: 2 }}>
+          <Box id="builder-tab-panel" role="tabpanel" sx={{ borderRight: 1, borderColor: 'divider', overflowY: 'auto', overflowX: 'hidden', minHeight: 0, p: 2 }}>
             {renderTabContent()}
           </Box>
 
@@ -285,24 +302,25 @@ function AdvancedBuilderInner() {
                 size="small"
                 value=""
                 displayEmpty
-                onChange={e => { if (e.target.value) handleLoadPreset(e.target.value as string); }}
+                onChange={e => { if (e.target.value) { setShowExport(false); setShowSavePreset(false); setConfirmLoad(e.target.value as string); } }}
                 sx={{ height: 28, fontSize: '0.75rem', minWidth: 120 }}
                 renderValue={() => 'Load preset...'}
+                aria-label="Load preset"
               >
                 {presets.map(p => (
                   <MenuItem key={p.name} value={p.name} sx={{ fontSize: '0.75rem', display: 'flex', justifyContent: 'space-between', gap: 1 }}>
                     <span>{p.name}</span>
-                    <span
-                      role="button"
+                    <IconButton
+                      size="small"
+                      aria-label={`Delete preset ${p.name}`}
                       onClick={e => {
                         e.stopPropagation();
-                        removePreset(p.name);
-                        setSnackbar({ open: true, message: `Preset "${p.name}" deleted`, severity: 'success' });
+                        setConfirmDelete(p.name);
                       }}
-                      style={{ opacity: 0.5, cursor: 'pointer', fontSize: '0.65rem' }}
+                      sx={{ p: 0.25, opacity: 0.5, '&:hover': { opacity: 1 }, fontSize: '0.65rem' }}
                     >
                       ✕
-                    </span>
+                    </IconButton>
                   </MenuItem>
                 ))}
               </Select>
@@ -311,21 +329,21 @@ function AdvancedBuilderInner() {
               <Box sx={{ display: 'flex', gap: 0.5 }}>
                 <Tooltip title="Copy to clipboard">
                   <span>
-                    <IconButton onClick={handleCopy} disabled={!prompt} size="small">
+                    <IconButton onClick={handleCopy} disabled={!prompt} size="small" aria-label="Copy prompt to clipboard">
                       <ContentCopyIcon fontSize="small" />
                     </IconButton>
                   </span>
                 </Tooltip>
                 <Tooltip title="Download as .md">
                   <span>
-                    <IconButton onClick={handleDownload} disabled={!prompt} size="small">
+                    <IconButton onClick={handleDownload} disabled={!prompt} size="small" aria-label="Download prompt as markdown">
                       <DownloadIcon fontSize="small" />
                     </IconButton>
                   </span>
                 </Tooltip>
                 <Tooltip title="Save preset">
                   <span>
-                    <IconButton onClick={() => setShowSavePreset(true)} size="small">
+                    <IconButton onClick={() => { setShowExport(false); setShowSavePreset(true); }} size="small" aria-label="Save as preset">
                       <BookmarkBorderIcon fontSize="small" />
                     </IconButton>
                   </span>
@@ -334,11 +352,13 @@ function AdvancedBuilderInner() {
                   <span>
                     <IconButton
                       onClick={() => {
+                        setShowSavePreset(false);
                         setSkillTitle(`Prompt: ${selectedScenario?.label ?? 'Custom'} (Advanced)`);
                         setShowExport(true);
                       }}
                       disabled={!prompt}
                       size="small"
+                      aria-label="Export prompt as skill"
                     >
                       <SaveIcon fontSize="small" />
                     </IconButton>
@@ -406,6 +426,40 @@ function AdvancedBuilderInner() {
         <DialogActions>
           <Button onClick={() => setShowExport(false)}>Cancel</Button>
           <Button variant="contained" onClick={handleExport} disabled={!skillTitle.trim()}>Export</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Confirm Load Preset Dialog */}
+      <Dialog open={!!confirmLoad} onClose={() => setConfirmLoad(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ pb: 1 }}>Load Preset</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            Loading preset <strong>{confirmLoad}</strong> will replace all current settings. This cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmLoad(null)}>Cancel</Button>
+          <Button variant="contained" onClick={() => { if (confirmLoad) handleLoadPreset(confirmLoad); setConfirmLoad(null); }}>Load</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Confirm Delete Preset Dialog */}
+      <Dialog open={!!confirmDelete} onClose={() => setConfirmDelete(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ pb: 1 }}>Delete Preset</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            Are you sure you want to delete preset <strong>{confirmDelete}</strong>?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDelete(null)}>Cancel</Button>
+          <Button variant="contained" color="error" onClick={() => {
+            if (confirmDelete) {
+              removePreset(confirmDelete);
+              setSnackbar({ open: true, message: `Preset "${confirmDelete}" deleted`, severity: 'success' });
+            }
+            setConfirmDelete(null);
+          }}>Delete</Button>
         </DialogActions>
       </Dialog>
 

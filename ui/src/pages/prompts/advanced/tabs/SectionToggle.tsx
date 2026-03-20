@@ -27,6 +27,7 @@ export default function SectionToggle({ sectionId, label }: SectionToggleProps) 
         checked={section.enabled}
         onChange={() => dispatch({ type: 'TOGGLE_SECTION', sectionId })}
         size="small"
+        inputProps={{ 'aria-label': `${section.enabled ? 'Exclude' : 'Include'} ${label} section` }}
       />
     </Box>
   );

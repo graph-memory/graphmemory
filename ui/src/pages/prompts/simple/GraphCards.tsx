@@ -10,14 +10,13 @@ import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
 import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
 import PsychologyOutlinedIcon from '@mui/icons-material/PsychologyOutlined';
-import type { GraphName } from '@/content/prompts/index.ts';
+import { GRAPH_COLORS, type GraphName } from '@/content/prompts/index.ts';
 import type { GraphStats } from '../prompt-builder.ts';
 
 interface GraphCardData {
   name: GraphName;
   label: string;
   icon: React.ReactElement;
-  color: string;
   shortDesc: string;
   indexed: string;
   useCase: string;
@@ -29,7 +28,6 @@ const CARD_DATA: GraphCardData[] = [
     name: 'docs',
     label: 'Docs',
     icon: <DescriptionOutlinedIcon sx={{ fontSize: 18 }} />,
-    color: '#ef5350',
     shortDesc: 'Markdown sections & code blocks',
     indexed: 'Every .md file parsed into heading sections with code blocks and cross-file links',
     useCase: 'Find documentation by meaning, verify code examples, explain symbols with context',
@@ -39,7 +37,6 @@ const CARD_DATA: GraphCardData[] = [
     name: 'code',
     label: 'Code',
     icon: <CodeIcon sx={{ fontSize: 18 }} />,
-    color: '#42a5f5',
     shortDesc: 'Functions, classes, interfaces',
     indexed: 'Every .ts/.js/.tsx/.jsx file parsed with tree-sitter into symbol-level nodes',
     useCase: 'Find code by meaning, read full implementations, see code-to-docs connections',
@@ -49,7 +46,6 @@ const CARD_DATA: GraphCardData[] = [
     name: 'files',
     label: 'Files',
     icon: <FolderOutlinedIcon sx={{ fontSize: 18 }} />,
-    color: '#66bb6a',
     shortDesc: 'Full project file tree',
     indexed: 'Every file and directory — paths, sizes, MIME types, modification times',
     useCase: 'Understand project structure, find configs, discover non-code files',
@@ -59,7 +55,6 @@ const CARD_DATA: GraphCardData[] = [
     name: 'knowledge',
     label: 'Knowledge',
     icon: <LightbulbOutlinedIcon sx={{ fontSize: 18 }} />,
-    color: '#ffc107',
     shortDesc: 'Notes, facts & decisions',
     indexed: 'User-created notes with titles, content, tags, and cross-graph links. Mirrored to .notes/',
     useCase: 'Capture decisions, record gotchas, build searchable knowledge base',
@@ -69,7 +64,6 @@ const CARD_DATA: GraphCardData[] = [
     name: 'tasks',
     label: 'Tasks',
     icon: <AssignmentOutlinedIcon sx={{ fontSize: 18 }} />,
-    color: '#7c4dff',
     shortDesc: 'Kanban with cross-graph links',
     indexed: 'Tasks with status (backlog→done), priority, assignee, due dates. Mirrored to .tasks/',
     useCase: 'Track work, manage priorities, link tasks to code and docs',
@@ -79,7 +73,6 @@ const CARD_DATA: GraphCardData[] = [
     name: 'skills',
     label: 'Skills',
     icon: <PsychologyOutlinedIcon sx={{ fontSize: 18 }} />,
-    color: '#ff7043',
     shortDesc: 'Reusable procedures & recipes',
     indexed: 'Skills with steps, triggers, usage tracking. Mirrored to .skills/',
     useCase: 'Recall procedures before starting work, save reusable workflows',
@@ -100,9 +93,9 @@ export default function GraphCards({ graphs, graphStats, onToggle }: GraphCardsP
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
       {/* Cards grid */}
       <Box sx={{
-        display: 'grid',
-        gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' },
-        gap: 1.5,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 1,
       }}>
         {CARD_DATA.map(card => {
           const stat = graphStats.find(s => s.name === card.name);
@@ -113,22 +106,26 @@ export default function GraphCards({ graphs, graphStats, onToggle }: GraphCardsP
           return (
             <Box
               key={card.name}
+              role="button"
+              tabIndex={0}
+              aria-label={`${card.label} graph — ${enabled ? 'enabled' : available ? 'disabled' : 'not indexed'}`}
               onClick={e => setPopover({ card, anchor: e.currentTarget as HTMLElement })}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPopover({ card, anchor: e.currentTarget as HTMLElement }); } }}
               sx={{
                 border: 1,
-                borderColor: enabled ? `${card.color}60` : 'divider',
+                borderColor: enabled ? `${GRAPH_COLORS[card.name]}60` : 'divider',
                 borderRadius: 2,
                 p: 1.5,
                 cursor: 'pointer',
-                bgcolor: enabled ? `${card.color}08` : 'transparent',
+                bgcolor: enabled ? `${GRAPH_COLORS[card.name]}08` : 'transparent',
                 opacity: available ? 1 : 0.4,
                 transition: 'all 200ms',
-                '&:hover': available ? { borderColor: `${card.color}90`, bgcolor: `${card.color}12` } : {},
+                '&:hover': available ? { borderColor: `${GRAPH_COLORS[card.name]}90`, bgcolor: `${GRAPH_COLORS[card.name]}12` } : {},
               }}
             >
               {/* Header row */}
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Box sx={{ color: enabled ? card.color : 'text.secondary', display: 'flex' }}>
+                <Box sx={{ color: enabled ? GRAPH_COLORS[card.name] : 'text.secondary', display: 'flex' }}>
                   {card.icon}
                 </Box>
                 <Typography variant="subtitle2" sx={{ flex: 1, fontWeight: 600 }}>
@@ -140,8 +137,8 @@ export default function GraphCards({ graphs, graphStats, onToggle }: GraphCardsP
                   sx={{
                     height: 20,
                     fontSize: '0.7rem',
-                    bgcolor: enabled ? `${card.color}20` : undefined,
-                    color: enabled ? card.color : 'text.secondary',
+                    bgcolor: enabled ? `${GRAPH_COLORS[card.name]}20` : undefined,
+                    color: enabled ? GRAPH_COLORS[card.name] : 'text.secondary',
                   }}
                 />
                 <Switch
@@ -150,9 +147,10 @@ export default function GraphCards({ graphs, graphStats, onToggle }: GraphCardsP
                   onChange={e => { e.stopPropagation(); onToggle(card.name); }}
                   onClick={e => e.stopPropagation()}
                   size="small"
+                  inputProps={{ 'aria-label': `Toggle ${card.label} graph` }}
                   sx={{
-                    '& .MuiSwitch-switchBase.Mui-checked': { color: card.color },
-                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { bgcolor: card.color },
+                    '& .MuiSwitch-switchBase.Mui-checked': { color: GRAPH_COLORS[card.name] },
+                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { bgcolor: GRAPH_COLORS[card.name] },
                   }}
                 />
               </Box>
@@ -177,7 +175,7 @@ export default function GraphCards({ graphs, graphStats, onToggle }: GraphCardsP
         {popover && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Box sx={{ color: popover.card.color, display: 'flex' }}>{popover.card.icon}</Box>
+              <Box sx={{ color: GRAPH_COLORS[popover.card.name], display: 'flex' }}>{popover.card.icon}</Box>
               <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{popover.card.label}</Typography>
             </Box>
 
@@ -208,8 +206,8 @@ export default function GraphCards({ graphs, graphStats, onToggle }: GraphCardsP
                       height: 20,
                       fontSize: '0.65rem',
                       fontFamily: 'monospace',
-                      borderColor: `${popover.card.color}40`,
-                      color: popover.card.color,
+                      borderColor: `${GRAPH_COLORS[popover.card.name]}40`,
+                      color: GRAPH_COLORS[popover.card.name],
                     }}
                   />
                 ))}

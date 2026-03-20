@@ -152,8 +152,8 @@ Recall relevant skills for a task context. Uses a lower default `minScore` (0.3)
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `query` | string | Yes | -- | Task context or description |
-| `topK` | number | No | 10 | Maximum results |
+| `context` | string | Yes | -- | Description of the current task or context to match skills against |
+| `topK` | number | No | 5 | How many top similar skills to use as seeds |
 | `minScore` | number | No | 0.3 | Minimum relevance score (0-1) |
 
 **Returns:** `[{ id, title, description, steps, triggers, source, tags, score, usageCount }]`

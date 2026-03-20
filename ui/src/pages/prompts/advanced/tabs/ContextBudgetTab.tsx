@@ -6,11 +6,10 @@ import IconButton from '@mui/material/IconButton';
 import Divider from '@mui/material/Divider';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
-import { GRAPH_LABELS, type GraphName } from '@/content/prompts/index.ts';
+import { ALL_GRAPHS, GRAPH_LABELS, type GraphName } from '@/content/prompts/index.ts';
 import { useBuilderContext } from '../context/BuilderContext.tsx';
 import SectionToggle from './SectionToggle.tsx';
-
-const btnSx = { textTransform: 'none', fontSize: '0.7rem', py: 0.75 } as const;
+import { toggleBtnSx as btnSx } from './shared.ts';
 
 const TOKEN_OPTIONS = ['1000', '2000', '4000', '8000', '16000'];
 const TOKEN_LABELS: Record<string, string> = { '1000': '1k', '2000': '2k', '4000': '4k', '8000': '8k', '16000': '16k' };
@@ -100,9 +99,10 @@ export default function ContextBudgetTab() {
               </Typography>
               <IconButton
                 size="small"
+                aria-label={`Move ${GRAPH_LABELS[g]} up`}
                 onClick={() => {
                   if (i === 0) return;
-                  const next = [...c.priorityOrder] as GraphName[];
+                  const next = [...c.priorityOrder].filter((n): n is GraphName => ALL_GRAPHS.includes(n as GraphName));
                   [next[i], next[i - 1]] = [next[i - 1], next[i]];
                   update({ priorityOrder: next });
                 }}
@@ -112,9 +112,10 @@ export default function ContextBudgetTab() {
               </IconButton>
               <IconButton
                 size="small"
+                aria-label={`Move ${GRAPH_LABELS[g]} down`}
                 onClick={() => {
                   if (i === c.priorityOrder.length - 1) return;
-                  const next = [...c.priorityOrder] as GraphName[];
+                  const next = [...c.priorityOrder].filter((n): n is GraphName => ALL_GRAPHS.includes(n as GraphName));
                   [next[i], next[i + 1]] = [next[i + 1], next[i]];
                   update({ priorityOrder: next });
                 }}

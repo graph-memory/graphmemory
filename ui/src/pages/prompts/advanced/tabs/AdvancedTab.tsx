@@ -16,7 +16,7 @@ import { useBuilderContext } from '../context/BuilderContext.tsx';
 import type { CustomSection } from '../types.ts';
 
 export default function AdvancedTab() {
-  const { state, dispatch } = useBuilderContext();
+  const { state, dispatch, ensureSectionEnabled } = useBuilderContext();
 
   const sections = [...state.promptSections].sort((a, b) => a.weight - b.weight);
 
@@ -38,11 +38,7 @@ export default function AdvancedTab() {
   const addCustomSection = () => {
     const id = `custom-${Date.now()}`;
     dispatch({ type: 'SET_CUSTOM_SECTIONS', sections: [...customs, { id, title: '', markdown: '' }] });
-    // Auto-enable the custom sections toggle
-    const customToggle = state.promptSections.find(s => s.id === 'custom');
-    if (customToggle && !customToggle.enabled) {
-      dispatch({ type: 'TOGGLE_SECTION', sectionId: 'custom' });
-    }
+    ensureSectionEnabled('custom');
   };
 
   const updateCustomSection = (id: string, patch: Partial<CustomSection>) => {
@@ -50,6 +46,7 @@ export default function AdvancedTab() {
       type: 'SET_CUSTOM_SECTIONS',
       sections: customs.map(s => s.id === id ? { ...s, ...patch } : s),
     });
+    ensureSectionEnabled('custom');
   };
 
   const removeCustomSection = (id: string) => {
@@ -73,16 +70,17 @@ export default function AdvancedTab() {
               sx={{ py: 0.5, px: 1 }}
               secondaryAction={
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
-                  <IconButton size="small" onClick={() => moveSection(i, -1)} disabled={i === 0}>
+                  <IconButton size="small" aria-label={`Move ${section.title} up`} onClick={() => moveSection(i, -1)} disabled={i === 0}>
                     <ArrowUpwardIcon sx={{ fontSize: 14 }} />
                   </IconButton>
-                  <IconButton size="small" onClick={() => moveSection(i, 1)} disabled={i === sections.length - 1}>
+                  <IconButton size="small" aria-label={`Move ${section.title} down`} onClick={() => moveSection(i, 1)} disabled={i === sections.length - 1}>
                     <ArrowDownwardIcon sx={{ fontSize: 14 }} />
                   </IconButton>
                   <Switch
                     checked={section.enabled}
                     onChange={() => dispatch({ type: 'TOGGLE_SECTION', sectionId: section.id })}
                     size="small"
+                    inputProps={{ 'aria-label': `${section.enabled ? 'Exclude' : 'Include'} ${section.title} section` }}
                   />
                 </Box>
               }
@@ -113,7 +111,7 @@ export default function AdvancedTab() {
               onChange={e => updateCustomSection(section.id, { title: e.target.value })}
               sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '0.8rem', py: 0.5 } }}
             />
-            <IconButton size="small" onClick={() => removeCustomSection(section.id)} color="error">
+            <IconButton size="small" aria-label={`Delete custom section ${section.title || 'unnamed'}`} onClick={() => removeCustomSection(section.id)} color="error">
               <DeleteIcon sx={{ fontSize: 16 }} />
             </IconButton>
           </Box>

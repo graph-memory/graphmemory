@@ -1,23 +1,29 @@
-import type { TechStackConfig } from '../../types.ts';
+import type { StackConfig } from '../../types.ts';
+import { STACK_DOMAINS } from '@/content/prompts/stackCatalog.ts';
 
-export function buildTechStackSection(config: TechStackConfig): string | null {
+export function buildTechStackSection(config: StackConfig): string | null {
   const lines: string[] = [];
 
-  if (config.languages.length > 0) lines.push(`**Languages:** ${config.languages.join(', ')}`);
-  if (config.runtimes.length > 0) lines.push(`**Runtime:** ${config.runtimes.join(', ')}`);
-  if (config.frontend.length > 0) lines.push(`**Frontend:** ${config.frontend.join(', ')}`);
-  if (config.backend.length > 0) lines.push(`**Backend:** ${config.backend.join(', ')}`);
-  if (config.mobile.length > 0) lines.push(`**Mobile:** ${config.mobile.join(', ')}`);
-  if (config.testing.length > 0) lines.push(`**Testing:** ${config.testing.join(', ')}`);
-  if (config.bundler.length > 0) lines.push(`**Bundler/Tooling:** ${config.bundler.join(', ')}`);
-  if (config.orm.length > 0) lines.push(`**ORM/DB:** ${config.orm.join(', ')}`);
-  if (config.stateManagement.length > 0) lines.push(`**State Management:** ${config.stateManagement.join(', ')}`);
-  if (config.styling.length > 0) lines.push(`**Styling/UI:** ${config.styling.join(', ')}`);
-  if (config.paradigms.length > 0) lines.push(`**Paradigms:** ${config.paradigms.join(', ')}`);
-  if (config.testingApproaches.length > 0) lines.push(`**Testing Approach:** ${config.testingApproaches.join(', ')}`);
-  if (config.packageManager.length > 0) lines.push(`**Package Manager:** ${config.packageManager.join(', ')}`);
+  for (const domain of STACK_DOMAINS) {
+    if (!config.enabledDomains.includes(domain.id)) continue;
+
+    const domainLines: string[] = [];
+    for (const cat of domain.categories) {
+      const key = `${domain.id}.${cat.key}`;
+      const selected = config.selections[key];
+      if (selected && selected.length > 0) {
+        domainLines.push(`- **${cat.label}:** ${selected.join(', ')}`);
+      }
+    }
+
+    if (domainLines.length > 0) {
+      lines.push(`**${domain.label}**`);
+      lines.push(...domainLines);
+      lines.push('');
+    }
+  }
 
   if (lines.length === 0) return null;
 
-  return `### Tech Context\n\nThis project uses the following technology stack. Tailor your suggestions, code examples, and tool usage to match:\n\n${lines.join('\n')}`;
+  return `### Stack\n\nThis project uses the following technology stack. Tailor your suggestions, code examples, and tool usage to match:\n\n${lines.join('\n').trimEnd()}`;
 }

@@ -23,7 +23,7 @@ export function buildAdvancedPrompt(
   const generators: Record<string, SectionGenerator> = {
     role: () => buildRoleSection(state.role),
     style: () => buildStyleSection(state.style),
-    'tech-stack': () => buildTechStackSection(state.techStack),
+    'stack': () => buildTechStackSection(state.stack),
     graphs: () => buildGraphsSection(state.graphs, graphStats),
     tools: () => buildToolsSection(state.graphs, graphStats, state.toolConfigs, state.toolChains),
     behavior: () => buildBehaviorSection(state.behavior),

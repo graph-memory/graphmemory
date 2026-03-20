@@ -23,21 +23,10 @@ export interface WorkflowStep {
   condition?: string;
 }
 
-// ── Tech Stack (JS/TS only) ──
-export interface TechStackConfig {
-  languages: string[];     // 'TypeScript' | 'JavaScript'
-  runtimes: string[];      // 'Node.js' | 'Deno' | 'Bun'
-  frontend: string[];
-  backend: string[];
-  mobile: string[];
-  testing: string[];
-  bundler: string[];
-  orm: string[];
-  stateManagement: string[];
-  styling: string[];
-  paradigms: string[];
-  testingApproaches: string[];
-  packageManager: string[];
+// ── Stack (multi-domain) ──
+export interface StackConfig {
+  enabledDomains: string[];                    // domain IDs that are active
+  selections: Record<string, string[]>;        // "domainId.categoryKey" → selected values
 }
 
 // ── Behavior ──
@@ -129,7 +118,7 @@ export interface MegaBuilderState {
   style: StyleName;
 
   // Advanced sections
-  techStack: TechStackConfig;
+  stack: StackConfig;
   toolConfigs: Record<string, ToolConfig>;
   toolChains: ToolChain[];
   workflow: WorkflowStep[];

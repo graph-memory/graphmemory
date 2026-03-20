@@ -16,7 +16,7 @@
 
 ## Server
 
-- [CLI](cli.md) — CLI commands (`serve`, `mcp`, `index`, `users add`), startup sequences
+- [CLI](cli.md) — CLI commands (`serve`, `index`, `users add`), startup sequences
 - [Configuration](configuration.md) — full `graph-memory.yaml` reference
 
 ## Indexing

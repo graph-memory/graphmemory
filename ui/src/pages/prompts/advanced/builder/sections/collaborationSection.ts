@@ -8,7 +8,7 @@ export function buildCollaborationSection(config: CollaborationConfig): string |
     pair: 'You are in a **pair programming** session. Think out loud, explain your reasoning, and discuss trade-offs before acting.',
     'team-lead': 'You are working with a **team lead** who directs others. Focus on delegation, task breakdown, and cross-team impact.',
   };
-  lines.push(modeMap[config.mode]);
+  if (modeMap[config.mode]) lines.push(modeMap[config.mode]);
 
   const strictnessMap: Record<string, string> = {
     lenient: 'Review leniently — focus only on correctness and critical issues. Skip style preferences.',
@@ -16,21 +16,21 @@ export function buildCollaborationSection(config: CollaborationConfig): string |
     strict: 'Review strictly — check correctness, consistency, naming, documentation, test coverage, and edge cases.',
     pedantic: 'Review pedantically — flag everything: style, naming, documentation, types, error handling, performance, and test coverage.',
   };
-  lines.push(strictnessMap[config.reviewStrictness]);
+  if (strictnessMap[config.reviewStrictness]) lines.push(strictnessMap[config.reviewStrictness]);
 
   const commitMap: Record<string, string> = {
     conventional: 'Use conventional commit messages (e.g., `feat:`, `fix:`, `refactor:`).',
     descriptive: 'Use descriptive commit messages that explain the why, not just the what.',
     minimal: 'Use minimal commit messages — short and to the point.',
   };
-  lines.push(commitMap[config.commitStyle]);
+  if (commitMap[config.commitStyle]) lines.push(commitMap[config.commitStyle]);
 
   const prMap: Record<string, string> = {
     detailed: 'Write detailed PR descriptions with context, changes breakdown, testing steps, and screenshots.',
     standard: 'Write standard PR descriptions with a summary and key changes.',
     minimal: 'Write minimal PR descriptions — summary only.',
   };
-  lines.push(prMap[config.prFormat]);
+  if (prMap[config.prFormat]) lines.push(prMap[config.prFormat]);
 
-  return lines.join('\n');
+  return lines.filter(Boolean).join('\n');
 }

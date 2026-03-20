@@ -1,7 +1,7 @@
 import type { GraphName, RoleName, StyleName } from '@/content/prompts/index.ts';
 import type {
   MegaBuilderState, ToolConfig, ToolChain, WorkflowStep,
-  TechStackConfig, BehaviorConfig, MemoryStrategyConfig,
+  StackConfig, BehaviorConfig, MemoryStrategyConfig,
   SearchStrategyConfig, ContextBudgetConfig, ProjectRulesConfig,
   CollaborationConfig, PromptSection, CustomSection,
 } from '../types.ts';
@@ -12,8 +12,10 @@ export type BuilderAction =
   | { type: 'TOGGLE_GRAPH'; name: GraphName }
   | { type: 'SET_ROLE'; role: RoleName }
   | { type: 'SET_STYLE'; style: StyleName }
-  | { type: 'SET_TECH_STACK'; techStack: TechStackConfig }
-  | { type: 'UPDATE_TECH_STACK'; key: keyof TechStackConfig; value: string[] }
+  | { type: 'SET_STACK'; stack: StackConfig }
+  | { type: 'TOGGLE_STACK_DOMAIN'; domainId: string }
+  | { type: 'TOGGLE_STACK_OPTION'; key: string; value: string }
+  | { type: 'SET_STACK_DOMAIN_ALL'; domainId: string; enabled: boolean; keys: string[]; allOptions: Record<string, string[]> }
   | { type: 'SET_TOOL_CONFIG'; tool: string; config: ToolConfig }
   | { type: 'SET_TOOL_CHAINS'; chains: ToolChain[] }
   | { type: 'SET_WORKFLOW'; workflow: WorkflowStep[] }
@@ -30,6 +32,7 @@ export type BuilderAction =
   | { type: 'LOAD_STATE'; state: MegaBuilderState }
   | { type: 'ENSURE_SECTION_ENABLED'; sectionId: string };
 
+/** Reducer for the Advanced Prompt Builder state. Returns a new MegaBuilderState. */
 export function builderReducer(state: MegaBuilderState, action: BuilderAction): MegaBuilderState {
   switch (action.type) {
     case 'SET_SCENARIO':
@@ -42,10 +45,34 @@ export function builderReducer(state: MegaBuilderState, action: BuilderAction): 
       return { ...state, role: action.role };
     case 'SET_STYLE':
       return { ...state, style: action.style };
-    case 'SET_TECH_STACK':
-      return { ...state, techStack: action.techStack };
-    case 'UPDATE_TECH_STACK':
-      return { ...state, techStack: { ...state.techStack, [action.key]: action.value } };
+    case 'SET_STACK':
+      return { ...state, stack: action.stack };
+    case 'TOGGLE_STACK_DOMAIN': {
+      const domains = state.stack.enabledDomains;
+      const next = domains.includes(action.domainId)
+        ? domains.filter(d => d !== action.domainId)
+        : [...domains, action.domainId];
+      return { ...state, stack: { ...state.stack, enabledDomains: next } };
+    }
+    case 'SET_STACK_DOMAIN_ALL': {
+      const newSelections = { ...state.stack.selections };
+      for (const key of action.keys) {
+        newSelections[key] = action.enabled ? [...(action.allOptions[key] ?? [])] : [];
+      }
+      const newDomains = action.enabled
+        ? state.stack.enabledDomains.includes(action.domainId)
+          ? state.stack.enabledDomains
+          : [...state.stack.enabledDomains, action.domainId]
+        : state.stack.enabledDomains.filter(d => d !== action.domainId);
+      return { ...state, stack: { enabledDomains: newDomains, selections: newSelections } };
+    }
+    case 'TOGGLE_STACK_OPTION': {
+      const current = state.stack.selections[action.key] ?? [];
+      const next = current.includes(action.value)
+        ? current.filter(v => v !== action.value)
+        : [...current, action.value];
+      return { ...state, stack: { ...state.stack, selections: { ...state.stack.selections, [action.key]: next } } };
+    }
     case 'SET_TOOL_CONFIG':
       return { ...state, toolConfigs: { ...state.toolConfigs, [action.tool]: action.config } };
     case 'SET_TOOL_CHAINS':
@@ -67,9 +94,14 @@ export function builderReducer(state: MegaBuilderState, action: BuilderAction): 
     case 'SET_PROMPT_SECTIONS':
       return { ...state, promptSections: action.sections };
     case 'TOGGLE_SECTION': {
+      const section = state.promptSections.find(s => s.id === action.sectionId);
       const sections = state.promptSections.map(s =>
         s.id === action.sectionId ? { ...s, enabled: !s.enabled } : s,
       );
+      // When disabling Stack section, clear all stack data
+      if (action.sectionId === 'stack' && section?.enabled) {
+        return { ...state, promptSections: sections, stack: { enabledDomains: [], selections: {} } };
+      }
       return { ...state, promptSections: sections };
     }
     case 'SET_CUSTOM_SECTIONS':

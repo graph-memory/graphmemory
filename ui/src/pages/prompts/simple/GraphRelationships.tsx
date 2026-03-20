@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Tooltip from '@mui/material/Tooltip';
-import type { GraphName } from '@/content/prompts/index.ts';
+import { GRAPH_COLORS, type GraphName } from '@/content/prompts/index.ts';
 
 interface GraphLink {
   from: GraphName;
@@ -24,13 +24,13 @@ const GRAPH_LINKS: GraphLink[] = [
   { from: 'code', to: 'skills', tools: ['create_skill_link', 'find_linked_skills'], description: 'Skills linked to code areas they apply to' },
 ];
 
-const GRAPH_META: Record<GraphName, { label: string; color: string; abbr: string }> = {
-  docs: { label: 'Docs', color: '#ef5350', abbr: 'D' },
-  code: { label: 'Code', color: '#42a5f5', abbr: 'C' },
-  files: { label: 'Files', color: '#66bb6a', abbr: 'F' },
-  knowledge: { label: 'Knowledge', color: '#ffc107', abbr: 'K' },
-  tasks: { label: 'Tasks', color: '#7c4dff', abbr: 'T' },
-  skills: { label: 'Skills', color: '#ff7043', abbr: 'S' },
+const GRAPH_META: Record<GraphName, { label: string; abbr: string }> = {
+  docs: { label: 'Docs', abbr: 'D' },
+  code: { label: 'Code', abbr: 'C' },
+  files: { label: 'Files', abbr: 'F' },
+  knowledge: { label: 'Knowledge', abbr: 'K' },
+  tasks: { label: 'Tasks', abbr: 'T' },
+  skills: { label: 'Skills', abbr: 'S' },
 };
 
 // Position nodes in a hexagonal layout (fits 240x180 + 40px node size)
@@ -68,12 +68,12 @@ export default function GraphRelationships({ enabledGraphs }: GraphRelationships
           height="180"
           style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}
         >
-          {activeLinks.map((link, i) => {
+          {activeLinks.map((link) => {
             const from = NODE_POSITIONS[link.from];
             const to = NODE_POSITIONS[link.to];
-            const fromColor = GRAPH_META[link.from].color;
-            const toColor = GRAPH_META[link.to].color;
-            const gradId = `grad-${i}`;
+            const fromColor = GRAPH_COLORS[link.from];
+            const toColor = GRAPH_COLORS[link.to];
+            const gradId = `grad-${link.from}-${link.to}`;
             return (
               <g key={`${link.from}-${link.to}`}>
                 <defs>
@@ -129,8 +129,8 @@ export default function GraphRelationships({ enabledGraphs }: GraphRelationships
                 alignItems: 'center',
                 justifyContent: 'center',
                 border: 2,
-                borderColor: enabled ? meta.color : 'divider',
-                bgcolor: enabled ? `${meta.color}18` : 'transparent',
+                borderColor: enabled ? GRAPH_COLORS[name as GraphName] : 'divider',
+                bgcolor: enabled ? `${GRAPH_COLORS[name as GraphName]}18` : 'transparent',
                 opacity: enabled ? 1 : 0.3,
                 transition: 'all 300ms',
                 cursor: 'default',
@@ -138,7 +138,7 @@ export default function GraphRelationships({ enabledGraphs }: GraphRelationships
               }}>
                 <Typography variant="caption" sx={{
                   fontWeight: 700,
-                  color: enabled ? meta.color : 'text.secondary',
+                  color: enabled ? GRAPH_COLORS[name as GraphName] : 'text.secondary',
                   fontSize: '0.7rem',
                 }}>
                   {meta.abbr}

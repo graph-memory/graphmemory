@@ -11,20 +11,19 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import AddIcon from '@mui/icons-material/Add';
-import { TOOL_CATALOG } from '@/content/prompts/index.ts';
+import { ALL_TOOL_NAMES } from '@/content/prompts/index.ts';
 import { useBuilderContext } from '../context/BuilderContext.tsx';
 import SectionToggle from './SectionToggle.tsx';
 import type { WorkflowStep } from '../types.ts';
 
-const ALL_TOOL_NAMES = Object.keys(TOOL_CATALOG);
-
 export default function WorkflowTab() {
-  const { state, dispatch } = useBuilderContext();
+  const { state, dispatch, ensureSectionEnabled } = useBuilderContext();
   const workflow = state.workflow;
 
   const updateWorkflow = useCallback((steps: WorkflowStep[]) => {
     dispatch({ type: 'SET_WORKFLOW', workflow: steps });
-  }, [dispatch]);
+    ensureSectionEnabled('workflow');
+  }, [dispatch, ensureSectionEnabled]);
 
   const addStep = () => {
     const id = `step-${Date.now()}`;
@@ -77,13 +76,13 @@ export default function WorkflowTab() {
               {i + 1}.
             </Typography>
             <Box sx={{ flex: 1 }} />
-            <IconButton size="small" onClick={() => moveStep(i, -1)} disabled={i === 0}>
+            <IconButton size="small" aria-label={`Move step ${i + 1} up`} onClick={() => moveStep(i, -1)} disabled={i === 0}>
               <ArrowUpwardIcon sx={{ fontSize: 16 }} />
             </IconButton>
-            <IconButton size="small" onClick={() => moveStep(i, 1)} disabled={i === workflow.length - 1}>
+            <IconButton size="small" aria-label={`Move step ${i + 1} down`} onClick={() => moveStep(i, 1)} disabled={i === workflow.length - 1}>
               <ArrowDownwardIcon sx={{ fontSize: 16 }} />
             </IconButton>
-            <IconButton size="small" onClick={() => removeStep(step.id)} color="error">
+            <IconButton size="small" aria-label={`Delete step ${i + 1}`} onClick={() => removeStep(step.id)} color="error">
               <DeleteIcon sx={{ fontSize: 16 }} />
             </IconButton>
           </Box>

@@ -16,7 +16,9 @@ export function buildContextSection(config: ContextBudgetConfig): string | null 
     fuzzy: 'Deduplicate similar content — merge overlapping results but keep distinct perspectives.',
     none: 'Do not deduplicate — show all results as returned.',
   };
-  lines.push(`\n**Deduplication:** ${dedup[config.deduplication]}`);
+  if (dedup[config.deduplication]) {
+    lines.push(`\n**Deduplication:** ${dedup[config.deduplication]}`);
+  }
 
   return lines.join('\n');
 }

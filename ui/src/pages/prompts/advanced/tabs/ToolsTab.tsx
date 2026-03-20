@@ -14,7 +14,7 @@ import Divider from '@mui/material/Divider';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { TOOL_CATALOG, GRAPH_LABELS, type GraphName } from '@/content/prompts/index.ts';
+import { TOOL_CATALOG, ALL_TOOL_NAMES, GRAPH_LABELS, type GraphName } from '@/content/prompts/index.ts';
 import { useBuilderContext } from '../context/BuilderContext.tsx';
 import SectionToggle from './SectionToggle.tsx';
 import type { ToolPriority } from '../types.ts';
@@ -35,10 +35,8 @@ const PRIORITY_OPTIONS: { value: ToolPriority; label: string }[] = [
   { value: 'disabled', label: 'Disabled' },
 ];
 
-const ALL_TOOL_NAMES = Object.keys(TOOL_CATALOG);
-
 export default function ToolsTab() {
-  const { state, dispatch } = useBuilderContext();
+  const { state, dispatch, ensureSectionEnabled } = useBuilderContext();
   const [filter, setFilter] = useState('');
 
   const toolsByGraph = useMemo(() => {
@@ -85,11 +83,11 @@ export default function ToolsTab() {
                       <Select
                         size="small"
                         value={config.priority}
-                        onChange={e => dispatch({
+                        onChange={e => { dispatch({
                           type: 'SET_TOOL_CONFIG',
                           tool: name,
                           config: { ...config, priority: e.target.value as ToolPriority },
-                        })}
+                        }); ensureSectionEnabled('tools'); }}
                         sx={{
                           height: 28,
                           fontSize: '0.75rem',
@@ -112,11 +110,11 @@ export default function ToolsTab() {
                       size="small"
                       placeholder="Custom instructions for this tool..."
                       value={config.customInstructions}
-                      onChange={e => dispatch({
+                      onChange={e => { dispatch({
                         type: 'SET_TOOL_CONFIG',
                         tool: name,
                         config: { ...config, customInstructions: e.target.value },
-                      })}
+                      }); ensureSectionEnabled('tools'); }}
                       fullWidth
                       multiline
                       maxRows={3}
@@ -155,6 +153,7 @@ export default function ToolsTab() {
             <IconButton
               size="small"
               color="error"
+              aria-label={`Delete chain ${chain.name || 'unnamed'}`}
               onClick={() => dispatch({
                 type: 'SET_TOOL_CHAINS',
                 chains: state.toolChains.filter(c => c.id !== chain.id),

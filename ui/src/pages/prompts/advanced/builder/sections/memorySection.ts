@@ -9,7 +9,9 @@ export function buildMemorySection(config: MemoryStrategyConfig): string | null 
     ask: 'Suggest creating knowledge notes when appropriate, but wait for confirmation before creating.',
     never: 'Do not create knowledge notes unless explicitly asked.',
   };
-  lines.push(`**Notes:** ${noteRules[config.autoCreateNotes]}`);
+  if (noteRules[config.autoCreateNotes]) {
+    lines.push(`**Notes:** ${noteRules[config.autoCreateNotes]}`);
+  }
 
   if (config.noteDetailLevel <= 2) {
     lines.push('Keep notes brief — title and 1-2 sentences.');
@@ -25,7 +27,9 @@ export function buildMemorySection(config: MemoryStrategyConfig): string | null 
     conservative: 'Create relations only for the most important connections — focus on direct relationships.',
     manual: 'Only create relations when explicitly asked.',
   };
-  lines.push(`**Relations:** ${relationRules[config.relationStrategy]}`);
+  if (relationRules[config.relationStrategy]) {
+    lines.push(`**Relations:** ${relationRules[config.relationStrategy]}`);
+  }
 
   // Skills
   if (config.skillCaptureThreshold <= 2) {
@@ -42,7 +46,9 @@ export function buildMemorySection(config: MemoryStrategyConfig): string | null 
     ask: 'Suggest creating tasks when you identify follow-up work, but wait for confirmation.',
     never: 'Do not create tasks unless explicitly asked.',
   };
-  lines.push(`**Tasks:** ${taskRules[config.taskAutoCreate]}`);
+  if (taskRules[config.taskAutoCreate]) {
+    lines.push(`**Tasks:** ${taskRules[config.taskAutoCreate]}`);
+  }
 
   return lines.join('\n');
 }

@@ -114,7 +114,7 @@ Requires both DocGraph and CodeGraph to be enabled. Bridges code definitions wit
 | `get_skill` | `skillId` | `{ id, title, description, steps, triggers, source, tags, usageCount, lastUsedAt, createdAt, updatedAt, dependsOn, dependedBy, related, variants }` |
 | `list_skills` | optional `source`, `tag`, `filter`, `limit` | `[{ id, title, source, tags, usageCount, lastUsedAt }]` |
 | `search_skills` | `query` + optional search params | `[{ id, title, description, source, tags, score }]` |
-| `recall_skills` | `query` + optional `topK`, `maxResults` | `[{ id, title, description, steps, triggers, source, tags, score }]` |
+| `recall_skills` | `context` + optional `topK`, `minScore` | `[{ id, title, description, steps, triggers, source, tags, score, usageCount }]` |
 | `bump_skill_usage` | `skillId` | `{ skillId, usageCount, lastUsedAt }` |
 | `link_skill` | `fromId`, `toId`, `kind` (`depends_on`, `related_to`, `variant_of`) | `{ fromId, toId, kind, created }` |
 | `create_skill_link` | `skillId`, `targetId`, `targetGraph` | `{ skillId, targetId, targetGraph, created }` |

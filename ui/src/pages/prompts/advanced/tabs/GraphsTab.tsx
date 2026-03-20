@@ -15,7 +15,7 @@ interface GraphsTabProps {
 }
 
 export default function GraphsTab({ graphStats }: GraphsTabProps) {
-  const { state, dispatch } = useBuilderContext();
+  const { state, dispatch, ensureSectionEnabled } = useBuilderContext();
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -36,8 +36,9 @@ export default function GraphsTab({ graphStats }: GraphsTabProps) {
                   <Switch
                     checked={enabled}
                     disabled={!available}
-                    onChange={() => dispatch({ type: 'TOGGLE_GRAPH', name })}
+                    onChange={() => { dispatch({ type: 'TOGGLE_GRAPH', name }); ensureSectionEnabled('graphs'); }}
                     size="small"
+                    inputProps={{ 'aria-label': `Toggle ${GRAPH_LABELS[name]} graph` }}
                   />
                 }
               >

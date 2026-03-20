@@ -6,8 +6,7 @@ import Divider from '@mui/material/Divider';
 import { useBuilderContext } from '../context/BuilderContext.tsx';
 import SectionToggle from './SectionToggle.tsx';
 import type { SearchDepth } from '../types.ts';
-
-const btnSx = { textTransform: 'none', fontSize: '0.7rem', py: 0.75 } as const;
+import { toggleBtnSx as btnSx } from './shared.ts';
 
 export default function SearchStrategyTab() {
   const { state, dispatch, ensureSectionEnabled } = useBuilderContext();

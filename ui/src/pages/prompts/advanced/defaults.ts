@@ -1,6 +1,6 @@
 import { ALL_GRAPHS, TOOL_CATALOG, type GraphName } from '@/content/prompts/index.ts';
 import { SCENARIOS } from '../scenarios.tsx';
-import type { MegaBuilderState, ToolConfig, PromptSection } from './types.ts';
+import type { MegaBuilderState, ToolConfig, PromptSection, StackConfig } from './types.ts';
 
 const DEFAULT_TOOL_CONFIG: ToolConfig = { priority: 'available', customInstructions: '' };
 
@@ -15,7 +15,7 @@ function buildToolConfigs(): Record<string, ToolConfig> {
 const DEFAULT_SECTIONS: PromptSection[] = [
   { id: 'role', title: 'Role', enabled: true, weight: 1 },
   { id: 'style', title: 'Style', enabled: true, weight: 2 },
-  { id: 'tech-stack', title: 'Tech Stack', enabled: false, weight: 3 },
+  { id: 'stack', title: 'Stack', enabled: false, weight: 3 },
   { id: 'graphs', title: 'Available Graphs', enabled: true, weight: 4 },
   { id: 'tools', title: 'Tools', enabled: true, weight: 5 },
   { id: 'behavior', title: 'Response Style', enabled: false, weight: 6 },
@@ -28,12 +28,62 @@ const DEFAULT_SECTIONS: PromptSection[] = [
   { id: 'custom', title: 'Custom Sections', enabled: false, weight: 13 },
 ];
 
+const DEFAULT_BEHAVIOR = {
+  verbosity: 'normal' as const,
+  codeExamples: 'when-helpful' as const,
+  explanationDepth: 'standard' as const,
+  responseLanguage: 'en',
+  formatPreference: 'mixed' as const,
+};
+
+const DEFAULT_MEMORY = {
+  autoCreateNotes: 'ask' as const,
+  noteDetailLevel: 3,
+  relationStrategy: 'conservative' as const,
+  skillCaptureThreshold: 3,
+  taskAutoCreate: 'ask' as const,
+};
+
+const DEFAULT_SEARCH = {
+  defaultDepth: 'medium' as const,
+  crossGraphExpansion: 'when-needed' as const,
+  bfsHops: 2,
+  resultCount: 10,
+  keywordWeight: 50,
+};
+
+const DEFAULT_COLLABORATION = {
+  mode: 'solo' as const,
+  reviewStrictness: 'standard' as const,
+  commitStyle: 'conventional' as const,
+  prFormat: 'standard' as const,
+};
+
 export function createDefaultState(): MegaBuilderState {
   const scenario = SCENARIOS[0];
+  const adv = scenario.advancedDefaults;
+
   const graphs = {} as Record<GraphName, boolean>;
   for (const g of ALL_GRAPHS) {
     graphs[g] = scenario.defaultGraphs.includes(g);
   }
+
+  // Apply scenario focusTools as 'prefer' priority
+  const focusSet = new Set(scenario.focusTools);
+  const toolConfigs = buildToolConfigs();
+  for (const name of Object.keys(toolConfigs)) {
+    if (focusSet.has(name)) {
+      toolConfigs[name] = { priority: 'prefer', customInstructions: '' };
+    }
+  }
+
+  // Enable sections based on scenario
+  const alwaysOn = new Set(['role', 'style', 'graphs', 'tools', 'workflow']);
+  const scenarioSections = new Set(adv?.enableSections ?? []);
+  const promptSections = DEFAULT_SECTIONS.map(s => ({
+    ...s,
+    enabled: alwaysOn.has(s.id) || scenarioSections.has(s.id),
+  }));
 
   return {
     scenarioId: scenario.id,
@@ -41,50 +91,15 @@ export function createDefaultState(): MegaBuilderState {
     role: scenario.defaultRole,
     style: scenario.defaultStyle,
 
-    techStack: {
-      languages: [],
-      runtimes: [],
-      frontend: [],
-      backend: [],
-      mobile: [],
-      testing: [],
-      bundler: [],
-      orm: [],
-      stateManagement: [],
-      styling: [],
-      paradigms: [],
-      testingApproaches: [],
-      packageManager: [],
-    },
+    stack: { enabledDomains: [], selections: {} } as StackConfig,
 
-    toolConfigs: buildToolConfigs(),
+    toolConfigs,
     toolChains: [],
-
     workflow: [],
 
-    behavior: {
-      verbosity: 'normal',
-      codeExamples: 'when-helpful',
-      explanationDepth: 'standard',
-      responseLanguage: 'en',
-      formatPreference: 'mixed',
-    },
-
-    memoryStrategy: {
-      autoCreateNotes: 'ask',
-      noteDetailLevel: 3,
-      relationStrategy: 'conservative',
-      skillCaptureThreshold: 3,
-      taskAutoCreate: 'ask',
-    },
-
-    searchStrategy: {
-      defaultDepth: 'medium',
-      crossGraphExpansion: 'when-needed',
-      bfsHops: 2,
-      resultCount: 10,
-      keywordWeight: 50,
-    },
+    behavior: { ...DEFAULT_BEHAVIOR, ...adv?.behavior },
+    memoryStrategy: { ...DEFAULT_MEMORY, ...adv?.memoryStrategy },
+    searchStrategy: { ...DEFAULT_SEARCH, ...adv?.searchStrategy },
 
     contextBudget: {
       maxCodeTokens: 4000,
@@ -103,14 +118,9 @@ export function createDefaultState(): MegaBuilderState {
       antiPatterns: [],
     },
 
-    collaboration: {
-      mode: 'solo',
-      reviewStrictness: 'standard',
-      commitStyle: 'conventional',
-      prFormat: 'standard',
-    },
+    collaboration: { ...DEFAULT_COLLABORATION, ...adv?.collaboration },
 
-    promptSections: DEFAULT_SECTIONS.map(s => ({ ...s })),
+    promptSections,
     customSections: [],
 
     presetName: null,

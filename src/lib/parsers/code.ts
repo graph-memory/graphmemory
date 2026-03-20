@@ -77,9 +77,9 @@ export async function parseCodeFile(
   }
 
   const source = fs.readFileSync(absolutePath, 'utf-8');
-  const rootNode = await parseSource(source, language);
+  const tree = await parseSource(source, language);
 
-  if (!rootNode) {
+  if (!tree) {
     return {
       fileId,
       mtime,
@@ -91,19 +91,23 @@ export async function parseCodeFile(
     };
   }
 
+  const rootNode = tree.rootNode;
   const mapper = getMapper(language)!;
-  const symbols = mapper.extractSymbols(rootNode);
-  const edgeInfos = mapper.extractEdges(rootNode);
-  const imports = mapper.extractImports(rootNode);
+  let symbols, edgeInfos, imports, fileDocComment, importSummary, lastLine;
+  try {
+    symbols = mapper.extractSymbols(rootNode);
+    edgeInfos = mapper.extractEdges(rootNode);
+    imports = mapper.extractImports(rootNode);
+    fileDocComment = extractFileDocComment(rootNode);
+    importSummary = buildImportSummary(rootNode);
+    lastLine = (rootNode.endPosition?.row ?? 0) + 1;
+  } finally {
+    tree.delete();
+  }
 
   const nodes: ParsedFile['nodes'] = [];
   const edges: ParsedFile['edges'] = [];
   const fileNodeId = fileId;
-
-  // --- File root node ---
-  const fileDocComment = extractFileDocComment(rootNode);
-  const importSummary = buildImportSummary(rootNode);
-  const lastLine = (rootNode.endPosition?.row ?? 0) + 1;
 
   nodes.push({
     id: fileNodeId,

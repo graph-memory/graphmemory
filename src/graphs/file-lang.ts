@@ -8,7 +8,7 @@ export const EXT_TO_LANGUAGE: Record<string, string> = {
   '.mjs': 'javascript',
   '.cjs': 'javascript',
   '.ts': 'typescript',
-  '.tsx': 'typescript',
+  '.tsx': 'tsx',
   '.mts': 'typescript',
   '.cts': 'typescript',
 

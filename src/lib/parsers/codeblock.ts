@@ -4,7 +4,7 @@ import { parseSource, getMapper, isLanguageSupported } from '@/lib/parsers/langu
 const TAG_TO_LANGUAGE: Record<string, string> = {
   ts: 'typescript',
   typescript: 'typescript',
-  tsx: 'typescript',
+  tsx: 'tsx',
   js: 'javascript',
   javascript: 'javascript',
   jsx: 'javascript',
@@ -19,12 +19,16 @@ export async function extractSymbols(code: string, language: string): Promise<st
   if (!lang || !isLanguageSupported(lang)) return [];
 
   try {
-    const rootNode = await parseSource(code, lang);
-    if (!rootNode) return [];
+    const tree = await parseSource(code, lang);
+    if (!tree) return [];
 
-    const mapper = getMapper(lang)!;
-    const symbols = mapper.extractSymbols(rootNode);
-    return symbols.map(s => s.name).filter(Boolean);
+    try {
+      const mapper = getMapper(lang)!;
+      const symbols = mapper.extractSymbols(tree.rootNode);
+      return symbols.map(s => s.name).filter(Boolean);
+    } finally {
+      tree.delete();
+    }
   } catch {
     return [];
   }

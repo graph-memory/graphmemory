@@ -38,7 +38,11 @@ describe('types.ts', () => {
   it('Direction isExported true', () => { expect(node(types, 'types.ts::Direction')?.attrs.isExported).toBe(true); });
   it('Direction docComment contains "Direction"', () => { expect(node(types, 'types.ts::Direction')?.attrs.docComment).toContain('Direction'); });
   it('Direction contains edge from file', () => { expect(hasEdge(types, 'types.ts', 'types.ts::Direction', 'contains')).toBe(true); });
-  it('has exactly 3 non-file nodes', () => { expect(types.nodes.filter(n => n.attrs.kind !== 'file')).toHaveLength(3); });
+  it('has exactly 6 non-file nodes (3 top-level + 3 interface members)', () => { expect(types.nodes.filter(n => n.attrs.kind !== 'file')).toHaveLength(6); });
+  it('NodeAttrs::id member exists', () => { expect(node(types, 'types.ts::NodeAttrs::id')).toBeDefined(); });
+  it('NodeAttrs::id kind is variable', () => { expect(node(types, 'types.ts::NodeAttrs::id')?.attrs.kind).toBe('variable'); });
+  it('NodeAttrs::label member exists', () => { expect(node(types, 'types.ts::NodeAttrs::label')).toBeDefined(); });
+  it('NodeAttrs::weight member exists', () => { expect(node(types, 'types.ts::NodeAttrs::weight')).toBeDefined(); });
 });
 
 describe('graph.ts', () => {

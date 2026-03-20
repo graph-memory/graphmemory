@@ -19,11 +19,49 @@ function getDocComment(node: TSNode): string {
   return '';
 }
 
-/** Build a signature: first line of the node text (truncated to 200 chars). */
-function buildSignature(node: TSNode): string {
-  const text = node.text ?? '';
-  const firstLine = text.split('\n')[0].trim();
-  return firstLine.length > 200 ? firstLine.slice(0, 200) + '…' : firstLine;
+/** Collapse whitespace and truncate. */
+function truncate(text: string, maxLen = 300): string {
+  const collapsed = text.replace(/\s+/g, ' ').trim();
+  return collapsed.length > maxLen ? collapsed.slice(0, maxLen) + '…' : collapsed;
+}
+
+/**
+ * Build signature by taking everything before the body node.
+ * For code (ASCII-dominated), byte offset ≈ char offset.
+ * Falls back to first line if no body found.
+ */
+function buildSignature(outerNode: TSNode, innerNode: TSNode): string {
+  const bodyNode = innerNode.childForFieldName('body');
+  const text = outerNode.text ?? '';
+
+  if (!bodyNode) {
+    // No body (type alias, ambient declaration, etc.) — use full text
+    return truncate(text);
+  }
+
+  // Slice text from outer start up to body start
+  const headerBytes = bodyNode.startIndex - outerNode.startIndex;
+  if (headerBytes > 0) {
+    return truncate(text.slice(0, headerBytes));
+  }
+  return truncate(text.split('\n')[0]);
+}
+
+/**
+ * Build signature for variable declarations.
+ * If value is arrow/function, strip the function body.
+ */
+function buildVariableSignature(outerNode: TSNode, declarator: TSNode): string {
+  const value = declarator.childForFieldName('value');
+  if (value) {
+    const valueBody = value.childForFieldName('body');
+    if (valueBody) {
+      const fullText = outerNode.text ?? '';
+      const bodyOffset = valueBody.startIndex - outerNode.startIndex;
+      if (bodyOffset > 0) return truncate(fullText.slice(0, bodyOffset));
+    }
+  }
+  return truncate(outerNode.text ?? '');
 }
 
 /** Build the full body text for a symbol. Includes JSDoc + node text. */
@@ -32,11 +70,6 @@ function buildBody(node: TSNode, docComment: string): string {
     return docComment + '\n' + node.text;
   }
   return node.text ?? '';
-}
-
-/** Build a signature: always use the code declaration, not JSDoc. */
-function buildFullSignature(node: TSNode, _docComment: string): string {
-  return buildSignature(node);
 }
 
 /** Check if a node is inside an export_statement. */
@@ -61,30 +94,159 @@ function endLine(node: TSNode): number {
   return (node.endPosition?.row ?? 0) + 1;
 }
 
+/**
+ * Extract the base type name from a type node, handling generic types.
+ * `Foo` → "Foo", `Foo<T>` (generic_type) → "Foo"
+ */
+function extractTypeName(node: TSNode): string | null {
+  if (node.type === 'identifier' || node.type === 'type_identifier') {
+    return node.text;
+  }
+  if (node.type === 'generic_type') {
+    const name = node.childForFieldName('name') ?? node.namedChildren?.[0];
+    if (name && (name.type === 'identifier' || name.type === 'type_identifier')) {
+      return name.text;
+    }
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Symbol extraction
 // ---------------------------------------------------------------------------
 
-function extractClassSymbol(node: TSNode): ExtractedSymbol {
-  const outer = getOuterNode(node);
-  const doc = getDocComment(outer);
-  const name = node.childForFieldName('name')?.text ?? '';
-  const body = node.childForFieldName('body');
-
-  // Extract methods
+/** Extract class members: methods, fields, getters/setters. */
+function extractClassMembers(body: TSNode): ExtractedSymbol[] {
   const children: ExtractedSymbol[] = [];
-  if (body) {
-    for (const member of body.namedChildren) {
-      if (member.type === 'method_definition') {
+  if (!body) return children;
+
+  for (const member of body.namedChildren) {
+    switch (member.type) {
+      case 'method_definition':
+      case 'abstract_method_definition': {
         const methodName = member.childForFieldName('name')?.text ?? '';
         if (!methodName) continue;
         const methodDoc = getDocComment(member);
         children.push({
           name: methodName,
           kind: 'method',
-          signature: buildSignature(member),
+          signature: buildSignature(member, member),
           docComment: methodDoc,
           body: buildBody(member, methodDoc),
+          startLine: startLine(member),
+          endLine: endLine(member),
+          isExported: false,
+        });
+        break;
+      }
+      case 'public_field_definition':
+      case 'property_definition': {
+        const fieldName = member.childForFieldName('name')?.text ?? '';
+        if (!fieldName) continue;
+        const fieldDoc = getDocComment(member);
+        children.push({
+          name: fieldName,
+          kind: 'variable',
+          signature: truncate(member.text ?? ''),
+          docComment: fieldDoc,
+          body: buildBody(member, fieldDoc),
+          startLine: startLine(member),
+          endLine: endLine(member),
+          isExported: false,
+        });
+        break;
+      }
+    }
+  }
+  return children;
+}
+
+function extractClassSymbol(node: TSNode): ExtractedSymbol {
+  const outer = getOuterNode(node);
+  const doc = getDocComment(outer);
+  const name = node.childForFieldName('name')?.text ?? '';
+  const body = node.childForFieldName('body');
+  const children = extractClassMembers(body);
+
+  return {
+    name,
+    kind: 'class',
+    signature: buildSignature(outer, node),
+    docComment: doc,
+    body: buildBody(outer, doc),
+    startLine: startLine(outer),
+    endLine: endLine(outer),
+    isExported: isExported(node),
+    children: children.length > 0 ? children : undefined,
+  };
+}
+
+/** Extract nested named function declarations from a function body (1 level deep). */
+function extractNestedFunctions(body: TSNode): ExtractedSymbol[] {
+  const nested: ExtractedSymbol[] = [];
+  if (!body || body.type !== 'statement_block') return nested;
+
+  for (const stmt of body.namedChildren) {
+    if (stmt.type === 'function_declaration') {
+      const childName = stmt.childForFieldName('name')?.text;
+      if (!childName) continue;
+      const childDoc = getDocComment(stmt);
+      nested.push({
+        name: childName,
+        kind: 'function',
+        signature: buildSignature(stmt, stmt),
+        docComment: childDoc,
+        body: buildBody(stmt, childDoc),
+        startLine: startLine(stmt),
+        endLine: endLine(stmt),
+        isExported: false,
+      });
+    }
+  }
+  return nested;
+}
+
+function extractFunctionSymbol(node: TSNode): ExtractedSymbol {
+  const outer = getOuterNode(node);
+  const doc = getDocComment(outer);
+  const name = node.childForFieldName('name')?.text ?? '';
+
+  const body = node.childForFieldName('body');
+  const children = extractNestedFunctions(body);
+
+  return {
+    name,
+    kind: 'function',
+    signature: buildSignature(outer, node),
+    docComment: doc,
+    body: buildBody(outer, doc),
+    startLine: startLine(outer),
+    endLine: endLine(outer),
+    isExported: isExported(node),
+    children: children.length > 0 ? children : undefined,
+  };
+}
+
+function extractInterfaceSymbol(node: TSNode): ExtractedSymbol {
+  const outer = getOuterNode(node);
+  const doc = getDocComment(outer);
+  const name = node.childForFieldName('name')?.text ?? '';
+
+  // Extract interface members
+  const children: ExtractedSymbol[] = [];
+  const body = node.childForFieldName('body');
+  if (body) {
+    for (const member of body.namedChildren) {
+      if (member.type === 'property_signature' || member.type === 'method_signature') {
+        const memberName = member.childForFieldName('name')?.text ?? '';
+        if (!memberName) continue;
+        const memberDoc = getDocComment(member);
+        children.push({
+          name: memberName,
+          kind: member.type === 'method_signature' ? 'method' : 'variable',
+          signature: truncate(member.text ?? ''),
+          docComment: memberDoc,
+          body: buildBody(member, memberDoc),
           startLine: startLine(member),
           endLine: endLine(member),
           isExported: false,
@@ -95,48 +257,14 @@ function extractClassSymbol(node: TSNode): ExtractedSymbol {
 
   return {
     name,
-    kind: 'class',
-    signature: buildFullSignature(outer, doc),
-    docComment: doc,
-    body: buildBody(outer, doc),
-    startLine: startLine(outer),
-    endLine: endLine(outer),
-    isExported: isExported(node),
-    children,
-  };
-}
-
-function extractFunctionSymbol(node: TSNode): ExtractedSymbol {
-  const outer = getOuterNode(node);
-  const doc = getDocComment(outer);
-  const name = node.childForFieldName('name')?.text ?? '';
-
-  return {
-    name,
-    kind: 'function',
-    signature: buildFullSignature(outer, doc),
-    docComment: doc,
-    body: buildBody(outer, doc),
-    startLine: startLine(outer),
-    endLine: endLine(outer),
-    isExported: isExported(node),
-  };
-}
-
-function extractInterfaceSymbol(node: TSNode): ExtractedSymbol {
-  const outer = getOuterNode(node);
-  const doc = getDocComment(outer);
-  const name = node.childForFieldName('name')?.text ?? '';
-
-  return {
-    name,
     kind: 'interface',
-    signature: buildFullSignature(outer, doc),
+    signature: buildSignature(outer, node),
     docComment: doc,
     body: buildBody(outer, doc),
     startLine: startLine(outer),
     endLine: endLine(outer),
     isExported: isExported(node),
+    children: children.length > 0 ? children : undefined,
   };
 }
 
@@ -148,7 +276,7 @@ function extractTypeAliasSymbol(node: TSNode): ExtractedSymbol {
   return {
     name,
     kind: 'type',
-    signature: buildFullSignature(outer, doc),
+    signature: truncate(outer.text ?? ''),
     docComment: doc,
     body: buildBody(outer, doc),
     startLine: startLine(outer),
@@ -165,7 +293,7 @@ function extractEnumSymbol(node: TSNode): ExtractedSymbol {
   return {
     name,
     kind: 'enum',
-    signature: buildFullSignature(outer, doc),
+    signature: buildSignature(outer, node),
     docComment: doc,
     body: buildBody(outer, doc),
     startLine: startLine(outer),
@@ -179,7 +307,6 @@ function extractVariableSymbols(node: TSNode, exported: boolean): ExtractedSymbo
   const doc = getDocComment(outer!);
   const symbols: ExtractedSymbol[] = [];
 
-  // Find all variable_declarator children
   for (const child of node.namedChildren) {
     if (child.type === 'variable_declarator') {
       const name = child.childForFieldName('name')?.text ?? '';
@@ -188,15 +315,24 @@ function extractVariableSymbols(node: TSNode, exported: boolean): ExtractedSymbo
       const value = child.childForFieldName('value');
       const isArrow = value?.type === 'arrow_function' || value?.type === 'function_expression';
 
+      // Extract nested named functions from arrow/function body
+      let children: ExtractedSymbol[] | undefined;
+      if (isArrow && value) {
+        const fnBody = value.childForFieldName('body');
+        const nested = extractNestedFunctions(fnBody);
+        if (nested.length > 0) children = nested;
+      }
+
       symbols.push({
         name,
         kind: isArrow ? 'function' : 'variable',
-        signature: buildFullSignature(outer!, doc),
+        signature: buildVariableSignature(outer!, child),
         docComment: doc,
         body: buildBody(outer!, doc),
         startLine: startLine(outer!),
         endLine: endLine(outer!),
         isExported: exported,
+        children,
       });
     }
   }
@@ -215,7 +351,8 @@ function processTopLevel(node: TSNode): ExtractedSymbol[] {
       if (!name) return [];
       return [extractFunctionSymbol(node)];
     }
-    case 'class_declaration': {
+    case 'class_declaration':
+    case 'abstract_class_declaration': {
       const name = node.childForFieldName('name')?.text;
       if (!name) return [];
       return [extractClassSymbol(node)];
@@ -242,6 +379,15 @@ function processTopLevel(node: TSNode): ExtractedSymbol[] {
       }
       return [];
     }
+    case 'ambient_declaration': {
+      // declare function/class/interface/etc — unwrap and process inner declaration
+      for (const child of node.namedChildren) {
+        if (child.type === 'comment') continue;
+        const results = processTopLevel(child);
+        if (results.length > 0) return results;
+      }
+      return [];
+    }
     default:
       return [];
   }
@@ -260,27 +406,27 @@ const typescriptMapper: LanguageMapper = {
     const edges: ExtractedEdge[] = [];
 
     function findClasses(node: TSNode): void {
-      if (node.type === 'class_declaration') {
+      if (node.type === 'class_declaration' || node.type === 'abstract_class_declaration') {
         const className = node.childForFieldName('name')?.text;
         if (!className) return;
 
-        // Look for class_heritage
         for (const child of node.namedChildren) {
           if (child.type === 'class_heritage') {
             for (const clause of child.namedChildren) {
               if (clause.type === 'extends_clause') {
-                // First named child is the base class
                 for (const c of clause.namedChildren) {
-                  if (c.type === 'identifier' || c.type === 'type_identifier') {
-                    edges.push({ fromName: className, toName: c.text, kind: 'extends' });
-                    break;
+                  const typeName = extractTypeName(c);
+                  if (typeName) {
+                    edges.push({ fromName: className, toName: typeName, kind: 'extends' });
+                    break; // Only one base class
                   }
                 }
               }
               if (clause.type === 'implements_clause') {
                 for (const c of clause.namedChildren) {
-                  if (c.type === 'type_identifier' || c.type === 'identifier') {
-                    edges.push({ fromName: className, toName: c.text, kind: 'implements' });
+                  const typeName = extractTypeName(c);
+                  if (typeName) {
+                    edges.push({ fromName: className, toName: typeName, kind: 'implements' });
                   }
                 }
               }
@@ -301,10 +447,20 @@ const typescriptMapper: LanguageMapper = {
   extractImports(rootNode: TSNode): ExtractedImport[] {
     const imports: ExtractedImport[] = [];
     for (const child of rootNode.children) {
+      // import statements
       if (child.type === 'import_statement') {
         const source = child.childForFieldName('source');
         if (source) {
-          // Remove quotes from string literal
+          const specifier = source.text.replace(/^['"]|['"]$/g, '');
+          if (specifier.startsWith('./') || specifier.startsWith('../')) {
+            imports.push({ specifier });
+          }
+        }
+      }
+      // Re-exports: export { ... } from '...' and export * from '...'
+      if (child.type === 'export_statement') {
+        const source = child.childForFieldName('source');
+        if (source) {
           const specifier = source.text.replace(/^['"]|['"]$/g, '');
           if (specifier.startsWith('./') || specifier.startsWith('../')) {
             imports.push({ specifier });
@@ -326,11 +482,8 @@ export function registerTypescript(): void {
   if (_registered) return;
   _registered = true;
 
-  // TypeScript and TSX share the same mapper
   registerLanguage('typescript', 'tree-sitter-typescript.wasm', typescriptMapper);
   registerLanguage('tsx', 'tree-sitter-tsx.wasm', typescriptMapper);
-
-  // JavaScript and JSX use the same mapper (TS is a superset)
   registerLanguage('javascript', 'tree-sitter-javascript.wasm', typescriptMapper);
   registerLanguage('jsx', 'tree-sitter-javascript.wasm', typescriptMapper);
 }

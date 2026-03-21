@@ -4,6 +4,11 @@
     "module": "esnext",
     "moduleResolution": "bundler",
     "strict": false,
-    "noEmit": true
+    "noEmit": true,
+    // Path aliases for testing
+    "baseUrl": ".",
+    "paths": {
+      "@lib/*": ["./*"]
+    }
   }
 }

@@ -71,6 +71,7 @@ export async function setupMcpClient(opts: {
   skillGraph?: SkillGraph;
   embedFn?: (query: string) => Promise<number[]>;
   sessionContext?: McpSessionContext;
+  projectDir?: string;
 }): Promise<McpTestContext> {
   const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
   const server = createMcpServer(
@@ -81,7 +82,7 @@ export async function setupMcpClient(opts: {
     opts.taskGraph,
     opts.embedFn,
     undefined,
-    undefined,
+    opts.projectDir,
     opts.skillGraph,
     opts.sessionContext,
   );

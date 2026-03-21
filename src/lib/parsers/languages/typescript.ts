@@ -123,7 +123,8 @@ function extractClassMembers(body: TSNode): ExtractedSymbol[] {
   for (const member of body.namedChildren) {
     switch (member.type) {
       case 'method_definition':
-      case 'abstract_method_definition': {
+      case 'abstract_method_definition':
+      case 'abstract_method_signature': {
         const methodName = member.childForFieldName('name')?.text ?? '';
         if (!methodName) continue;
         const methodDoc = getDocComment(member);
@@ -346,7 +347,8 @@ function extractVariableSymbols(node: TSNode, exported: boolean): ExtractedSymbo
 
 function processTopLevel(node: TSNode): ExtractedSymbol[] {
   switch (node.type) {
-    case 'function_declaration': {
+    case 'function_declaration':
+    case 'function_signature': {
       const name = node.childForFieldName('name')?.text;
       if (!name) return [];
       return [extractFunctionSymbol(node)];

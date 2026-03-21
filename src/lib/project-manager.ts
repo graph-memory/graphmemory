@@ -375,17 +375,21 @@ export class ProjectManager extends EventEmitter {
     instance.dirty = false;
 
     // Scan and watch .notes/ and .tasks/ for reverse import (skip for workspace projects — handled by workspace)
+    // Skip mirror entirely if knowledge or tasks graph is readonly (mirror requires both)
     if (instance.mirrorTracker && !instance.workspaceId && instance.knowledgeManager && instance.taskManager) {
-      const mirrorConfig = {
-        projectDir: instance.config.projectDir,
-        knowledgeManager: instance.knowledgeManager,
-        taskManager: instance.taskManager,
-        skillManager: instance.skillManager,
-        mutationQueue: instance.mutationQueue,
-        tracker: instance.mirrorTracker,
-      };
-      await scanMirrorDirs(mirrorConfig);
-      instance.mirrorWatcher = startMirrorWatcher(mirrorConfig);
+      const gc = instance.config.graphConfigs;
+      if (!gc.knowledge.readonly && !gc.tasks.readonly) {
+        const mirrorConfig = {
+          projectDir: instance.config.projectDir,
+          knowledgeManager: instance.knowledgeManager,
+          taskManager: instance.taskManager,
+          skillManager: gc.skills.readonly ? undefined : instance.skillManager,
+          mutationQueue: instance.mutationQueue,
+          tracker: instance.mirrorTracker,
+        };
+        await scanMirrorDirs(mirrorConfig);
+        instance.mirrorWatcher = startMirrorWatcher(mirrorConfig);
+      }
     }
 
     this.emit('project:indexed', { projectId: id });

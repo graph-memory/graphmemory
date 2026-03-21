@@ -3,7 +3,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import type { ProjectInstance, ProjectManager } from '@/lib/project-manager';
 import { createMcpServer, type McpSessionContext } from '@/api/index';
-import type { GraphName } from '@/lib/multi-config';
+import { GRAPH_NAMES, type GraphName } from '@/lib/multi-config';
 
 // Tool category detection based on tool name
 const TOOL_CATEGORIES: Record<string, string> = {
@@ -55,11 +55,18 @@ async function getClient(p: ProjectInstance, pm: ProjectManager): Promise<Client
     workspaceProjects: ws?.config.projects,
   };
 
+  // Build readonly set from config for defense-in-depth
+  const readonlyGraphs = new Set<string>();
+  for (const gn of GRAPH_NAMES) {
+    if (p.config.graphConfigs[gn].readonly) readonlyGraphs.add(gn);
+  }
+
   const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
   const server = createMcpServer(
     p.docGraph, p.codeGraph, p.knowledgeGraph, p.fileIndexGraph,
     p.taskGraph, p.embedFns, p.mutationQueue,
     p.config.projectDir, p.skillGraph, sessionCtx,
+    readonlyGraphs.size > 0 ? readonlyGraphs : undefined,
   );
   await server.connect(serverTransport);
 

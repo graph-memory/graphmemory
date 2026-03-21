@@ -438,6 +438,7 @@ export async function startHttpServer(
 interface MultiProjectHttpSession {
   projectId: string;
   workspaceId?: string;
+  userId?: string;
   server: McpServer;
   transport: StreamableHTTPServerTransport;
   lastActivity: number;
@@ -596,7 +597,7 @@ export async function startMultiProjectHttpServer(
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID(),
       onsessioninitialized: (sid) => {
-        sessions.set(sid, { projectId, workspaceId: ws?.id, server: mcpServer, transport, lastActivity: Date.now() });
+        sessions.set(sid, { projectId, workspaceId: ws?.id, userId, server: mcpServer, transport, lastActivity: Date.now() });
         process.stderr.write(`[http] Session ${sid} started (project: ${projectId}${ws ? `, workspace: ${ws.id}` : ''}${userId ? `, user: ${userId}` : ''})\n`);
       },
     });

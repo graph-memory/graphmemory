@@ -23,13 +23,17 @@ jobs:
         run: cd site && npm run build
 
       - name: Deploy via SFTP
-        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
-        with:
-          server: ${{ secrets.SITE_HOST }}
-          port: ${{ secrets.SITE_PORT || 22 }}
-          username: ${{ secrets.SITE_USER }}
-          ssh_private_key: ${{ secrets.SITE_SSH_KEY }}
-          local_path: ./site/build/
-          remote_path: ${{ secrets.SITE_PATH }}
-          sftp_only: true
-          delete_remote_files: true
+        run: |
+          sudo apt-get install -y -qq lftp > /dev/null 2>&1
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SITE_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p ${SITE_PORT:-22} ${{ secrets.SITE_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+          lftp -c "
+            set sftp:connect-program 'ssh -i $HOME/.ssh/deploy_key -p ${SITE_PORT:-22}';
+            open sftp://${{ secrets.SITE_USER }}@${{ secrets.SITE_HOST }};
+            mirror --reverse --delete --verbose site/build/ ${{ secrets.SITE_PATH }};
+          "
+        env:
+          SITE_PORT: ${{ secrets.SITE_PORT }}

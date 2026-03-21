@@ -22,18 +22,34 @@ jobs:
       - name: Build site
         run: cd site && npm run build
 
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p ${PORT:-22} "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+        env:
+          SSH_KEY: ${{ secrets.SITE_SSH_KEY }}
+          HOST: ${{ secrets.SITE_HOST }}
+          PORT: ${{ secrets.SITE_PORT }}
+
       - name: Deploy via SFTP
         run: |
           sudo apt-get install -y -qq lftp > /dev/null 2>&1
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SITE_SSH_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -p ${SITE_PORT:-22} ${{ secrets.SITE_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
 
-          lftp -c "
-            set sftp:connect-program 'ssh -i $HOME/.ssh/deploy_key -p ${SITE_PORT:-22}';
-            open sftp://${{ secrets.SITE_USER }}@${{ secrets.SITE_HOST }};
-            mirror --reverse --delete --verbose site/build/ ${{ secrets.SITE_PATH }};
-          "
+          KEY="$HOME/.ssh/deploy_key"
+          PORT="${SFTP_PORT:-22}"
+
+          lftp <<LFTP_SCRIPT
+          set sftp:connect-program "ssh -i ${KEY} -p ${PORT} -o StrictHostKeyChecking=no"
+          open sftp://${SFTP_USER}:@${SFTP_HOST}
+          mirror --reverse --delete --verbose --parallel=4 site/build/ ${SFTP_PATH}
+          quit
+          LFTP_SCRIPT
+
+          echo "Deploy complete!"
         env:
-          SITE_PORT: ${{ secrets.SITE_PORT }}
+          SFTP_USER: ${{ secrets.SITE_USER }}
+          SFTP_HOST: ${{ secrets.SITE_HOST }}
+          SFTP_PORT: ${{ secrets.SITE_PORT }}
+          SFTP_PATH: ${{ secrets.SITE_PATH }}

@@ -1,5 +1,7 @@
-import { useTheme } from '@mui/material';
-import MDEditor from '@uiw/react-md-editor';
+import { lazy, Suspense } from 'react';
+import { useTheme, CircularProgress, Box } from '@mui/material';
+
+const MDEditor = lazy(() => import('@uiw/react-md-editor'));
 
 interface MarkdownEditorProps {
   value: string;
@@ -13,13 +15,15 @@ export function MarkdownEditor({ value, onChange, height = 300 }: MarkdownEditor
 
   return (
     <div data-color-mode={colorMode}>
-      <MDEditor
-        value={value}
-        onChange={(v) => onChange(v ?? '')}
-        height={height}
-        preview="edit"
-        visibleDragbar={false}
-      />
+      <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height }}><CircularProgress size={24} /></Box>}>
+        <MDEditor
+          value={value}
+          onChange={(v) => onChange(v ?? '')}
+          height={height}
+          preview="edit"
+          visibleDragbar={false}
+        />
+      </Suspense>
     </div>
   );
 }

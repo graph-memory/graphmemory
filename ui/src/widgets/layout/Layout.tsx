@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation, useParams } from 'react-router-dom';
 import {
-  AppBar, Box, Chip, Drawer, IconButton, List, ListItemButton, ListItemIcon,
+  AppBar, Box, Button, Chip, Drawer, IconButton, List, ListItemButton, ListItemIcon,
   ListItemText, ListSubheader, Toolbar, Typography, Select, MenuItem,
   Divider, useTheme,
 } from '@mui/material';
@@ -20,10 +20,12 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import BuildIcon from '@mui/icons-material/Build';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import LogoutIcon from '@mui/icons-material/Logout';
+import CableIcon from '@mui/icons-material/Cable';
 import { useProjects, type WorkspaceInfo } from '@/entities/project/index.ts';
 import { useThemeMode } from '@/shared/lib/ThemeModeContext.tsx';
 import { WsProvider } from '@/shared/lib/useWebSocket.ts';
 import { AccessProvider } from '@/shared/lib/AccessContext.tsx';
+import { ConnectDialog } from './ConnectDialog.tsx';
 
 const DRAWER_WIDTH = 240;
 const APPBAR_HEIGHT = 64;
@@ -122,6 +124,7 @@ function buildGroupedItems(
 
 export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [connectOpen, setConnectOpen] = useState(false);
   const { projects, workspaces, loading } = useProjects();
   const navigate = useNavigate();
   const location = useLocation();
@@ -252,6 +255,17 @@ export default function Layout() {
               />
             )}
           </Box>
+          <Button
+            variant="outlined"
+            size="small"
+            color="primary"
+            startIcon={<CableIcon />}
+            onClick={() => setConnectOpen(true)}
+            disabled={!projectId}
+            sx={{ textTransform: 'none' }}
+          >
+            Connect
+          </Button>
           <IconButton color="inherit" onClick={toggle} title={`Switch to ${mode === 'dark' ? 'light' : 'dark'} mode`}>
             {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
           </IconButton>
@@ -303,6 +317,10 @@ export default function Layout() {
           </WsProvider>
         </AccessProvider>
       </Box>
+
+      {projectId && (
+        <ConnectDialog open={connectOpen} onClose={() => setConnectOpen(false)} projectId={projectId} />
+      )}
     </Box>
   );
 }

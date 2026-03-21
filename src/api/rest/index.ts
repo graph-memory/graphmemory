@@ -103,7 +103,7 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
         const payload = verifyToken(accessToken, jwtSecret);
         if (payload?.type === 'access' && users[payload.userId]) {
           const user = users[payload.userId];
-          return res.json({ required: true, authenticated: true, userId: payload.userId, name: user.name });
+          return res.json({ required: true, authenticated: true, userId: payload.userId, name: user.name, apiKey: user.apiKey });
         }
       }
     }

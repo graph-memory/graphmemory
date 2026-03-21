@@ -557,9 +557,40 @@ export async function startMultiProjectHttpServer(
 
   return new Promise((resolve) => {
     httpServer.listen(port, host, () => {
-      process.stderr.write(`[server] MCP endpoints: http://${host}:${port}/mcp/{projectId} and /mcp/{workspaceId}/{projectId}\n`);
-      process.stderr.write(`[server] REST API at http://${host}:${port}/api/\n`);
-      process.stderr.write(`[server] WebSocket at ws://${host}:${port}/api/ws\n`);
+      const base = `http://${host}:${port}`;
+      const projects = projectManager.listProjects();
+      const workspaces = projectManager.listWorkspaces();
+
+      const lines: string[] = [
+        '',
+        '  ╔══════════════════════════════════════════════╗',
+        '  ║         Graph Memory Server Ready            ║',
+        '  ╚══════════════════════════════════════════════╝',
+        '',
+        `  UI        ${base}/ui/`,
+        `  REST API  ${base}/api/`,
+        `  WebSocket ws://${host}:${port}/api/ws`,
+        '',
+        '  MCP endpoints:',
+      ];
+
+      for (const id of projects) {
+        const ws = projectManager.getProjectWorkspace(id);
+        const wsLabel = ws ? ` (${ws.id})` : '';
+        lines.push(`    ${id}${wsLabel}  ${base}/mcp/${id}`);
+      }
+
+      if (projects.length === 0) {
+        lines.push('    (no projects configured)');
+      }
+
+      if (workspaces.length > 0) {
+        lines.push('');
+        lines.push(`  Workspaces: ${workspaces.join(', ')}`);
+      }
+
+      lines.push('');
+      process.stderr.write(lines.join('\n') + '\n');
       resolve(httpServer);
     });
   });

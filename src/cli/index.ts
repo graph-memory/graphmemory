@@ -165,7 +165,49 @@ program
     // Embedding API model name (loaded in background with other models)
     const embeddingApiModelName = mc.server.embeddingApi?.enabled ? '__server__' : undefined;
 
-    // Start HTTP server immediately (before models are loaded)
+    // Load models and index all projects before starting HTTP
+    // Load embedding API model if enabled
+    if (embeddingApiModelName) {
+      try {
+        await loadModel(mc.server.model, mc.server.embedding, mc.server.modelsDir, embeddingApiModelName);
+        process.stderr.write(`[serve] Embedding API model ready\n`);
+      } catch (err: unknown) {
+        process.stderr.write(`[serve] Failed to load embedding API model: ${err}\n`);
+      }
+    }
+
+    // Load workspace models
+    for (const wsId of manager.listWorkspaces()) {
+      try {
+        await manager.loadWorkspaceModels(wsId);
+      } catch (err: unknown) {
+        process.stderr.write(`[serve] Failed to load workspace "${wsId}" models: ${err}\n`);
+      }
+    }
+
+    // Load project models and start indexing
+    for (const id of manager.listProjects()) {
+      try {
+        await manager.loadModels(id);
+        await manager.startIndexing(id);
+      } catch (err: unknown) {
+        process.stderr.write(`[serve] Failed to initialize project "${id}": ${err}\n`);
+      }
+    }
+
+    // Start workspace mirror watchers (after all projects are indexed)
+    for (const wsId of manager.listWorkspaces()) {
+      try {
+        await manager.startWorkspaceMirror(wsId);
+      } catch (err: unknown) {
+        process.stderr.write(`[serve] Failed to start workspace "${wsId}" mirror: ${err}\n`);
+      }
+    }
+
+    // Start auto-save
+    manager.startAutoSave();
+
+    // Start HTTP server (all models loaded, all projects indexed)
     const httpServer = await startMultiProjectHttpServer(host, port, sessionTimeoutMs, manager, {
       serverConfig: mc.server,
       users: mc.users,
@@ -177,54 +219,6 @@ program
     httpServer.on('connection', (socket) => {
       openSockets.add(socket);
       socket.on('close', () => openSockets.delete(socket));
-    });
-
-    // Start auto-save
-    manager.startAutoSave();
-
-    // Load models and start indexing in background (workspaces first, then projects)
-    async function initProjects(): Promise<void> {
-      // Load embedding API model if enabled
-      if (embeddingApiModelName) {
-        try {
-          await loadModel(mc.server.model, mc.server.embedding, mc.server.modelsDir, embeddingApiModelName);
-          process.stderr.write(`[serve] Embedding API model ready\n`);
-        } catch (err: unknown) {
-          process.stderr.write(`[serve] Failed to load embedding API model: ${err}\n`);
-        }
-      }
-
-      // Load workspace models
-      for (const wsId of manager.listWorkspaces()) {
-        try {
-          await manager.loadWorkspaceModels(wsId);
-        } catch (err: unknown) {
-          process.stderr.write(`[serve] Failed to load workspace "${wsId}" models: ${err}\n`);
-        }
-      }
-
-      // Load project models and start indexing
-      for (const id of manager.listProjects()) {
-        try {
-          await manager.loadModels(id);
-          await manager.startIndexing(id);
-        } catch (err: unknown) {
-          process.stderr.write(`[serve] Failed to initialize project "${id}": ${err}\n`);
-        }
-      }
-
-      // Start workspace mirror watchers (after all projects are indexed)
-      for (const wsId of manager.listWorkspaces()) {
-        try {
-          await manager.startWorkspaceMirror(wsId);
-        } catch (err: unknown) {
-          process.stderr.write(`[serve] Failed to start workspace "${wsId}" mirror: ${err}\n`);
-        }
-      }
-    }
-
-    initProjects().catch((err: unknown) => {
-      process.stderr.write(`[serve] Init error: ${err}\n`);
     });
 
     let shuttingDown = false;

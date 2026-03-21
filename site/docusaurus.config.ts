@@ -33,6 +33,18 @@ const config: Config = {
 
   headTags: [
     {
+      tagName: 'link',
+      attributes: {rel: 'preconnect', href: 'https://fonts.googleapis.com'},
+    },
+    {
+      tagName: 'link',
+      attributes: {rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: 'anonymous'},
+    },
+    {
+      tagName: 'link',
+      attributes: {rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'},
+    },
+    {
       tagName: 'script',
       attributes: {type: 'application/ld+json'},
       innerHTML: JSON.stringify({
@@ -42,6 +54,14 @@ const config: Config = {
         description: 'MCP server that builds semantic graph memory from project directories',
         applicationCategory: 'DeveloperApplication',
         operatingSystem: 'Cross-platform',
+        url: 'https://graphmemory.dev',
+        downloadUrl: 'https://www.npmjs.com/package/@graphmemory/server',
+        softwareVersion: '1.3.0',
+        author: {
+          '@type': 'Organization',
+          name: 'Graph Memory',
+          url: 'https://github.com/graph-memory',
+        },
         license: 'https://www.elastic.co/licensing/elastic-license',
         offers: {
           '@type': 'Offer',
@@ -84,7 +104,7 @@ const config: Config = {
   ],
 
   themeConfig: {
-    image: 'img/social-card.svg',
+    image: 'img/screenshots/dashboard-dark.png',
     metadata: [
       {name: 'keywords', content: 'MCP, graph memory, semantic search, knowledge graph, AI tools, Model Context Protocol, code indexing'},
       {name: 'twitter:card', content: 'summary_large_image'},

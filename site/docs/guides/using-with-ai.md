@@ -38,8 +38,8 @@ search_code({ query: "JWT token validation" })
 Once you find relevant results, drill into details:
 
 ```
-get_node({ nodeId: "docs/auth.md::## Token Validation" })
-get_symbol({ symbolId: "src/auth.ts::validateToken" })
+get_node({ nodeId: "docs/auth.md::Token Validation" })
+get_symbol({ nodeId: "src/auth.ts::validateToken" })
 ```
 
 ### 3. Cross-Reference
@@ -112,7 +112,7 @@ create_skill({
 Before starting a complex task, check for existing skills:
 
 ```
-recall_skills({ query: "add a new API endpoint" })
+recall_skills({ context: "add a new API endpoint" })
 ```
 
 ## Task Tracking

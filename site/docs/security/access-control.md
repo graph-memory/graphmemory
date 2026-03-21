@@ -86,20 +86,21 @@ projects:
 ### Per-workspace access
 
 ```yaml
+projects:
+  secrets:
+    projectDir: ./internal/secrets
+  docs:
+    projectDir: ./public/docs
+
 workspaces:
   internal:
+    projects: [secrets]
     access:
       contractor: deny    # contractor cannot access internal workspace
-    projects:
-      secrets:
-        path: ./internal/secrets
-
   public:
+    projects: [docs]
     access:
       contractor: rw      # contractor has full access to public workspace
-    projects:
-      docs:
-        path: ./public/docs
 ```
 
 ## REST API enforcement

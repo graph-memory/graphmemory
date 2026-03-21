@@ -119,7 +119,7 @@ Lists all symbols in a file sorted by line number, like an IDE's outline view. G
 ### Cross-references
 
 ```
-cross_references({ symbolName: "loginUser" })
+cross_references({ symbol: "loginUser" })
 ```
 
 Finds both the code definition and any documentation examples that reference the same symbol. This bridges the Code and Docs graphs.

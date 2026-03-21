@@ -48,8 +48,8 @@ For a full project structure overview including all file types, use `list_all_fi
 Explore symbols in key files:
 
 ```
-get_file_symbols({ filePath: "src/index.ts" })
-get_file_symbols({ filePath: "src/api/routes.ts" })
+get_file_symbols({ fileId: "src/index.ts" })
+get_file_symbols({ fileId: "src/api/routes.ts" })
 ```
 
 Search for specific concepts in the code:
@@ -87,8 +87,8 @@ Check for existing skills and procedures:
 
 ```
 list_skills()
-recall_skills({ query: "development setup" })
-recall_skills({ query: "deployment process" })
+recall_skills({ context: "development setup" })
+recall_skills({ context: "deployment process" })
 ```
 
 ## Key Tools

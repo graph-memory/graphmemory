@@ -22,7 +22,7 @@ When reviewing changes to a function, find all related code:
 
 ```
 search_code({ query: "validateUserToken" })
-get_symbol({ symbolId: "src/auth/token.ts::validateUserToken" })
+get_symbol({ nodeId: "src/auth/token.ts::validateUserToken" })
 ```
 
 See the full definition, including the function body, to understand what it does today.

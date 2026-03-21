@@ -105,7 +105,7 @@ The code block becomes its own searchable node. For TypeScript and JavaScript co
 This is especially useful with the `find_examples` tool -- search for code examples across your documentation:
 
 ```
-find_examples({ query: "JWT token creation" })
+find_examples({ symbol: "JWT token creation" })
 ```
 
 ## Searching documentation

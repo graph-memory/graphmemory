@@ -7,8 +7,6 @@
  * Font:           Inter
  */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
 :root {
   /* ── Primary (light mode — MUI blue) ── */
   --ifm-color-primary: #1976d2;

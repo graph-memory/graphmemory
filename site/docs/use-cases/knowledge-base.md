@@ -96,7 +96,7 @@ The knowledge base is fully searchable:
 
 ```
 search_notes({ query: "why did we choose PostgreSQL" })
-recall_skills({ query: "how to deploy" })
+recall_skills({ context: "how to deploy" })
 ```
 
 Semantic search means you do not need to remember exact titles — searching by concept works.

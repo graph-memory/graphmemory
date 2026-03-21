@@ -12,7 +12,7 @@ Tips for getting the most out of Graph Memory's MCP tools.
 
 ## Start with get_context
 
-Always call `get_context` at the beginning of a session. It tells you which graphs are available, so you know which tools will work. Skipping this can lead to wasted calls against disabled graphs.
+Always call `get_context` at the beginning of a session. It tells you which project you're connected to and whether it belongs to a workspace, helping you understand the scope of cross-project operations. Skipping this can lead to wasted calls against disabled graphs.
 
 ## Search before you create
 

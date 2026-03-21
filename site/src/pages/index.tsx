@@ -91,7 +91,10 @@ function Hero() {
     <header className={s.hero}>
       <div className={s.heroGlow} />
       <div className={clsx('container', s.heroInner)}>
-        <Heading as="h1" className={s.heroTitle}>{siteConfig.title}</Heading>
+        <Heading as="h1" className={s.heroTitle}>
+          {siteConfig.title}
+          <span className={s.heroTitleSub}> — MCP Server for Semantic Code Intelligence</span>
+        </Heading>
         <p className={s.heroSub}>
           Semantic graph memory for AI&#8209;powered development.<br />
           Index docs, code, and files into six interconnected graphs.<br />

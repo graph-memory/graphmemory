@@ -28,7 +28,7 @@ search_code({ query: "database connection pool exhaustion" })
 Get the full source of suspicious functions:
 
 ```
-get_symbol({ symbolId: "src/payments/processor.ts::processPayment" })
+get_symbol({ nodeId: "src/payments/processor.ts::processPayment" })
 ```
 
 ### 2. Check Documentation
@@ -56,8 +56,8 @@ Finding a note like "Database connection pool sizing decision" can immediately e
 Check if there is a documented procedure for this type of incident:
 
 ```
-recall_skills({ query: "database connection pool troubleshooting" })
-recall_skills({ query: "payment system recovery" })
+recall_skills({ context: "database connection pool troubleshooting" })
+recall_skills({ context: "payment system recovery" })
 ```
 
 ### 5. Create a Fix Task
@@ -143,4 +143,4 @@ create_skill({
 
 ## Tip: Use the Prompt Builder
 
-The Web UI's Prompt Builder has an **Incident Response** scenario that generates a system prompt optimized for fast search and knowledge lookup during incidents. It prioritizes search tools and de-emphasizes creation tools, keeping the AI focused on finding answers quickly.
+The Web UI's Prompt Builder has an **Incident Response** scenario that generates a system prompt optimized for fast search and knowledge lookup during incidents. It enables deep search with aggressive knowledge capture — every finding gets documented and every fix gets tracked.

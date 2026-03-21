@@ -7,6 +7,7 @@
  * Font:           Inter
  */
 
+html:root,
 :root {
   /* ── Primary (light mode — MUI blue) ── */
   --ifm-color-primary: #1976d2;
@@ -32,6 +33,7 @@
   --ifm-color-secondary: #9c27b0;
 }
 
+html[data-theme='dark'],
 [data-theme='dark'] {
   /* ── Primary (dark mode — soft blue) ── */
   --ifm-color-primary: #569cd6;

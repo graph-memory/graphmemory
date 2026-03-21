@@ -103,7 +103,7 @@ Lists notes with optional filters. Excludes internal proxy nodes.
 |-----------|----------|---------|-------------|
 | `filter` | No | — | Substring match on title |
 | `tag` | No | — | Filter by tag |
-| `limit` | No | 50 | Maximum results |
+| `limit` | No | 20 | Maximum results |
 
 ### Returns
 

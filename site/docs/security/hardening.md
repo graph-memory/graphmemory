@@ -68,6 +68,24 @@ All responses include:
 
 Graph Memory includes rate limiting to protect against brute-force attacks and abuse.
 
+Default rate limits (requests per minute per IP):
+
+| Scope | Default | Description |
+|-------|---------|-------------|
+| **Global** | 600/min | All `/api/` endpoints |
+| **Search** | 120/min | Search and embedding endpoints |
+| **Auth** | 10/min | Login endpoint (`/api/auth/login`) |
+
+These defaults are configurable via `server.rateLimit` in `graph-memory.yaml`:
+
+```yaml
+server:
+  rateLimit:
+    global: 600   # req/min per IP (0 = disabled)
+    search: 120   # req/min per IP for search/embed
+    auth: 10      # req/min per IP for login
+```
+
 ### Authentication rate limiting
 
 Login and authentication endpoints are rate-limited to prevent password brute-forcing. Failed login attempts from the same source are throttled.

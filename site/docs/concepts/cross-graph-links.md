@@ -75,9 +75,9 @@ create_relation({
 Track which documentation section a task should update:
 
 ```
-create_relation({
-  fromId: "update-api-docs",
-  toId: "docs/api.md::Authentication",
+create_task_link({
+  taskId: "update-api-docs",
+  targetId: "docs/api.md::Authentication",
   targetGraph: "docs",
   kind: "relates_to"
 })

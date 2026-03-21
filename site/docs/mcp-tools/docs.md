@@ -23,7 +23,7 @@ Lists all indexed markdown files.
 | Parameter | Required | Default | Description |
 |-----------|----------|---------|-------------|
 | `filter` | No | — | Substring filter on file path or title |
-| `limit` | No | 50 | Maximum number of results |
+| `limit` | No | 20 | Maximum number of results |
 
 ### Returns
 
@@ -115,7 +115,7 @@ File-level semantic search — finds relevant documentation files by path and ti
 
 ### Returns
 
-Array of `{ fileId, title, score }` — matching files ranked by relevance.
+Array of `{ fileId, title, chunks, score }` — matching files ranked by relevance.
 
 ### When to use
 

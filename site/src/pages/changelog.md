@@ -34,4 +34,6 @@ description: Graph Memory release history and version changes.
 
 ## v1.2.0
 
+**Released: January 2026**
+
 Initial public release with 58 MCP tools, 6 graph types, REST API, Web UI, hybrid search, multi-project support, and workspaces.

@@ -38,7 +38,7 @@ When authentication is configured, a **Login** page is shown before any other co
 
 ## Themes
 
-The UI supports both **light** and **dark** themes. Toggle between them using the theme switch at the bottom of the sidebar. Your preference is saved in the browser.
+The UI supports both **light** and **dark** themes. Toggle between them using the theme switch in the header bar. Your preference is saved in the browser.
 
 ## Real-time updates
 
@@ -63,6 +63,6 @@ If a graph is disabled in your configuration (for example, `code.enabled: false`
 
 ## Next steps
 
-- [Dashboard and Navigation](dashboard-navigation) -- project selector, stats, and sidebar
-- [Knowledge, Tasks, and Skills](knowledge-tasks-skills) -- managing your persistent data
-- [Search and Graph Visualization](search-graph) -- finding and exploring connections
+- [Dashboard and Navigation](dashboard-navigation.md) -- project selector, stats, and sidebar
+- [Knowledge, Tasks, and Skills](knowledge-tasks-skills.md) -- managing your persistent data
+- [Search and Graph Visualization](search-graph.md) -- finding and exploring connections

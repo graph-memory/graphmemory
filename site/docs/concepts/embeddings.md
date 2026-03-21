@@ -2,7 +2,7 @@
 title: "Embeddings"
 sidebar_label: "Embeddings"
 sidebar_position: 9
-description: "How Graph Memory generates embeddings locally for semantic search — default model, configuration, remote delegation, and binary compression."
+description: "How Graph Memory generates embeddings locally for semantic search — default model, configuration, remote delegation, and embedding compression."
 keywords: [embeddings, vectors, bge-m3, ONNX, semantic search, model, local, remote]
 ---
 
@@ -117,7 +117,7 @@ server:
 
 This exposes `POST /api/embed` which accepts `{ "texts": ["..."] }` and returns `{ "embeddings": [[...]] }`.
 
-## Binary quantization
+## Embedding compression
 
 Embedding vectors are stored using **Base64 encoding** for compact serialization. Float32 arrays are encoded as Base64 strings, saving roughly 3x space compared to raw JSON number arrays. This compression is transparent — it happens automatically during save and load.
 

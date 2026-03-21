@@ -37,11 +37,13 @@ search({ query: "architecture overview" })
 
 ### 2. Understand the Code Structure
 
-List source files to see how the project is organized:
+List code graph source files (TypeScript/JavaScript) to see how the codebase is organized:
 
 ```
 list_files()
 ```
+
+For a full project structure overview including all file types, use `list_all_files()` instead.
 
 Explore symbols in key files:
 
@@ -95,7 +97,8 @@ recall_skills({ query: "deployment process" })
 |------|----------------------|
 | `list_topics` | See all available documentation |
 | `search` | Find relevant doc sections by topic |
-| `list_files` | Understand project structure |
+| `list_files` | List code graph source files (TS/JS) |
+| `list_all_files` | Browse full project file tree |
 | `get_file_symbols` | Explore what a source file exports |
 | `search_code` | Find code by concept, not just name |
 | `list_notes` | Read team knowledge and decisions |

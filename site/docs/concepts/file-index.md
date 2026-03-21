@@ -68,9 +68,9 @@ This finds files like `src/lib/auth.ts` and `src/config/auth.yaml` — even thou
 Use `list_all_files` to browse directory contents and `search_all_files` for semantic discovery. Combine both to quickly orient in an unfamiliar project.
 :::
 
-## .gitignore and exclusions
+## Exclusion patterns
 
-The File Index respects your project's **exclude patterns**. By default, common directories like `node_modules/` and `dist/` are excluded at the server level.
+The File Index uses the project's **exclude configuration patterns** (not `.gitignore`). By default, common directories like `node_modules/` and `dist/` are excluded at the server level.
 
 You can add project-specific exclusions in your config:
 

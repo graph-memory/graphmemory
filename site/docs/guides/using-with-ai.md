@@ -159,12 +159,9 @@ Every cross-graph link creates a proxy node in the target graph, making relation
 
 ## Prompt Builder
 
-The Web UI includes a **Prompt Builder** that generates optimized system prompts for different scenarios:
+The Web UI includes a **Prompt Builder** that generates optimized system prompts for 14 different scenarios:
 
-- **General** — balanced prompt with all tool categories
-- **Onboarding** — emphasizes search and exploration tools
-- **Code Review** — focuses on code analysis and cross-references
-- **Incident Response** — prioritizes search, knowledge lookup, and task creation
+Onboarding, Development, Code Review, Bug Investigation, Refactoring, Architecture, Documentation, Task Planning, Knowledge Capture, Mentoring, Incident Response, Dependency Audit, Sprint Retrospective, and Custom.
 
 Open the Web UI at `http://localhost:3000`, go to the Prompt Builder section, select a scenario, and copy the generated prompt into your AI assistant's system configuration (e.g., `CLAUDE.md`, `.cursorrules`).
 

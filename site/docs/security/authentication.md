@@ -67,7 +67,7 @@ Two tokens are issued as secure cookies:
 | `mgm_access` | 15 minutes | Short-lived token for API requests |
 | `mgm_refresh` | 7 days | Long-lived token for refreshing access |
 
-Both cookies are `httpOnly` (not accessible to JavaScript) and `SameSite=Strict` (only sent on same-origin requests).
+Both cookies are `httpOnly` (not accessible to JavaScript) and `SameSite=Strict` (only sent on same-origin requests). The access token cookie is scoped to `path: '/api'`, and the refresh token cookie is scoped to `path: '/api/auth/refresh'` so it is only sent when refreshing tokens.
 
 ### Token refresh
 
@@ -96,7 +96,7 @@ openssl rand -base64 32
 
 ### Logout
 
-Click the logout button in the sidebar or call `POST /api/auth/logout`. Both JWT cookies are cleared and you are returned to the login page.
+Click the logout button in the header bar or call `POST /api/auth/logout`. Both JWT cookies are cleared and you are returned to the login page.
 
 ## API key authentication
 

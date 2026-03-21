@@ -53,7 +53,7 @@ The Tasks page provides a full kanban board for project task management.
 
 ### Kanban board
 
-Tasks are displayed as cards organized into status columns. The available columns correspond to task statuses (e.g., backlog, todo, in-progress, review, done).
+Tasks are displayed as cards organized into status columns. The available columns correspond to task statuses (e.g., backlog, todo, in_progress, review, done).
 
 **Column configuration**: you can show or hide specific status columns. Your column preferences are saved in the browser's local storage.
 

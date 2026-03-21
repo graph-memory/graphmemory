@@ -31,7 +31,7 @@ Creates a new skill (reusable procedure or recipe).
 | `inputHints` | No | — | Array of expected inputs or prerequisites |
 | `filePatterns` | No | — | Array of glob patterns for relevant files (e.g. `["src/**/*.ts"]`) |
 | `tags` | No | — | Array of tags |
-| `source` | No | `"manual"` | Source: `"manual"`, `"learned"`, `"imported"` |
+| `source` | No | `"user"` | Source: `"user"`, `"learned"` |
 | `confidence` | No | 1.0 | Confidence score (0-1) |
 
 ### Returns
@@ -105,7 +105,7 @@ Lists skills with optional filters.
 
 | Parameter | Required | Default | Description |
 |-----------|----------|---------|-------------|
-| `source` | No | — | Filter by source (`"manual"`, `"learned"`, `"imported"`) |
+| `source` | No | — | Filter by source (`"user"`, `"learned"`) |
 | `tag` | No | — | Filter by tag |
 | `filter` | No | — | Substring match on title |
 | `limit` | No | 50 | Maximum results |

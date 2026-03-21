@@ -23,7 +23,7 @@ Lists all indexed source code files.
 | Parameter | Required | Default | Description |
 |-----------|----------|---------|-------------|
 | `filter` | No | — | Substring filter on file path |
-| `limit` | No | 50 | Maximum number of results |
+| `limit` | No | 20 | Maximum number of results |
 
 ### Returns
 
@@ -67,7 +67,7 @@ Semantic search over code symbols with optional graph expansion.
 | `topK` | No | 5 | Number of seed results for BFS expansion |
 | `bfsDepth` | No | 1 | How many hops to expand through graph connections |
 | `maxResults` | No | 20 | Maximum results returned |
-| `minScore` | No | 0.5 | Minimum relevance score (0-1) |
+| `minScore` | No | 0.3 | Minimum relevance score (0-1) |
 | `bfsDecay` | No | 0.8 | Score decay factor per BFS hop |
 | `searchMode` | No | `hybrid` | `hybrid`, `vector`, or `keyword` |
 | `includeBody` | No | `false` | Include the full source body in results |

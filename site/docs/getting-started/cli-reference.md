@@ -36,10 +36,12 @@ graphmemory serve --reindex
 
 ### What happens on startup
 
-1. Loads config, creates project manager
-2. Loads graphs from disk (or fresh if `--reindex`)
-3. Starts HTTP server (MCP + REST + Web UI + WebSocket)
-4. Background: loads embedding models, starts indexing
+1. Reads config, creates project manager
+2. Loads embedding models for all projects (blocking)
+3. Indexes all projects (blocking)
+4. Starts HTTP server (MCP + REST + Web UI + WebSocket)
+
+Models and indexing complete **before** the server starts listening.
 
 ### Endpoints
 
@@ -47,6 +49,8 @@ graphmemory serve --reindex
 |------|-------------|
 | `/` | Web UI |
 | `/mcp/{projectId}` | MCP endpoint for AI clients |
+| `/api/*` | REST API |
+| `/api/ws` | WebSocket |
 
 ## `index` — one-shot indexing
 

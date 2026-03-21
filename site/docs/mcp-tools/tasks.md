@@ -25,12 +25,12 @@ Creates a new task.
 | Parameter | Required | Default | Description |
 |-----------|----------|---------|-------------|
 | `title` | Yes | — | Task title |
-| `description` | No | — | Task description (markdown supported) |
+| `description` | Yes | — | Task description (markdown supported) |
+| `priority` | Yes | — | Priority: `critical`, `high`, `medium`, `low` |
 | `status` | No | `"backlog"` | Status: `backlog`, `todo`, `in_progress`, `review`, `done`, `cancelled` |
-| `priority` | No | `"medium"` | Priority: `critical`, `high`, `medium`, `low` |
 | `tags` | No | — | Array of tags |
-| `dueDate` | No | — | Due date (ISO 8601) |
-| `estimate` | No | — | Time estimate (free-form string, e.g. `"2h"`, `"3d"`) |
+| `dueDate` | No | — | Due date as Unix timestamp in milliseconds |
+| `estimate` | No | — | Estimated effort in hours (number) |
 | `assignee` | No | — | Assignee name or ID |
 
 ### Returns

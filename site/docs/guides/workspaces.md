@@ -57,17 +57,17 @@ workspaces:
 | Field | Description |
 |-------|-------------|
 | `projects` | List of project IDs that belong to this workspace |
-| `graphMemory` | Directory where shared graph JSON files are stored |
-| `mirrorDir` | Directory where shared `.notes/`, `.tasks/`, `.skills/` files are written |
 
 ### Optional Fields
 
-| Field | Description |
-|-------|-------------|
-| `author` | Author metadata for shared notes/tasks/skills |
-| `access` | Per-user access overrides for workspace graphs |
-| `model` | Embedding model config for shared graphs |
-| `embedding` | Embedding config for shared graphs |
+| Field | Default | Description |
+|-------|---------|-------------|
+| `graphMemory` | `<firstProject>/.graph-memory/workspace` | Directory where shared graph JSON files are stored |
+| `mirrorDir` | Same as `graphMemory` | Directory where shared `.notes/`, `.tasks/`, `.skills/` files are written |
+| `author` | — | Author metadata for shared notes/tasks/skills |
+| `access` | — | Per-user access overrides for workspace graphs |
+| `model` | — | Embedding model config for shared graphs |
+| `embedding` | — | Embedding config for shared graphs |
 
 ## How It Works
 

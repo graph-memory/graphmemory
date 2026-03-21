@@ -79,11 +79,13 @@ function Hero() {
   const {siteConfig} = useDocusaurusContext();
   const [copied, setCopied] = useState(false);
 
-  const copy = () => {
-    navigator.clipboard.writeText(installCmd);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  const copy = useCallback(() => {
+    try {
+      navigator.clipboard.writeText('npm install -g @graphmemory/server && graphmemory serve');
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {}
+  }, []);
 
   return (
     <header className={s.hero}>
@@ -95,10 +97,10 @@ function Hero() {
           Index docs, code, and files into six interconnected graphs.<br />
           Query with 58 MCP tools or the built&#8209;in Web UI.
         </p>
-        <div className={s.terminal} onClick={copy} role="button" tabIndex={0}>
+        <div className={s.terminal} onClick={copy} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); copy(); } }}>
           <div className={s.termHeader}>
             <div className={s.termDots}><i /><i /><i /></div>
-            <button className={s.termCopy} onClick={copy} aria-label="Copy command">
+            <button className={s.termCopy} onClick={(e) => { e.stopPropagation(); copy(); }} aria-label="Copy command">
               {copied ? (
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M13.5 4.5L6.5 11.5L2.5 7.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
               ) : (

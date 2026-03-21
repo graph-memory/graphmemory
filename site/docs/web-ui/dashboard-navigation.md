@@ -2,7 +2,7 @@
 title: "Dashboard & Navigation"
 sidebar_label: "Dashboard & Navigation"
 sidebar_position: 2
-description: "The Graph Memory dashboard shows project stats and recent activity. The sidebar provides project selection, navigation, theme toggling, and MCP client connection."
+description: "The Graph Memory dashboard shows project stats and recent activity. The sidebar provides project selection and navigation. The header bar contains the theme toggle, Connect button, and logout."
 keywords: [dashboard, navigation, sidebar, project selector, theme, MCP connect]
 ---
 
@@ -53,17 +53,21 @@ Selecting a project reloads all pages with that project's data.
 
 Each page has an icon and label in the sidebar. The active page is highlighted with a primary-color background. Pages for disabled graphs are automatically hidden.
 
+## Header bar (AppBar)
+
+The header bar sits above the main content area and contains the page title, theme toggle, Connect button, and logout button.
+
 ### Theme toggle
 
-A toggle at the bottom of the sidebar switches between light and dark mode. Your preference persists across sessions in the browser's local storage.
+A toggle in the header bar switches between light and dark mode. Your preference persists across sessions in the browser's local storage.
 
 ### Logout
 
-When authentication is enabled, a logout button appears at the bottom of the sidebar. Clicking it clears your JWT cookies and returns you to the login page.
+When authentication is enabled, a logout button appears in the header bar. Clicking it clears your JWT cookies and returns you to the login page.
 
-## Connect button
+### Connect button
 
-The sidebar includes a **Connect** button that opens a dialog showing how to configure your MCP client (Claude Desktop, Cursor, Windsurf, or others) to connect to this Graph Memory server.
+The header bar includes a **Connect** button that opens a dialog showing how to configure your MCP client (Claude Desktop, Cursor, Windsurf, or others) to connect to this Graph Memory server.
 
 The dialog displays:
 

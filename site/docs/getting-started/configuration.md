@@ -46,6 +46,9 @@ server:
   port: 3000
   defaultAccess: "rw"             # deny | r | rw
   jwtSecret: "your-secret"        # required when users are defined
+  corsOrigins: ["http://localhost:5173"]
+  accessTokenTtl: "15m"
+  refreshTokenTtl: "7d"
   modelsDir: "~/.graph-memory/models"
   model:
     name: "Xenova/bge-m3"
@@ -93,12 +96,15 @@ workspaces:
 | `jwtSecret` | — | Required when users are defined |
 | `modelsDir` | `~/.graph-memory/models` | Model cache directory |
 | `sessionTimeout` | `1800` | MCP session timeout (seconds) |
+| `corsOrigins` | `*` (all) | Allowed CORS origins |
+| `accessTokenTtl` | `15m` | JWT access token lifetime |
+| `refreshTokenTtl` | `7d` | JWT refresh token lifetime |
 | `maxFileSize` | `1048576` | Max file size for indexing (bytes) |
 | `exclude` | — | Additional glob to exclude from indexing |
 
 ## Model config
 
-Set at server, project, or graph level. Resolution: **graph → project → server → defaults**.
+Set at server, project, or graph level. Resolution: **graph → project → server → defaults** (whole-object, first-defined-wins — no field-by-field merge).
 
 | Field | Default | Description |
 |-------|---------|-------------|
@@ -106,6 +112,18 @@ Set at server, project, or graph level. Resolution: **graph → project → serv
 | `pooling` | `cls` | `mean` or `cls` |
 | `normalize` | `true` | L2-normalize vectors |
 | `dtype` | `q8` | Quantization: `fp32`, `fp16`, `q8`, `q4` |
+
+## Embedding config
+
+Set at server, project, or graph level. Resolution: **graph → project → server → defaults** (field-by-field merge — each field individually inherits up the chain, unlike model config).
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `batchSize` | `1` | Texts per forward pass |
+| `maxChars` | `8000` | Max characters per node |
+| `cacheSize` | `10000` | Embedding cache size (0 = disabled) |
+| `remote` | — | Remote embedding API URL |
+| `remoteApiKey` | — | API key for remote endpoint |
 
 ## Per-graph settings
 

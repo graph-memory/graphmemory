@@ -13,6 +13,7 @@ const config: Config = {
 
   url: 'https://graphmemory.dev',
   baseUrl: '/',
+  trailingSlash: false,
 
   organizationName: 'graph-memory',
   projectName: 'graphmemory',
@@ -83,7 +84,7 @@ const config: Config = {
   ],
 
   themeConfig: {
-    image: 'img/social-card.png',
+    image: 'img/social-card.svg',
     metadata: [
       {name: 'keywords', content: 'MCP, graph memory, semantic search, knowledge graph, AI tools, Model Context Protocol, code indexing'},
       {name: 'twitter:card', content: 'summary_large_image'},

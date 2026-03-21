@@ -56,7 +56,15 @@ BFS expansion is what makes graph-based search more powerful than flat document 
 | `bfsDepth` | 1 | How many hops to expand |
 | `bfsDecay` | 0.8 | Score multiplier per hop |
 | `maxResults` | 20 | Maximum results returned |
-| `minScore` | 0.5 | Minimum score threshold |
+| `minScore` | 0.5 (docs, notes, tasks, skills) / 0.3 (code) | Minimum score threshold |
+
+:::note File Index search defaults
+File Index search (`search_all_files`) uses different defaults: `topK: 10`, `minScore: 0.3`, and no BFS expansion. It uses vector-only search (no BM25) since file paths have no meaningful keyword text.
+:::
+
+:::note Code graph BFS behavior
+During BFS expansion in the Code graph, incoming import edges are excluded. This prevents popular utility files from pulling in every module that imports them, which would add noise to search results.
+:::
 
 ## Unified cross-graph search
 

@@ -66,14 +66,37 @@ server:
   modelsDir: "/data/models"
 ```
 
-## Zero-config Docker
+## Why a config file is required for Docker
 
-Mount your project at `/data/projects/my-project` and run without a config file:
+Running without a config file uses the container's working directory (`/app`) as the project, which indexes the built application files instead of your source code. Always provide a config file that points `projectDir` to the correct container path for your mounted project directories.
+
+## Write access for file mirror
+
+If you use knowledge, tasks, or skills graphs, the file mirror writes `.notes/`, `.tasks/`, and `.skills/` directories inside the project. In that case, do **not** mount the project directory as read-only (`:ro`):
 
 ```bash
+-v /path/to/my-app:/data/projects/my-app   # no :ro — allows file mirror writes
+```
+
+## Other commands
+
+Run one-shot indexing or force re-index via Docker:
+
+```bash
+# One-shot index
+docker run --rm \
+  -v $(pwd)/graph-memory.yaml:/data/config/graph-memory.yaml:ro \
+  -v /path/to/my-app:/data/projects/my-app:ro \
+  -v graph-memory-models:/data/models \
+  ghcr.io/graph-memory/graphmemory-server \
+  index --config /data/config/graph-memory.yaml
+
+# Force re-index on serve
 docker run -d \
   -p 3000:3000 \
-  -v $(pwd):/data/projects/my-project:ro \
+  -v $(pwd)/graph-memory.yaml:/data/config/graph-memory.yaml:ro \
+  -v /path/to/my-app:/data/projects/my-app:ro \
   -v graph-memory-models:/data/models \
-  ghcr.io/graph-memory/graphmemory-server
+  ghcr.io/graph-memory/graphmemory-server \
+  serve --config /data/config/graph-memory.yaml --reindex
 ```

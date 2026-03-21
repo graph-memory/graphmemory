@@ -20,11 +20,10 @@ Finds code blocks in documentation that mention a specific symbol.
 
 ### Parameters
 
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `symbol` | Yes | Symbol name to search for (e.g. `"UserService"`, `"createApp"`) |
-| `language` | No | Filter by language (e.g. `"typescript"`, `"python"`) |
-| `fileId` | No | Restrict search to a specific documentation file |
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `symbol` | Yes | — | Symbol name to search for (e.g. `"UserService"`, `"createApp"`) |
+| `limit` | No | 20 | Maximum results to return |
 
 ### Returns
 
@@ -45,8 +44,9 @@ Semantic search over code blocks extracted from documentation.
 | Parameter | Required | Default | Description |
 |-----------|----------|---------|-------------|
 | `query` | Yes | — | Search query (natural language) |
-| `topK` | No | 5 | Maximum results |
-| `minScore` | No | 0.5 | Minimum relevance score |
+| `topK` | No | 10 | Maximum results |
+| `minScore` | No | 0.3 | Minimum relevance score |
+| `language` | No | — | Filter by language (e.g. `"typescript"`, `"python"`) |
 
 ### Returns
 
@@ -64,11 +64,12 @@ Lists code blocks with optional filters.
 
 ### Parameters
 
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `fileId` | No | Filter by documentation file |
-| `language` | No | Filter by language (e.g. `"typescript"`) |
-| `filter` | No | Substring match on code content |
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `fileId` | No | — | Filter by documentation file |
+| `language` | No | — | Filter by language (e.g. `"typescript"`) |
+| `filter` | No | — | Substring match on code content |
+| `limit` | No | 20 | Maximum results to return |
 
 ### Returns
 
@@ -86,14 +87,14 @@ Finds a code example for a symbol along with its surrounding prose explanation.
 
 ### Parameters
 
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `symbol` | Yes | Symbol name to look up |
-| `fileId` | No | Restrict to a specific documentation file |
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `symbol` | Yes | — | Symbol name to look up |
+| `limit` | No | 10 | Maximum results to return |
 
 ### Returns
 
-`{ codeBlock, explanation, fileId }` — the code block containing the symbol and the text that explains it.
+Array of `{ codeBlock, explanation, fileId }` — each entry contains a code block referencing the symbol and the text section that explains it.
 
 ### When to use
 

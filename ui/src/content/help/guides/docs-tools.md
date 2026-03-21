@@ -101,11 +101,12 @@ Semantic search over all indexed documentation sections.
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `query` | string | Yes | — | Natural language search query |
-| `topK` | number | No | 5 | Number of seed nodes from vector search |
-| `bfsDepth` | number | No | 1 | Hops to follow cross-document links (0 = no expansion) |
-| `maxResults` | number | No | 20 | Maximum results to return |
+| `topK` | number | No | 5 | Number of seed nodes (1–500) |
+| `bfsDepth` | number | No | 1 | Hops to follow cross-document links (0–10) |
+| `maxResults` | number | No | 20 | Maximum results (1–500) |
 | `minScore` | number | No | 0.5 | Minimum relevance score (0–1) |
-| `bfsDecay` | number | No | 0.8 | Score multiplier per graph hop |
+| `bfsDecay` | number | No | 0.8 | Score multiplier per graph hop (0–1) |
+| `searchMode` | string | No | `hybrid` | `hybrid`, `vector`, or `keyword` |
 
 **Returns:** `[{ id, fileId, title, content, level, score }]`
 

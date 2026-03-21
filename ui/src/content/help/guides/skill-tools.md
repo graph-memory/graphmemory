@@ -138,11 +138,12 @@ Semantic search over the skill graph with BFS expansion.
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `query` | string | Yes | -- | Natural language search query |
-| `topK` | number | No | 5 | Seed nodes from vector search |
-| `bfsDepth` | number | No | 1 | Hops to follow relations (0 = no expansion) |
-| `maxResults` | number | No | 20 | Maximum results |
-| `minScore` | number | No | 0.5 | Minimum relevance score (0-1) |
-| `bfsDecay` | number | No | 0.8 | Score multiplier per hop |
+| `topK` | number | No | 5 | Seed nodes (1–500) |
+| `bfsDepth` | number | No | 1 | Hops to follow relations (0–10) |
+| `maxResults` | number | No | 20 | Maximum results (1–500) |
+| `minScore` | number | No | 0.5 | Minimum relevance score (0–1) |
+| `bfsDecay` | number | No | 0.8 | Score multiplier per hop (0–1) |
+| `searchMode` | string | No | `hybrid` | `hybrid`, `vector`, or `keyword` |
 
 **Returns:** `[{ id, title, description, steps, triggers, source, tags, score }]`
 

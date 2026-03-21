@@ -3,7 +3,7 @@
 ## Authentication
 
 - **Password hashing**: scrypt via `node:crypto` with timing-safe verification
-- **JWT tokens**: httpOnly cookies with `SameSite=Strict` and `Secure` (in production)
+- **JWT tokens**: HS256 algorithm (explicitly specified in sign/verify), httpOnly cookies with `SameSite=Strict` and `Secure` (default true unless `NODE_ENV=development`)
 - **API keys**: timing-safe comparison via `crypto.timingSafeEqual` for all key checks
 - **Refresh tokens**: scoped to `/api/auth/refresh` path, validated against current user config
 
@@ -44,15 +44,20 @@ Remote embedding URLs are validated to only allow `http:` and `https:` protocols
 
 Validated at two levels:
 
-1. **REST validation** (`src/api/rest/validation.ts`): Zod schema rejects filenames containing:
+1. **REST validation** (`src/api/rest/validation.ts`): `attachmentFilenameSchema` rejects filenames containing:
    - Path separators (`/`, `\`)
    - Parent directory traversal (`..`)
-   - Enforces length limits
+   - Null bytes and control characters
+   - Enforces length limits (1–255 chars)
 
-2. **Write-time sanitization** (`src/lib/file-mirror.ts`): `sanitizeFilename()` strips:
+2. **MCP tool validation**: attachment tools also validate filenames with the same Zod schema (defense-in-depth)
+
+3. **MCP add-attachment tools**: validate file path with `fs.statSync()` — reject directories, enforce 50 MB size limit
+
+4. **Write-time sanitization** (`src/lib/file-mirror.ts`): `sanitizeFilename()` strips:
    - Null bytes
    - `..` sequences
-   - Path separators
+   - Path separators (via `path.basename`)
 
 ### Content-Disposition
 
@@ -82,7 +87,7 @@ server:
     - "https://app.example.com"
 ```
 
-When not set, allows all origins (`*`). Credentials are always enabled.
+When not set, allows all origins (`*`). `credentials: true` is only enabled when explicit origins are configured — without origins, credentials mode is off (prevents CORS credential leak to arbitrary domains).
 
 ## Access control
 

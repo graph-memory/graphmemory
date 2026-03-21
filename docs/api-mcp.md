@@ -28,11 +28,11 @@
 
 | Tool | Input | Output |
 |------|-------|--------|
-| `list_topics` | — | `[{ fileId, title, chunks }]` |
+| `list_topics` | optional `filter`, `limit` | `[{ fileId, title, chunks }]` |
 | `get_toc` | `fileId` | `[{ id, title, level }]` |
 | `search` | `query` + optional `topK`, `bfsDepth`, `maxResults`, `minScore`, `bfsDecay`, `searchMode` | `[{ id, fileId, title, content, level, score }]` |
 | `get_node` | `nodeId` | `{ id, fileId, title, content, level, mtime }` |
-| `search_topic_files` | `query` + optional `topK`, `minScore` | `[{ fileId, title, score }]` |
+| `search_topic_files` | `query` + optional `topK`, `minScore` | `[{ fileId, title, chunks, score }]` |
 
 ## Code block tools
 
@@ -55,11 +55,11 @@ Requires both DocGraph and CodeGraph to be enabled. Bridges code definitions wit
 
 | Tool | Input | Output |
 |------|-------|--------|
-| `list_files` | — | `[{ fileId, symbolCount }]` |
+| `list_files` | optional `filter`, `limit` | `[{ fileId, symbolCount }]` |
 | `get_file_symbols` | `fileId` | `[{ id, kind, name, signature, startLine, endLine, isExported }]` |
-| `search_code` | `query` + optional search params | `[{ id, fileId, kind, name, signature, docComment, startLine, endLine, score }]` |
-| `get_symbol` | `nodeId` | `{ id, fileId, kind, name, signature, docComment, body, startLine, endLine, isExported }` |
-| `search_files` | `query` + optional `topK`, `minScore` | `[{ fileId, score }]` |
+| `search_code` | `query` + optional `topK`, `bfsDepth`, `maxResults`, `minScore`, `bfsDecay`, `searchMode`, `includeBody` | `[{ id, fileId, kind, name, signature, docComment, startLine, endLine, score, body? }]` |
+| `get_symbol` | `nodeId` | `{ id, fileId, kind, name, signature, docComment, body, startLine, endLine, isExported, crossLinks? }` |
+| `search_files` | `query` + optional `topK`, `minScore` | `[{ fileId, symbolCount, score }]` |
 
 ## File index tools
 
@@ -78,13 +78,13 @@ Requires both DocGraph and CodeGraph to be enabled. Bridges code definitions wit
 | `delete_note` | `noteId` | `{ noteId, deleted }` |
 | `get_note` | `noteId` | `{ id, title, content, tags, createdAt, updatedAt }` |
 | `list_notes` | optional `filter`, `tag`, `limit` | `[{ id, title, tags, updatedAt }]` |
-| `search_notes` | `query` + optional search params | `[{ id, title, content, tags, score }]` |
-| `create_relation` | `fromId`, `toId`, `kind` + optional `targetGraph` | `{ fromId, toId, kind, targetGraph?, created }` |
-| `delete_relation` | `fromId`, `toId` + optional `targetGraph` | `{ fromId, toId, deleted }` |
+| `search_notes` | `query` + optional `topK`, `bfsDepth`, `maxResults`, `minScore`, `bfsDecay`, `searchMode` | `[{ id, title, content, tags, score }]` |
+| `create_relation` | `fromId`, `toId`, `kind` + optional `targetGraph`, `projectId` | `{ fromId, toId, kind, targetGraph?, created }` |
+| `delete_relation` | `fromId`, `toId` + optional `targetGraph`, `projectId` | `{ fromId, toId, deleted }` |
 | `list_relations` | `noteId` | `[{ fromId, toId, kind, targetGraph? }]` |
-| `find_linked_notes` | `targetId`, `targetGraph` | `[{ noteId, kind }]` |
-| `add_note_attachment` | `noteId`, `filename`, `content` (base64) | `{ noteId, filename, added }` |
-| `remove_note_attachment` | `noteId`, `filename` | `{ noteId, filename, removed }` |
+| `find_linked_notes` | `targetId`, `targetGraph` + optional `kind`, `projectId` | `[{ noteId, title, kind, tags }]` |
+| `add_note_attachment` | `noteId`, `filePath` (absolute path on disk) | `{ filename, mimeType, size, addedAt }` |
+| `remove_note_attachment` | `noteId`, `filename` | `{ deleted: filename }` |
 
 ## Task tools
 
@@ -93,35 +93,35 @@ Requires both DocGraph and CodeGraph to be enabled. Bridges code definitions wit
 | `create_task` | `title` + optional `description`, `status`, `priority`, `tags`, `dueDate`, `estimate`, `assignee` | `{ taskId }` |
 | `update_task` | `taskId` + optional fields | `{ taskId, updated }` |
 | `delete_task` | `taskId` | `{ taskId, deleted }` |
-| `get_task` | `taskId` | `{ id, title, description, status, priority, tags, dueDate, estimate, assignee, completedAt, createdAt, updatedAt, subtasks, blockedBy, blocks, related }` |
+| `get_task` | `taskId` | `{ id, title, description, status, priority, tags, dueDate, estimate, assignee, completedAt, createdAt, updatedAt, subtasks, blockedBy, blocks, related, crossLinks? }` |
 | `list_tasks` | optional `status`, `priority`, `tag`, `filter`, `assignee`, `limit` | `[{ id, title, status, priority, tags, dueDate, estimate, assignee, completedAt }]` |
-| `search_tasks` | `query` + optional search params | `[{ id, title, description, status, priority, tags, score }]` |
+| `search_tasks` | `query` + optional `topK`, `bfsDepth`, `maxResults`, `minScore`, `bfsDecay`, `searchMode` | `[{ id, title, description, status, priority, tags, score }]` |
 | `move_task` | `taskId`, `status` | `{ taskId, status, completedAt }` |
 | `link_task` | `fromId`, `toId`, `kind` (`subtask_of`, `blocks`, `related_to`) | `{ fromId, toId, kind, created }` |
-| `create_task_link` | `taskId`, `targetId`, `targetGraph` | `{ taskId, targetId, targetGraph, created }` |
-| `delete_task_link` | `taskId`, `targetId`, `targetGraph` | `{ taskId, targetId, deleted }` |
-| `find_linked_tasks` | `targetId`, `targetGraph` | `[{ taskId, kind }]` |
-| `add_task_attachment` | `taskId`, `filename`, `content` (base64) | `{ taskId, filename, added }` |
-| `remove_task_attachment` | `taskId`, `filename` | `{ taskId, filename, removed }` |
+| `create_task_link` | `taskId`, `targetId`, `targetGraph`, `kind` + optional `projectId` | `{ taskId, targetId, targetGraph, kind, created }` |
+| `delete_task_link` | `taskId`, `targetId`, `targetGraph` + optional `projectId` | `{ taskId, targetId, deleted }` |
+| `find_linked_tasks` | `targetId`, `targetGraph` + optional `kind`, `projectId` | `[{ taskId, title, kind, status, priority, tags }]` |
+| `add_task_attachment` | `taskId`, `filePath` (absolute path on disk) | `{ filename, mimeType, size, addedAt }` |
+| `remove_task_attachment` | `taskId`, `filename` | `{ deleted: filename }` |
 
 ## Skill tools
 
 | Tool | Input | Output |
 |------|-------|--------|
-| `create_skill` | `title` + optional `description`, `steps`, `triggers`, `source`, `tags` | `{ skillId }` |
+| `create_skill` | `title`, `description` + optional `steps`, `triggers`, `inputHints`, `filePatterns`, `tags`, `source`, `confidence` | `{ skillId }` |
 | `update_skill` | `skillId` + optional fields | `{ skillId, updated }` |
 | `delete_skill` | `skillId` | `{ skillId, deleted }` |
-| `get_skill` | `skillId` | `{ id, title, description, steps, triggers, source, tags, usageCount, lastUsedAt, createdAt, updatedAt, dependsOn, dependedBy, related, variants }` |
+| `get_skill` | `skillId` | `{ id, title, description, steps, triggers, inputHints, filePatterns, source, confidence, tags, usageCount, lastUsedAt, createdAt, updatedAt, dependsOn, dependedBy, related, variants, crossLinks? }` |
 | `list_skills` | optional `source`, `tag`, `filter`, `limit` | `[{ id, title, source, tags, usageCount, lastUsedAt }]` |
-| `search_skills` | `query` + optional search params | `[{ id, title, description, source, tags, score }]` |
+| `search_skills` | `query` + optional `topK`, `bfsDepth`, `maxResults`, `minScore`, `bfsDecay`, `searchMode` | `[{ id, title, description, source, confidence, usageCount, tags, score }]` |
 | `recall_skills` | `context` + optional `topK`, `minScore` | `[{ id, title, description, steps, triggers, source, tags, score, usageCount }]` |
 | `bump_skill_usage` | `skillId` | `{ skillId, usageCount, lastUsedAt }` |
 | `link_skill` | `fromId`, `toId`, `kind` (`depends_on`, `related_to`, `variant_of`) | `{ fromId, toId, kind, created }` |
-| `create_skill_link` | `skillId`, `targetId`, `targetGraph` | `{ skillId, targetId, targetGraph, created }` |
-| `delete_skill_link` | `skillId`, `targetId`, `targetGraph` | `{ skillId, targetId, deleted }` |
-| `find_linked_skills` | `targetId`, `targetGraph` | `[{ skillId, kind }]` |
-| `add_skill_attachment` | `skillId`, `filename`, `content` (base64) | `{ skillId, filename, added }` |
-| `remove_skill_attachment` | `skillId`, `filename` | `{ skillId, filename, removed }` |
+| `create_skill_link` | `skillId`, `targetId`, `targetGraph`, `kind` + optional `projectId` | `{ skillId, targetId, targetGraph, kind, created }` |
+| `delete_skill_link` | `skillId`, `targetId`, `targetGraph` + optional `projectId` | `{ skillId, targetId, deleted }` |
+| `find_linked_skills` | `targetId`, `targetGraph` + optional `kind`, `projectId` | `[{ skillId, title, kind, source, tags }]` |
+| `add_skill_attachment` | `skillId`, `filePath` (absolute path on disk) | `{ filename, mimeType, size, addedAt }` |
+| `remove_skill_attachment` | `skillId`, `filename` | `{ deleted: filename }` |
 
 ## Mutation serialization
 

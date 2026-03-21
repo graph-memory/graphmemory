@@ -18,7 +18,7 @@ npm run cli:dev        # tsx src/cli/index.ts (no build needed)
 
 Run tests:
 ```bash
-npm test                               # all tests (1240 tests across 28 suites)
+npm test                               # all tests (1485 tests across 34 suites)
 npm test -- --testPathPatterns=search   # specific test file
 npm run test:watch                     # watch mode
 npx tsx src/tests/embedder.test.ts     # real model test (slow, excluded from Jest)

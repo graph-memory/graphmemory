@@ -8,7 +8,8 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
     {
       description:
         'Semantic search over the knowledge graph (facts and notes). ' +
-        'Finds the most relevant notes using vector similarity, then expands results ' +
+        'Supports three modes: hybrid (default, BM25 + vector), vector, keyword. ' +
+        'Finds the most relevant notes, then expands results ' +
         'by traversing relations between notes (graph walk). ' +
         'Returns an array sorted by relevance score (0–1), each with: ' +
         'id, title, content, tags, score.',

@@ -134,7 +134,7 @@ function buildInstructions(ctx: McpSessionContext): string {
 
 /**
  * Creates the McpServer with all tools wired to the given graphs.
- * Pass docGraph to enable the 10 doc tools (5 base + 5 code-block tools);
+ * Pass docGraph to enable the 9 doc tools (5 base + 4 code-block) + 1 cross_references (needs codeGraph too);
  * pass codeGraph to enable the 5 code tools;
  * pass fileIndexGraph to enable the 3 file index tools.
  * cross_references requires both docGraph and codeGraph.

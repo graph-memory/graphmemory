@@ -17,7 +17,9 @@ const CATEGORY_COLORS: Record<string, 'success' | 'error' | 'warning' | 'neutral
   code: 'success',
   knowledge: 'warning',
   tasks: 'neutral',
+  skills: 'primary',
   files: 'neutral',
+  context: 'neutral',
   'cross-graph': 'error',
 };
 

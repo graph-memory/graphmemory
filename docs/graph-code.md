@@ -9,7 +9,16 @@ Stores AST symbols extracted from source files via tree-sitter parsing.
 ### Node kinds
 
 ```typescript
-type CodeNodeKind = 'file' | 'function' | 'class' | 'method' | 'interface' | 'type' | 'enum' | 'variable';
+type CodeNodeKind =
+  | 'file'        // file root (imports + file-level JSDoc)
+  | 'function'    // function / arrow function / function expression / ambient function
+  | 'class'       // class or abstract class declaration
+  | 'method'      // class method or abstract method
+  | 'constructor' // class constructor
+  | 'interface'   // interface declaration
+  | 'type'        // type alias
+  | 'enum'        // enum declaration
+  | 'variable';   // const / let / var / class field / interface property
 ```
 
 ### Node attributes
@@ -19,7 +28,7 @@ type CodeNodeKind = 'file' | 'function' | 'class' | 'method' | 'interface' | 'ty
 | `kind` | CodeNodeKind | Node type |
 | `fileId` | string | Source file relative to `projectDir` |
 | `name` | string | Symbol name (e.g. `"updateFile"`) |
-| `signature` | string | First line of the declaration (max 200 chars) |
+| `signature` | string | Declaration header before body (max 300 chars) |
 | `docComment` | string | JSDoc comment if present, else `""` |
 | `body` | string | Full source text of the declaration |
 | `startLine` | number | 1-based start line |

@@ -34,6 +34,7 @@ From each seed node, traverse outgoing **and** incoming edges up to `bfsDepth` h
 - Each hop multiplies the score by `bfsDecay` (default 0.8)
 - Prune early if `score * bfsDecay < minScore`
 - Neighboring nodes discovered via BFS inherit decayed scores
+- **Code graph**: incoming `imports` edges are excluded from BFS to avoid noise from popular utility files being pulled in as neighbors of every search result
 
 ### Step 5: Merge and output
 
@@ -82,7 +83,7 @@ Splits text into tokens by:
 2. Punctuation boundaries
 3. CamelCase boundaries: `getUserById` → `[get, user, by, id]`
 
-All tokens are lowercased.
+All tokens are lowercased. A minimal stop-word list filters common words that never carry meaning in code search: articles (`a`, `an`, `the`), conjunctions (`and`, `or`, `but`), prepositions (`of`, `with`, `by`, `from`, `in`, `to`, etc.), pronouns (`it`, `he`, `she`, `we`, `they`), and modals (`would`, `could`, `should`). Programming-significant words like `for`, `do`, `if`, `not`, `is`, `has`, `can` are preserved.
 
 ### Text extraction
 
@@ -91,7 +92,7 @@ Each graph defines what text to extract for BM25 indexing:
 | Graph | BM25 text |
 |-------|-----------|
 | DocGraph | `title + content` |
-| CodeGraph | `name + signature + docComment` |
+| CodeGraph | `name + signature + docComment + body` |
 | KnowledgeGraph | `title + content` |
 | TaskGraph | `title + description` |
 | SkillGraph | `title + description + triggers` (triggers included!) |

@@ -32,23 +32,31 @@ The language mapper walks the AST and extracts **top-level declarations**:
 | Declaration type | Kind | Examples |
 |-----------------|------|---------|
 | Function declarations | `function` | `function login()`, `export function createUser()` |
-| Arrow functions assigned to const | `function` | `const handler = () => { ... }` |
+| Function signatures (ambient) | `function` | `declare function fetch(url: string): Promise<any>` |
+| Arrow / function expressions | `function` | `const handler = () => { ... }`, `const fn = function() { ... }` |
 | Class declarations | `class` | `class UserService { ... }` |
-| Class methods | `method` | `constructor()`, `getUser()`, `private validate()` |
+| Abstract class declarations | `class` | `abstract class BaseRepo { ... }` |
+| Class constructors | `constructor` | `constructor(db: Database)` |
+| Class methods | `method` | `getUser()`, `private validate()` |
+| Abstract methods | `method` | `abstract findById(id: string): Entity` |
 | Interface declarations | `interface` | `interface User { ... }` |
+| Interface method signatures | `method` | `process(item: T): void` (inside interface body) |
+| Interface property signatures | `variable` | `readonly name: string` (inside interface body) |
 | Type aliases | `type` | `type Status = 'active' \| 'inactive'` |
 | Enum declarations | `enum` | `enum Role { Admin, User }` |
-| Exported variables | `variable` | `export const MAX_RETRIES = 3` |
+| Variables (const/let) | `variable` | `export const MAX_RETRIES = 3`, `let counter = 0` |
 
 For each symbol, the parser extracts:
 - **name** — symbol name
-- **signature** — first line (max 200 chars), includes JSDoc if present
+- **signature** — everything before the body (truncated to 300 chars), uses byte-offset slicing for accuracy
 - **docComment** — JSDoc block (`/** ... */`) from the preceding comment node
 - **body** — full source text
 - **startLine / endLine** — 1-based line numbers
 - **isExported** — whether the symbol is exported
 
-Classes get special treatment — methods are extracted as **child nodes** with `contains` edges from the class node.
+Classes get special treatment — constructors, methods, and fields are extracted as **child nodes** with `contains` edges from the class node. Interfaces extract property and method signatures as children. Functions can contain **nested named function declarations** (1 level deep), also extracted as children.
+
+Generic type parameters are handled transparently: `Foo<T>` extracts the base type name `"Foo"` for extends/implements edges, so `class Repo extends Base<Entity>` creates an `extends` edge to `Base`.
 
 ### Step 3: Extract relationships
 
@@ -73,13 +81,17 @@ Import resolution tries multiple patterns:
 2. Extension search: `./auth` → tries `.ts`, `.tsx`, `.js`, `.jsx`, `.mts`, `.cts`, `.mjs`, `.cjs`
 3. Index files: `./auth/` → tries `./auth/index.ts`, `./auth/index.js`, etc.
 
-Only relative imports (`./`, `../`) are resolved — external packages are skipped.
+Import resolution also supports **tsconfig/jsconfig path aliases** (e.g., `@/lib/utils` → `src/lib/utils.ts`). The nearest `tsconfig.json` or `jsconfig.json` is found by walking up from the file's directory. JSONC comments in config files are stripped correctly (preserving string contents).
 
-**Extends / implements**: class → class/interface (same file)
+External packages (bare specifiers like `express`, `graphology`) are skipped.
+
+**Extends / implements**: class → class/interface (intra-file resolved immediately; cross-file deferred)
 ```
 src/admin.ts::AdminService [extends] → src/admin.ts::UserService
 src/admin.ts::AdminService [implements] → src/admin.ts::Auditable
 ```
+
+**Re-exports**: `export { Foo } from './bar'` creates an `imports` edge to the source file, same as regular imports.
 
 ### Step 4: Embed symbols
 
@@ -116,15 +128,14 @@ Every indexed source file gets a root node with kind `file`. This node stores:
 
 This gives LLMs file-level context without reading the entire file.
 
-## Dangling edges
+## Deferred edge resolution
 
-Cross-file edges (`imports`, etc.) require the target file to already be in the graph. If file A imports file B, but file B hasn't been indexed yet, the import edge is **skipped**.
+Cross-file edges (`imports`, `extends`, `implements`) require the target to exist in the graph. If the target hasn't been indexed yet, the edge is **stored as pending** on the file node:
 
-These dangling edges are **not** retroactively created when file B is later indexed. To establish all cross-file edges, either:
-- Re-index file A after file B is indexed
-- Run a full re-index (`--reindex`)
+- **pendingImports** — unresolved import targets (file IDs)
+- **pendingEdges** — unresolved extends/implements (class name + kind)
 
-This is a deliberate trade-off for simplicity — most edge cases resolve naturally during the initial full scan.
+After the full scan completes, the indexer calls `resolvePendingImports()` and `resolvePendingEdges()` to create edges for targets that now exist. Any remaining unresolved edges stay as pending metadata for future re-indexes.
 
 ## What this enables
 

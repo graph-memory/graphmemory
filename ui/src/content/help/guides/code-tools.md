@@ -15,12 +15,14 @@ The code tools let you search and navigate your indexed TypeScript/JavaScript so
 ## What gets indexed
 
 The code parser uses tree-sitter to extract:
-- **Functions** — name, signature, JSDoc, line range, exported flag
-- **Classes** — name, methods, extends/implements relationships
-- **Interfaces** and **Types** — name, signature
-- **Enums** — name, members
-- **Variables** (exported) — name, type
-- **Methods** — as children of their parent class
+- **Functions** — declarations, arrow functions, function expressions, ambient (`declare function`)
+- **Classes** — concrete and abstract, with constructors, methods, and fields as children
+- **Interfaces** — with method signatures and property signatures as children
+- **Types** and **Enums** — name, signature
+- **Variables** — exported and non-exported (`const`, `let`)
+- **Constructors** — extracted as `kind: 'constructor'` (distinct from methods)
+- **Nested functions** — named functions inside function bodies (1 level deep)
+- **Generic types** — `Foo<T>` extracts base name `"Foo"` for extends/implements edges
 
 Edges capture structural relationships:
 - `contains` — file → symbol, class → method
@@ -84,7 +86,7 @@ Return all symbols declared in a specific file.
 
 **Returns:** `[{ id, kind, name, signature, startLine, endLine, isExported }]`
 
-Symbol kinds: `function`, `class`, `interface`, `type`, `enum`, `variable`, `method`, `property`.
+Symbol kinds: `function`, `class`, `interface`, `type`, `enum`, `variable`, `method`, `constructor`.
 
 ### search_code
 
@@ -93,13 +95,15 @@ Semantic search over code symbols. Matches against signatures and doc comments u
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `query` | string | Yes | — | Natural language or code search query |
-| `topK` | number | No | 5 | Number of seed nodes from vector search |
-| `bfsDepth` | number | No | 1 | Hops to follow graph edges (imports, contains, extends) from each seed. 0 = no expansion |
-| `maxResults` | number | No | 20 | Maximum results to return |
-| `minScore` | number | No | 0.5 | Minimum relevance score (0–1) |
-| `bfsDecay` | number | No | 0.8 | Score multiplier per graph hop |
+| `topK` | number | No | 5 | Number of seed nodes (1–500) |
+| `bfsDepth` | number | No | 1 | Hops to follow graph edges (0–10). 0 = no expansion |
+| `maxResults` | number | No | 20 | Maximum results to return (1–500) |
+| `minScore` | number | No | 0.3 | Minimum relevance score (0–1) |
+| `bfsDecay` | number | No | 0.8 | Score multiplier per graph hop (0–1) |
+| `searchMode` | string | No | `hybrid` | `hybrid`, `vector`, or `keyword` |
+| `includeBody` | boolean | No | `false` | Include full body text in results |
 
-**Returns:** `[{ id, fileId, kind, name, signature, docComment, startLine, endLine, score }]`
+**Returns:** `[{ id, fileId, kind, name, signature, docComment, startLine, endLine, score, body? }]`
 
 ### get_symbol
 
@@ -133,4 +137,5 @@ Semantic search at file level using file path embeddings.
 - `search_files` is useful as a first step when exploring unfamiliar codebases
 - The `cross_references` tool (see dedicated guide) is the most comprehensive way to understand a symbol
 - BFS expansion in `search_code` follows `imports`, `contains`, and `extends` edges — set `bfsDepth: 2` to discover related modules
-- Code graph edges track `imports` for relative imports only (`./ ../` paths); external packages are skipped
+- Code graph edges track `imports` for relative imports and tsconfig path aliases (`@/lib/foo`); external packages are skipped
+- BFS in `search_code` excludes reverse `imports` edges — popular utility files won't flood results

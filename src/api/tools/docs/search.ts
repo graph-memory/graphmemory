@@ -8,7 +8,8 @@ export function register(server: McpServer, mgr: DocGraphManager): void {
     {
       description:
         'Semantic search over the indexed documentation. ' +
-        'Finds the most relevant sections using vector similarity, then expands results ' +
+        'Supports three modes: hybrid (default, BM25 + vector), vector, keyword. ' +
+        'Finds the most relevant sections, then expands results ' +
         'by traversing links between documents (graph walk). ' +
         'Returns an array of chunks sorted by relevance score (0–1), each with: ' +
         'id, fileId, title, content, level, score. ' +

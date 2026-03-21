@@ -8,10 +8,11 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
     {
       description:
         'Semantic search over the skill graph. ' +
-        'Finds the most relevant skills using vector similarity, then expands results ' +
+        'Supports three modes: hybrid (default, BM25 + vector), vector, keyword. ' +
+        'Finds the most relevant skills, then expands results ' +
         'by traversing relations between skills (graph walk). ' +
         'Returns an array sorted by relevance score (0–1), each with: ' +
-        'id, title, description, tags, source, confidence, score.',
+        'id, title, description, tags, source, confidence, usageCount, score.',
       inputSchema: {
         query:      z.string().describe('Natural language search query'),
         topK:       z.number().min(1).max(500).optional().describe('How many top similar skills to use as seeds (default 5)'),

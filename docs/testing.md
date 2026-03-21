@@ -3,9 +3,9 @@
 ## Overview
 
 - **Framework**: Jest with ts-jest
-- **Test suites**: 28 (29 files, 1 excluded from Jest)
-- **Tests**: 1240
-- **Coverage**: all graph types, MCP tools, REST API, search, config, file mirror, BM25, access control, JWT auth
+- **Test suites**: 34 (36 files, 2 excluded from Jest)
+- **Tests**: 1485
+- **Coverage**: all graph types, MCP tools (58/58), REST API (70/70 endpoints), search (all 7 modules), parsers, config, file mirror, BM25, access control, JWT auth, attachments
 
 ## Running tests
 
@@ -30,7 +30,8 @@ npx tsx src/tests/parser.debug.ts      # Debug script, no assertions
 |-------|------|-------------|
 | `graph.test.ts` | Docs graph | DocGraph CRUD + persistence |
 | `code-graph.test.ts` | Code graph | CodeGraph CRUD + persistence |
-| `code-parser.test.ts` | Code parser | tree-sitter AST parser |
+| `code-parser.test.ts` | Code parser | tree-sitter AST parser (basic fixtures) |
+| `code-parser-advanced.test.ts` | Code parser | abstract classes, constructors, generics, nested functions, ambient declarations, path aliases, JSONC |
 | `codeblock-parser.test.ts` | Code blocks | Code block extraction + symbol extraction |
 | `knowledge-graph.test.ts` | Knowledge graph | KnowledgeGraph CRUD + search + cross-graph proxy |
 | `file-index-graph.test.ts` | File index | FileIndexGraph CRUD + directory chain + search |
@@ -49,6 +50,13 @@ npx tsx src/tests/parser.debug.ts      # Debug script, no assertions
 | `mcp-tasks.test.ts` | Task tools | CRUD tasks + relations + search + cross-graph links |
 | `mcp-skills.test.ts` | Skill tools | CRUD skills + relations + search + cross-graph links |
 | `mcp-context.test.ts` | Context tool | get_context project/workspace context |
+| `mcp-attachments.test.ts` | Attachments | All 6 attachment MCP tools + filename validation |
+
+### Docs parser tests
+
+| Suite | File | Description |
+|-------|------|-------------|
+| `docs-parser-advanced.test.ts` | Docs parser | Wiki links, external URL filtering, tilde fences, chunkDepth, heading edge cases, filename fallback |
 
 ### Search tests
 
@@ -56,6 +64,13 @@ npx tsx src/tests/parser.debug.ts      # Debug script, no assertions
 |-------|------|-------------|
 | `search.test.ts` | Docs search | BFS + cosine search unit test |
 | `bm25.test.ts` | BM25 | BM25 algorithm, tokenizer, RRF fusion |
+| `search-gaps.test.ts` | Search gaps | Hybrid/keyword modes, proxy filtering, BFS decay, empty graph, stop-words, normalization |
+
+### Graph gap tests
+
+| Suite | File | Description |
+|-------|------|-------------|
+| `graph-gaps.test.ts` | Graph gaps | VersionConflictError, resolvePendingLinks/Imports/Edges, manager methods, empty graph ops, BM25 wrapper, circular imports |
 
 ### Infrastructure tests
 
@@ -69,7 +84,8 @@ npx tsx src/tests/parser.debug.ts      # Debug script, no assertions
 
 | Suite | File | Description |
 |-------|------|-------------|
-| `rest-api.test.ts` | REST API | Express routes, Zod validation, CRUD, JWT auth |
+| `rest-api.test.ts` | REST API | Express routes, Zod validation, CRUD, JWT auth, attachments |
+| `rest-api-gaps.test.ts` | REST gaps | Skills/Docs/Code/Tools REST, missing knowledge/tasks/files endpoints |
 
 ### File mirror tests
 
@@ -119,7 +135,12 @@ Jest mocks for ESM-only packages:
 - `api.md`, `auth.md` — markdown docs for testing
 - `codeblocks.md` — code blocks in markdown
 - `duplicates.md` — duplicate headings
-- `code/` — TypeScript files with `tsconfig.json`
+- `links.md` — wiki links, external URLs, link-in-code-fence
+- `notitle.md` — file without `# Title` heading
+- `tilde-fences.md` — tilde code fences and empty blocks
+- `edge-cases.md` — heading edge cases, triple duplicates
+- `code/` — TypeScript files with `tsconfig.json` (paths aliases)
+- `code/advanced.ts` — abstract class, constructor, generics, ambient, nested fn, re-export
 
 ## Test patterns
 

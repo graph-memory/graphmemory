@@ -8,7 +8,8 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
     {
       description:
         'Semantic search over the task graph. ' +
-        'Finds the most relevant tasks using vector similarity, then expands results ' +
+        'Supports three modes: hybrid (default, BM25 + vector), vector, keyword. ' +
+        'Finds the most relevant tasks, then expands results ' +
         'by traversing relations between tasks (graph walk). ' +
         'Returns an array sorted by relevance score (0–1), each with: ' +
         'id, title, description, status, priority, tags, score.',

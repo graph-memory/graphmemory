@@ -8,8 +8,10 @@ export function register(server: McpServer, mgr: CodeGraphManager): void {
     {
       description:
         'Semantic search over the indexed source code. ' +
-        'Finds the most relevant symbols (functions, classes, types) by matching ' +
-        'against their signatures and doc comments using vector similarity, ' +
+        'Supports three modes: hybrid (default, combines BM25 keyword + vector similarity), ' +
+        'vector (embedding only), keyword (BM25 text matching only). ' +
+        'Finds the most relevant symbols (functions, classes, constructors, types) by matching ' +
+        'against name, signature, doc comments, and body text, ' +
         'then expands results by following graph edges (imports, contains, extends). ' +
         'Returns an array sorted by relevance score (0–1), each with: ' +
         'id, fileId, kind, name, signature, docComment, startLine, endLine, score. ' +

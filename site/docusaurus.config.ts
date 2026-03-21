@@ -92,6 +92,10 @@ const config: Config = {
     [
       'classic',
       {
+        gtag: {
+          trackingID: 'G-8DM7KRKR58',
+          anonymizeIP: true,
+        },
         docs: {
           sidebarPath: './sidebars.ts',
           editUrl: 'https://github.com/graph-memory/graphmemory/tree/main/site/',

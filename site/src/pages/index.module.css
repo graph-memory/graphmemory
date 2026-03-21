@@ -748,6 +748,131 @@
   color: var(--ifm-color-primary);
 }
 
+/* ─── Feature Showcases ─── */
+.featBlock {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3rem;
+  align-items: center;
+  padding: 3rem 0;
+}
+
+.featBlock + .featBlock {
+  border-top: 1px solid var(--ifm-color-emphasis-100);
+}
+
+[data-theme='dark'] .featBlock + .featBlock {
+  border-top-color: rgba(255, 255, 255, 0.05);
+}
+
+.featReverse {
+  direction: rtl;
+}
+
+.featReverse > * {
+  direction: ltr;
+}
+
+.featContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.featLabel {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ifm-color-primary);
+  margin-bottom: 0.25rem;
+}
+
+.featTitle {
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.featDesc {
+  font-size: 1rem;
+  color: var(--ifm-color-emphasis-700);
+  line-height: 1.6;
+  margin: 0;
+}
+
+[data-theme='dark'] .featDesc {
+  color: var(--ifm-color-emphasis-500);
+}
+
+.featBullets {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.featBullets li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+[data-theme='dark'] .featBullets li {
+  color: var(--ifm-color-emphasis-500);
+}
+
+.featBullets li::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ifm-color-primary);
+  flex-shrink: 0;
+}
+
+.featImg {
+  width: 100%;
+  border-radius: var(--gm-radius);
+  border: 1px solid var(--gm-card-border);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme='dark'] .featImg {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.featCta {
+  margin-top: 0.5rem;
+}
+
+.featCta a {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ifm-color-primary);
+}
+
+@media (max-width: 768px) {
+  .featBlock {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    padding: 2rem 0;
+  }
+  .featReverse {
+    direction: ltr;
+  }
+  .featTitle {
+    font-size: 1.3rem;
+  }
+}
+
 /* ─── Final CTA ─── */
 .ctaSection {
   padding: 5rem 0;

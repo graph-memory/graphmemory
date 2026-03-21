@@ -341,6 +341,72 @@ function PromptBuilder() {
   );
 }
 
+function Features() {
+  const features = [
+    {
+      label: 'Task Management',
+      title: 'Kanban Board with AI Integration',
+      desc: 'Full kanban workflow — your AI assistant creates, moves, and links tasks while you work. Priorities, assignees, due dates, estimates, and cross-graph linking to code and docs.',
+      bullets: ['Drag-and-drop across 6 statuses', 'Cross-graph links to code symbols and docs', 'File mirror — edit .tasks/ in your IDE', 'Optimistic locking for team concurrency'],
+      img: '/img/screenshots/tasks-kanban-dark.png',
+      alt: 'Kanban board with tasks',
+      href: '/docs/concepts/tasks',
+    },
+    {
+      label: 'Search',
+      title: 'Hybrid Search Across Everything',
+      desc: 'Not keyword-only, not vector-only — both. BM25 keyword matching + vector cosine similarity fused via Reciprocal Rank Fusion, then expanded via graph BFS traversal.',
+      bullets: ['BM25 + vector + RRF fusion', 'Graph-aware BFS expansion', 'One query searches all 6 graphs', 'Local embeddings — no API calls'],
+      img: '/img/screenshots/search-dark.png',
+      alt: 'Search results across graphs',
+      href: '/docs/concepts/search',
+    },
+    {
+      label: 'Developer Experience',
+      title: 'File Mirror — Edit in Your IDE',
+      desc: 'Every note, task, and skill is mirrored to markdown files in your project. Edit them in VS Code, commit to git, review in PRs. Changes sync back automatically.',
+      bullets: ['.notes/ — knowledge base as markdown', '.tasks/ — tasks with YAML frontmatter', '.skills/ — procedures your team can share', 'Attachments stored alongside files'],
+      img: '/img/screenshots/knowledge-dark.png',
+      alt: 'Knowledge notes',
+      href: '/docs/concepts/knowledge-graph',
+    },
+    {
+      label: 'Connecting the Dots',
+      title: 'Cross-Graph Links',
+      desc: 'Link a task to the code it affects. Connect a note to the doc it references. Graph Memory creates phantom proxy nodes that bridge all six graphs into one connected web.',
+      bullets: ['Link any node to any other graph', 'Automatic cleanup when targets are removed', 'Workspace-wide links across projects', 'Navigate from code → docs → tasks → knowledge'],
+      img: '/img/screenshots/graph-dark.png',
+      alt: 'Graph visualization with cross-graph links',
+      href: '/docs/concepts/cross-graph-links',
+    },
+  ];
+
+  return (
+    <section className={s.sec}>
+      <div className="container">
+        <Heading as="h2" className={s.h2}>What makes it different</Heading>
+        <p className={s.lead}>Not another RAG pipeline. A structured, interconnected project memory.</p>
+        {features.map(({label, title, desc, bullets, img, alt, href}, i) => (
+          <div key={label} className={clsx(s.featBlock, i % 2 === 1 && s.featReverse)}>
+            <div className={s.featContent}>
+              <span className={s.featLabel}>{label}</span>
+              <h3 className={s.featTitle}>{title}</h3>
+              <p className={s.featDesc}>{desc}</p>
+              <ul className={s.featBullets}>
+                {bullets.map(b => <li key={b}>{b}</li>)}
+              </ul>
+              <div className={s.featCta}>
+                <Link to={href}>Learn more →</Link>
+              </div>
+            </div>
+            <img src={img} alt={alt} className={s.featImg} loading="lazy" />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function UseCases() {
   const cases = [
     {title: 'Project Onboarding', desc: 'New developer? Search docs, explore code symbols, read team notes — all from your AI assistant.', href: '/docs/use-cases/onboarding'},
@@ -393,6 +459,7 @@ export default function Home(): React.JSX.Element {
         <Why />
         <Steps />
         <PromptBuilder />
+        <Features />
         <Graphs />
         <WebUI />
         <Tools />

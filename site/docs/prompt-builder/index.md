@@ -10,6 +10,8 @@ keywords: [prompt builder, system prompt, AI assistant, MCP tools, prompt engine
 
 The Prompt Builder is a visual tool that generates optimized system prompts for AI assistants. Instead of writing system prompts by hand, you pick your scenario, configure which graphs and tools to use, and the builder assembles a structured prompt that tells your AI assistant exactly how to work with your project's knowledge graph.
 
+![Prompt Builder](/img/screenshots/prompts-simple-dark.png)
+
 ## Why use generated prompts?
 
 AI assistants work significantly better when their system prompts are tailored to the task at hand. A prompt built for code review emphasizes different tools and behaviors than one built for onboarding or architecture design. The Prompt Builder handles this by:

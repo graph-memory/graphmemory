@@ -10,6 +10,8 @@ keywords: [MCP tools, Model Context Protocol, API, tool reference, graph memory]
 
 Graph Memory exposes **58 MCP tools** that let AI assistants read, search, and write to your project's knowledge base. These tools are the primary interface between your AI assistant and Graph Memory.
 
+![MCP Tools Explorer in Web UI](/img/screenshots/tools-dark.png)
+
 ## What is MCP?
 
 [Model Context Protocol (MCP)](https://modelcontextprotocol.io) is an open protocol that lets AI assistants call tools on external servers. When your assistant (Claude, Cursor, Windsurf, etc.) connects to Graph Memory, it discovers the available tools and can call them to search docs, manage tasks, save notes, and more.

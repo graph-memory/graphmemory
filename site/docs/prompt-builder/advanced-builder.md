@@ -10,6 +10,8 @@ keywords: [advanced builder, prompt builder, tools, workflow, behavior, memory, 
 
 The Advanced Builder gives you granular control over every aspect of the generated system prompt. It starts with the same core settings as the Simple Builder (scenario, graphs, role, style) and adds 10 additional configuration tabs.
 
+![Advanced Prompt Builder](/img/screenshots/prompts-advanced-dark.png)
+
 ## Configuration tabs
 
 ### Scenario

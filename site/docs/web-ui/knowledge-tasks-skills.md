@@ -14,6 +14,8 @@ These three pages manage the persistent, user-created data in Graph Memory. Unli
 
 The Knowledge page is your persistent note-taking space with semantic search and cross-graph linking.
 
+![Knowledge notes list](/img/screenshots/knowledge-dark.png)
+
 ### Note list
 
 The main view shows all notes with search and tag filtering. Type in the search box to find notes by content using hybrid semantic search (BM25 keyword matching combined with vector similarity).
@@ -50,6 +52,8 @@ Attachment filenames are validated to prevent path traversal and other security 
 ## Tasks
 
 The Tasks page provides a full kanban board for project task management.
+
+![Tasks kanban board](/img/screenshots/tasks-kanban-dark.png)
 
 ### Kanban board
 
@@ -102,6 +106,8 @@ Click a task card to open its full detail view, which includes:
 ## Skills
 
 Skills are reusable recipes, procedures, or workflows that can be triggered by your AI assistant.
+
+![Skills list](/img/screenshots/skills-dark.png)
 
 ### Skill list
 

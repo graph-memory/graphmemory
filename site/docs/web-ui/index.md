@@ -16,6 +16,8 @@ http://localhost:3000
 
 The port depends on your configuration. If you changed `server.port` in `graph-memory.yaml`, use that port instead.
 
+![Graph Memory Dashboard](/img/screenshots/dashboard-dark.png)
+
 ## Pages
 
 The UI is organized into dedicated pages, each accessible from the sidebar:

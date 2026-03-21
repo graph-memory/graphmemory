@@ -12,6 +12,8 @@ keywords: [search, graph visualization, Cytoscape.js, MCP tools, semantic search
 
 The Search page provides a single search box that queries all six graphs simultaneously. This is the fastest way to find anything in your project.
 
+![Unified search results](/img/screenshots/search-dark.png)
+
 ### How it works
 
 Type your query and press Enter. Graph Memory runs a hybrid search combining:
@@ -41,6 +43,8 @@ Each result shows a relevance score. Click any result to navigate to its detail 
 ## Graph visualization
 
 The Graph page renders an interactive force-directed graph using [Cytoscape.js](https://js.cytoscape.org/).
+
+![Graph visualization](/img/screenshots/graph-dark.png)
 
 ### Layout
 

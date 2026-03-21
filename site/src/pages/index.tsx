@@ -279,10 +279,10 @@ function Production() {
 
 function WebUI() {
   const screens = [
-    {title: 'Dashboard', desc: 'Stats, recent activity, quick actions'},
-    {title: 'Kanban Board', desc: 'Drag-drop tasks across columns'},
-    {title: 'Graph Visualization', desc: 'Interactive Cytoscape.js force-directed graph'},
-    {title: 'Unified Search', desc: 'One query across all six graphs'},
+    {title: 'Dashboard', desc: 'Stats, recent activity, quick actions', img: '/img/screenshots/dashboard-dark.png'},
+    {title: 'Kanban Board', desc: 'Drag-drop tasks across columns', img: '/img/screenshots/tasks-kanban-dark.png'},
+    {title: 'Graph Visualization', desc: 'Interactive Cytoscape.js force-directed graph', img: '/img/screenshots/graph-dark.png'},
+    {title: 'Unified Search', desc: 'One query across all six graphs', img: '/img/screenshots/search-dark.png'},
   ];
   return (
     <section className={s.sec}>
@@ -290,13 +290,9 @@ function WebUI() {
         <Heading as="h2" className={s.h2}>Built-in Web UI</Heading>
         <p className={s.lead}>Full-featured interface included — no extra setup needed.</p>
         <div className={s.uiGrid}>
-          {screens.map(({title, desc}) => (
+          {screens.map(({title, desc, img}) => (
             <Link key={title} className={s.uiCard} to="/docs/web-ui" style={{textDecoration: 'none', color: 'inherit'}}>
-              <div className={s.uiPlaceholder}>
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" opacity="0.3">
-                  <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
-                </svg>
-              </div>
+              <img src={img} alt={title} className={s.uiScreenshot} loading="lazy" />
               <h4 className={s.uiCardTitle}>{title}</h4>
               <p className={s.cardText}>{desc}</p>
             </Link>
@@ -333,17 +329,7 @@ function PromptBuilder() {
             ))}
           </div>
           <div className={s.pbPreview}>
-            <div className={s.pbWindow}>
-              <div className={s.termDots}><i /><i /><i /></div>
-              <div className={s.pbContent}>
-                <div className={s.pbLine}><span className={s.pbKey}>Scenario:</span> Code Review</div>
-                <div className={s.pbLine}><span className={s.pbKey}>Role:</span> Reviewer</div>
-                <div className={s.pbLine}><span className={s.pbKey}>Style:</span> Proactive</div>
-                <div className={s.pbLine}><span className={s.pbKey}>Graphs:</span> Code, Docs, Knowledge</div>
-                <div className={s.pbLine}><span className={s.pbKey}>Tools:</span> 23 active</div>
-                <div className={s.pbLine + ' ' + s.pbMuted}>~2,400 tokens</div>
-              </div>
-            </div>
+            <img src="/img/screenshots/prompts-simple-dark.png" alt="Prompt Builder" className={s.screenshot} loading="lazy" style={{margin: 0, maxWidth: '100%'}} />
           </div>
         </div>
         <div className={s.center}>

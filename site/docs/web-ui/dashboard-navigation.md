@@ -12,6 +12,10 @@ keywords: [dashboard, navigation, sidebar, project selector, theme, MCP connect]
 
 The dashboard is the landing page after login. It gives you an at-a-glance view of the current project.
 
+![Dashboard dark theme](/img/screenshots/dashboard-dark.png)
+
+![Dashboard light theme](/img/screenshots/dashboard-light.png)
+
 ### Stat cards
 
 Six stat cards show the count of items in each graph:

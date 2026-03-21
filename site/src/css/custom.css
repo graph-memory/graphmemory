@@ -131,11 +131,83 @@
 
 /* ── Tables ── */
 table {
-  font-size: 0.95rem;
+  font-size: 0.93rem;
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100% !important;
+  display: table !important;
+  border: none;
+  background: var(--ifm-background-surface-color);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px var(--ifm-color-emphasis-200);
+}
+
+/* ensure wrapper doesn't constrain width */
+.markdown table,
+.theme-doc-markdown table,
+div[class*="tableContainer"] table {
+  width: 100% !important;
+}
+
+div[class*="tableContainer"] {
+  overflow-x: auto;
+}
+
+table th,
+table td {
+  border: none;
+  text-align: left;
 }
 
 table th {
-  text-transform: none;
+  font-weight: 500;
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-600);
+  padding: 0.75rem 1.25rem;
+  background: var(--ifm-color-emphasis-100);
+}
+
+table td {
+  padding: 0.75rem 1.25rem;
+  line-height: 1.5;
+  box-shadow: inset 0 1px 0 var(--ifm-color-emphasis-100);
+}
+
+table td:first-child {
+  font-weight: 600;
+}
+
+table tbody tr {
+  transition: background 0.15s;
+  background: transparent !important;
+}
+
+table tbody tr:hover {
+  background: var(--ifm-color-emphasis-50) !important;
+}
+
+/* ── Tables dark ── */
+[data-theme='dark'] table {
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.07);
+}
+
+[data-theme='dark'] table th {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.5);
+}
+
+[data-theme='dark'] table td {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+[data-theme='dark'] table td:first-child {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+[data-theme='dark'] table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.04) !important;
 }
 
 /* ── Links ── */

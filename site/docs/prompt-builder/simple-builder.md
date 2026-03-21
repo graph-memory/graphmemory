@@ -10,6 +10,8 @@ keywords: [simple builder, prompt builder, scenario, role, style, graphs]
 
 The Simple Builder is the fastest way to generate a system prompt. It walks you through four settings, each with sensible defaults, and shows a live preview of the assembled prompt.
 
+![Simple Prompt Builder](/img/screenshots/prompts-simple-dark.png)
+
 ## Step 1: Pick a scenario
 
 Scenarios are starting templates optimized for common workflows. When you select a scenario, it automatically sets recommended defaults for graphs, role, style, and focus tools.

@@ -23,7 +23,7 @@ See [Authentication](authentication.md) for details on auth middleware.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/auth/status` | Auth status (required, authenticated, userId, name) |
+| GET | `/api/auth/status` | Auth status (required, authenticated, userId, name, apiKey) |
 | POST | `/api/auth/login` | Login with email + password → sets JWT cookies |
 | POST | `/api/auth/refresh` | Refresh access token using refresh cookie |
 | POST | `/api/auth/logout` | Clear auth cookies |

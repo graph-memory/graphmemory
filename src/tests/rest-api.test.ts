@@ -1073,6 +1073,7 @@ describe('REST API — JWT Cookie Auth', () => {
     expect(res.status).toBe(200);
     expect(res.body.authenticated).toBe(true);
     expect(res.body.userId).toBe('admin');
+    expect(res.body.apiKey).toBe('key-admin');
   });
 
   it('auth/status returns unauthenticated without cookie', async () => {

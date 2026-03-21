@@ -179,8 +179,10 @@ projects:
 `GET /api/auth/status` — always accessible (before auth middleware):
 
 ```json
-{ "required": true, "authenticated": true, "userId": "alice", "name": "Alice" }
+{ "required": true, "authenticated": true, "userId": "alice", "name": "Alice", "apiKey": "gm_..." }
 ```
+
+When authenticated via cookie JWT, the response includes the user's `apiKey` — used by the UI's Connect MCP dialog to pre-fill configuration snippets.
 
 The UI's `AuthGate` component checks this on load:
 - `required: false` → render app (no auth configured)

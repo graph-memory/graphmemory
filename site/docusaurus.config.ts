@@ -34,6 +34,22 @@ const config: Config = {
   headTags: [
     {
       tagName: 'link',
+      attributes: {rel: 'icon', type: 'image/png', sizes: '32x32', href: '/img/favicon-32x32.png'},
+    },
+    {
+      tagName: 'link',
+      attributes: {rel: 'icon', type: 'image/png', sizes: '16x16', href: '/img/favicon-16x16.png'},
+    },
+    {
+      tagName: 'link',
+      attributes: {rel: 'apple-touch-icon', sizes: '180x180', href: '/img/apple-touch-icon.png'},
+    },
+    {
+      tagName: 'link',
+      attributes: {rel: 'manifest', href: '/site.webmanifest'},
+    },
+    {
+      tagName: 'link',
       attributes: {rel: 'preconnect', href: 'https://fonts.googleapis.com'},
     },
     {
@@ -104,7 +120,7 @@ const config: Config = {
   ],
 
   themeConfig: {
-    image: 'img/screenshots/dashboard-dark.png',
+    image: 'img/social-card.jpg',
     metadata: [
       {name: 'keywords', content: 'MCP, graph memory, semantic search, knowledge graph, AI tools, Model Context Protocol, code indexing'},
       {name: 'twitter:card', content: 'summary_large_image'},

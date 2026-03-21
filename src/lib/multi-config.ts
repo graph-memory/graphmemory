@@ -102,7 +102,7 @@ const serverSchema = z.object({
   embeddingApi:    embeddingApiSchema.optional(),
   defaultAccess:   accessLevelSchema.optional(),
   access:          accessMapSchema,
-  jwtSecret:       z.string().optional(),
+  jwtSecret:       z.string().min(16).optional(),
   accessTokenTtl:  z.string().optional(),
   refreshTokenTtl: z.string().optional(),
   rateLimit:       rateLimitSchema.optional(),

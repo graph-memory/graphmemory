@@ -334,14 +334,21 @@ usersCmd
       const password2 = await askHidden('Confirm password: ');
       if (password !== password2) { process.stderr.write('Passwords do not match\n'); process.exit(1); }
 
+      // Validate inputs
+      if (/[\x00-\x1f\x7f]/.test(name)) { process.stderr.write('Name contains invalid characters\n'); process.exit(1); }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { process.stderr.write('Invalid email format\n'); process.exit(1); }
+      if (password.length > 256) { process.stderr.write('Password too long (max 256)\n'); process.exit(1); }
+
       const pwHash = await hashPassword(password);
       const apiKey = `mgm-${crypto.randomBytes(24).toString('base64url')}`;
 
-      // Build YAML block for the new user
+      // Build YAML block for the new user — escape quotes to prevent YAML injection
+      const safeName = name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      const safeEmail = email.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
       const userBlock = [
         `  ${id}:`,
-        `    name: "${name}"`,
-        `    email: "${email}"`,
+        `    name: "${safeName}"`,
+        `    email: "${safeEmail}"`,
         `    apiKey: "${apiKey}"`,
         `    passwordHash: "${pwHash}"`,
       ].join('\n');

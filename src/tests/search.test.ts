@@ -74,6 +74,7 @@ describe('docs search', () => {
 
   it('results are sorted by score descending', () => {
     const r0 = search(graph, q0);
+    expect(r0.length).toBeGreaterThan(0);
     const sorted = r0.every((r, i) => i === 0 || r.score <= r0[i - 1].score);
     expect(sorted).toBe(true);
   });

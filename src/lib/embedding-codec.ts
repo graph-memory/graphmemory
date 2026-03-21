@@ -18,7 +18,10 @@ function float32ToBase64(arr: number[]): string {
 /** Convert a Base64-encoded Float32Array back to number[]. */
 function base64ToFloat32(b64: string): number[] {
   const buf = Buffer.from(b64, 'base64');
-  const f32 = new Float32Array(buf.buffer, buf.byteOffset, buf.byteLength / 4);
+  // Copy to aligned buffer to guarantee 4-byte alignment for Float32Array
+  const aligned = new Uint8Array(buf.byteLength);
+  aligned.set(new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength));
+  const f32 = new Float32Array(aligned.buffer, 0, aligned.byteLength / 4);
   return Array.from(f32);
 }
 

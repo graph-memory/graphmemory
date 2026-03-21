@@ -662,7 +662,8 @@ export class KnowledgeGraphManager {
     try {
       const actualToId = targetGraph ? proxyId(targetGraph, toId, pid) : toId;
       if (this._graph.hasEdge(fromId, actualToId)) {
-        kind = this._graph.getEdgeAttribute(this._graph.edge(fromId, actualToId)!, 'kind') ?? '';
+        const ek = this._graph.edge(fromId, actualToId);
+        if (ek) kind = this._graph.getEdgeAttribute(ek, 'kind') ?? '';
       }
     } catch { /* ignore */ }
 
@@ -741,6 +742,8 @@ export class KnowledgeGraphManager {
 
     const attachments = scanAttachments(path.join(dir, noteId));
     this._graph.setNodeAttribute(noteId, 'attachments', attachments);
+    this._graph.setNodeAttribute(noteId, 'updatedAt', Date.now());
+    this._graph.setNodeAttribute(noteId, 'version', (this._graph.getNodeAttribute(noteId, 'version') ?? 0) + 1);
     this.ctx.markDirty();
   }
 

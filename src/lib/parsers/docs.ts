@@ -196,6 +196,12 @@ function toFileId(absolutePath: string, projectDir: string): string | null {
  */
 const _wikiIndex = new Map<string, Map<string, string>>();
 
+/** Clear cached wiki link index (call when files change or between projects). */
+export function clearWikiIndexCache(projectDir?: string): void {
+  if (projectDir) _wikiIndex.delete(projectDir);
+  else _wikiIndex.clear();
+}
+
 function getWikiIndex(projectDir: string): Map<string, string> {
   if (_wikiIndex.has(projectDir)) return _wikiIndex.get(projectDir)!;
 
@@ -207,7 +213,7 @@ function getWikiIndex(projectDir: string): Map<string, string> {
     let entries: fs.Dirent[];
     try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
     for (const entry of entries) {
-      if (entry.name.startsWith('.')) continue;
+      if (entry.name.startsWith('.') || entry.isSymbolicLink()) continue;
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) {
         walk(full, depth + 1);

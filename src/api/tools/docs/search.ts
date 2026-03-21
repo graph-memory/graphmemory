@@ -16,9 +16,9 @@ export function register(server: McpServer, mgr: DocGraphManager): void {
         'Prefer this tool when looking for information without knowing which file contains it.',
       inputSchema: {
         query:      z.string().describe('Natural language search query'),
-        topK:       z.number().optional().describe('How many top similar sections to use as seeds for graph expansion (default 5)'),
-        bfsDepth:   z.number().optional().describe('How many hops to follow cross-document links from each seed (default 1; 0 = no expansion)'),
-        maxResults: z.number().optional().describe('Maximum number of results to return (default 20)'),
+        topK:       z.number().min(1).max(500).optional().describe('How many top similar sections to use as seeds for graph expansion (default 5)'),
+        bfsDepth:   z.number().min(0).max(10).optional().describe('How many hops to follow cross-document links from each seed (default 1; 0 = no expansion)'),
+        maxResults: z.number().min(1).max(500).optional().describe('Maximum number of results to return (default 20)'),
         minScore:   z.number().min(0).max(1).optional().describe('Minimum relevance score threshold 0–1; lower values return more results (default 0.5)'),
         bfsDecay:   z.number().min(0).max(1).optional().describe('Score multiplier applied per graph hop; controls how quickly relevance fades with distance (default 0.8)'),
         searchMode: z.enum(['hybrid', 'vector', 'keyword']).optional().describe('Search mode: hybrid (default, BM25 + vector), vector (embedding only), keyword (BM25 only)'),

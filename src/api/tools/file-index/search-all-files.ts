@@ -15,7 +15,7 @@ export function register(server: McpServer, mgr: FileIndexGraphManager): void {
         'Use this to discover which project files are relevant to a topic.',
       inputSchema: {
         query: z.string().describe('Search query'),
-        topK: z.number().optional().default(10)
+        topK: z.number().min(1).max(500).optional().default(10)
           .describe('Max results (default 10)'),
         minScore: z.number().optional().default(0.3)
           .describe('Minimum cosine similarity score (default 0.3)'),

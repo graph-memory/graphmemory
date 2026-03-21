@@ -18,12 +18,20 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
       },
     },
     async ({ noteId, filePath }) => {
-      if (!fs.existsSync(filePath)) {
+      const resolved = path.resolve(filePath);
+      let stat: fs.Stats;
+      try { stat = fs.statSync(resolved); } catch {
         return { content: [{ type: 'text', text: JSON.stringify({ error: 'File not found' }) }], isError: true };
       }
+      if (!stat.isFile()) {
+        return { content: [{ type: 'text', text: JSON.stringify({ error: 'Path is not a regular file' }) }], isError: true };
+      }
+      if (stat.size > 50 * 1024 * 1024) {
+        return { content: [{ type: 'text', text: JSON.stringify({ error: 'File exceeds 50 MB limit' }) }], isError: true };
+      }
 
-      const data = fs.readFileSync(filePath);
-      const filename = path.basename(filePath);
+      const data = fs.readFileSync(resolved);
+      const filename = path.basename(resolved);
       const meta = mgr.addAttachment(noteId, filename, data);
 
       if (!meta) {

@@ -78,17 +78,17 @@ export function parseTtl(ttl: string): number {
 
 export function signAccessToken(userId: string, secret: string, ttl: string): string {
   const payload: JwtPayload = { userId, type: 'access' };
-  return jwt.sign(payload, secret, { expiresIn: parseTtl(ttl) });
+  return jwt.sign(payload, secret, { algorithm: 'HS256', expiresIn: parseTtl(ttl) });
 }
 
 export function signRefreshToken(userId: string, secret: string, ttl: string): string {
   const payload: JwtPayload = { userId, type: 'refresh' };
-  return jwt.sign(payload, secret, { expiresIn: parseTtl(ttl) });
+  return jwt.sign(payload, secret, { algorithm: 'HS256', expiresIn: parseTtl(ttl) });
 }
 
 export function verifyToken(token: string, secret: string): JwtPayload | null {
   try {
-    const decoded = jwt.verify(token, secret) as JwtPayload & jwt.JwtPayload;
+    const decoded = jwt.verify(token, secret, { algorithms: ['HS256'] }) as JwtPayload & jwt.JwtPayload;
     if (!decoded.userId || !decoded.type) return null;
     return { userId: decoded.userId, type: decoded.type };
   } catch {
@@ -104,7 +104,7 @@ const ACCESS_COOKIE = 'mgm_access';
 const REFRESH_COOKIE = 'mgm_refresh';
 
 export function setAuthCookies(res: Response, accessToken: string, refreshToken: string, accessTtl: string, refreshTtl: string): void {
-  const secure = process.env.NODE_ENV === 'production';
+  const secure = process.env.NODE_ENV !== 'development';
   res.cookie(ACCESS_COOKIE, accessToken, {
     httpOnly: true,
     secure,

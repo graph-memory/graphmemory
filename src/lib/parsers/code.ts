@@ -4,6 +4,35 @@ import type { CodeNodeAttributes, CodeEdgeAttributes } from '@/graphs/code-types
 import { parseSource, getMapper, isLanguageSupported } from '@/lib/parsers/languages';
 import { getLanguage } from '@/graphs/file-lang';
 
+// Strip line and block comments from JSONC, preserving string contents.
+function stripJsoncComments(text: string): string {
+  let result = '';
+  let i = 0;
+  while (i < text.length) {
+    // String literal — copy verbatim
+    if (text[i] === '"') {
+      const start = i++;
+      while (i < text.length && text[i] !== '"') {
+        if (text[i] === '\\') i++; // skip escaped char
+        i++;
+      }
+      i++; // closing quote
+      result += text.slice(start, i);
+    // Line comment
+    } else if (text[i] === '/' && text[i + 1] === '/') {
+      while (i < text.length && text[i] !== '\n') i++;
+    // Block comment
+    } else if (text[i] === '/' && text[i + 1] === '*') {
+      i += 2;
+      while (i < text.length && !(text[i] === '*' && text[i + 1] === '/')) i++;
+      i += 2;
+    } else {
+      result += text[i++];
+    }
+  }
+  return result;
+}
+
 export interface ParsedFile {
   fileId: string;
   mtime: number;
@@ -56,6 +85,9 @@ interface PathMapping {
 /** Cache: directory → parsed path mappings (null = no tsconfig found up to root). */
 const _pathMappings = new Map<string, PathMapping[] | null>();
 
+/** Clear cached path mappings (call between projects or on config change). */
+export function clearPathMappingsCache(): void { _pathMappings.clear(); }
+
 /**
  * Find the nearest tsconfig.json / jsconfig.json walking up from `dir` to `root`.
  * Cached per directory — each directory remembers its resolved mappings.
@@ -88,10 +120,8 @@ function _parseTsConfig(dir: string): PathMapping[] | null {
     if (!hasFile(configPath)) continue;
 
     try {
-      // Strip comments (// and /* */) for JSONC support
-      const raw = fs.readFileSync(configPath, 'utf-8')
-        .replace(/\/\/[^\n]*/g, '')
-        .replace(/\/\*[\s\S]*?\*\//g, '');
+      // Strip JSONC comments while preserving string contents
+      const raw = stripJsoncComments(fs.readFileSync(configPath, 'utf-8'));
       const config = JSON.parse(raw);
       const compilerOptions = config.compilerOptions;
       if (!compilerOptions?.paths) continue;

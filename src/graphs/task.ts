@@ -896,7 +896,8 @@ export class TaskGraphManager {
     try {
       const proxyNodeId = proxyId(targetGraph, targetId, pid);
       if (this._graph.hasEdge(taskId, proxyNodeId)) {
-        kind = this._graph.getEdgeAttribute(this._graph.edge(taskId, proxyNodeId)!, 'kind') ?? '';
+        const ek = this._graph.edge(taskId, proxyNodeId);
+        if (ek) kind = this._graph.getEdgeAttribute(ek, 'kind') ?? '';
       }
     } catch { /* ignore */ }
 
@@ -923,7 +924,8 @@ export class TaskGraphManager {
     let kind = '';
     try {
       if (this._graph.hasEdge(fromId, toId)) {
-        kind = this._graph.getEdgeAttribute(this._graph.edge(fromId, toId)!, 'kind') ?? '';
+        const ek = this._graph.edge(fromId, toId);
+        if (ek) kind = this._graph.getEdgeAttribute(ek, 'kind') ?? '';
       }
     } catch { /* ignore */ }
 
@@ -995,6 +997,8 @@ export class TaskGraphManager {
 
     const attachments = scanAttachments(path.join(dir, taskId));
     this._graph.setNodeAttribute(taskId, 'attachments', attachments);
+    this._graph.setNodeAttribute(taskId, 'updatedAt', Date.now());
+    this._graph.setNodeAttribute(taskId, 'version', (this._graph.getNodeAttribute(taskId, 'version') ?? 0) + 1);
     this.ctx.markDirty();
   }
 

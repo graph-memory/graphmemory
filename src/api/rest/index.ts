@@ -54,7 +54,7 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
   const hasUsers = Object.keys(users).length > 0;
 
   const corsOrigins = serverConfig?.corsOrigins;
-  app.use(cors(corsOrigins?.length ? { origin: corsOrigins, credentials: true } : { credentials: true }));
+  app.use(cors(corsOrigins?.length ? { origin: corsOrigins, credentials: true } : {}));
   app.use(express.json({ limit: '10mb' }));
   app.use(cookieParser());
 
@@ -199,7 +199,7 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
 
       // 2. Bearer apiKey (from MCP/API clients)
       const auth = req.headers.authorization;
-      if (auth?.startsWith('Bearer ')) {
+      if (auth?.startsWith('Bearer ') && auth.length > 7) {
         const apiKey = auth.slice(7);
         const result = resolveUserFromApiKey(apiKey, users);
         if (result) {
@@ -207,6 +207,7 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
           (req as any).user = result.user;
           return next();
         }
+        // Invalid Bearer token — reject (explicit auth attempt should not fall through)
         return _res.status(401).json({ error: 'Invalid API key' });
       }
 

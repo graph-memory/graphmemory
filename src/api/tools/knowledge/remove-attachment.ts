@@ -10,7 +10,11 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
         'Remove an attachment from a note. The file is deleted from disk.',
       inputSchema: {
         noteId:   z.string().describe('ID of the note'),
-        filename: z.string().describe('Filename of the attachment to remove'),
+        filename: z.string().min(1).max(255)
+          .refine(s => !/[/\\]/.test(s), 'Filename must not contain path separators')
+          .refine(s => !s.includes('..'), 'Filename must not contain ..')
+          .refine(s => !s.includes('\0'), 'Filename must not contain null bytes')
+          .describe('Filename of the attachment to remove'),
       },
     },
     async ({ noteId, filename }) => {

@@ -129,7 +129,7 @@ function extractClassMembers(body: TSNode): ExtractedSymbol[] {
         const methodDoc = getDocComment(member);
         children.push({
           name: methodName,
-          kind: 'method',
+          kind: methodName === 'constructor' ? 'constructor' : 'method',
           signature: buildSignature(member, member),
           docComment: methodDoc,
           body: buildBody(member, methodDoc),

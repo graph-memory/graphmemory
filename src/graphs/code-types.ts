@@ -5,6 +5,7 @@ export type CodeNodeKind =
   | 'function'    // function / arrow function assigned to const
   | 'class'       // class declaration
   | 'method'      // class method
+  | 'constructor'  // class constructor
   | 'interface'   // interface declaration
   | 'type'        // type alias
   | 'enum'        // enum declaration

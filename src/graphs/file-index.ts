@@ -181,7 +181,8 @@ export function listAllFiles(
 
     graph.forEachOutNeighbor(dirId, (childId) => {
       const attrs = graph.getNodeAttributes(childId);
-      if (graph.getEdgeAttribute(graph.edge(dirId, childId)!, 'kind') !== 'contains') return;
+      const edgeKey = graph.edge(dirId, childId);
+      if (!edgeKey || graph.getEdgeAttribute(edgeKey, 'kind') !== 'contains') return;
       if (extension && attrs.extension !== extension) return;
       if (language && attrs.language !== language) return;
       if (lowerFilter && !attrs.filePath.toLowerCase().includes(lowerFilter)) return;

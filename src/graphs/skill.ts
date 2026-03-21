@@ -936,7 +936,8 @@ export class SkillGraphManager {
     try {
       const proxyNodeId = proxyId(targetGraph, targetId, pid);
       if (this._graph.hasEdge(skillId, proxyNodeId)) {
-        kind = this._graph.getEdgeAttribute(this._graph.edge(skillId, proxyNodeId)!, 'kind') ?? '';
+        const ek = this._graph.edge(skillId, proxyNodeId);
+        if (ek) kind = this._graph.getEdgeAttribute(ek, 'kind') ?? '';
       }
     } catch { /* ignore */ }
 
@@ -965,7 +966,8 @@ export class SkillGraphManager {
     let kind = '';
     try {
       if (this._graph.hasEdge(fromId, toId)) {
-        kind = this._graph.getEdgeAttribute(this._graph.edge(fromId, toId)!, 'kind') ?? '';
+        const ek = this._graph.edge(fromId, toId);
+        if (ek) kind = this._graph.getEdgeAttribute(ek, 'kind') ?? '';
       }
     } catch { /* ignore */ }
 
@@ -1037,6 +1039,8 @@ export class SkillGraphManager {
 
     const attachments = scanAttachments(path.join(dir, skillId));
     this._graph.setNodeAttribute(skillId, 'attachments', attachments);
+    this._graph.setNodeAttribute(skillId, 'updatedAt', Date.now());
+    this._graph.setNodeAttribute(skillId, 'version', (this._graph.getNodeAttribute(skillId, 'version') ?? 0) + 1);
     this.ctx.markDirty();
   }
 

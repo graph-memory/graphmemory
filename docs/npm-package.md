@@ -6,7 +6,7 @@
 |-------|-------|
 | **Name** | `@graphmemory/server` |
 | **Registry** | https://www.npmjs.com/package/@graphmemory/server |
-| **License** | ISC |
+| **License** | Elastic License 2.0 (ELv2) |
 | **Node.js** | >= 22 |
 
 ## Installation

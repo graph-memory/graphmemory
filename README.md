@@ -170,6 +170,12 @@ Full documentation is in [docs/](docs/README.md):
 - **UI**: [architecture](docs/ui-architecture.md), [features](docs/ui-features.md), [patterns](docs/ui-patterns.md)
 - **Development**: [testing](docs/testing.md), [API patterns](docs/api-patterns.md)
 
+## Contributing
+
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+For security vulnerabilities, see [SECURITY.md](SECURITY.md).
+
 ## License
 
-ISC
+[Elastic License 2.0 (ELv2)](LICENSE) — free to use, modify, and self-host. Not permitted to offer as a managed/hosted service.

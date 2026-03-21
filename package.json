@@ -15,7 +15,10 @@
     "cli": "node dist/cli/index.js",
     "cli:dev": "tsx src/cli/index.ts",
     "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
-    "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --watch"
+    "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --watch",
+    "site:dev": "cd site && npm start",
+    "site:build": "cd site && npm run build",
+    "site:serve": "cd site && npm run serve"
   },
   "repository": {
     "type": "git",

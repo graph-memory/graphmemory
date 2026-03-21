@@ -6,3 +6,6 @@ data
 .cache
 models/
 /graph-memory.yaml
+site/node_modules
+site/.docusaurus
+site/build

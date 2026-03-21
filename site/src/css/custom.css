@@ -1,0 +1,149 @@
+/*
+ * Graph Memory site theme — aligned with the Web UI (MUI) palette.
+ *
+ * Light primary:  #1976d2  (MUI blue)
+ * Dark  primary:  #569cd6  (soft blue, VS Code-inspired)
+ * Secondary:      #c586c0 / #9c27b0
+ * Font:           Inter
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  /* ── Primary (light mode — MUI blue) ── */
+  --ifm-color-primary: #1976d2;
+  --ifm-color-primary-dark: #1565c0;
+  --ifm-color-primary-darker: #1259b3;
+  --ifm-color-primary-darkest: #0d47a1;
+  --ifm-color-primary-light: #1e88e5;
+  --ifm-color-primary-lighter: #42a5f5;
+  --ifm-color-primary-lightest: #64b5f6;
+
+  /* ── Backgrounds ── */
+  --ifm-background-color: #f0f2f5;
+  --ifm-background-surface-color: #ffffff;
+
+  /* ── Typography ── */
+  --ifm-font-family-base: 'Inter', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+  --ifm-heading-font-family: 'Inter', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+  --ifm-font-weight-semibold: 600;
+  --ifm-code-font-size: 95%;
+
+  /* ── Misc ── */
+  --docusaurus-highlighted-code-line-bg: rgba(25, 118, 210, 0.08);
+  --ifm-color-secondary: #9c27b0;
+}
+
+[data-theme='dark'] {
+  /* ── Primary (dark mode — soft blue) ── */
+  --ifm-color-primary: #569cd6;
+  --ifm-color-primary-dark: #4690ce;
+  --ifm-color-primary-darker: #3d87c7;
+  --ifm-color-primary-darkest: #2e6fa6;
+  --ifm-color-primary-light: #6aa8de;
+  --ifm-color-primary-lighter: #7eb4e5;
+  --ifm-color-primary-lightest: #a2ccef;
+
+  /* ── Backgrounds (VS Code-inspired) ── */
+  --ifm-background-color: #1e1e1e;
+  --ifm-background-surface-color: #252526;
+
+  /* ── Misc ── */
+  --docusaurus-highlighted-code-line-bg: rgba(86, 156, 214, 0.15);
+  --ifm-color-secondary: #c586c0;
+}
+
+/* ── Navbar ── */
+.navbar {
+  background: var(--ifm-background-surface-color);
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  box-shadow: none;
+}
+
+[data-theme='dark'] .navbar {
+  background: #181818;
+  border-bottom-color: #3c3c3c;
+}
+
+/* ── Footer ── */
+.footer--dark {
+  background: #0d0d0d;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+.footer--dark .footer__title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255,255,255,0.4);
+  margin-bottom: 0.75rem;
+}
+
+.footer--dark .footer__link-item {
+  font-size: 0.88rem;
+  color: rgba(255,255,255,0.55);
+  transition: color 0.15s;
+}
+
+.footer--dark .footer__link-item:hover {
+  color: #569cd6;
+  text-decoration: none;
+}
+
+.footer--dark .footer__col {
+  padding: 0;
+}
+
+.footer--dark .footer__links {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.footer--dark .footer__bottom {
+  border-top: 1px solid rgba(255,255,255,0.06);
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+}
+
+.footer--dark .footer__copyright {
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.3);
+}
+
+/* Hero is styled in index.module.css */
+
+/* ── Sidebar ── */
+.menu__link--active:not(.menu__link--sublist) {
+  border-left: 3px solid var(--ifm-color-primary);
+  padding-left: calc(var(--ifm-menu-link-padding-horizontal) - 3px);
+}
+
+/* ── Code blocks ── */
+.prism-code {
+  border-radius: 6px;
+}
+
+/* ── Admonitions ── */
+.admonition {
+  border-radius: 6px;
+}
+
+/* ── Tables ── */
+table {
+  font-size: 0.95rem;
+}
+
+table th {
+  text-transform: none;
+}
+
+/* ── Links ── */
+a {
+  font-weight: 500;
+}
+
+/* ── Smooth scrolling ── */
+html {
+  scroll-behavior: smooth;
+}

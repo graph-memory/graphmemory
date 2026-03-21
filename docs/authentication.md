@@ -165,6 +165,34 @@ projects:
           alice: rw           # but alice can write to knowledge
 ```
 
+## MCP authentication
+
+MCP endpoints (`/mcp/{projectId}`) now support authentication via API key.
+
+### How it works
+
+- When users are configured in `graph-memory.yaml`, MCP endpoints require an `Authorization: Bearer <apiKey>` header
+- When no users are configured, MCP remains open (backward-compatible)
+- The API key is matched against `users.<id>.apiKey` in the config
+
+### Per-user tool visibility
+
+Based on the authenticated user's access level for each graph, the MCP server controls which tools are registered (visible to the client):
+
+| Access level | Read tools (list, get, search) | Mutation tools (create, update, delete) |
+|-------------|-------------------------------|----------------------------------------|
+| `rw` | Visible | Visible |
+| `r` | Visible | **Hidden** |
+| `deny` | **Hidden** | **Hidden** |
+
+This differs from REST API enforcement:
+- **MCP** hides tools entirely — the client never sees tools it cannot use
+- **REST** returns `403 Forbidden` for unauthorized requests, but the endpoints are always visible
+
+### Readonly graph interaction
+
+When a graph has `readonly: true`, mutation tools are hidden for all users regardless of their access level. See [Configuration](configuration.md) for details on the readonly setting.
+
 ## Cookie security
 
 | Property | Value | Purpose |

@@ -3,8 +3,8 @@
 ## Overview
 
 - **Framework**: Jest with ts-jest
-- **Test suites**: 34 (36 files, 2 excluded from Jest)
-- **Tests**: 1485
+- **Test suites**: 36 (38 files, 2 excluded from Jest)
+- **Tests**: 1507
 - **Coverage**: all graph types, MCP tools (58/58), REST API (70/70 endpoints), search (all 7 modules), parsers, config, file mirror, BM25, access control, JWT auth, attachments
 
 ## Running tests
@@ -51,6 +51,8 @@ npx tsx src/tests/parser.debug.ts      # Debug script, no assertions
 | `mcp-skills.test.ts` | Skill tools | CRUD skills + relations + search + cross-graph links |
 | `mcp-context.test.ts` | Context tool | get_context project/workspace context |
 | `mcp-attachments.test.ts` | Attachments | All 6 attachment MCP tools + filename validation |
+| `mcp-auth.test.ts` | MCP auth | Config parsing for readonly, users, access |
+| `mcp-readonly.test.ts` | MCP readonly | MCP tool visibility with readonly and per-user access |
 
 ### Docs parser tests
 

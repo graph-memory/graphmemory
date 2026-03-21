@@ -23,7 +23,7 @@ See [Authentication](authentication.md) for details on auth middleware.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/auth/status` | Auth status (required, authenticated, userId, name, apiKey) |
+| GET | `/api/auth/status` | Auth status (required, authenticated, userId, name, apiKey). The `apiKey` field is included when authenticated via cookie JWT — used by the UI's Connect MCP dialog |
 | POST | `/api/auth/login` | Login with email + password → sets JWT cookies |
 | POST | `/api/auth/refresh` | Refresh access token using refresh cookie |
 | POST | `/api/auth/logout` | Clear auth cookies |
@@ -34,7 +34,7 @@ See [Authentication](authentication.md) for details on auth middleware.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/projects` | List projects with stats and graph info |
+| GET | `/api/projects` | List projects with stats and graph info (includes `readonly` field per graph) |
 | GET | `/api/projects/:id/stats` | Per-graph node/edge counts |
 
 ## Knowledge endpoints

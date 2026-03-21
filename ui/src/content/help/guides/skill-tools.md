@@ -266,3 +266,4 @@ Remove an attachment from a skill. Deletes the file from disk.
 - Skill-to-skill `kind` values are a fixed enum (`depends_on`, `related_to`, `variant_of`)
 - Skills support file attachments -- attach templates, examples, or reference files via `add_skill_attachment`
 - Attachments are stored in `.skills/{skillId}/` alongside the skill's markdown file
+- When the skill graph is configured as `readonly: true`, mutation tools (create, update, delete) are hidden from MCP clients and REST mutation endpoints return 403. The UI hides write buttons accordingly.

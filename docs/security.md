@@ -89,9 +89,22 @@ server:
 
 When not set, allows all origins (`*`). `credentials: true` is only enabled when explicit origins are configured — without origins, credentials mode is off (prevents CORS credential leak to arbitrary domains).
 
+## MCP authentication
+
+MCP endpoints (`/mcp/{projectId}`) are now authenticated via API key when users are configured. Previously, MCP was unprotected. The API key is sent via the `Authorization: Bearer <apiKey>` header, and comparison uses `crypto.timingSafeEqual` (same as REST API key checks).
+
+## Readonly mode (defense-in-depth)
+
+The `readonly: true` graph setting provides an additional layer of protection:
+- MCP mutation tools are not registered (invisible to clients)
+- REST mutation endpoints return 403
+- UI hides write buttons
+
+This is useful for graphs that should be searchable but not modifiable — e.g., a shared knowledge base that only admins update directly. Even if a user has `rw` access, readonly overrides it at the graph level.
+
 ## Access control
 
-4-level ACL with per-graph granularity. See [Authentication](authentication.md).
+5-level ACL with per-graph granularity. See [Authentication](authentication.md).
 
 ## Session management
 

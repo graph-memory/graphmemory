@@ -4,6 +4,24 @@
 
 58 MCP tools exposed via HTTP transport.
 
+## Authentication
+
+MCP endpoints require `Authorization: Bearer <apiKey>` when users are configured in `graph-memory.yaml`. Without users, MCP is open (backward-compatible).
+
+See [Authentication](authentication.md) for details on API key setup and the per-user tool visibility model.
+
+## Readonly graphs
+
+When a graph is configured with `readonly: true`, its mutation tools (create, update, delete) are hidden from MCP clients. Read-only tools (list, get, search) remain available. See [Configuration](configuration.md) for details.
+
+## Tool visibility
+
+The set of tools registered for an MCP session depends on:
+
+1. **Graph enabled** — disabled graphs have no tools registered
+2. **Graph readonly** — readonly graphs hide mutation tools for all users
+3. **User access level** — users with `r` access don't see mutation tools; users with `deny` don't see any tools for that graph
+
 ## Tool groups
 
 | Group | Count | Condition | File |
@@ -22,7 +40,7 @@
 
 | Tool | Input | Output |
 |------|-------|--------|
-| `get_context` | — | `{ projectId, workspaceId?, workspaceProjects?, availableGraphs }` |
+| `get_context` | — | `{ projectId, workspaceId?, workspaceProjects?, availableGraphs, userId? }` |
 
 ## Docs tools
 

@@ -280,3 +280,4 @@ The Tasks page provides a visual kanban board with these features:
 - Task-to-task `kind` values are a fixed enum (`subtask_of`, `blocks`, `related_to`), unlike knowledge relations which are free-form
 - Tasks support file attachments — attach screenshots, logs, or any file via `add_task_attachment`
 - Attachments are stored in `.tasks/{taskId}/` alongside the task's markdown file
+- When the task graph is configured as `readonly: true`, mutation tools (create, update, delete, move) are hidden from MCP clients and REST mutation endpoints return 403. The UI hides write buttons and disables drag-and-drop on the kanban board.

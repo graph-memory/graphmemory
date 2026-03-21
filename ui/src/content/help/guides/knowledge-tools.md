@@ -203,3 +203,4 @@ Remove an attachment from a note. Deletes the file from disk.
 - `search_notes` with `bfsDepth: 2` will traverse through related notes to find loosely connected knowledge
 - Notes support file attachments — attach images, logs, or any file via `add_note_attachment`
 - Attachments are stored in `.notes/{noteId}/` alongside the note's markdown file
+- When the knowledge graph is configured as `readonly: true`, mutation tools (create, update, delete) are hidden from MCP clients and REST mutation endpoints return 403. The UI hides write buttons accordingly.

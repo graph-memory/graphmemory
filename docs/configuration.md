@@ -206,6 +206,7 @@ Each of the six graphs (`docs`, `code`, `knowledge`, `tasks`, `files`, `skills`)
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | boolean | `true` | Set `false` to disable the graph entirely |
+| `readonly` | boolean | `false` | When `true`, graph is loaded and searchable but mutations are blocked |
 | `include` | string | (depends on graph) | Glob for file matching (docs/code only) |
 | `exclude` | string | (project fallback) | Additional exclude (merged with project + server) |
 | `model` | object | (project/server fallback) | Full model config — first-defined-wins, no merge |
@@ -215,6 +216,29 @@ Each of the six graphs (`docs`, `code`, `knowledge`, `tasks`, `files`, `skills`)
 Default patterns:
 - `docs`: `**/*.md`
 - `code`: `**/*.{js,ts,jsx,tsx}`
+
+### Readonly mode
+
+Setting `readonly: true` on a graph keeps it loaded and searchable but blocks all mutations:
+
+```yaml
+graphs:
+  knowledge:
+    readonly: true    # loaded + searchable, mutations blocked
+```
+
+**How `readonly`, `enabled`, and `access` interact:**
+
+| Setting | Graph loaded? | Read tools | Mutation tools | REST mutations |
+|---------|--------------|------------|----------------|----------------|
+| `enabled: false` | No | Hidden | Hidden | N/A |
+| `enabled: true` (default) | Yes | Visible | Visible | Allowed |
+| `readonly: true` | Yes | Visible | Hidden from MCP | 403 Forbidden |
+
+- **`readonly`** is a global setting (not per-user) — it overrides per-user `rw` access. Even users with `rw` access cannot mutate a readonly graph.
+- **`enabled: false`** disables the graph entirely — it is not loaded and no tools are registered.
+- **`access`** controls per-user permissions but is capped by `readonly`. A user with `rw` on a readonly graph effectively has `r`.
+- In the UI, write buttons (create, edit, delete) are hidden for readonly graphs.
 
 ## User definitions
 

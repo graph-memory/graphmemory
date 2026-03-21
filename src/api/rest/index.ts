@@ -234,13 +234,15 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
       const gc = p.config.graphConfigs;
       const ws = p.workspaceId ? projectManager.getWorkspace(p.workspaceId) : undefined;
 
-      // Per-graph info: enabled + access level for current user
-      const graphs: Record<string, { enabled: boolean; access: string | null }> = {};
+      // Per-graph info: enabled, readonly, access level for current user
+      const graphs: Record<string, { enabled: boolean; readonly: boolean; access: string | null }> = {};
       for (const gn of GRAPH_NAMES) {
-        const access = serverConfig
+        let access: string | null = serverConfig
           ? resolveAccess(userId, gn, p.config, serverConfig, ws?.config)
           : 'rw';
-        graphs[gn] = { enabled: gc[gn].enabled, access: gc[gn].enabled ? access : null };
+        // Cap access for readonly graphs
+        if (access === 'rw' && gc[gn].readonly) access = 'r';
+        graphs[gn] = { enabled: gc[gn].enabled, readonly: gc[gn].readonly, access: gc[gn].enabled ? access : null };
       }
 
       return {
@@ -320,12 +322,23 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
   // Middleware: check access level for a graph (read or read-write)
   function requireGraphAccess(graphName: GraphName, level: 'r' | 'rw') {
     return (req: express.Request, _res: express.Response, next: express.NextFunction) => {
-      if (!serverConfig) return next(); // no config = no auth enforcement
       const p = (req as any).project;
+
+      // Graph-level readonly: enforce even without auth config
+      const isReadonly = p?.config.graphConfigs[graphName]?.readonly;
+      if (isReadonly) {
+        (req as any).accessLevel = 'r';
+      }
+
+      if (!serverConfig) return next(); // no config = no auth enforcement
       if (!p) return next();
       const userId = (req as any).userId as string | undefined;
       const ws = p.workspaceId ? projectManager.getWorkspace(p.workspaceId) : undefined;
-      const access = resolveAccess(userId, graphName, p.config, serverConfig, ws?.config);
+      let access = resolveAccess(userId, graphName, p.config, serverConfig, ws?.config);
+      // Graph-level readonly: cap to 'r' regardless of user permissions
+      if (access === 'rw' && p.config.graphConfigs[graphName]?.readonly) {
+        access = 'r';
+      }
       if (!canRead(access)) {
         return _res.status(403).json({ error: 'Access denied' });
       }
@@ -365,7 +378,8 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
     if (!p) return true;
     const userId = (req as any).userId as string | undefined;
     const ws = p.workspaceId ? projectManager.getWorkspace(p.workspaceId) : undefined;
-    const access = resolveAccess(userId, graphName, p.config, serverConfig, ws?.config);
+    let access = resolveAccess(userId, graphName, p.config, serverConfig, ws?.config);
+    if (access === 'rw' && p.config.graphConfigs[graphName as GraphName]?.readonly) access = 'r';
     if (level === 'rw') return canWrite(access);
     return canRead(access);
   }));

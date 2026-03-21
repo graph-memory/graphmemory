@@ -7,6 +7,8 @@ import type { ProjectManager } from '@/lib/project-manager';
 import type { PromiseQueue } from '@/lib/promise-queue';
 import { createRestApp } from '@/api/rest/index';
 import { attachWebSocket } from '@/api/rest/websocket';
+import { resolveUserFromApiKey, resolveAccess, canWrite, canRead } from '@/lib/access';
+import { GRAPH_NAMES, type GraphName, type AccessLevel } from '@/lib/multi-config';
 import type { DocGraph } from '@/graphs/docs';
 import { DocGraphManager } from '@/graphs/docs';
 import type { CodeGraph } from '@/graphs/code-types';
@@ -87,6 +89,7 @@ export interface McpSessionContext {
   projectId: string;
   workspaceId?: string;
   workspaceProjects?: string[];
+  userId?: string;
 }
 
 export type EmbedFnMap = {
@@ -155,6 +158,8 @@ export function createMcpServer(
   projectDir?: string,
   skillGraph?: SkillGraph,
   sessionContext?: McpSessionContext,
+  readonlyGraphs?: Set<string>,
+  userAccess?: Map<string, AccessLevel>,
 ): McpServer {
   // Backward-compat: single EmbedFn → use for both document and query
   const defaultPair: EmbedFns = { document: (q) => embed(q, ''), query: (q) => embed(q, '') };
@@ -185,13 +190,34 @@ export function createMcpServer(
   // Mutation tools are registered through mutServer to serialize concurrent writes
   const mutServer = mutationQueue ? createMutationServer(server, mutationQueue) : server;
 
+  // Check if mutation tools should be registered for a graph:
+  // - graph must not be readonly (global setting — tools hidden for all)
+  // - user must have write access (per-user — tools hidden for this user)
+  // - if no userAccess map, all mutations are allowed (no auth configured)
+  const canMutate = (graphName: string): boolean => {
+    if (readonlyGraphs?.has(graphName)) return false;
+    if (userAccess) {
+      const level = userAccess.get(graphName);
+      if (level && !canWrite(level)) return false;
+    }
+    return true;
+  };
+
+  // Check if a graph's tools should be registered at all (deny = no tools)
+  const canAccess = (graphName: string): boolean => {
+    if (!userAccess) return true;
+    const level = userAccess.get(graphName);
+    if (level && !canRead(level)) return false;
+    return true;
+  };
+
   // Context tool (always registered)
   getContext.register(server, sessionContext);
 
   const ext: ExternalGraphs = { docGraph, codeGraph, knowledgeGraph, fileIndexGraph, taskGraph, skillGraph };
 
-  // Docs tools (only when docGraph is provided)
-  if (docGraph) {
+  // Docs tools (only when docGraph is provided and user has access)
+  if (docGraph && canAccess('docs')) {
     const docMgr = new DocGraphManager(docGraph, fns.docs, ext);
     listTopics.register(server, docMgr);
     getToc.register(server, docMgr);
@@ -204,14 +230,14 @@ export function createMcpServer(
     explainSymbol.register(server, docMgr);
 
     // Cross-graph tools (require both docGraph and codeGraph)
-    if (codeGraph) {
+    if (codeGraph && canAccess('code')) {
       const codeMgrForCross = new CodeGraphManager(codeGraph, fns.code, ext);
       crossReferences.register(server, docMgr, codeMgrForCross);
     }
   }
 
-  // Code tools (only when codeGraph is provided)
-  if (codeGraph) {
+  // Code tools (only when codeGraph is provided and user has access)
+  if (codeGraph && canAccess('code')) {
     const codeMgr = new CodeGraphManager(codeGraph, fns.code, ext);
     listFiles.register(server, codeMgr);
     getFileSymbols.register(server, codeMgr);
@@ -220,77 +246,81 @@ export function createMcpServer(
     searchCodeFiles.register(server, codeMgr);
   }
 
-  // File index tools (always registered when fileIndexGraph is provided)
-  if (fileIndexGraph) {
+  // File index tools (when fileIndexGraph is provided and user has access)
+  if (fileIndexGraph && canAccess('files')) {
     const fileIndexMgr = new FileIndexGraphManager(fileIndexGraph, fns.files, ext);
     listAllFiles.register(server, fileIndexMgr);
     searchAllFiles.register(server, fileIndexMgr);
     getFileInfo.register(server, fileIndexMgr);
   }
 
-  // Knowledge tools (always registered)
-  // Mutations (create/update/delete) go through mutServer for queue serialization
-  if (knowledgeGraph) {
+  // Knowledge tools — read tools gated by canAccess, mutation tools gated by canMutate
+  if (knowledgeGraph && canAccess('knowledge')) {
     const ctx = projectDir ? { ...noopContext(), projectDir } : noopContext();
     const knowledgeMgr = new KnowledgeGraphManager(knowledgeGraph, fns.knowledge, ctx, {
       docGraph, codeGraph, fileIndexGraph, taskGraph, skillGraph,
     });
-    createNote.register(mutServer, knowledgeMgr);
-    updateNote.register(mutServer, knowledgeMgr);
-    deleteNote.register(mutServer, knowledgeMgr);
     getNote.register(server, knowledgeMgr);
     listNotes.register(server, knowledgeMgr);
     searchNotes.register(server, knowledgeMgr);
-    createRelation.register(mutServer, knowledgeMgr);
-    deleteRelation.register(mutServer, knowledgeMgr);
     listRelations.register(server, knowledgeMgr);
     findLinkedNotes.register(server, knowledgeMgr);
-    addNoteAttachment.register(mutServer, knowledgeMgr);
-    removeNoteAttachment.register(mutServer, knowledgeMgr);
+    if (canMutate('knowledge')) {
+      createNote.register(mutServer, knowledgeMgr);
+      updateNote.register(mutServer, knowledgeMgr);
+      deleteNote.register(mutServer, knowledgeMgr);
+      createRelation.register(mutServer, knowledgeMgr);
+      deleteRelation.register(mutServer, knowledgeMgr);
+      addNoteAttachment.register(mutServer, knowledgeMgr);
+      removeNoteAttachment.register(mutServer, knowledgeMgr);
+    }
   }
 
-  // Task tools (always registered when taskGraph is provided)
-  // Mutations go through mutServer for queue serialization
-  if (taskGraph) {
+  // Task tools — read tools gated by canAccess, mutation tools gated by canMutate
+  if (taskGraph && canAccess('tasks')) {
     const taskCtx = projectDir ? { ...noopContext(), projectDir } : noopContext();
     const taskMgr = new TaskGraphManager(taskGraph, fns.tasks, taskCtx, {
       docGraph, codeGraph, knowledgeGraph, fileIndexGraph, skillGraph,
     });
-    createTask.register(mutServer, taskMgr);
-    updateTask.register(mutServer, taskMgr);
-    deleteTask.register(mutServer, taskMgr);
     getTask.register(server, taskMgr);
     listTasksTool.register(server, taskMgr);
     searchTasksTool.register(server, taskMgr);
-    moveTask.register(mutServer, taskMgr);
-    linkTask.register(mutServer, taskMgr);
-    createTaskLink.register(mutServer, taskMgr);
-    deleteTaskLink.register(mutServer, taskMgr);
     findLinkedTasks.register(server, taskMgr);
-    addTaskAttachment.register(mutServer, taskMgr);
-    removeTaskAttachment.register(mutServer, taskMgr);
+    if (canMutate('tasks')) {
+      createTask.register(mutServer, taskMgr);
+      updateTask.register(mutServer, taskMgr);
+      deleteTask.register(mutServer, taskMgr);
+      moveTask.register(mutServer, taskMgr);
+      linkTask.register(mutServer, taskMgr);
+      createTaskLink.register(mutServer, taskMgr);
+      deleteTaskLink.register(mutServer, taskMgr);
+      addTaskAttachment.register(mutServer, taskMgr);
+      removeTaskAttachment.register(mutServer, taskMgr);
+    }
   }
 
-  // Skill tools (always registered when skillGraph is provided)
-  if (skillGraph) {
+  // Skill tools — read tools gated by canAccess, mutation tools gated by canMutate
+  if (skillGraph && canAccess('skills')) {
     const skillCtx = projectDir ? { ...noopContext(), projectDir } : noopContext();
     const skillMgr = new SkillGraphManager(skillGraph, fns.skills, skillCtx, {
       docGraph, codeGraph, knowledgeGraph, fileIndexGraph, taskGraph,
     });
-    createSkillTool.register(mutServer, skillMgr);
-    updateSkillTool.register(mutServer, skillMgr);
-    deleteSkillTool.register(mutServer, skillMgr);
     getSkillTool.register(server, skillMgr);
     listSkillsTool.register(server, skillMgr);
     searchSkillsTool.register(server, skillMgr);
-    linkSkill.register(mutServer, skillMgr);
-    createSkillLink.register(mutServer, skillMgr);
-    deleteSkillLink.register(mutServer, skillMgr);
     findLinkedSkills.register(server, skillMgr);
-    addSkillAttachment.register(mutServer, skillMgr);
-    removeSkillAttachment.register(mutServer, skillMgr);
     recallSkills.register(server, skillMgr);
-    bumpSkillUsage.register(mutServer, skillMgr);
+    if (canMutate('skills')) {
+      createSkillTool.register(mutServer, skillMgr);
+      updateSkillTool.register(mutServer, skillMgr);
+      deleteSkillTool.register(mutServer, skillMgr);
+      linkSkill.register(mutServer, skillMgr);
+      createSkillLink.register(mutServer, skillMgr);
+      deleteSkillLink.register(mutServer, skillMgr);
+      addSkillAttachment.register(mutServer, skillMgr);
+      removeSkillAttachment.register(mutServer, skillMgr);
+      bumpSkillUsage.register(mutServer, skillMgr);
+    }
   }
 
   return server;
@@ -332,6 +362,7 @@ export async function startHttpServer(
   projectDir?: string,
   skillGraph?: SkillGraph,
   sessionContext?: McpSessionContext,
+  readonlyGraphs?: Set<string>,
 ): Promise<http.Server> {
   const sessions = new Map<string, HttpSession>();
 
@@ -384,7 +415,7 @@ export async function startHttpServer(
         const sid = transport.sessionId;
         if (sid) sessions.delete(sid);
       };
-      const mcpServer = createMcpServer(docGraph, codeGraph, knowledgeGraph, fileIndexGraph, taskGraph, embedFn, undefined, projectDir, skillGraph, sessionContext);
+      const mcpServer = createMcpServer(docGraph, codeGraph, knowledgeGraph, fileIndexGraph, taskGraph, embedFn, undefined, projectDir, skillGraph, sessionContext, readonlyGraphs);
       await mcpServer.connect(transport);
       await transport.handleRequest(req, res, body);
     } catch (err) {
@@ -507,6 +538,25 @@ export async function startMultiProjectHttpServer(
       return;
     }
 
+    // Auth: if users configured, require valid API key
+    const users = restOptions?.users ?? {};
+    const hasUsers = Object.keys(users).length > 0;
+    let userId: string | undefined;
+
+    if (hasUsers) {
+      const auth = req.headers.authorization;
+      if (!auth?.startsWith('Bearer ') || auth.length <= 7) {
+        res.writeHead(401).end(JSON.stringify({ error: 'API key required' }));
+        return;
+      }
+      const result = resolveUserFromApiKey(auth.slice(7), users);
+      if (!result) {
+        res.writeHead(401).end(JSON.stringify({ error: 'Invalid API key' }));
+        return;
+      }
+      userId = result.userId;
+    }
+
     // Build session context (auto-detect workspace if not in URL)
     const ws = workspaceId
       ? projectManager.getWorkspace(workspaceId)
@@ -515,14 +565,39 @@ export async function startMultiProjectHttpServer(
       projectId,
       workspaceId: ws?.id,
       workspaceProjects: ws?.config.projects,
+      userId,
     };
+
+    // Build readonly set from config + workspace overrides
+    const mcpReadonlyGraphs = new Set<string>();
+    for (const gn of GRAPH_NAMES) {
+      if (project.config.graphConfigs[gn].readonly) mcpReadonlyGraphs.add(gn);
+    }
+    if (project.workspaceId) {
+      const wsInst = projectManager.getWorkspace(project.workspaceId);
+      if (wsInst) {
+        for (const gn of ['knowledge', 'tasks', 'skills'] as const) {
+          if (wsInst.config.graphConfigs[gn].readonly) mcpReadonlyGraphs.add(gn);
+        }
+      }
+    }
+
+    // Build per-user access map
+    let mcpUserAccess: Map<string, AccessLevel> | undefined;
+    if (userId && restOptions?.serverConfig) {
+      mcpUserAccess = new Map();
+      for (const gn of GRAPH_NAMES) {
+        const level = resolveAccess(userId, gn as GraphName, project.config, restOptions.serverConfig, ws?.config);
+        mcpUserAccess.set(gn, level);
+      }
+    }
 
     const body = await collectBody(req);
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID(),
       onsessioninitialized: (sid) => {
         sessions.set(sid, { projectId, workspaceId: ws?.id, server: mcpServer, transport, lastActivity: Date.now() });
-        process.stderr.write(`[http] Session ${sid} started (project: ${projectId}${ws ? `, workspace: ${ws.id}` : ''})\n`);
+        process.stderr.write(`[http] Session ${sid} started (project: ${projectId}${ws ? `, workspace: ${ws.id}` : ''}${userId ? `, user: ${userId}` : ''})\n`);
       },
     });
     transport.onclose = () => {
@@ -541,6 +616,8 @@ export async function startMultiProjectHttpServer(
       project.config.projectDir,
       project.skillGraph,
       sessionCtx,
+      mcpReadonlyGraphs,
+      mcpUserAccess,
     );
     await mcpServer.connect(transport);
     await transport.handleRequest(req, res, body);

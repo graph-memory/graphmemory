@@ -49,6 +49,7 @@ const userSchema = z.object({
 
 const graphConfigSchema = z.object({
   enabled:        z.boolean().optional(),
+  readonly:       z.boolean().optional(),
   include:        z.string().optional(),
   exclude:        excludeSchema,
   model:          modelConfigSchema.optional(),
@@ -112,6 +113,7 @@ const serverSchema = z.object({
 
 const wsGraphConfigSchema = z.object({
   enabled:        z.boolean().optional(),
+  readonly:       z.boolean().optional(),
   exclude:        excludeSchema,
   model:          modelConfigSchema.optional(),
   embedding:      embeddingConfigSchema.optional(),
@@ -233,6 +235,7 @@ export interface ServerConfig {
 
 export interface GraphConfig {
   enabled: boolean;
+  readonly: boolean;
   include?: string;
   exclude: string[];   // accumulated: server + workspace + project + graph
   model: ModelConfig;
@@ -458,6 +461,7 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
 
       graphConfigs[gn] = {
         enabled: gc?.enabled ?? true,
+        readonly: gc?.readonly ?? false,
         include: gc?.include ?? (gn === 'docs' ? PROJECT_DEFAULTS.docsInclude : gn === 'code' ? PROJECT_DEFAULTS.codeInclude : undefined),
         exclude: graphExclude,
         model: resolveModel(gc?.model, projectModel),
@@ -512,6 +516,7 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
         const gc = rawGraphs[gn];
         graphConfigs[gn] = {
           enabled: gc?.enabled ?? true,
+          readonly: gc?.readonly ?? false,
           exclude: [...wsExclude, ...parseExclude(gc?.exclude)],
           model: resolveModel(gc?.model, wsModel),
           embedding: resolveEmbedding(gc?.embedding, wsEmbedding),
@@ -587,6 +592,7 @@ export function defaultConfig(projectDir: string): MultiConfig {
   for (const gn of GRAPH_NAMES) {
     graphConfigs[gn] = {
       enabled: true,
+      readonly: false,
       include: gn === 'docs' ? PROJECT_DEFAULTS.docsInclude : gn === 'code' ? PROJECT_DEFAULTS.codeInclude : undefined,
       exclude: [...server.exclude],
       model: MODEL_DEFAULTS,

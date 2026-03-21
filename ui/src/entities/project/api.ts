@@ -2,6 +2,7 @@ import { request, unwrapList, type ListResponse } from '@/shared/api/client.ts';
 
 export interface GraphInfo {
   enabled: boolean;
+  readonly: boolean;
   access: 'deny' | 'r' | 'rw' | null;
 }
 

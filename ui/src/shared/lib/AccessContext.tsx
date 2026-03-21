@@ -12,13 +12,13 @@ export function AccessProvider({ graphs, loading, children }: { graphs: Record<s
   return <AccessContext value={{ graphs, loading }}>{children}</AccessContext>;
 }
 
-export function useGraphAccess(graphName: string): { enabled: boolean; access: 'deny' | 'r' | 'rw' | null; loading: boolean } {
+export function useGraphAccess(graphName: string): { enabled: boolean; readonly: boolean; access: 'deny' | 'r' | 'rw' | null; loading: boolean } {
   const { graphs, loading } = useContext(AccessContext);
   const info = graphs[graphName];
-  return { enabled: info?.enabled ?? true, access: info?.access ?? 'rw', loading };
+  return { enabled: info?.enabled ?? true, readonly: info?.readonly ?? false, access: info?.access ?? 'rw', loading };
 }
 
 export function useCanWrite(graphName: string): boolean {
-  const { access } = useGraphAccess(graphName);
-  return access === 'rw';
+  const { access, readonly } = useGraphAccess(graphName);
+  return access === 'rw' && !readonly;
 }

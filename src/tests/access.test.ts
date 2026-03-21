@@ -11,7 +11,7 @@ const EMBED: EmbeddingConfig = {
 };
 
 function makeGraphConfig(overrides?: Partial<GraphConfig>): GraphConfig {
-  return { enabled: true, exclude: [], model: MODEL, embedding: EMBED, ...overrides };
+  return { enabled: true, readonly: false, exclude: [], model: MODEL, embedding: EMBED, ...overrides };
 }
 
 function makeProjectConfig(overrides?: Partial<ProjectConfig>): ProjectConfig {

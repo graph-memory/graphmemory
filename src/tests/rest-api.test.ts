@@ -27,14 +27,16 @@ function fakeEmbed(q: string): Promise<number[]> {
 const TEST_MODEL = { name: 'test', pooling: 'mean' as const, normalize: true, queryPrefix: '', documentPrefix: '' };
 const TEST_EMBEDDING = { batchSize: 1, maxChars: 2000, cacheSize: 0 };
 
-function testGraphConfigs() {
+function testGraphConfigs(overrides?: Record<string, Partial<{ enabled: boolean; readonly: boolean }>>) {
   return Object.fromEntries(
     ['docs', 'code', 'knowledge', 'tasks', 'files', 'skills'].map(g => [g, {
       enabled: true,
+      readonly: false,
       include: g === 'docs' ? '**/*.md' : g === 'code' ? '**/*.ts' : undefined,
       exclude: [],
       model: { ...TEST_MODEL },
       embedding: { ...TEST_EMBEDDING },
+      ...overrides?.[g],
     }]),
   ) as any;
 }
@@ -1121,5 +1123,76 @@ describe('REST API — JWT Cookie Auth', () => {
       .get('/api/projects/test/knowledge/notes')
       .set('Authorization', 'Bearer key-admin');
     expect(res.status).toBe(200);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Readonly graph tests
+// ---------------------------------------------------------------------------
+
+describe('REST API — readonly graphs', () => {
+  let app: express.Express;
+
+  beforeAll(async () => {
+    const project = createTestProject();
+    // Override graphConfigs: knowledge readonly
+    project.config.graphConfigs = testGraphConfigs({ knowledge: { readonly: true } });
+
+    const manager = {
+      getProject: (id: string) => id === 'test' ? project : undefined,
+      listProjects: () => ['test'],
+      listWorkspaces: () => [],
+      getWorkspace: () => undefined,
+      getProjectWorkspace: () => undefined,
+    } as unknown as ProjectManager;
+
+    app = createRestApp(manager);
+  });
+
+  it('GET /notes returns 200 on readonly graph', async () => {
+    const res = await request(app).get('/api/projects/test/knowledge/notes');
+    expect(res.status).toBe(200);
+  });
+
+  it('GET /search returns 200 on readonly graph', async () => {
+    const res = await request(app).get('/api/projects/test/knowledge/search?q=test');
+    expect(res.status).toBe(200);
+  });
+
+  it('POST /notes returns 403 on readonly graph', async () => {
+    const res = await request(app)
+      .post('/api/projects/test/knowledge/notes')
+      .send({ title: 'Test', content: 'test' });
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/[Rr]ead.only/);
+  });
+
+  it('PUT /notes/:id returns 403 on readonly graph', async () => {
+    const res = await request(app)
+      .put('/api/projects/test/knowledge/notes/fake-id')
+      .send({ title: 'Updated' });
+    expect(res.status).toBe(403);
+  });
+
+  it('DELETE /notes/:id returns 403 on readonly graph', async () => {
+    const res = await request(app)
+      .delete('/api/projects/test/knowledge/notes/fake-id');
+    expect(res.status).toBe(403);
+  });
+
+  it('project list includes readonly flag', async () => {
+    const res = await request(app).get('/api/projects');
+    expect(res.status).toBe(200);
+    const proj = res.body.results[0];
+    expect(proj.graphs.knowledge.readonly).toBe(true);
+    expect(proj.graphs.knowledge.enabled).toBe(true);
+    expect(proj.graphs.tasks.readonly).toBe(false);
+  });
+
+  it('non-readonly graph still allows mutations', async () => {
+    const res = await request(app)
+      .post('/api/projects/test/tasks')
+      .send({ title: 'Test task' });
+    expect(res.status).toBe(201);
   });
 });

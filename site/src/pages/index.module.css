@@ -217,6 +217,13 @@
 }
 
 /* ─── Gradient text + caret ─── */
+.twWrap {
+  display: inline-block;
+  min-height: 1.2em;
+  min-width: 13ch;
+  text-align: left;
+}
+
 .gradient {
   background: linear-gradient(135deg, #569cd6, #c586c0);
   -webkit-background-clip: text;

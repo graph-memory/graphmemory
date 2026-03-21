@@ -132,7 +132,7 @@ function Why() {
   return (
     <section className={s.sec}>
       <div className="container">
-        <Heading as="h2" className={s.h2}>Not just search — <Typewriter /></Heading>
+        <Heading as="h2" className={s.h2}><span>Not just search — </span><span className={s.twWrap}><Typewriter /></span></Heading>
         <p className={s.lead}>Graph Memory doesn't just find text — it understands how your project is structured.</p>
         <div className={s.triGrid}>
           {[

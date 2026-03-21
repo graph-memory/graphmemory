@@ -16,7 +16,7 @@ The Prompt Builder is a visual tool that generates optimized system prompts for 
 
 AI assistants work significantly better when their system prompts are tailored to the task at hand. A prompt built for code review emphasizes different tools and behaviors than one built for onboarding or architecture design. The Prompt Builder handles this by:
 
-- **Selecting the right tools** from the 58 available MCP tools based on your scenario
+- **Selecting the right tools** from 57 tools in the builder's catalog based on your scenario
 - **Setting the right tone** through roles (Developer, Architect, Tech Writer, etc.)
 - **Controlling mutation behavior** through styles (Proactive, Reactive, Read-only, etc.)
 - **Configuring search depth**, memory strategy, and collaboration patterns
@@ -66,8 +66,11 @@ Open the graphmemory Web UI and navigate to the **Prompts** page. You'll see the
 Once you've built your prompt, you can:
 
 - **Copy to clipboard** and paste it into your AI assistant's system prompt
+- **Export as a Skill** to store it in your project's skill graph, making it available through the `recall_skills` tool
+
+The Advanced Builder adds two more export options:
+
 - **Download as a `.md` file** to store it alongside your project
 - **Save as a preset** to reuse later from the builder
-- **Export as a Skill** to store it in your project's skill graph, making it available through the `recall_skills` tool
 
 See [Presets & Export](./presets-export.md) for details on saving and sharing prompts.

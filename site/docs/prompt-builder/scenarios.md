@@ -149,3 +149,42 @@ Use this for sprint reviews and retrospectives. The prompt focuses on reviewing 
 - **Focus tools**: None pre-selected
 
 Use this when none of the built-in scenarios fit your workflow. All graphs are enabled and no tools are pre-prioritized, giving you a blank slate to configure through the other builder settings.
+
+## Advanced defaults per scenario
+
+When using the Advanced Builder, each scenario pre-configures settings across the Behavior, Memory, Search, and Collaboration tabs. These defaults are applied when you select a scenario, but you can override any of them.
+
+The `advancedDefaults` for each scenario control:
+
+- **Behavior**: verbosity, code example frequency, explanation depth
+- **Memory Strategy**: auto-creation of notes/tasks, relation strategy, skill capture threshold
+- **Search Strategy**: default depth, cross-graph expansion, BFS hops
+- **Collaboration**: solo/pair/team-lead mode, review strictness
+- **Enabled sections**: which prompt sections are turned on beyond the always-on ones
+
+Here are a few examples:
+
+### Onboarding
+
+Optimized for exploration with maximum context:
+- **Behavior**: detailed verbosity, always show code examples, deep-dive explanations
+- **Memory**: notes created only when asked, conservative relations, no auto task creation
+- **Search**: deep default depth, always expand across graphs, 3 BFS hops
+- **Collaboration**: solo mode, lenient review
+- **Enabled sections**: behavior, search
+
+### Bug Investigation
+
+Optimized for fast debugging with aggressive knowledge capture:
+- **Behavior**: detailed verbosity, always show code examples, deep-dive explanations
+- **Memory**: always auto-create notes and tasks, aggressive relation linking
+- **Search**: deep default depth, always expand across graphs, 3 BFS hops
+- **Enabled sections**: memory, search
+
+### Task Planning
+
+Optimized for concise management workflows:
+- **Behavior**: concise verbosity, no code examples, brief explanations
+- **Memory**: notes on ask, always auto-create tasks
+- **Collaboration**: team-lead mode, standard review strictness
+- **Enabled sections**: collaboration, memory

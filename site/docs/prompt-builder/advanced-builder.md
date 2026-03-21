@@ -32,11 +32,23 @@ Set the mutation behavior (Proactive, Reactive, Read-only, Balanced, Aggressive,
 
 ### Stack
 
-Configure technology domains relevant to your project. Select active domains and pick specific frameworks, languages, or tools within each domain. This helps the prompt include domain-specific guidance.
+Configure technology domains relevant to your project. The Stack tab covers **9 domains**, each with multiple subcategories. Enable the domains that apply to your project, then select specific technologies within each. Selected stack items are included in the generated prompt so the assistant understands your project's tech context.
+
+| Domain | Subcategories |
+|--------|--------------|
+| **Languages & Runtimes** | Languages, Runtimes, Package Managers |
+| **Web Frontend** | Frameworks, State Management, Styling, UI Libraries, Build Tools |
+| **Web Backend** | JS/TS, Python, Go, Rust, Java/Kotlin, PHP, Ruby, C#/.NET, Elixir, API Style |
+| **Mobile & Desktop** | iOS, Android, Cross-platform, Desktop |
+| **Data & Storage** | Relational, Document, Key-Value/Cache, Search, Graph, Time-series, Vector, ORM/Query Builder, Message Queue |
+| **DevOps & Infrastructure** | CI/CD, Containers, Orchestration, IaC, Cloud, Monitoring, Secrets |
+| **Testing & Quality** | Unit/Integration, E2E, API Testing, Linting/Formatting, Code Quality, Load Testing, Paradigms |
+| **AI & ML** | Frameworks, LLM/GenAI, Data Processing, MLOps, Notebooks, Embeddings/Vector |
+| **Project & Process** | Methodology, Tracker, Documentation, Communication, Design, Version Control |
 
 ### Tools
 
-Fine-tune individual tool priorities. For each of the 58 MCP tools, you can set a priority level:
+Fine-tune individual tool priorities. For each of the 57 tools in the builder's catalog, you can set a priority level:
 
 | Priority | Meaning |
 |----------|---------|
@@ -115,6 +127,17 @@ Configure team interaction settings:
 ### Advanced
 
 Add custom prompt sections with free-form markdown. Use this for anything not covered by the other tabs — project-specific instructions, special constraints, or custom workflows.
+
+## Section Toggle
+
+Each configuration tab (except Scenario and Advanced) includes a **Section Toggle** at the top. This toggle controls whether that tab's content is included in the generated prompt.
+
+- **Enabled** (default for core tabs): the section's content appears in the generated prompt. The tab label in the tab bar is highlighted.
+- **Disabled**: the section is excluded from the prompt entirely. The tab label appears dimmed, and the toggle shows "excluded from prompt."
+
+This lets you configure a tab's settings without including them in the output. For example, you might configure Collaboration settings but disable the section until you're ready to use them in a team context.
+
+Scenarios can pre-enable specific sections through their `advancedDefaults`. For instance, the Onboarding scenario enables the Behavior and Search sections, while Code Review enables the Collaboration section.
 
 ## Live preview with token estimation
 

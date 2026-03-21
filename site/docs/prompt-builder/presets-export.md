@@ -10,6 +10,10 @@ keywords: [presets, export, save prompt, share prompt, skill export, clipboard, 
 
 Once you've built a prompt you like, you can save it for reuse, export it in several formats, or share it with your team.
 
+:::note
+**Presets** and **Download as `.md`** are available only in the **Advanced Builder**. The Simple Builder supports **Copy to clipboard** and **Export as Skill**.
+:::
+
 ## Saving presets
 
 Presets store your complete builder configuration — scenario, graphs, role, style, and all Advanced Builder settings — in your browser's local storage.

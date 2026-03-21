@@ -15,7 +15,7 @@ Graph Memory includes a lightweight task management system. Unlike standalone pr
 ```
 create_task({
   title: "Fix auth redirect loop",
-  content: "When users log in with an expired session, the app enters a redirect loop between /login and /dashboard.",
+  description: "When users log in with an expired session, the app enters a redirect loop between /login and /dashboard.",
   priority: "high",
   tags: ["auth", "bug"]
 })
@@ -26,13 +26,15 @@ Tasks support the following fields:
 | Field | Description |
 |-------|-------------|
 | `title` | What needs to be done |
-| `content` | Detailed description (markdown) |
+| `description` | Detailed description (markdown) |
 | `status` | Workflow status (defaults to `backlog`) |
 | `priority` | `critical`, `high`, `medium`, or `low` |
 | `tags` | Free-form labels for filtering |
 | `assignee` | Team member ID |
 | `dueDate` | Deadline |
 | `estimate` | Effort estimate (numeric, e.g., hours or story points) |
+| `createdBy` | Author who created the task (set automatically from config) |
+| `updatedBy` | Author who last updated the task (set automatically from config) |
 
 ## Kanban workflow
 
@@ -78,6 +80,10 @@ When you list tasks, they are sorted by priority first (critical at the top), th
 ```
 list_tasks({ status: "todo" })
 ```
+
+## Optimistic locking
+
+Every task has a `version` field that starts at 1 and increments on each mutation. The `update_task` and `move_task` tools accept an optional `expectedVersion` parameter. When provided, the operation succeeds only if the task's current version matches the expected value. If another update happened in between, the operation fails with a `version_conflict` error containing the current and expected versions. This prevents concurrent updates from silently overwriting each other.
 
 ## Task relationships
 

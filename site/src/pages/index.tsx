@@ -313,9 +313,10 @@ function PromptBuilder() {
           <div className={s.pbFeatures}>
             {[
               {title: '14 Scenarios', desc: 'Onboarding, Code Review, Architecture, Incident Response, and more'},
-              {title: '8 Roles', desc: 'Developer, Architect, Reviewer, Tech Writer, Team Lead, DevOps...'},
-              {title: '6 Styles', desc: 'Proactive, Reactive, Balanced, Aggressive, Guided, Read-only'},
-              {title: 'Per-Tool Control', desc: 'Set priority for each of 58 tools: Always, Prefer, Available, Avoid, Disabled'},
+              {title: '8 Roles & 6 Styles', desc: 'Developer, Architect, Reviewer, Tech Writer — Proactive, Reactive, Read-only...'},
+              {title: '9 Tech Domains', desc: 'Languages, Frontend, Backend, Mobile, Data, DevOps, Testing, AI/ML, Project'},
+              {title: 'Per-Tool Control', desc: 'Set priority for each of 57 tools: Always, Prefer, Available, Avoid, Disabled'},
+              {title: 'Live Preview', desc: 'See your prompt update in real time with token estimation'},
             ].map(({title, desc}) => (
               <div key={title} className={s.pbItem}>
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className={s.pbCheck}>

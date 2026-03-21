@@ -60,9 +60,14 @@ See [Styles](./styles.md) for full descriptions.
 
 As you change settings, the right-side panel updates in real time to show the assembled prompt. This lets you see exactly what the AI assistant will receive.
 
-## Copy to clipboard
+## Export options
 
-When you're satisfied with the preview, click the **Copy** button to copy the full prompt to your clipboard. Paste it into your AI assistant's system prompt configuration.
+The Simple Builder offers two export options:
+
+- **Copy to clipboard**: Click the copy button to copy the full prompt as plain text. Paste it into your AI assistant's system prompt configuration.
+- **Export as Skill**: Click the save button to store the prompt as a skill in your project's Skill Graph. This makes it searchable through `recall_skills` and available to other team members.
+
+For additional export options (Download as `.md` and Save as preset), switch to the [Advanced Builder](./advanced-builder.md).
 
 ## When to use Simple vs Advanced
 

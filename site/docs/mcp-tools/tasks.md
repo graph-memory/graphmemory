@@ -51,6 +51,7 @@ Partially updates a task. Only send fields you want to change.
 |-----------|----------|-------------|
 | `taskId` | Yes | Task ID to update |
 | All create_task fields | No | Any field from create_task can be updated |
+| `expectedVersion` | No | Current version for optimistic locking — fails with `version_conflict` if the task has been updated since |
 
 ### Returns
 
@@ -92,7 +93,7 @@ Fetches a task with all its relations and cross-graph links.
 
 ### Returns
 
-`{ id, title, description, status, priority, tags, dueDate, estimate, assignee, completedAt, createdAt, updatedAt, subtasks, blockedBy, blocks, related, crossLinks? }` — includes resolved relation arrays.
+`{ id, title, description, status, priority, tags, dueDate, estimate, assignee, completedAt, createdAt, updatedAt, version, attachments, subtasks, blockedBy, blocks, related, crossLinks? }` — includes resolved relation arrays.
 
 ---
 
@@ -113,7 +114,11 @@ Lists tasks with optional filters, sorted by priority (critical first) then due 
 
 ### Returns
 
-Array of `{ id, title, status, priority, tags, dueDate, estimate, assignee, completedAt }`.
+Array of `{ id, title, description, status, priority, tags, dueDate, estimate, assignee, completedAt, version, createdAt, updatedAt, attachments }`.
+
+:::note
+Descriptions are truncated to 500 characters in list results. Use `get_task` to retrieve the full description.
+:::
 
 ---
 
@@ -151,6 +156,7 @@ Changes a task's status with automatic `completedAt` management.
 |-----------|----------|-------------|
 | `taskId` | Yes | Task ID |
 | `status` | Yes | New status |
+| `expectedVersion` | No | Current version for optimistic locking — fails with `version_conflict` if the task has been updated since |
 
 ### Returns
 
@@ -273,6 +279,10 @@ Attaches a file to a task.
 ### Returns
 
 `{ filename, mimeType, size, addedAt }`.
+
+:::note
+Files larger than 50 MB are rejected.
+:::
 
 ---
 

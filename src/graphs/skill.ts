@@ -13,7 +13,7 @@ import { mirrorSkillCreate, mirrorSkillUpdate, mirrorSkillRelation, mirrorAttach
 import type { MirrorWriteTracker } from '@/lib/mirror-watcher';
 import type { ParsedSkillFile } from '@/lib/file-import';
 import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
-import { scanAttachments } from '@/graphs/attachment-types';
+import { scanAttachments, MAX_ATTACHMENT_SIZE, MAX_ATTACHMENTS_PER_ENTITY } from '@/graphs/attachment-types';
 import { diffRelations } from '@/lib/file-import';
 import type { RelationFrontmatter } from '@/lib/file-mirror';
 
@@ -991,11 +991,15 @@ export class SkillGraphManager {
     const dir = this.skillsDir;
     if (!dir) return null;
     if (!this._graph.hasNode(skillId) || isProxy(this._graph, skillId)) return null;
+    if (data.length > MAX_ATTACHMENT_SIZE) return null;
+
+    const entityDir = path.join(dir, skillId);
+    const existing = scanAttachments(entityDir);
+    if (existing.length >= MAX_ATTACHMENTS_PER_ENTITY) return null;
 
     const safe = sanitizeFilename(filename);
     if (!safe) return null;
 
-    const entityDir = path.join(dir, skillId);
     writeAttachment(dir, skillId, safe, data);
     this.mirrorTracker?.recordWrite(path.join(entityDir, 'attachments', safe));
     mirrorAttachmentEvent(entityDir, 'add', safe);

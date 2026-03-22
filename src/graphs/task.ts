@@ -13,7 +13,7 @@ import { mirrorTaskCreate, mirrorTaskUpdate, mirrorTaskRelation, mirrorAttachmen
 import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
 import type { MirrorWriteTracker } from '@/lib/mirror-watcher';
 import type { ParsedTaskFile } from '@/lib/file-import';
-import { scanAttachments } from '@/graphs/attachment-types';
+import { scanAttachments, MAX_ATTACHMENT_SIZE, MAX_ATTACHMENTS_PER_ENTITY } from '@/graphs/attachment-types';
 import { diffRelations } from '@/lib/file-import';
 import type { RelationFrontmatter } from '@/lib/file-mirror';
 
@@ -949,11 +949,15 @@ export class TaskGraphManager {
     const dir = this.tasksDir;
     if (!dir) return null;
     if (!this._graph.hasNode(taskId) || isProxy(this._graph, taskId)) return null;
+    if (data.length > MAX_ATTACHMENT_SIZE) return null;
+
+    const entityDir = path.join(dir, taskId);
+    const existing = scanAttachments(entityDir);
+    if (existing.length >= MAX_ATTACHMENTS_PER_ENTITY) return null;
 
     const safe = sanitizeFilename(filename);
     if (!safe) return null;
 
-    const entityDir = path.join(dir, taskId);
     writeAttachment(dir, taskId, safe, data);
     this.mirrorTracker?.recordWrite(path.join(entityDir, 'attachments', safe));
     mirrorAttachmentEvent(entityDir, 'add', safe);

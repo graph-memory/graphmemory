@@ -81,16 +81,28 @@ export function resolvePendingImports(graph: CodeGraph): number {
 
 /**
  * Resolve pending extends/implements edges after all files have been indexed.
- * Searches the entire graph for nodes matching toName (by symbol name).
+ * When multiple candidates share the same name, prefers the one whose file
+ * is imported by the source file (falls back to first match).
  */
 export function resolvePendingEdges(graph: CodeGraph): number {
-  // Build name → nodeId index for fast lookup
   const nameIndex = new Map<string, string[]>();
   graph.forEachNode((id, attrs: CodeNodeAttributes) => {
     if (attrs.kind === 'class' || attrs.kind === 'interface') {
       const list = nameIndex.get(attrs.name) ?? [];
       list.push(id);
       nameIndex.set(attrs.name, list);
+    }
+  });
+
+  // Build file → imported file IDs index for disambiguation
+  const fileImports = new Map<string, Set<string>>();
+  graph.forEachNode((id, attrs: CodeNodeAttributes) => {
+    if (attrs.kind === 'file') {
+      const imported = new Set<string>();
+      graph.forEachOutEdge(id, (_edge, edgeAttrs, _src, target) => {
+        if (edgeAttrs.kind === 'imports') imported.add(target);
+      });
+      fileImports.set(id, imported);
     }
   });
 
@@ -101,8 +113,19 @@ export function resolvePendingEdges(graph: CodeGraph): number {
     for (const edge of attrs.pendingEdges) {
       const candidates = nameIndex.get(edge.toName);
       if (candidates && candidates.length > 0 && graph.hasNode(edge.from)) {
-        // Use first match (ambiguity is rare in practice)
-        const toId = candidates[0];
+        let toId: string;
+        if (candidates.length === 1) {
+          toId = candidates[0];
+        } else {
+          // Disambiguate: prefer candidate whose file is imported by edge.from's file
+          const fromFileId = edge.from.split('::')[0];
+          const imports = fileImports.get(fromFileId);
+          const match = imports && candidates.find(c => {
+            const cFileId = c.split('::')[0];
+            return imports.has(cFileId);
+          });
+          toId = match ?? candidates[0];
+        }
         if (toId !== edge.from && !graph.hasEdge(edge.from, toId)) {
           graph.addEdgeWithKey(`${edge.from}→${toId}`, edge.from, toId, { kind: edge.kind });
           created++;

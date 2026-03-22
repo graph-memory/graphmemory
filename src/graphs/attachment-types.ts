@@ -2,6 +2,12 @@ import * as fs from 'fs';
 import * as path from 'path';
 import mime from 'mime';
 
+/** Maximum size of a single attachment in bytes (10 MB). */
+export const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
+
+/** Maximum number of attachments per entity (note/task/skill). */
+export const MAX_ATTACHMENTS_PER_ENTITY = 20;
+
 export interface AttachmentMeta {
   filename: string;     // "screenshot.png"
   mimeType: string;     // "image/png"

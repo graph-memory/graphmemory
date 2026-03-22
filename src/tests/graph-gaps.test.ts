@@ -544,10 +544,51 @@ describe('resolvePendingEdges — ambiguous names', () => {
 
     resolvePendingEdges(graph);
 
-    // Should have extends edge to one of the Handlers (first found)
+    // Should have extends edge to one of the Handlers (first found, no import to disambiguate)
     const hasExtends = graph.hasEdge('app.ts::AppHandler', 'http.ts::Handler')
       || graph.hasEdge('app.ts::AppHandler', 'ws.ts::Handler');
     expect(hasExtends).toBe(true);
+  });
+
+  it('prefers candidate whose file is imported when ambiguous', () => {
+    const graph = createCodeGraph();
+
+    updateCodeFile(graph, {
+      fileId: 'http.ts', mtime: 1000,
+      nodes: [
+        { id: 'http.ts', attrs: { kind: 'file', fileId: 'http.ts', name: 'http.ts', signature: '', docComment: '', body: '', startLine: 1, endLine: 10, isExported: false, embedding: [], fileEmbedding: [], mtime: 1000 } },
+        { id: 'http.ts::Handler', attrs: { kind: 'class', fileId: 'http.ts', name: 'Handler', signature: 'class Handler', docComment: '', body: '', startLine: 2, endLine: 8, isExported: true, embedding: [], fileEmbedding: [], mtime: 1000 } },
+      ],
+      edges: [{ from: 'http.ts', to: 'http.ts::Handler', attrs: { kind: 'contains' } }],
+    });
+
+    updateCodeFile(graph, {
+      fileId: 'ws.ts', mtime: 1000,
+      nodes: [
+        { id: 'ws.ts', attrs: { kind: 'file', fileId: 'ws.ts', name: 'ws.ts', signature: '', docComment: '', body: '', startLine: 1, endLine: 10, isExported: false, embedding: [], fileEmbedding: [], mtime: 1000 } },
+        { id: 'ws.ts::Handler', attrs: { kind: 'class', fileId: 'ws.ts', name: 'Handler', signature: 'class Handler', docComment: '', body: '', startLine: 2, endLine: 8, isExported: true, embedding: [], fileEmbedding: [], mtime: 1000 } },
+      ],
+      edges: [{ from: 'ws.ts', to: 'ws.ts::Handler', attrs: { kind: 'contains' } }],
+    });
+
+    // app.ts imports ws.ts and extends Handler
+    updateCodeFile(graph, {
+      fileId: 'app.ts', mtime: 1000,
+      nodes: [
+        { id: 'app.ts', attrs: { kind: 'file', fileId: 'app.ts', name: 'app.ts', signature: '', docComment: '', body: '', startLine: 1, endLine: 10, isExported: false, embedding: [], fileEmbedding: [], mtime: 1000, pendingEdges: [{ from: 'app.ts::AppHandler', toName: 'Handler', kind: 'extends' }] } },
+        { id: 'app.ts::AppHandler', attrs: { kind: 'class', fileId: 'app.ts', name: 'AppHandler', signature: 'class AppHandler extends Handler', docComment: '', body: '', startLine: 2, endLine: 8, isExported: true, embedding: [], fileEmbedding: [], mtime: 1000 } },
+      ],
+      edges: [
+        { from: 'app.ts', to: 'app.ts::AppHandler', attrs: { kind: 'contains' } },
+        { from: 'app.ts', to: 'ws.ts', attrs: { kind: 'imports' } },
+      ],
+    });
+
+    resolvePendingEdges(graph);
+
+    // Should pick ws.ts::Handler because app.ts imports ws.ts
+    expect(graph.hasEdge('app.ts::AppHandler', 'ws.ts::Handler')).toBe(true);
+    expect(graph.hasEdge('app.ts::AppHandler', 'http.ts::Handler')).toBe(false);
   });
 });
 

@@ -1,6 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { CodeGraphManager } from '@/graphs/code';
+import { MAX_SEARCH_QUERY_LEN } from '@/lib/defaults';
 
 export function register(server: McpServer, mgr: CodeGraphManager): void {
   server.registerTool(
@@ -17,7 +18,7 @@ export function register(server: McpServer, mgr: CodeGraphManager): void {
         'id, fileId, kind, name, signature, docComment, startLine, endLine, score. ' +
         'Set includeBody=true to include full source code in results (avoids extra get_symbol calls).',
       inputSchema: {
-        query:      z.string().describe('Natural language or code search query, e.g. "function that loads the graph from disk"'),
+        query:      z.string().max(MAX_SEARCH_QUERY_LEN).describe('Natural language or code search query, e.g. "function that loads the graph from disk"'),
         topK:       z.number().min(1).max(500).optional().describe('How many top similar symbols to use as seeds (default 5)'),
         bfsDepth:   z.number().min(0).max(10).optional().describe('How many hops to follow graph edges from each seed (default 1; 0 = no expansion)'),
         maxResults: z.number().min(1).max(500).optional().describe('Maximum number of results to return (default 20)'),

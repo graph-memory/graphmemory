@@ -13,15 +13,15 @@ export function register(server: McpServer, mgr: FileIndexGraphManager): void {
         'Returns an array of { filePath, kind, fileName, extension, language, mimeType, size, fileCount }. ' +
         'Use search_all_files for semantic search or get_file_info for detailed metadata on a specific path.',
       inputSchema: {
-        directory: z.string().optional()
+        directory: z.string().max(4096).optional()
           .describe('List immediate children of this directory (e.g. ".", "src/lib"). Default: lists all files'),
-        extension: z.string().optional()
+        extension: z.string().max(100).optional()
           .describe('Filter by extension (e.g. ".ts", ".md", ".png")'),
-        language: z.string().optional()
+        language: z.string().max(100).optional()
           .describe('Filter by language (e.g. "typescript", "markdown", "json")'),
-        filter: z.string().optional()
+        filter: z.string().max(500).optional()
           .describe('Substring filter on file path (case-insensitive)'),
-        limit: z.number().optional().default(50)
+        limit: z.number().max(1000).optional().default(50)
           .describe('Max results (default 50)'),
       },
     },

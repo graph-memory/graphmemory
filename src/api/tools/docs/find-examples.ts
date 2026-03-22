@@ -2,6 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { DocGraph, NodeAttributes } from '@/graphs/docs';
 import type { DocGraphManager } from '@/graphs/docs';
+import { MAX_SEARCH_QUERY_LEN } from '@/lib/defaults';
 
 export function register(server: McpServer, mgr: DocGraphManager): void {
   const graph = mgr.graph;
@@ -15,7 +16,7 @@ export function register(server: McpServer, mgr: DocGraphManager): void {
         'Use this to find usage examples of a known symbol in the docs. ' +
         'Returns matching code block nodes with id, fileId, language, symbols, content, and the parent section context.',
       inputSchema: {
-        symbol: z.string().describe('Symbol name to search for, e.g. "createUser", "UserService"'),
+        symbol: z.string().max(MAX_SEARCH_QUERY_LEN).describe('Symbol name to search for, e.g. "createUser", "UserService"'),
         limit:  z.number().optional().describe('Max results to return (default 20)'),
       },
     },

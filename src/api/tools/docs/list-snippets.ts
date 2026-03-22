@@ -15,10 +15,10 @@ export function register(server: McpServer, mgr: DocGraphManager): void {
         'Supports filtering by file, language, and content substring. ' +
         'Use this to discover what code examples exist in the docs.',
       inputSchema: {
-        fileId:   z.string().optional().describe('Filter by file, e.g. "docs/auth.md"'),
-        filter:   z.string().optional().describe('Case-insensitive substring match on content'),
-        language: z.string().optional().describe('Filter by language, e.g. "typescript"'),
-        limit:    z.number().optional().describe('Max results to return (default 20)'),
+        fileId:   z.string().max(500).optional().describe('Filter by file, e.g. "docs/auth.md"'),
+        filter:   z.string().max(500).optional().describe('Case-insensitive substring match on content'),
+        language: z.string().max(100).optional().describe('Filter by language, e.g. "typescript"'),
+        limit:    z.number().max(1000).optional().describe('Max results to return (default 20)'),
       },
     },
     async ({ fileId, filter, language, limit = 20 }) => {

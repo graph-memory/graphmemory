@@ -1,6 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { TaskGraphManager } from '@/graphs/task';
+import { MAX_TARGET_NODE_ID_LEN, MAX_LINK_KIND_LEN, MAX_PROJECT_ID_LEN } from '@/lib/defaults';
 
 export function register(server: McpServer, mgr: TaskGraphManager): void {
   server.registerTool(
@@ -12,11 +13,11 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
         'Returns an array of { taskId, title, kind, status, priority, tags }. ' +
         'Use get_task to fetch full content of a returned task.',
       inputSchema: {
-        targetId:    z.string().describe('Target node ID in the external graph'),
+        targetId:    z.string().max(MAX_TARGET_NODE_ID_LEN).describe('Target node ID in the external graph'),
         targetGraph: z.enum(['docs', 'code', 'files', 'knowledge', 'skills'])
           .describe('Which graph the target belongs to'),
-        kind:        z.string().optional().describe('Filter by relation kind. If omitted, returns all relations.'),
-        projectId:   z.string().optional().describe('Project ID that the target node belongs to. Defaults to the current project.'),
+        kind:        z.string().max(MAX_LINK_KIND_LEN).optional().describe('Filter by relation kind. If omitted, returns all relations.'),
+        projectId:   z.string().max(MAX_PROJECT_ID_LEN).optional().describe('Project ID that the target node belongs to. Defaults to the current project.'),
       },
     },
     async ({ targetId, targetGraph, kind, projectId }) => {

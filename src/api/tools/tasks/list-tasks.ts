@@ -1,6 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { TaskGraphManager } from '@/graphs/task';
+import { MAX_TAG_LEN, MAX_ASSIGNEE_LEN } from '@/lib/defaults';
 
 export function register(server: McpServer, mgr: TaskGraphManager): void {
   server.registerTool(
@@ -16,10 +17,10 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
           .describe('Filter by status'),
         priority: z.enum(['critical', 'high', 'medium', 'low']).optional()
           .describe('Filter by priority'),
-        tag:      z.string().optional().describe('Filter by tag (exact match, case-insensitive)'),
-        filter:   z.string().optional().describe('Substring match on title or ID'),
-        assignee: z.string().optional().describe('Filter by assignee (team member ID)'),
-        limit:    z.number().optional().describe('Max results (default 50)'),
+        tag:      z.string().max(MAX_TAG_LEN).optional().describe('Filter by tag (exact match, case-insensitive)'),
+        filter:   z.string().max(500).optional().describe('Substring match on title or ID'),
+        assignee: z.string().max(MAX_ASSIGNEE_LEN).optional().describe('Filter by assignee (team member ID)'),
+        limit:    z.number().max(1000).optional().describe('Max results (default 50)'),
       },
     },
     async ({ status, priority, tag, filter, assignee, limit }) => {

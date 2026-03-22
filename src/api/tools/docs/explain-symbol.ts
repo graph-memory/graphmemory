@@ -2,6 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { DocGraph, NodeAttributes } from '@/graphs/docs';
 import type { DocGraphManager } from '@/graphs/docs';
+import { MAX_SEARCH_QUERY_LEN } from '@/lib/defaults';
 
 export function register(server: McpServer, mgr: DocGraphManager): void {
   const graph = mgr.graph;
@@ -15,7 +16,7 @@ export function register(server: McpServer, mgr: DocGraphManager): void {
         'and the surrounding text section that provides context/explanation. ' +
         'Use this to understand what a function, class, or type does based on documentation.',
       inputSchema: {
-        symbol: z.string().describe('Symbol name to look up, e.g. "createUser", "AuthService"'),
+        symbol: z.string().max(MAX_SEARCH_QUERY_LEN).describe('Symbol name to look up, e.g. "createUser", "AuthService"'),
         limit:  z.number().optional().describe('Max results to return (default 10)'),
       },
     },

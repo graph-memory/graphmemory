@@ -13,7 +13,7 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
         'Returns the updated task summary. ' +
         'Pass expectedVersion to enable optimistic locking.',
       inputSchema: {
-        taskId:          z.string().describe('Task ID to move'),
+        taskId:          z.string().max(500).describe('Task ID to move'),
         status:          z.enum(['backlog', 'todo', 'in_progress', 'review', 'done', 'cancelled'])
           .describe('New status'),
         expectedVersion: z.number().int().positive().optional().describe('Current version for optimistic locking — request fails with version_conflict if the task has been updated since'),

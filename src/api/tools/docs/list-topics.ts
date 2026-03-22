@@ -12,10 +12,10 @@ export function register(server: McpServer, mgr: DocGraphManager): void {
         'Returns an array of { fileId, title, chunks }. ' +
         'Pass a fileId to get_toc to see its structure, or to search to query it.',
       inputSchema: {
-        filter: z.string().optional().describe(
+        filter: z.string().max(500).optional().describe(
           'Case-insensitive substring to match against file paths, e.g. "auth" or "api"',
         ),
-        limit: z.number().optional().describe(
+        limit: z.number().max(1000).optional().describe(
           'Maximum number of results to return (default 20)',
         ),
       },

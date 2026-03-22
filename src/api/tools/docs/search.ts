@@ -1,6 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { DocGraphManager } from '@/graphs/docs';
+import { MAX_SEARCH_QUERY_LEN } from '@/lib/defaults';
 
 export function register(server: McpServer, mgr: DocGraphManager): void {
   server.registerTool(
@@ -16,7 +17,7 @@ export function register(server: McpServer, mgr: DocGraphManager): void {
         'Use the id from results to fetch full content with get_node. ' +
         'Prefer this tool when looking for information without knowing which file contains it.',
       inputSchema: {
-        query:      z.string().describe('Natural language search query'),
+        query:      z.string().max(MAX_SEARCH_QUERY_LEN).describe('Natural language search query'),
         topK:       z.number().min(1).max(500).optional().describe('How many top similar sections to use as seeds for graph expansion (default 5)'),
         bfsDepth:   z.number().min(0).max(10).optional().describe('How many hops to follow cross-document links from each seed (default 1; 0 = no expansion)'),
         maxResults: z.number().min(1).max(500).optional().describe('Maximum number of results to return (default 20)'),

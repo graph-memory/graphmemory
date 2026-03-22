@@ -1,6 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { KnowledgeGraphManager } from '@/graphs/knowledge';
+import { MAX_TARGET_NODE_ID_LEN, MAX_LINK_KIND_LEN, MAX_PROJECT_ID_LEN } from '@/lib/defaults';
 
 export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
   server.registerTool(
@@ -13,10 +14,10 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
         'Returns an array of { noteId, title, kind, tags }. ' +
         'Use get_note to fetch full content of a returned note.',
       inputSchema: {
-        targetId:    z.string().describe('Target node ID in the external graph (e.g. "src/config.ts", "src/auth.ts::login", "docs/api.md::Setup")'),
+        targetId:    z.string().max(MAX_TARGET_NODE_ID_LEN).describe('Target node ID in the external graph (e.g. "src/config.ts", "src/auth.ts::login", "docs/api.md::Setup")'),
         targetGraph: z.enum(['docs', 'code', 'files', 'tasks', 'skills']).describe('Which graph the target belongs to'),
-        kind:        z.string().optional().describe('Filter by relation kind (e.g. "references", "depends_on"). If omitted, returns all relations.'),
-        projectId:   z.string().optional().describe('Project ID that the target node belongs to. Defaults to the current project.'),
+        kind:        z.string().max(MAX_LINK_KIND_LEN).optional().describe('Filter by relation kind (e.g. "references", "depends_on"). If omitted, returns all relations.'),
+        projectId:   z.string().max(MAX_PROJECT_ID_LEN).optional().describe('Project ID that the target node belongs to. Defaults to the current project.'),
       },
     },
     async ({ targetId, targetGraph, kind, projectId }) => {

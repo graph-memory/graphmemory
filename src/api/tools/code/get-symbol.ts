@@ -12,7 +12,7 @@ export function register(server: McpServer, mgr: CodeGraphManager): void {
         'Node IDs have the form "fileId::symbolName" or "fileId::ClassName::methodName". ' +
         'Returns id, fileId, kind, name, signature, docComment, body, startLine, endLine, isExported, and crossLinks (notes/tasks linking to this symbol).',
       inputSchema: {
-        nodeId: z.string().describe('Symbol ID from search_code or get_file_symbols, e.g. "src/lib/graph.ts::updateFile"'),
+        nodeId: z.string().max(500).describe('Symbol ID from search_code or get_file_symbols, e.g. "src/lib/graph.ts::updateFile"'),
       },
     },
     async ({ nodeId }) => {

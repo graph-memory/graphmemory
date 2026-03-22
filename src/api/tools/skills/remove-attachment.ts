@@ -9,7 +9,7 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
       description:
         'Remove an attachment from a skill. The file is deleted from disk.',
       inputSchema: {
-        skillId:  z.string().describe('ID of the skill'),
+        skillId:  z.string().max(500).describe('ID of the skill'),
         filename: z.string().min(1).max(255)
           .refine(s => !/[/\\]/.test(s), 'Filename must not contain path separators')
           .refine(s => !s.includes('..'), 'Filename must not contain ..')

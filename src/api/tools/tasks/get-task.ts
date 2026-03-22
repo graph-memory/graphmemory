@@ -11,7 +11,7 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
         'Returns: id, title, description, status, priority, tags, dueDate, estimate, ' +
         'completedAt, createdAt, updatedAt, subtasks[], blockedBy[], blocks[], related[], crossLinks[].',
       inputSchema: {
-        taskId: z.string().describe('Task ID to retrieve'),
+        taskId: z.string().max(500).describe('Task ID to retrieve'),
       },
     },
     async ({ taskId }) => {

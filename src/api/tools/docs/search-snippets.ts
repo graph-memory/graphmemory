@@ -1,6 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { DocGraphManager } from '@/graphs/docs';
+import { MAX_SEARCH_QUERY_LEN } from '@/lib/defaults';
 
 export function register(server: McpServer, mgr: DocGraphManager): void {
   const graph = mgr.graph;
@@ -15,10 +16,10 @@ export function register(server: McpServer, mgr: DocGraphManager): void {
         'Use this when looking for code examples by description, e.g. "authentication example" or "database query". ' +
         'Returns code block nodes sorted by relevance score.',
       inputSchema: {
-        query:      z.string().describe('Natural language search query'),
+        query:      z.string().max(MAX_SEARCH_QUERY_LEN).describe('Natural language search query'),
         topK:       z.number().min(1).max(500).optional().describe('Max results to return (default 10)'),
         minScore:   z.number().min(0).max(1).optional().describe('Minimum relevance score 0–1 (default 0.3)'),
-        language:   z.string().optional().describe('Filter by language, e.g. "typescript", "python"'),
+        language:   z.string().max(100).optional().describe('Filter by language, e.g. "typescript", "python"'),
       },
     },
     async ({ query, topK = 10, minScore = 0.3, language }) => {

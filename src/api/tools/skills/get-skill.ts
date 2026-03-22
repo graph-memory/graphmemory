@@ -12,7 +12,7 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
         'Returns: id, title, description, steps, triggers, inputHints, filePatterns, tags, ' +
         'source, confidence, usageCount, lastUsedAt, createdAt, updatedAt, crossLinks[].',
       inputSchema: {
-        skillId: z.string().describe('Skill ID to retrieve'),
+        skillId: z.string().max(500).describe('Skill ID to retrieve'),
       },
     },
     async ({ skillId }) => {

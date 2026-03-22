@@ -12,7 +12,7 @@ export function register(server: McpServer, mgr: CodeGraphManager): void {
         'Returns an array of { id, kind, name, signature, startLine, endLine, isExported }. ' +
         'Pass an id to get_symbol to fetch full content including body and docComment.',
       inputSchema: {
-        fileId: z.string().describe('File path relative to code dir, e.g. "src/lib/graph.ts"'),
+        fileId: z.string().max(500).describe('File path relative to code dir, e.g. "src/lib/graph.ts"'),
       },
     },
     async ({ fileId }) => {

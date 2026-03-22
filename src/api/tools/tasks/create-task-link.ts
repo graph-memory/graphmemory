@@ -1,6 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { TaskGraphManager } from '@/graphs/task';
+import { MAX_TARGET_NODE_ID_LEN, MAX_LINK_KIND_LEN, MAX_PROJECT_ID_LEN } from '@/lib/defaults';
 
 export function register(server: McpServer, mgr: TaskGraphManager): void {
   server.registerTool(
@@ -11,12 +12,12 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
         'Creates a cross-graph relation from the task to the target node. ' +
         'The kind is a free-form string, e.g. "references", "fixes", "implements", "documents".',
       inputSchema: {
-        taskId:      z.string().describe('Source task ID'),
-        targetId:    z.string().describe('Target node ID in the external graph (e.g. "src/auth.ts::login", "api.md::Setup", "my-note")'),
+        taskId:      z.string().max(500).describe('Source task ID'),
+        targetId:    z.string().max(MAX_TARGET_NODE_ID_LEN).describe('Target node ID in the external graph (e.g. "src/auth.ts::login", "api.md::Setup", "my-note")'),
         targetGraph: z.enum(['docs', 'code', 'files', 'knowledge', 'skills'])
           .describe('Which graph the target belongs to'),
-        kind:        z.string().describe('Relation type, e.g. "references", "fixes", "implements"'),
-        projectId:   z.string().optional().describe('Project ID that the target node belongs to. Defaults to the current project.'),
+        kind:        z.string().max(MAX_LINK_KIND_LEN).describe('Relation type, e.g. "references", "fixes", "implements"'),
+        projectId:   z.string().max(MAX_PROJECT_ID_LEN).optional().describe('Project ID that the target node belongs to. Defaults to the current project.'),
       },
     },
     async ({ taskId, targetId, targetGraph, kind, projectId }) => {

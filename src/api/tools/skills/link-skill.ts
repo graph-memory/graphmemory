@@ -12,8 +12,8 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
         '"related_to": free association between skills. ' +
         '"variant_of": fromId is a variant of toId.',
       inputSchema: {
-        fromId: z.string().describe('Source skill ID'),
-        toId:   z.string().describe('Target skill ID'),
+        fromId: z.string().max(500).describe('Source skill ID'),
+        toId:   z.string().max(500).describe('Target skill ID'),
         kind:   z.enum(['depends_on', 'related_to', 'variant_of']).describe('Relation type'),
       },
     },

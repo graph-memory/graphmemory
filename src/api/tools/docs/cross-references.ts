@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { NodeAttributes } from '@/graphs/docs';
 import type { DocGraphManager } from '@/graphs/docs';
 import type { CodeGraphManager } from '@/graphs/code';
+import { MAX_SEARCH_QUERY_LEN } from '@/lib/defaults';
 
 export function register(server: McpServer, docMgr: DocGraphManager, codeMgr: CodeGraphManager): void {
   const docGraph = docMgr.graph;
@@ -18,7 +19,7 @@ export function register(server: McpServer, docMgr: DocGraphManager, codeMgr: Co
         'and examples (code blocks in docs that contain the symbol). ' +
         'This is the most comprehensive way to understand a symbol — combining source code, docs, and examples.',
       inputSchema: {
-        symbol: z.string().describe('Symbol name to look up, e.g. "createUser", "AuthService"'),
+        symbol: z.string().max(MAX_SEARCH_QUERY_LEN).describe('Symbol name to look up, e.g. "createUser", "AuthService"'),
       },
     },
     async ({ symbol }) => {

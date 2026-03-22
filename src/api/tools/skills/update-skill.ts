@@ -2,6 +2,11 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { SkillGraphManager } from '@/graphs/skill';
 import { VersionConflictError } from '@/graphs/manager-types';
+import {
+  MAX_TITLE_LEN, MAX_DESCRIPTION_LEN, MAX_TAG_LEN, MAX_TAGS_COUNT,
+  MAX_SKILL_STEP_LEN, MAX_SKILL_STEPS_COUNT,
+  MAX_SKILL_TRIGGER_LEN, MAX_SKILL_TRIGGERS_COUNT,
+} from '@/lib/defaults';
 
 export function register(server: McpServer, mgr: SkillGraphManager): void {
   server.registerTool(
@@ -12,14 +17,14 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
         'Re-embeds automatically when title or description changes. ' +
         'Pass expectedVersion to enable optimistic locking.',
       inputSchema: {
-        skillId:         z.string().describe('Skill ID to update'),
-        title:           z.string().optional().describe('New title'),
-        description:     z.string().optional().describe('New description'),
-        steps:           z.array(z.string()).optional().describe('Replace steps array'),
-        triggers:        z.array(z.string()).optional().describe('Replace triggers array'),
-        inputHints:      z.array(z.string()).optional().describe('Replace inputHints array'),
-        filePatterns:    z.array(z.string()).optional().describe('Replace filePatterns array'),
-        tags:            z.array(z.string()).optional().describe('Replace tags array'),
+        skillId:         z.string().max(500).describe('Skill ID to update'),
+        title:           z.string().max(MAX_TITLE_LEN).optional().describe('New title'),
+        description:     z.string().max(MAX_DESCRIPTION_LEN).optional().describe('New description'),
+        steps:           z.array(z.string().max(MAX_SKILL_STEP_LEN)).max(MAX_SKILL_STEPS_COUNT).optional().describe('Replace steps array'),
+        triggers:        z.array(z.string().max(MAX_SKILL_TRIGGER_LEN)).max(MAX_SKILL_TRIGGERS_COUNT).optional().describe('Replace triggers array'),
+        inputHints:      z.array(z.string().max(500)).max(100).optional().describe('Replace inputHints array'),
+        filePatterns:    z.array(z.string().max(500)).max(100).optional().describe('Replace filePatterns array'),
+        tags:            z.array(z.string().max(MAX_TAG_LEN)).max(MAX_TAGS_COUNT).optional().describe('Replace tags array'),
         source:          z.enum(['user', 'learned']).optional().describe('New source'),
         confidence:      z.number().min(0).max(1).optional().describe('New confidence score 0–1'),
         expectedVersion: z.number().int().positive().optional().describe('Current version for optimistic locking — request fails with version_conflict if the skill has been updated since'),

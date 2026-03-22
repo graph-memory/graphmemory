@@ -1,6 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { TaskGraphManager } from '@/graphs/task';
+import { MAX_TITLE_LEN, MAX_DESCRIPTION_LEN, MAX_TAG_LEN, MAX_TAGS_COUNT, MAX_ASSIGNEE_LEN } from '@/lib/defaults';
 
 export function register(server: McpServer, mgr: TaskGraphManager): void {
   server.registerTool(
@@ -12,15 +13,15 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
         'Returns the generated taskId (slug from title). ' +
         'Use link_task to connect tasks, or create_task_link to link to docs/code/files/knowledge.',
       inputSchema: {
-        title:       z.string().describe('Short title for the task, e.g. "Fix auth redirect loop"'),
-        description: z.string().describe('Full description of the task (markdown)'),
+        title:       z.string().max(MAX_TITLE_LEN).describe('Short title for the task, e.g. "Fix auth redirect loop"'),
+        description: z.string().max(MAX_DESCRIPTION_LEN).describe('Full description of the task (markdown)'),
         priority:    z.enum(['critical', 'high', 'medium', 'low']).describe('Task priority'),
         status:      z.enum(['backlog', 'todo', 'in_progress', 'review', 'done', 'cancelled']).optional()
           .describe('Initial status (default "backlog")'),
-        tags:        z.array(z.string()).optional().describe('Optional tags for filtering, e.g. ["bug", "auth"]'),
+        tags:        z.array(z.string().max(MAX_TAG_LEN)).max(MAX_TAGS_COUNT).optional().describe('Optional tags for filtering, e.g. ["bug", "auth"]'),
         dueDate:     z.number().optional().describe('Due date as Unix timestamp in milliseconds'),
         estimate:    z.number().optional().describe('Estimated effort in hours'),
-        assignee:    z.string().optional().describe('Team member ID to assign the task to'),
+        assignee:    z.string().max(MAX_ASSIGNEE_LEN).optional().describe('Team member ID to assign the task to'),
       },
     },
     async ({ title, description, priority, status, tags, dueDate, estimate, assignee }) => {

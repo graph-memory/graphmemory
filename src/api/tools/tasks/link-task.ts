@@ -12,8 +12,8 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
         '"blocks": fromId blocks toId. ' +
         '"related_to": free association between tasks.',
       inputSchema: {
-        fromId: z.string().describe('Source task ID'),
-        toId:   z.string().describe('Target task ID'),
+        fromId: z.string().max(500).describe('Source task ID'),
+        toId:   z.string().max(500).describe('Target task ID'),
         kind:   z.enum(['subtask_of', 'blocks', 'related_to']).describe('Relation type'),
       },
     },

@@ -14,8 +14,8 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
         'The file is copied into the skill directory (.skills/{skillId}/). ' +
         'Returns attachment metadata (filename, mimeType, size).',
       inputSchema: {
-        skillId:  z.string().describe('ID of the skill to attach the file to'),
-        filePath: z.string().describe('Absolute path to the file on disk'),
+        skillId:  z.string().max(500).describe('ID of the skill to attach the file to'),
+        filePath: z.string().max(4096).describe('Absolute path to the file on disk'),
       },
     },
     async ({ skillId, filePath }) => {

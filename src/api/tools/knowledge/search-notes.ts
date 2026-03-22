@@ -1,6 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { KnowledgeGraphManager } from '@/graphs/knowledge';
+import { MAX_SEARCH_QUERY_LEN } from '@/lib/defaults';
 
 export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
   server.registerTool(
@@ -14,7 +15,7 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
         'Returns an array sorted by relevance score (0–1), each with: ' +
         'id, title, content, tags, score.',
       inputSchema: {
-        query:      z.string().describe('Natural language search query'),
+        query:      z.string().max(MAX_SEARCH_QUERY_LEN).describe('Natural language search query'),
         topK:       z.number().min(1).max(500).optional().describe('How many top similar notes to use as seeds (default 5)'),
         bfsDepth:   z.number().min(0).max(10).optional().describe('How many hops to follow relations from each seed (default 1; 0 = no expansion)'),
         maxResults: z.number().min(1).max(500).optional().describe('Maximum number of results to return (default 20)'),

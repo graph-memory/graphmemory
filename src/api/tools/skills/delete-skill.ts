@@ -11,7 +11,7 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
         'Orphaned proxy nodes are cleaned up automatically. ' +
         'This action is irreversible.',
       inputSchema: {
-        skillId: z.string().describe('Skill ID to delete'),
+        skillId: z.string().max(500).describe('Skill ID to delete'),
       },
     },
     async ({ skillId }) => {

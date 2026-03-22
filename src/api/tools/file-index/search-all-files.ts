@@ -1,6 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { FileIndexGraphManager } from '@/graphs/file-index';
+import { MAX_SEARCH_QUERY_LEN } from '@/lib/defaults';
 
 export function register(server: McpServer, mgr: FileIndexGraphManager): void {
   server.registerTool(
@@ -14,7 +15,7 @@ export function register(server: McpServer, mgr: FileIndexGraphManager): void {
         'filePath, fileName, extension, language, size, score. ' +
         'Use this to discover which project files are relevant to a topic.',
       inputSchema: {
-        query: z.string().describe('Search query'),
+        query: z.string().max(MAX_SEARCH_QUERY_LEN).describe('Search query'),
         topK: z.number().min(1).max(500).optional().default(10)
           .describe('Max results (default 10)'),
         minScore: z.number().optional().default(0.3)

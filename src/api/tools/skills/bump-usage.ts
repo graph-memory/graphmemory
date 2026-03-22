@@ -10,7 +10,7 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
         'Record that a skill was used. Increments usageCount and updates lastUsedAt timestamp. ' +
         'Call this after successfully applying a skill.',
       inputSchema: {
-        skillId: z.string().describe('Skill ID to bump usage for'),
+        skillId: z.string().max(500).describe('Skill ID to bump usage for'),
       },
     },
     async ({ skillId }) => {

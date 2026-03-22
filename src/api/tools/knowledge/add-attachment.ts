@@ -14,8 +14,8 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
         'The file is copied into the note directory (.notes/{noteId}/). ' +
         'Returns attachment metadata (filename, mimeType, size).',
       inputSchema: {
-        noteId:   z.string().describe('ID of the note to attach the file to'),
-        filePath: z.string().describe('Absolute path to the file on disk'),
+        noteId:   z.string().max(500).describe('ID of the note to attach the file to'),
+        filePath: z.string().max(4096).describe('Absolute path to the file on disk'),
       },
     },
     async ({ noteId, filePath }) => {

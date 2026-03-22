@@ -72,9 +72,9 @@ export const noteSearchSchema = z.object({
 });
 
 export const noteListSchema = z.object({
-  filter: z.string().optional(),
-  tag:    z.string().optional(),
-  limit:  z.coerce.number().int().positive().optional(),
+  filter: z.string().max(500).optional(),
+  tag:    z.string().max(MAX_TAG_LEN).optional(),
+  limit:  z.coerce.number().int().positive().max(1000).optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -127,10 +127,10 @@ export const taskSearchSchema = z.object({
 export const taskListSchema = z.object({
   status:   z.enum(['backlog', 'todo', 'in_progress', 'review', 'done', 'cancelled']).optional(),
   priority: z.enum(['critical', 'high', 'medium', 'low']).optional(),
-  tag:      z.string().optional(),
-  filter:   z.string().optional(),
-  assignee: z.string().optional(),
-  limit:    z.coerce.number().int().positive().optional(),
+  tag:      z.string().max(MAX_TAG_LEN).optional(),
+  filter:   z.string().max(500).optional(),
+  assignee: z.string().max(MAX_ASSIGNEE_LEN).optional(),
+  limit:    z.coerce.number().int().positive().max(1000).optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -145,8 +145,8 @@ export const searchQuerySchema = z.object({
 });
 
 export const listQuerySchema = z.object({
-  filter: z.string().optional(),
-  limit:  z.coerce.number().int().positive().optional(),
+  filter: z.string().max(500).optional(),
+  limit:  z.coerce.number().int().positive().max(1000).optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -154,11 +154,11 @@ export const listQuerySchema = z.object({
 // ---------------------------------------------------------------------------
 
 export const fileListSchema = z.object({
-  directory: z.string().optional(),
-  extension: z.string().optional(),
-  language:  z.string().optional(),
-  filter:    z.string().optional(),
-  limit:     z.coerce.number().int().positive().optional(),
+  directory: z.string().max(4096).optional(),
+  extension: z.string().max(100).optional(),
+  language:  z.string().max(100).optional(),
+  filter:    z.string().max(500).optional(),
+  limit:     z.coerce.number().int().positive().max(1000).optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -211,9 +211,9 @@ export const skillSearchSchema = z.object({
 
 export const skillListSchema = z.object({
   source: z.enum(['user', 'learned']).optional(),
-  tag:    z.string().optional(),
-  filter: z.string().optional(),
-  limit:  z.coerce.number().int().positive().optional(),
+  tag:    z.string().max(MAX_TAG_LEN).optional(),
+  filter: z.string().max(500).optional(),
+  limit:  z.coerce.number().int().positive().max(1000).optional(),
 });
 
 export const graphExportSchema = z.object({

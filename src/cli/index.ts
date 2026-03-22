@@ -13,10 +13,13 @@ import { GRACEFUL_SHUTDOWN_TIMEOUT_MS, MAX_PASSWORD_LEN } from '@/lib/defaults';
 
 const program = new Command();
 
+const pkgJsonPath = path.resolve(__dirname, '../../package.json');
+const pkgVersion: string = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8')).version;
+
 program
   .name('graphmemory')
   .description('MCP server for semantic graph memory from markdown docs and source code')
-  .version('1.3.1');
+  .version(pkgVersion);
 
 const parseIntArg = (v: string) => parseInt(v, 10);
 

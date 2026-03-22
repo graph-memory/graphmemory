@@ -39,7 +39,7 @@ server:
   # port: 3000                                  # HTTP server port
   # sessionTimeout: 1800                        # Idle session timeout (seconds)
   # modelsDir: "~/.graph-memory/models"         # Local model cache directory
-  # corsOrigins:                                # Allowed CORS origins (default: none)
+  # corsOrigins:                                # Allowed CORS origins (default: all)
   #   - "http://localhost:5173"
   #   - "https://my-app.example.com"
   # defaultAccess: rw                           # Default access for unknown users: deny | r | rw
@@ -47,6 +47,7 @@ server:
   #   alice: rw
   #   bob: r
   # jwtSecret: "your-secret-key-here"           # Required for UI password login (JWT signing)
+  # cookieSecure: true                          # Cookie Secure flag (default: auto based on NODE_ENV)
   # accessTokenTtl: "15m"                       # JWT access token lifetime (default: 15m)
   # refreshTokenTtl: "7d"                       # JWT refresh token lifetime (default: 7d)
   # maxFileSize: 1048576                        # Max file size for indexing in bytes (default: 1 MB)

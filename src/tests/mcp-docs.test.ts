@@ -181,7 +181,7 @@ describe('MCP docs tools', () => {
     it('missing file returns isError=true', async () => {
       const result = await ctx.call('get_toc', { fileId: 'ghost.md' });
       expect(result.isError).toBe(true);
-      expect(text(result)).toContain('ghost.md');
+      expect(text(result)).toContain('File not found');
     });
   });
 
@@ -397,7 +397,7 @@ describe('MCP docs tools', () => {
     it('missing file node returns isError=true', async () => {
       const result = await ctx.call('get_node', { nodeId: 'ghost.md' });
       expect(result.isError).toBe(true);
-      expect(text(result)).toContain('ghost.md');
+      expect(text(result)).toContain('Node not found');
     });
 
     it('missing subsection returns isError=true', async () => {

@@ -16,7 +16,7 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
     async ({ skillId }) => {
       const ok = mgr.bumpUsage(skillId);
       if (!ok) {
-        return { content: [{ type: 'text', text: `Skill "${skillId}" not found.` }], isError: true };
+        return { content: [{ type: 'text', text: 'Skill not found' }], isError: true };
       }
       return { content: [{ type: 'text', text: JSON.stringify({ skillId, bumped: true }, null, 2) }] };
     },

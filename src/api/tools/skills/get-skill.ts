@@ -18,7 +18,7 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
     async ({ skillId }) => {
       const skill = mgr.getSkill(skillId);
       if (!skill) {
-        return { content: [{ type: 'text', text: `Skill "${skillId}" not found.` }], isError: true };
+        return { content: [{ type: 'text', text: 'Skill not found' }], isError: true };
       }
       return { content: [{ type: 'text', text: JSON.stringify(skill, null, 2) }] };
     },

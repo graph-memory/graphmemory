@@ -16,7 +16,7 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
     async ({ noteId }) => {
       const deleted = mgr.deleteNote(noteId);
       if (!deleted) {
-        return { content: [{ type: 'text', text: `Note not found: ${noteId}` }], isError: true };
+        return { content: [{ type: 'text', text: 'Note not found' }], isError: true };
       }
       return { content: [{ type: 'text', text: JSON.stringify({ noteId, deleted: true }, null, 2) }] };
     },

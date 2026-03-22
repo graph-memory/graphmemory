@@ -8,9 +8,10 @@ import type { UserConfig } from '@/lib/multi-config';
 // ---------------------------------------------------------------------------
 
 const SCRYPT_KEYLEN = 64;
-const SCRYPT_COST = 16384;    // N
+const SCRYPT_COST = 65536;    // N
 const SCRYPT_BLOCK = 8;       // r
 const SCRYPT_PARALLEL = 1;    // p
+const SCRYPT_MAXMEM = 128 * 1024 * 1024; // 128 MiB (needed for N=65536, r=8)
 
 /**
  * Hash a password using scrypt. Returns a string: `$scrypt$N$r$p$salt$hash`
@@ -18,7 +19,7 @@ const SCRYPT_PARALLEL = 1;    // p
 export async function hashPassword(password: string): Promise<string> {
   const salt = crypto.randomBytes(16).toString('hex');
   const derived = await new Promise<Buffer>((resolve, reject) => {
-    crypto.scrypt(password, salt, SCRYPT_KEYLEN, { N: SCRYPT_COST, r: SCRYPT_BLOCK, p: SCRYPT_PARALLEL }, (err, key) => {
+    crypto.scrypt(password, salt, SCRYPT_KEYLEN, { N: SCRYPT_COST, r: SCRYPT_BLOCK, p: SCRYPT_PARALLEL, maxmem: SCRYPT_MAXMEM }, (err, key) => {
       if (err) reject(err); else resolve(key);
     });
   });
@@ -39,7 +40,7 @@ export async function verifyPassword(password: string, storedHash: string): Prom
   const expectedHash = parts[6];
 
   const derived = await new Promise<Buffer>((resolve, reject) => {
-    crypto.scrypt(password, salt, SCRYPT_KEYLEN, { N, r, p }, (err, key) => {
+    crypto.scrypt(password, salt, SCRYPT_KEYLEN, { N, r, p, maxmem: SCRYPT_MAXMEM }, (err, key) => {
       if (err) reject(err); else resolve(key);
     });
   });

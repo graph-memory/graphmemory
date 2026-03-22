@@ -18,7 +18,7 @@ export function register(server: McpServer, mgr: DocGraphManager): void {
     async ({ fileId }) => {
       const chunks = mgr.getFileChunks(fileId);
       if (chunks.length === 0) {
-        return { content: [{ type: 'text', text: `File not found: ${fileId}` }], isError: true };
+        return { content: [{ type: 'text', text: 'File not found' }], isError: true };
       }
       const toc = chunks.map(c => ({ id: c.id, title: c.title, level: c.level }));
       return { content: [{ type: 'text', text: JSON.stringify(toc, null, 2) }] };

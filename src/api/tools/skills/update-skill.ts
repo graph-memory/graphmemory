@@ -45,7 +45,7 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
       try {
         const updated = await mgr.updateSkill(skillId, patch, expectedVersion);
         if (!updated) {
-          return { content: [{ type: 'text', text: `Skill "${skillId}" not found.` }], isError: true };
+          return { content: [{ type: 'text', text: 'Skill not found' }], isError: true };
         }
         return { content: [{ type: 'text', text: JSON.stringify({ skillId, updated: true }, null, 2) }] };
       } catch (err) {

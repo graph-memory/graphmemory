@@ -6,6 +6,8 @@ import {
 import type { UserConfig } from '@/lib/multi-config';
 
 describe('hashPassword / verifyPassword', () => {
+  jest.setTimeout(30_000);
+
   it('verifies correct password', async () => {
     const hash = await hashPassword('secret123');
     expect(hash).toMatch(/^\$scrypt\$/);

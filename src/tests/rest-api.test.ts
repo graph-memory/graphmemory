@@ -113,7 +113,7 @@ describe('REST API', () => {
       expect(res.status).toBe(200);
       expect(res.body.results).toHaveLength(1);
       expect(res.body.results[0].id).toBe('test');
-      expect(res.body.results[0].projectDir).toBe('/tmp/test');
+      expect(res.body.results[0].projectDir).toBeUndefined();
       expect(res.body.results[0].stats).toBeDefined();
     });
   });
@@ -968,6 +968,8 @@ describe('REST API — Embedding API', () => {
 import { hashPassword } from '@/lib/jwt';
 
 describe('REST API — JWT Cookie Auth', () => {
+  jest.setTimeout(30_000);
+
   let app: ReturnType<typeof createRestApp>;
   const JWT_SECRET = 'test-jwt-secret-key';
   let adminPasswordHash: string;

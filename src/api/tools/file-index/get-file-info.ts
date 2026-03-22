@@ -18,7 +18,7 @@ export function register(server: McpServer, mgr: FileIndexGraphManager): void {
     async ({ filePath }) => {
       const info = mgr.getFileInfo(filePath);
       if (!info) {
-        return { content: [{ type: 'text', text: `File or directory not found: ${filePath}` }], isError: true };
+        return { content: [{ type: 'text', text: 'File or directory not found' }], isError: true };
       }
       return { content: [{ type: 'text', text: JSON.stringify(info, null, 2) }] };
     },

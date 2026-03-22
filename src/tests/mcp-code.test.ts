@@ -200,7 +200,7 @@ describe('MCP code tools', () => {
       it('unknown file returns isError', async () => {
         const result = await call('get_file_symbols', { fileId: 'src/unknown.ts' });
         expect(result.isError).toBe(true);
-        expect(text(result)).toContain('src/unknown.ts');
+        expect(text(result)).toContain('File not found');
       });
     });
   });
@@ -361,7 +361,7 @@ describe('MCP code tools', () => {
       it('unknown nodeId returns isError', async () => {
         const result = await call('get_symbol', { nodeId: 'src/unknown.ts::foo' });
         expect(result.isError).toBe(true);
-        expect(text(result)).toContain('src/unknown.ts::foo');
+        expect(text(result)).toContain('Symbol not found');
       });
     });
   });

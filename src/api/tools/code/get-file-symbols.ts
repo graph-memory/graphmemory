@@ -18,7 +18,7 @@ export function register(server: McpServer, mgr: CodeGraphManager): void {
     async ({ fileId }) => {
       const symbols = mgr.getFileSymbols(fileId);
       if (symbols.length === 0) {
-        return { content: [{ type: 'text', text: `File not found: ${fileId}` }], isError: true };
+        return { content: [{ type: 'text', text: 'File not found or contains no symbols' }], isError: true };
       }
       const result = symbols.map(s => ({
         id: s.id,

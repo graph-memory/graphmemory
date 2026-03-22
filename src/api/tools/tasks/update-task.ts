@@ -42,7 +42,7 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
       try {
         const updated = await mgr.updateTask(taskId, patch, expectedVersion);
         if (!updated) {
-          return { content: [{ type: 'text', text: `Task "${taskId}" not found.` }], isError: true };
+          return { content: [{ type: 'text', text: 'Task not found' }], isError: true };
         }
         return { content: [{ type: 'text', text: JSON.stringify({ taskId, updated: true }, null, 2) }] };
       } catch (err) {

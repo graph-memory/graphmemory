@@ -23,7 +23,7 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
       try {
         const moved = mgr.moveTask(taskId, status, expectedVersion);
         if (!moved) {
-          return { content: [{ type: 'text', text: `Task "${taskId}" not found.` }], isError: true };
+          return { content: [{ type: 'text', text: 'Task not found' }], isError: true };
         }
         const task = mgr.getTask(taskId)!;
         return { content: [{ type: 'text', text: JSON.stringify({

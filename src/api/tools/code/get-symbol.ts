@@ -18,7 +18,7 @@ export function register(server: McpServer, mgr: CodeGraphManager): void {
     async ({ nodeId }) => {
       const symbol = mgr.getSymbol(nodeId);
       if (!symbol) {
-        return { content: [{ type: 'text', text: `Symbol not found: ${nodeId}` }], isError: true };
+        return { content: [{ type: 'text', text: 'Symbol not found' }], isError: true };
       }
       const { embedding: _embedding, mtime: _mtime, ...rest } = symbol;
       return { content: [{ type: 'text', text: JSON.stringify(rest, null, 2) }] };

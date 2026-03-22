@@ -266,7 +266,6 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
 
       return {
         id,
-        projectDir: p.config.projectDir,
         workspaceId: p.workspaceId ?? null,
         graphs,
         stats: {

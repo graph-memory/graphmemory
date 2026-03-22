@@ -17,7 +17,7 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
     async ({ skillId }) => {
       const deleted = mgr.deleteSkill(skillId);
       if (!deleted) {
-        return { content: [{ type: 'text', text: `Skill "${skillId}" not found.` }], isError: true };
+        return { content: [{ type: 'text', text: 'Skill not found' }], isError: true };
       }
       return { content: [{ type: 'text', text: JSON.stringify({ skillId, deleted: true }, null, 2) }] };
     },

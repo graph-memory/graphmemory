@@ -23,7 +23,7 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
     async ({ taskId, targetId, targetGraph, kind, projectId }) => {
       const created = mgr.createCrossLink(taskId, targetId, targetGraph, kind, projectId);
       if (!created) {
-        return { content: [{ type: 'text', text: `Could not create cross-graph link — task not found, target not found in ${targetGraph} graph, or link already exists.` }], isError: true };
+        return { content: [{ type: 'text', text: 'Could not create cross-graph link — task not found, target not found, or link already exists.' }], isError: true };
       }
       return { content: [{ type: 'text', text: JSON.stringify({ taskId, targetId, targetGraph, kind, created: true }, null, 2) }] };
     },

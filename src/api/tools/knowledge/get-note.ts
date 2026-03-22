@@ -16,7 +16,7 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
     async ({ noteId }) => {
       const note = mgr.getNote(noteId);
       if (!note) {
-        return { content: [{ type: 'text', text: `Note not found: ${noteId}` }], isError: true };
+        return { content: [{ type: 'text', text: 'Note not found' }], isError: true };
       }
       const { embedding: _embedding, ...rest } = note;
       return { content: [{ type: 'text', text: JSON.stringify(rest, null, 2) }] };

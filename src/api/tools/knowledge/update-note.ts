@@ -25,7 +25,7 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
       try {
         const updated = await mgr.updateNote(noteId, { title, content, tags }, expectedVersion);
         if (!updated) {
-          return { content: [{ type: 'text', text: `Note not found: ${noteId}` }], isError: true };
+          return { content: [{ type: 'text', text: 'Note not found' }], isError: true };
         }
         return { content: [{ type: 'text', text: JSON.stringify({ noteId, updated: true }, null, 2) }] };
       } catch (err) {

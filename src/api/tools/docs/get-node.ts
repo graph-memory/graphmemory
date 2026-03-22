@@ -20,7 +20,7 @@ export function register(server: McpServer, mgr: DocGraphManager): void {
     async ({ nodeId }) => {
       const node = mgr.getNode(nodeId);
       if (!node) {
-        return { content: [{ type: 'text', text: `Node not found: ${nodeId}` }], isError: true };
+        return { content: [{ type: 'text', text: 'Node not found' }], isError: true };
       }
       const { embedding: _embedding, ...rest } = node;
       return { content: [{ type: 'text', text: JSON.stringify(rest, null, 2) }] };

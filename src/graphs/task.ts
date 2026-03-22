@@ -718,6 +718,8 @@ export class TaskGraphManager {
   private mirrorTracker?: MirrorWriteTracker;
   private _bm25Index: BM25Index<TaskNodeAttributes>;
 
+  get projectDir(): string | undefined { return this.ctx.projectDir; }
+
   constructor(
     private _graph: TaskGraph,
     private embedFns: EmbedFns,

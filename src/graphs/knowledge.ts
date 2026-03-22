@@ -520,6 +520,7 @@ export class KnowledgeGraphManager {
   private _bm25Index: BM25Index<KnowledgeNodeAttributes>;
 
   get externalGraphs(): ExternalGraphs { return this.ext; }
+  get projectDir(): string | undefined { return this.ctx.projectDir; }
 
   constructor(
     private _graph: KnowledgeGraph,

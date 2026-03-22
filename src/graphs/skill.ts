@@ -746,6 +746,8 @@ export class SkillGraphManager {
   private mirrorTracker?: MirrorWriteTracker;
   private _bm25Index: BM25Index<SkillNodeAttributes>;
 
+  get projectDir(): string | undefined { return this.ctx.projectDir; }
+
   constructor(
     private _graph: SkillGraph,
     private embedFns: EmbedFns,

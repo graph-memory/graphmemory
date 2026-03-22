@@ -20,6 +20,15 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
     },
     async ({ skillId, filePath }) => {
       const resolved = path.resolve(filePath);
+
+      const projectDir = mgr.projectDir;
+      if (projectDir) {
+        const normalizedProject = path.resolve(projectDir) + path.sep;
+        if (!resolved.startsWith(normalizedProject) && resolved !== path.resolve(projectDir)) {
+          return { content: [{ type: 'text', text: JSON.stringify({ error: 'File path must be within the project directory' }) }], isError: true };
+        }
+      }
+
       let stat: fs.Stats;
       try { stat = fs.statSync(resolved); } catch {
         return { content: [{ type: 'text', text: JSON.stringify({ error: 'File not found' }) }], isError: true };

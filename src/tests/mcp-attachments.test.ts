@@ -42,14 +42,13 @@ function createTmpFile(dir: string, name: string, content: string): string {
 describe('MCP note attachment tools', () => {
   let ctx: McpTestContext;
   let noteId: string;
-  let tmpDir: string;
+  let projectDir: string;
   let filePath: string;
 
   beforeAll(async () => {
-    tmpDir = makeTmpDir();
-    filePath = createTmpFile(tmpDir, 'doc.txt', 'Hello attachment');
+    projectDir = makeTmpDir();
+    filePath = createTmpFile(projectDir, 'doc.txt', 'Hello attachment');
 
-    const projectDir = makeTmpDir();
     const knowledgeGraph = createKnowledgeGraph();
     noteId = createNote(knowledgeGraph, 'Test Note', 'content', [], unitVec(0));
 
@@ -62,7 +61,7 @@ describe('MCP note attachment tools', () => {
 
   afterAll(async () => {
     await ctx.close();
-    fs.rmSync(tmpDir, { recursive: true, force: true });
+    fs.rmSync(projectDir, { recursive: true, force: true });
   });
 
   it('add_note_attachment: attaches file successfully', async () => {
@@ -74,15 +73,26 @@ describe('MCP note attachment tools', () => {
   });
 
   it('add_note_attachment: file not found returns error', async () => {
-    const result = await ctx.call('add_note_attachment', { noteId, filePath: '/nonexistent/file.txt' });
+    const missing = path.join(projectDir, 'nonexistent.txt');
+    const result = await ctx.call('add_note_attachment', { noteId, filePath: missing });
     expect(result.isError).toBe(true);
     expect(text(result)).toContain('File not found');
   });
 
   it('add_note_attachment: directory returns error', async () => {
-    const result = await ctx.call('add_note_attachment', { noteId, filePath: tmpDir });
+    const subDir = path.join(projectDir, 'subdir');
+    fs.mkdirSync(subDir, { recursive: true });
+    const result = await ctx.call('add_note_attachment', { noteId, filePath: subDir });
     expect(result.isError).toBe(true);
     expect(text(result)).toContain('not a regular file');
+  });
+
+  it('add_note_attachment: path traversal rejected', async () => {
+    const outside = createTmpFile(os.tmpdir(), 'evil.txt', 'secrets');
+    const result = await ctx.call('add_note_attachment', { noteId, filePath: outside });
+    expect(result.isError).toBe(true);
+    expect(text(result)).toContain('within the project directory');
+    fs.unlinkSync(outside);
   });
 
   it('add_note_attachment: note not found returns error', async () => {
@@ -113,14 +123,13 @@ describe('MCP note attachment tools', () => {
 describe('MCP task attachment tools', () => {
   let ctx: McpTestContext;
   let taskId: string;
-  let tmpDir: string;
+  let projectDir: string;
   let filePath: string;
 
   beforeAll(async () => {
-    tmpDir = makeTmpDir();
-    filePath = createTmpFile(tmpDir, 'report.csv', 'id,name\n1,alice');
+    projectDir = makeTmpDir();
+    filePath = createTmpFile(projectDir, 'report.csv', 'id,name\n1,alice');
 
-    const projectDir = makeTmpDir();
     const taskGraph = createTaskGraph();
     taskId = createTask(taskGraph, 'Test Task', 'desc', 'todo', 'medium', [], unitVec(0));
 
@@ -133,7 +142,7 @@ describe('MCP task attachment tools', () => {
 
   afterAll(async () => {
     await ctx.close();
-    fs.rmSync(tmpDir, { recursive: true, force: true });
+    fs.rmSync(projectDir, { recursive: true, force: true });
   });
 
   it('add_task_attachment: attaches file', async () => {
@@ -144,13 +153,24 @@ describe('MCP task attachment tools', () => {
   });
 
   it('add_task_attachment: file not found', async () => {
-    const result = await ctx.call('add_task_attachment', { taskId, filePath: '/no/file.txt' });
+    const missing = path.join(projectDir, 'nope.txt');
+    const result = await ctx.call('add_task_attachment', { taskId, filePath: missing });
     expect(result.isError).toBe(true);
   });
 
   it('add_task_attachment: directory returns error', async () => {
-    const result = await ctx.call('add_task_attachment', { taskId, filePath: tmpDir });
+    const subDir = path.join(projectDir, 'subdir');
+    fs.mkdirSync(subDir, { recursive: true });
+    const result = await ctx.call('add_task_attachment', { taskId, filePath: subDir });
     expect(result.isError).toBe(true);
+  });
+
+  it('add_task_attachment: path traversal rejected', async () => {
+    const outside = createTmpFile(os.tmpdir(), 'evil.csv', 'stolen');
+    const result = await ctx.call('add_task_attachment', { taskId, filePath: outside });
+    expect(result.isError).toBe(true);
+    expect(text(result)).toContain('within the project directory');
+    fs.unlinkSync(outside);
   });
 
   it('remove_task_attachment: removes', async () => {
@@ -173,14 +193,13 @@ describe('MCP task attachment tools', () => {
 describe('MCP skill attachment tools', () => {
   let ctx: McpTestContext;
   let skillId: string;
-  let tmpDir: string;
+  let projectDir: string;
   let filePath: string;
 
   beforeAll(async () => {
-    tmpDir = makeTmpDir();
-    filePath = createTmpFile(tmpDir, 'template.yaml', 'key: value');
+    projectDir = makeTmpDir();
+    filePath = createTmpFile(projectDir, 'template.yaml', 'key: value');
 
-    const projectDir = makeTmpDir();
     const skillGraph = createSkillGraph();
     skillId = createSkill(skillGraph, 'Test Skill', 'desc', [], [], [], [], [], 'user', 1, unitVec(0));
 
@@ -193,7 +212,7 @@ describe('MCP skill attachment tools', () => {
 
   afterAll(async () => {
     await ctx.close();
-    fs.rmSync(tmpDir, { recursive: true, force: true });
+    fs.rmSync(projectDir, { recursive: true, force: true });
   });
 
   it('add_skill_attachment: attaches file', async () => {
@@ -204,13 +223,24 @@ describe('MCP skill attachment tools', () => {
   });
 
   it('add_skill_attachment: file not found', async () => {
-    const result = await ctx.call('add_skill_attachment', { skillId, filePath: '/missing/file' });
+    const missing = path.join(projectDir, 'missing.file');
+    const result = await ctx.call('add_skill_attachment', { skillId, filePath: missing });
     expect(result.isError).toBe(true);
   });
 
   it('add_skill_attachment: directory returns error', async () => {
-    const result = await ctx.call('add_skill_attachment', { skillId, filePath: tmpDir });
+    const subDir = path.join(projectDir, 'subdir');
+    fs.mkdirSync(subDir, { recursive: true });
+    const result = await ctx.call('add_skill_attachment', { skillId, filePath: subDir });
     expect(result.isError).toBe(true);
+  });
+
+  it('add_skill_attachment: path traversal rejected', async () => {
+    const outside = createTmpFile(os.tmpdir(), 'evil.yaml', 'stolen');
+    const result = await ctx.call('add_skill_attachment', { skillId, filePath: outside });
+    expect(result.isError).toBe(true);
+    expect(text(result)).toContain('within the project directory');
+    fs.unlinkSync(outside);
   });
 
   it('remove_skill_attachment: removes', async () => {

@@ -92,7 +92,7 @@ Each graph defines what text to extract for BM25 indexing:
 | Graph | BM25 text |
 |-------|-----------|
 | DocGraph | `title + content` |
-| CodeGraph | `name + signature + docComment + body` |
+| CodeGraph | `name + signature + docComment + body` (body truncated to 2000 chars) |
 | KnowledgeGraph | `title + content` |
 | TaskGraph | `title + description` |
 | SkillGraph | `title + description + triggers` (triggers included!) |

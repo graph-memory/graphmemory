@@ -88,7 +88,7 @@ Each graph extracts different text for keyword search:
 | Graph | Indexed text |
 |-------|-------------|
 | Docs | Title + content |
-| Code | Name + signature + doc comment + body |
+| Code | Name + signature + doc comment + body (body truncated to 2000 chars) |
 | Knowledge | Title + content |
 | Tasks | Title + description |
 | Skills | Title + description + triggers |

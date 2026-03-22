@@ -281,7 +281,7 @@ Attaches a file to a task.
 `{ filename, mimeType, size, addedAt }`.
 
 :::note
-Files larger than 50 MB are rejected.
+Max 10 MB per file. Max 20 attachments per entity.
 :::
 
 ---

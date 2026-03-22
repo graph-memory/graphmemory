@@ -115,7 +115,7 @@ server:
     maxTextChars: 10000
 ```
 
-This exposes `POST /api/embed` which accepts `{ "texts": ["..."] }` and returns `{ "embeddings": [[...]] }`.
+This exposes `POST /api/embed` which accepts `{ "texts": ["..."] }` and returns `{ "embeddings": [[...]] }`. Pass `format: "base64"` in the request body to receive embeddings as Base64-encoded Float32 arrays instead of JSON number arrays.
 
 ## Embedding compression
 

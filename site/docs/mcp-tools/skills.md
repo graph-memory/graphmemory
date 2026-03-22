@@ -289,6 +289,10 @@ Attaches a file to a skill.
 
 `{ filename, mimeType, size, addedAt }`.
 
+:::note
+Max 10 MB per file. Max 20 attachments per entity.
+:::
+
 ---
 
 ## remove_skill_attachment {#remove_skill_attachment}

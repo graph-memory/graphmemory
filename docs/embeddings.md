@@ -151,6 +151,8 @@ When `remote` is set:
 
 This is useful for delegating embedding to a GPU machine running the Embedding API endpoint (see below).
 
+The Embedding API also accepts `format: "base64"` in the POST body to return embeddings as Base64-encoded Float32 arrays instead of JSON number arrays.
+
 ## Embedding compression
 
 **File**: `src/lib/embedding-codec.ts`
@@ -161,7 +163,7 @@ Embedding vectors are stored in graph JSON files using **Base64 encoding** for c
 - **Load**: `decompressEmbeddings(exported)` converts Base64 string → `number[]`
 - **Backwards compatible**: detects old format (`number[]`) on load and passes it through unchanged
 
-Buffer alignment is handled explicitly — Base64-decoded bytes are copied to an aligned `Uint8Array` before constructing a `Float32Array` view.
+Buffer alignment is handled explicitly — an optimized `Buffer.from(base64, 'base64')` approach is used with aligned copy before constructing a `Float32Array` view.
 
 ## Embedding API
 

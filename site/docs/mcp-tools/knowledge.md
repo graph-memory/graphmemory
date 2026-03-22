@@ -240,6 +240,10 @@ Attaches a file to a note. The file is copied into the note's mirror directory.
 
 `{ filename, mimeType, size, addedAt }`.
 
+:::note
+Max 10 MB per file. Max 20 attachments per entity.
+:::
+
 ---
 
 ## remove_note_attachment {#remove_note_attachment}

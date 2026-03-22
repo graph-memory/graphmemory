@@ -256,6 +256,54 @@ describe('unsupported language file', () => {
 });
 
 // ---------------------------------------------------------------------------
+// unicode.ts — non-ASCII in JSDoc, names, types
+// ---------------------------------------------------------------------------
+
+describe('unicode.ts', () => {
+  let pf: ParsedFile;
+  beforeAll(async () => { pf = await parseCodeFile(path.join(FIXTURES, 'unicode.ts'), FIXTURES, MTIME); });
+
+  it('findNode signature does not leak body (Cyrillic JSDoc)', () => {
+    const n = node(pf, 'unicode.ts::findNode');
+    expect(n).toBeDefined();
+    expect(n!.attrs.signature).toContain('findNode');
+    expect(n!.attrs.signature).not.toContain('{');
+  });
+
+  it('EventHandler signature does not leak body', () => {
+    const n = node(pf, 'unicode.ts::EventHandler');
+    expect(n).toBeDefined();
+    expect(n!.attrs.signature).toContain('EventHandler');
+    expect(n!.attrs.signature).not.toContain('{');
+  });
+
+  it('hotReload arrow signature does not leak body (emoji JSDoc)', () => {
+    const n = node(pf, 'unicode.ts::hotReload');
+    expect(n).toBeDefined();
+    expect(n!.attrs.signature).toContain('hotReload');
+    expect(n!.attrs.signature).not.toContain('{');
+  });
+
+  it('Данные interface has correct name', () => {
+    const n = node(pf, 'unicode.ts::Данные');
+    expect(n).toBeDefined();
+    expect(n!.attrs.kind).toBe('interface');
+  });
+
+  it('caféHandler arrow signature does not leak body', () => {
+    const n = node(pf, 'unicode.ts::caféHandler');
+    expect(n).toBeDefined();
+    expect(n!.attrs.signature).toContain('caféHandler');
+    expect(n!.attrs.signature).not.toContain('{');
+  });
+
+  it('findNode docComment contains Cyrillic text', () => {
+    const n = node(pf, 'unicode.ts::findNode');
+    expect(n!.attrs.docComment).toContain('Найти');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // resolvePendingImports / resolvePendingEdges
 // ---------------------------------------------------------------------------
 

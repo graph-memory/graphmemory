@@ -7,6 +7,8 @@ import { loadFileIndexGraph, saveFileIndexGraph, FileIndexGraphManager } from '@
 import { loadTaskGraph, saveTaskGraph, TaskGraphManager } from '@/graphs/task';
 import { loadSkillGraph, saveSkillGraph, SkillGraphManager } from '@/graphs/skill';
 import { createProjectIndexer, type ProjectIndexer } from '@/cli/indexer';
+import { clearPathMappingsCache } from '@/lib/parsers/code';
+import { clearWikiIndexCache } from '@/lib/parsers/docs';
 import { PromiseQueue } from '@/lib/promise-queue';
 import type { ProjectConfig, ServerConfig, WorkspaceConfig, GraphName } from '@/lib/multi-config';
 import { GRAPH_NAMES, formatAuthor, embeddingFingerprint } from '@/lib/multi-config';
@@ -348,6 +350,10 @@ export class ProjectManager extends EventEmitter {
   async startIndexing(id: string): Promise<void> {
     const instance = this.projects.get(id);
     if (!instance) throw new Error(`Project "${id}" not found`);
+
+    // Clear parser caches to prevent cross-project leaks in multi-project mode
+    clearPathMappingsCache();
+    clearWikiIndexCache();
 
     const gc = instance.config.graphConfigs;
     const indexer = createProjectIndexer(instance.docGraph, instance.codeGraph, {

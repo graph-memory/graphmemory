@@ -26,25 +26,43 @@ function truncate(text: string, maxLen = 300): string {
 }
 
 /**
+ * Slice outerNode.text up to where bodyNode begins, using line-based
+ * slicing to avoid tree-sitter byte-offset vs JS char-offset mismatch
+ * (startIndex is UTF-8 bytes, String.slice uses UTF-16 code units).
+ */
+function sliceBeforeBody(outerNode: TSNode, bodyNode: TSNode): string | null {
+  const text = outerNode.text ?? '';
+  const outerStartRow = outerNode.startPosition.row;
+  const bodyStartRow = bodyNode.startPosition.row;
+
+  if (bodyStartRow > outerStartRow) {
+    const lines = text.split('\n');
+    const relativeRow = bodyStartRow - outerStartRow;
+    const beforeBody = lines.slice(0, relativeRow);
+    const bodyLine = lines[relativeRow] ?? '';
+    const braceIdx = bodyLine.indexOf('{');
+    if (braceIdx >= 0) beforeBody.push(bodyLine.slice(0, braceIdx));
+    return beforeBody.join('\n');
+  }
+
+  const braceIdx = text.indexOf('{');
+  if (braceIdx > 0) return text.slice(0, braceIdx);
+
+  return null;
+}
+
+/**
  * Build signature by taking everything before the body node.
- * For code (ASCII-dominated), byte offset ≈ char offset.
  * Falls back to first line if no body found.
  */
 function buildSignature(outerNode: TSNode, innerNode: TSNode): string {
   const bodyNode = innerNode.childForFieldName('body');
   const text = outerNode.text ?? '';
 
-  if (!bodyNode) {
-    // No body (type alias, ambient declaration, etc.) — use full text
-    return truncate(text);
-  }
+  if (!bodyNode) return truncate(text);
 
-  // Slice text from outer start up to body start
-  const headerBytes = bodyNode.startIndex - outerNode.startIndex;
-  if (headerBytes > 0) {
-    return truncate(text.slice(0, headerBytes));
-  }
-  return truncate(text.split('\n')[0]);
+  const header = sliceBeforeBody(outerNode, bodyNode);
+  return truncate(header ?? text.split('\n')[0]);
 }
 
 /**
@@ -56,9 +74,8 @@ function buildVariableSignature(outerNode: TSNode, declarator: TSNode): string {
   if (value) {
     const valueBody = value.childForFieldName('body');
     if (valueBody) {
-      const fullText = outerNode.text ?? '';
-      const bodyOffset = valueBody.startIndex - outerNode.startIndex;
-      if (bodyOffset > 0) return truncate(fullText.slice(0, bodyOffset));
+      const header = sliceBeforeBody(outerNode, valueBody);
+      if (header) return truncate(header);
     }
   }
   return truncate(outerNode.text ?? '');

@@ -69,6 +69,13 @@ Two tokens are issued as secure cookies:
 
 Both cookies are `httpOnly` (not accessible to JavaScript) and `SameSite=Strict` (only sent on same-origin requests). The access token cookie is scoped to `path: '/api'`, and the refresh token cookie is scoped to `path: '/api/auth/refresh'` so it is only sent when refreshing tokens.
 
+The `Secure` flag (HTTPS-only) is controlled by `server.cookieSecure` in the config. If not set, it defaults to `true` unless `NODE_ENV=development`. Set it explicitly for production environments:
+
+```yaml
+server:
+  cookieSecure: true   # set to false if behind a TLS-terminating reverse proxy without HTTPS to the server
+```
+
 ### Token refresh
 
 When your access token expires, the UI automatically requests a new one using the refresh token. This happens transparently -- you stay logged in without interruption for up to 7 days (or your configured refresh token lifetime).
@@ -97,6 +104,18 @@ openssl rand -base64 32
 ### Logout
 
 Click the logout button in the header bar or call `POST /api/auth/logout`. Both JWT cookies are cleared and you are returned to the login page.
+
+### Retrieving your API key
+
+Once logged in, you can retrieve your API key via the dedicated endpoint:
+
+```
+GET /api/auth/apikey
+```
+
+This requires a valid JWT cookie and returns `{ "apiKey": "mgm-..." }`. The API key is **not** included in the `/api/auth/status` response to prevent exposure in browser DevTools, proxy logs, or monitoring.
+
+The UI's Connect MCP dialog uses this endpoint to auto-fill the API key in configuration snippets.
 
 ## API key authentication
 

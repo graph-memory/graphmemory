@@ -46,6 +46,7 @@ server:
   port: 3000
   defaultAccess: "rw"             # deny | r | rw
   jwtSecret: "your-secret"        # required when users are defined
+  cookieSecure: true               # explicit Secure flag for cookies (default: auto)
   corsOrigins: ["http://localhost:5173"]
   accessTokenTtl: "15m"
   refreshTokenTtl: "7d"
@@ -94,6 +95,7 @@ workspaces:
 | `port` | `3000` | Port |
 | `defaultAccess` | `rw` | Default access: `deny`, `r`, `rw` |
 | `jwtSecret` | — | Required when users are defined |
+| `cookieSecure` | auto | Set cookie `Secure` flag. Defaults to `true` unless `NODE_ENV=development` |
 | `modelsDir` | `~/.graph-memory/models` | Model cache directory |
 | `sessionTimeout` | `1800` | MCP session timeout (seconds) |
 | `corsOrigins` | `*` (all) | Allowed CORS origins |

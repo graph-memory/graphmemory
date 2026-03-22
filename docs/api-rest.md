@@ -37,6 +37,8 @@ See [Authentication](authentication.md) for details on auth middleware.
 |--------|------|-------------|
 | GET | `/api/projects` | List projects with stats and graph info (includes `readonly` field per graph) |
 | GET | `/api/projects/:id/stats` | Per-graph node/edge counts |
+| GET | `/api/projects/:id/team` | List team members from `.team/` directory |
+| GET | `/api/workspaces` | List all workspaces with their project IDs |
 
 ## Knowledge endpoints
 

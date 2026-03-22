@@ -17,7 +17,7 @@ projects:
     projectDir: "/path/to/my-app"
 ```
 
-The only required field is `projects.*.projectDir`. Everything else has sensible defaults (docs indexes `**/*.md`, code indexes `**/*.{js,ts,jsx,tsx}`).
+The only required field is `projects.*.projectDir`. Everything else has sensible defaults (docs indexes `**/*.md`, code indexes `**/*.{js,ts,jsx,tsx,mjs,mts,cjs,cts}`).
 
 ## Author settings
 
@@ -41,11 +41,21 @@ Can be overridden per project or per workspace.
 | `modelsDir` | `~/.graph-memory/models` | Where embedding models are cached locally |
 | `corsOrigins` | — | Allowed CORS origins (array of strings) |
 | `defaultAccess` | `rw` | Default access for unknown users: `deny`, `r`, `rw` |
+| `jwtSecret` | — | **Required when users are defined.** Secret for signing JWT tokens (min 16 chars) |
+| `cookieSecure` | auto | Set cookie `Secure` flag explicitly. Defaults to `true` unless `NODE_ENV=development` |
+| `accessTokenTtl` | `15m` | JWT access token lifetime |
+| `refreshTokenTtl` | `7d` | JWT refresh token lifetime |
+| `maxFileSize` | `1048576` | Max file size for indexing in bytes (1 MB) |
+| `rateLimit.global` | `600` | Requests/min per IP for all API routes |
+| `rateLimit.search` | `120` | Requests/min per IP for search/embed endpoints |
+| `rateLimit.auth` | `10` | Requests/min per IP for login endpoint |
 | `embedding.model` | `Xenova/bge-m3` | Default model for all graphs |
 | `embedding.remote` | — | Remote embedding API URL (delegates instead of local model) |
 | `embedding.remoteApiKey` | — | API key for remote embedding |
 | `embeddingApi.enabled` | `false` | Expose local model via `POST /api/embed` |
 | `embeddingApi.apiKey` | — | API key for the embedding endpoint |
+| `embeddingApi.maxTexts` | `100` | Max texts per embedding request |
+| `embeddingApi.maxTextChars` | `10000` | Max characters per single text |
 
 ## Project settings
 
@@ -266,9 +276,11 @@ server:
   embeddingApi:
     enabled: true                # Enable POST /api/embed endpoint
     apiKey: "emb-secret-key"     # API key for embedding requests (separate from user apiKeys)
+    maxTexts: 100                # Max texts per request (default: 100)
+    maxTextChars: 10000          # Max chars per text (default: 10000)
 ```
 
-When enabled, `POST /api/embed` accepts `{ text: "..." }` or `{ texts: ["..."] }` and returns embeddings from the server's configured model. Authenticate with `Authorization: Bearer <apiKey>` using the `embeddingApi.apiKey`.
+When enabled, `POST /api/embed` accepts `{ texts: ["text1", "text2"] }` and returns embeddings from the server's configured model. Authenticate with `Authorization: Bearer <apiKey>` using the `embeddingApi.apiKey`.
 
 ## Remote embedding setup
 
@@ -301,7 +313,7 @@ server:
     - "https://my-app.example.com"  # Production frontend
 ```
 
-When `corsOrigins` is not set, CORS headers are not added. Set this when the web UI or REST API is accessed from a different origin than the server.
+When `corsOrigins` is not set, all origins are allowed. Set this to restrict access when the server is exposed to the internet. `credentials: true` is always enabled for cookie-based auth.
 
 ## Common patterns
 

@@ -166,7 +166,7 @@ export function ConnectDialog({ open, onClose, projectId }: ConnectDialogProps) 
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
             sx={{ mb: 2 }}
-            helperText="Authentication is enabled. Paste your API key to include it in the config."
+            helperText={apiKey ? 'API key will be included in the config below.' : 'Authentication is enabled. Paste your API key to include it in the config.'}
           />
         )}
 

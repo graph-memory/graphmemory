@@ -10,6 +10,7 @@ import { BM25Index } from '@/lib/search/bm25';
 import { mirrorNoteCreate, mirrorNoteUpdate, mirrorNoteRelation, mirrorAttachmentEvent, deleteMirrorDir, writeAttachment, deleteAttachment, getAttachmentPath as getAttPath, sanitizeFilename } from '@/lib/file-mirror';
 import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
 import { readJsonWithTmpFallback } from '@/lib/graph-persistence';
+import { LIST_LIMIT_SMALL, CONTENT_PREVIEW_LEN } from '@/lib/defaults';
 import type { MirrorWriteTracker } from '@/lib/mirror-watcher';
 import type { ParsedNoteFile } from '@/lib/file-import';
 import type { AttachmentMeta } from '@/graphs/attachment-types';
@@ -180,7 +181,7 @@ export function listNotes(
   graph: KnowledgeGraph,
   filter?: string,
   tag?: string,
-  limit: number = 20,
+  limit: number = LIST_LIMIT_SMALL,
 ): Array<{ id: string; title: string; content: string; tags: string[]; updatedAt: number }> {
   const lowerFilter = filter?.toLowerCase();
   const lowerTag = tag?.toLowerCase();
@@ -197,7 +198,7 @@ export function listNotes(
     if (lowerTag) {
       if (!attrs.tags.some(t => t.toLowerCase() === lowerTag)) return;
     }
-    results.push({ id, title: attrs.title, content: attrs.content.slice(0, 500), tags: attrs.tags, updatedAt: attrs.updatedAt });
+    results.push({ id, title: attrs.title, content: attrs.content.slice(0, CONTENT_PREVIEW_LEN), tags: attrs.tags, updatedAt: attrs.updatedAt });
   });
 
   return results

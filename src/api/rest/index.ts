@@ -23,6 +23,7 @@ import { createGraphRouter } from '@/api/rest/graph';
 import { createToolsRouter } from '@/api/rest/tools';
 import { createEmbedRouter } from '@/api/rest/embed';
 import { scanTeamDir } from '@/lib/team';
+import { RATE_LIMIT_WINDOW_MS } from '@/lib/defaults';
 
 export interface RestAppOptions {
   serverConfig?: ServerConfig;
@@ -70,10 +71,10 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
   const rateLimitMsg = { error: 'Too many requests, please try again later' };
 
   if (rl && rl.global > 0) {
-    app.use('/api/', rateLimit({ windowMs: 60_000, max: rl.global, standardHeaders: true, legacyHeaders: false, message: rateLimitMsg }));
+    app.use('/api/', rateLimit({ windowMs: RATE_LIMIT_WINDOW_MS, max: rl.global, standardHeaders: true, legacyHeaders: false, message: rateLimitMsg }));
   }
   if (rl && rl.search > 0) {
-    const searchLimiter = rateLimit({ windowMs: 60_000, max: rl.search, standardHeaders: true, legacyHeaders: false, message: rateLimitMsg });
+    const searchLimiter = rateLimit({ windowMs: RATE_LIMIT_WINDOW_MS, max: rl.search, standardHeaders: true, legacyHeaders: false, message: rateLimitMsg });
     app.use('/api/projects/:projectId/knowledge/search', searchLimiter);
     app.use('/api/projects/:projectId/tasks/search', searchLimiter);
     app.use('/api/projects/:projectId/skills/search', searchLimiter);
@@ -83,7 +84,7 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
     app.use('/api/embed', searchLimiter);
   }
   if (rl && rl.auth > 0) {
-    app.use('/api/auth/login', rateLimit({ windowMs: 60_000, max: rl.auth, standardHeaders: true, legacyHeaders: false, message: rateLimitMsg }));
+    app.use('/api/auth/login', rateLimit({ windowMs: RATE_LIMIT_WINDOW_MS, max: rl.auth, standardHeaders: true, legacyHeaders: false, message: rateLimitMsg }));
   }
 
   const jwtSecret = serverConfig?.jwtSecret;

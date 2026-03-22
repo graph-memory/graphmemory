@@ -1,5 +1,6 @@
 import type { ExtractedSymbol, ExtractedEdge, ExtractedImport, LanguageMapper } from './types';
 import { registerLanguage } from './registry';
+import { SIGNATURE_MAX_LEN } from '@/lib/defaults';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -20,7 +21,7 @@ function getDocComment(node: TSNode): string {
 }
 
 /** Collapse whitespace and truncate. */
-function truncate(text: string, maxLen = 300): string {
+function truncate(text: string, maxLen = SIGNATURE_MAX_LEN): string {
   const collapsed = text.replace(/\s+/g, ' ').trim();
   return collapsed.length > maxLen ? collapsed.slice(0, maxLen) + '…' : collapsed;
 }

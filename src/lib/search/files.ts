@@ -1,6 +1,7 @@
 import { cosineSimilarity } from '@/lib/embedder';
 import type { DocGraph, NodeAttributes } from '@/graphs/docs';
 import type { CodeGraph, CodeNodeAttributes } from '@/graphs/code-types';
+import { FILE_SEARCH_TOP_K, SEARCH_MIN_SCORE_FILES } from '@/lib/defaults';
 
 // ---------------------------------------------------------------------------
 // Docs: semantic file search over root chunks (level=1)
@@ -18,7 +19,7 @@ export function searchDocFiles(
   queryEmbedding: number[],
   options: { topK?: number; minScore?: number } = {},
 ): DocFileSearchResult[] {
-  const { topK = 10, minScore = 0.3 } = options;
+  const { topK = FILE_SEARCH_TOP_K, minScore = SEARCH_MIN_SCORE_FILES } = options;
 
   // Collect root chunks (level=1) that have a fileEmbedding
   const scored: Array<{ fileId: string; title: string; score: number }> = [];
@@ -64,7 +65,7 @@ export function searchCodeFiles(
   queryEmbedding: number[],
   options: { topK?: number; minScore?: number } = {},
 ): CodeFileSearchResult[] {
-  const { topK = 10, minScore = 0.3 } = options;
+  const { topK = FILE_SEARCH_TOP_K, minScore = SEARCH_MIN_SCORE_FILES } = options;
 
   // Collect file nodes that have a fileEmbedding
   const scored: Array<{ fileId: string; score: number }> = [];

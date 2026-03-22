@@ -8,6 +8,7 @@ import type { PromiseQueue } from '@/lib/promise-queue';
 import { createRestApp } from '@/api/rest/index';
 import { attachWebSocket } from '@/api/rest/websocket';
 import { resolveUserFromApiKey, resolveAccess, canWrite, canRead } from '@/lib/access';
+import { MAX_BODY_SIZE, SESSION_SWEEP_INTERVAL_MS } from '@/lib/defaults';
 import { GRAPH_NAMES, type GraphName, type AccessLevel } from '@/lib/multi-config';
 import type { DocGraph } from '@/graphs/docs';
 import { DocGraphManager } from '@/graphs/docs';
@@ -330,7 +331,6 @@ export function createMcpServer(
 // HTTP transport (Streamable HTTP)
 // ---------------------------------------------------------------------------
 
-const MAX_BODY_SIZE = 10 * 1024 * 1024; // 10 MB
 
 async function collectBody(req: http.IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
@@ -376,7 +376,7 @@ export async function startHttpServer(
         process.stderr.write(`[http] Session ${sid} timed out\n`);
       }
     }
-  }, 60_000);
+  }, SESSION_SWEEP_INTERVAL_MS);
   sweepInterval.unref();
 
   const httpServer = http.createServer(async (req, res) => {
@@ -463,7 +463,7 @@ export async function startMultiProjectHttpServer(
         process.stderr.write(`[http] Session ${sid} (project: ${s.projectId}) timed out\n`);
       }
     }
-  }, 60_000);
+  }, SESSION_SWEEP_INTERVAL_MS);
   sweepInterval.unref();
 
   // Express app handles /api/* routes

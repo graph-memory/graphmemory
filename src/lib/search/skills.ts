@@ -1,6 +1,7 @@
 import { cosineSimilarity } from '@/lib/embedder';
 import type { SkillGraph, SkillNodeAttributes, SkillSource } from '@/graphs/skill-types';
 import { rrfFuse, type HybridOptions } from '@/lib/search/bm25';
+import { SEARCH_TOP_K, SEARCH_BFS_DEPTH, SEARCH_MAX_RESULTS, SEARCH_MIN_SCORE, SEARCH_BFS_DECAY, RRF_K } from '@/lib/defaults';
 
 export interface SkillSearchResult {
   id: string;
@@ -32,8 +33,8 @@ export function searchSkills(
     bfsDecay?: number;
   } & HybridOptions = {},
 ): SkillSearchResult[] {
-  const { topK = 5, bfsDepth = 1, maxResults = 20, minScore = 0.5, bfsDecay = 0.8,
-    queryText, bm25Index, searchMode = 'hybrid', rrfK = 60 } = options;
+  const { topK = SEARCH_TOP_K, bfsDepth = SEARCH_BFS_DEPTH, maxResults = SEARCH_MAX_RESULTS, minScore = SEARCH_MIN_SCORE, bfsDecay = SEARCH_BFS_DECAY,
+    queryText, bm25Index, searchMode = 'hybrid', rrfK = RRF_K } = options;
 
   const useVector = searchMode !== 'keyword';
   const useBm25 = searchMode !== 'vector' && !!queryText && !!bm25Index;

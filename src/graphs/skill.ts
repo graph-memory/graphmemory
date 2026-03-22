@@ -14,6 +14,7 @@ import type { MirrorWriteTracker } from '@/lib/mirror-watcher';
 import type { ParsedSkillFile } from '@/lib/file-import';
 import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
 import { readJsonWithTmpFallback } from '@/lib/graph-persistence';
+import { LIST_LIMIT_LARGE, CONTENT_PREVIEW_LEN } from '@/lib/defaults';
 import { scanAttachments, MAX_ATTACHMENT_SIZE, MAX_ATTACHMENTS_PER_ENTITY } from '@/graphs/attachment-types';
 import { diffRelations } from '@/lib/file-import';
 import type { RelationFrontmatter } from '@/lib/file-mirror';
@@ -351,7 +352,7 @@ export function listSkills(
     limit?: number;
   } = {},
 ): SkillEntry[] {
-  const { source, tag, filter, limit = 50 } = opts;
+  const { source, tag, filter, limit = LIST_LIMIT_LARGE } = opts;
   const lowerFilter = filter?.toLowerCase();
   const lowerTag = tag?.toLowerCase();
 
@@ -369,7 +370,7 @@ export function listSkills(
     results.push({
       id,
       title: attrs.title,
-      description: attrs.description?.slice(0, 500),
+      description: attrs.description?.slice(0, CONTENT_PREVIEW_LEN),
       steps: attrs.steps,
       triggers: attrs.triggers,
       inputHints: attrs.inputHints,

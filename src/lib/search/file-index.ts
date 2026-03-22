@@ -1,5 +1,6 @@
 import { cosineSimilarity } from '@/lib/embedder';
 import type { FileIndexGraph, FileIndexNodeAttributes } from '@/graphs/file-index-types';
+import { FILE_SEARCH_TOP_K, SEARCH_MIN_SCORE_FILES } from '@/lib/defaults';
 
 export interface FileIndexSearchResult {
   filePath: string;
@@ -20,7 +21,7 @@ export function searchFileIndex(
   queryEmbedding: number[],
   options: { topK?: number; minScore?: number } = {},
 ): FileIndexSearchResult[] {
-  const { topK = 10, minScore = 0.3 } = options;
+  const { topK = FILE_SEARCH_TOP_K, minScore = SEARCH_MIN_SCORE_FILES } = options;
 
   const scored: FileIndexSearchResult[] = [];
   graph.forEachNode((_, attrs: FileIndexNodeAttributes) => {

@@ -3,6 +3,8 @@
  * Used alongside vector cosine similarity for hybrid search.
  */
 
+import { BM25_K1, BM25_B, BM25_IDF_OFFSET, RRF_K } from '@/lib/defaults';
+
 export type SearchMode = 'hybrid' | 'vector' | 'keyword';
 
 export interface HybridOptions {
@@ -79,8 +81,8 @@ export class BM25Index<A = Record<string, unknown>> {
 
   constructor(textExtractor: TextExtractor<A>, opts?: BM25Options) {
     this.textExtractor = textExtractor;
-    this.k1 = opts?.k1 ?? 1.2;
-    this.b = opts?.b ?? 0.75;
+    this.k1 = opts?.k1 ?? BM25_K1;
+    this.b = opts?.b ?? BM25_B;
   }
 
   get size(): number {
@@ -164,7 +166,7 @@ export class BM25Index<A = Record<string, unknown>> {
 
         const docFreq = this.df.get(term) ?? 0;
         // IDF: log((N - df + 0.5) / (df + 0.5) + 1)
-        const idf = Math.log((N - docFreq + 0.5) / (docFreq + 0.5) + 1);
+        const idf = Math.log((N - docFreq + BM25_IDF_OFFSET) / (docFreq + BM25_IDF_OFFSET) + 1);
         // TF saturation: (tf * (k1 + 1)) / (tf + k1 * (1 - b + b * dl/avgdl))
         const tfNorm = (tf * (this.k1 + 1)) / (tf + this.k1 * (1 - this.b + this.b * doc.length / avgDl));
 
@@ -193,7 +195,7 @@ export class BM25Index<A = Record<string, unknown>> {
 export function rrfFuse(
   vectorScores: Map<string, number>,
   bm25Scores: Map<string, number>,
-  k: number = 60,
+  k: number = RRF_K,
 ): Map<string, number> {
   // Build ranked lists (sorted desc by score, rank starts at 1)
   const vectorRank = buildRankMap(vectorScores);

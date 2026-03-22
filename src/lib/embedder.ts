@@ -2,12 +2,13 @@ import { pipeline, env, type FeatureExtractionPipeline } from '@huggingface/tran
 import fs from 'fs';
 import path from 'path';
 import type { ModelConfig, EmbeddingConfig } from '@/lib/multi-config';
+import { DEFAULT_EMBEDDING_CACHE_SIZE, REMOTE_MAX_RETRIES, REMOTE_BASE_DELAY_MS, ERROR_BODY_LIMIT } from '@/lib/defaults';
 
 // ---------------------------------------------------------------------------
 // LRU cache for embedding vectors (avoids re-computing identical texts)
 // ---------------------------------------------------------------------------
 
-const DEFAULT_CACHE_SIZE = 10_000;
+const DEFAULT_CACHE_SIZE = DEFAULT_EMBEDDING_CACHE_SIZE;
 
 class LruCache<V> {
   private map = new Map<string, V>();
@@ -108,8 +109,6 @@ export async function loadModel(
 // Remote embedding HTTP client
 // ---------------------------------------------------------------------------
 
-const REMOTE_MAX_RETRIES = 3;
-const REMOTE_BASE_DELAY_MS = 200;
 
 async function remoteEmbed(url: string, texts: string[], apiKey?: string): Promise<number[][]> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -137,7 +136,7 @@ async function remoteEmbed(url: string, texts: string[], apiKey?: string): Promi
 
     // Client errors (4xx) — don't retry
     if (resp.status < 500) {
-      const respBody = (await resp.text()).slice(0, 500);
+      const respBody = (await resp.text()).slice(0, ERROR_BODY_LIMIT);
       throw new Error(`Remote embed failed (${resp.status}): ${respBody}`);
     }
 
@@ -148,7 +147,7 @@ async function remoteEmbed(url: string, texts: string[], apiKey?: string): Promi
       continue;
     }
 
-    const respBody = (await resp.text()).slice(0, 500);
+    const respBody = (await resp.text()).slice(0, ERROR_BODY_LIMIT);
     throw new Error(`Remote embed failed after ${REMOTE_MAX_RETRIES} attempts (${resp.status}): ${respBody}`);
   }
 

@@ -9,6 +9,7 @@ import { parseNoteDir, parseTaskDir, parseSkillDir } from './file-import';
 import { appendEvent } from './events-log';
 import { parseMarkdown } from './frontmatter';
 import type { WatcherHandle } from './watcher';
+import { MIRROR_STALE_MS, MIRROR_MAX_ENTRIES, MIRROR_MTIME_TOLERANCE_MS } from '@/lib/defaults';
 import type { TaskStatus, TaskPriority } from '../graphs/task-types';
 import type { SkillSource } from '../graphs/skill-types';
 
@@ -20,8 +21,8 @@ import type { SkillSource } from '../graphs/skill-types';
 export class MirrorWriteTracker {
   /** Map from filePath → { mtimeMs (for comparison), recordedAt (for eviction) } */
   private recentWrites = new Map<string, { mtimeMs: number; recordedAt: number }>();
-  private static readonly STALE_MS = 10_000; // entries older than 10s are stale
-  private static readonly MAX_ENTRIES = 10_000;
+  private static readonly STALE_MS = MIRROR_STALE_MS;
+  private static readonly MAX_ENTRIES = MIRROR_MAX_ENTRIES;
 
   /** Called by mirrorNote/mirrorTask after writing a file. */
   recordWrite(filePath: string): void {
@@ -40,7 +41,7 @@ export class MirrorWriteTracker {
     try {
       const stat = fs.statSync(filePath, { throwIfNoEntry: false } as fs.StatSyncOptions);
       if (!stat) return false;
-      if (Math.abs((stat as fs.Stats).mtimeMs - recorded.mtimeMs) < 100) {
+      if (Math.abs((stat as fs.Stats).mtimeMs - recorded.mtimeMs) < MIRROR_MTIME_TOLERANCE_MS) {
         this.recentWrites.delete(filePath);
         return true;
       }

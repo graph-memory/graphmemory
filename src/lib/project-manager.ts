@@ -23,6 +23,7 @@ import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { MirrorWriteTracker, scanMirrorDirs, startMirrorWatcher } from '@/lib/mirror-watcher';
 import { ensureAuthorInTeam } from '@/lib/team';
 import path from 'path';
+import { AUTO_SAVE_INTERVAL_MS } from '@/lib/defaults';
 
 // ---------------------------------------------------------------------------
 // ProjectInstance
@@ -452,7 +453,7 @@ export class ProjectManager extends EventEmitter {
   /**
    * Start auto-save interval (every intervalMs, save dirty projects).
    */
-  startAutoSave(intervalMs = 30_000): void {
+  startAutoSave(intervalMs = AUTO_SAVE_INTERVAL_MS): void {
     this.autoSaveInterval = setInterval(() => {
       for (const instance of this.projects.values()) {
         if (instance.dirty) {

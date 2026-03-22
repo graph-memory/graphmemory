@@ -10,6 +10,7 @@ import { searchCodeFiles, type CodeFileSearchResult } from '@/lib/search/files';
 import { BM25Index, type SearchMode } from '@/lib/search/bm25';
 import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
 import { readJsonWithTmpFallback } from '@/lib/graph-persistence';
+import { BM25_BODY_MAX_CHARS, LIST_LIMIT_SMALL } from '@/lib/defaults';
 
 export type { CodeGraph };
 export { createCodeGraph };
@@ -170,7 +171,7 @@ export function getCodeFileMtime(graph: CodeGraph, fileId: string): number {
 export function listCodeFiles(
   graph: CodeGraph,
   filter?: string,
-  limit: number = 20,
+  limit: number = LIST_LIMIT_SMALL,
 ): Array<{ fileId: string; symbolCount: number }> {
   const files = new Map<string, number>();
   const lowerFilter = filter?.toLowerCase();
@@ -240,7 +241,7 @@ export function loadCodeGraph(graphMemory: string, fresh = false, embeddingFinge
 // ---------------------------------------------------------------------------
 
 export class CodeGraphManager {
-  private _bm25Index = new BM25Index<CodeNodeAttributes>((attrs) => `${attrs.name} ${attrs.signature} ${attrs.docComment} ${attrs.body.slice(0, 2000)}`);
+  private _bm25Index = new BM25Index<CodeNodeAttributes>((attrs) => `${attrs.name} ${attrs.signature} ${attrs.docComment} ${attrs.body.slice(0, BM25_BODY_MAX_CHARS)}`);
 
   constructor(
     private _graph: CodeGraph,

@@ -12,6 +12,7 @@ import { BM25Index } from '@/lib/search/bm25';
 import { mirrorTaskCreate, mirrorTaskUpdate, mirrorTaskRelation, mirrorAttachmentEvent, deleteMirrorDir, writeAttachment, deleteAttachment, getAttachmentPath as getAttPath, sanitizeFilename } from '@/lib/file-mirror';
 import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
 import { readJsonWithTmpFallback } from '@/lib/graph-persistence';
+import { LIST_LIMIT_LARGE, CONTENT_PREVIEW_LEN } from '@/lib/defaults';
 import type { MirrorWriteTracker } from '@/lib/mirror-watcher';
 import type { ParsedTaskFile } from '@/lib/file-import';
 import { scanAttachments, MAX_ATTACHMENT_SIZE, MAX_ATTACHMENTS_PER_ENTITY } from '@/graphs/attachment-types';
@@ -368,7 +369,7 @@ export function listTasks(
     limit?: number;
   } = {},
 ): TaskEntry[] {
-  const { status, priority, tag, filter, assignee, limit = 50 } = opts;
+  const { status, priority, tag, filter, assignee, limit = LIST_LIMIT_LARGE } = opts;
   const lowerFilter = filter?.toLowerCase();
   const lowerTag = tag?.toLowerCase();
 
@@ -388,7 +389,7 @@ export function listTasks(
     results.push({
       id,
       title: attrs.title,
-      description: attrs.description?.slice(0, 500),
+      description: attrs.description?.slice(0, CONTENT_PREVIEW_LEN),
       status: attrs.status,
       priority: attrs.priority,
       tags: attrs.tags,

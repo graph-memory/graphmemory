@@ -3,6 +3,7 @@ import path from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { SkillGraphManager } from '@/graphs/skill';
+import { MAX_UPLOAD_SIZE } from '@/lib/defaults';
 
 export function register(server: McpServer, mgr: SkillGraphManager): void {
   server.registerTool(
@@ -26,7 +27,7 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
       if (!stat.isFile()) {
         return { content: [{ type: 'text', text: JSON.stringify({ error: 'Path is not a regular file' }) }], isError: true };
       }
-      if (stat.size > 50 * 1024 * 1024) {
+      if (stat.size > MAX_UPLOAD_SIZE) {
         return { content: [{ type: 'text', text: JSON.stringify({ error: 'File exceeds 50 MB limit' }) }], isError: true };
       }
 

@@ -7,6 +7,7 @@ import { findIncomingCrossLinks } from '@/graphs/manager-types';
 import { searchFileIndex, type FileIndexSearchResult } from '@/lib/search/file-index';
 import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
 import { readJsonWithTmpFallback } from '@/lib/graph-persistence';
+import { LIST_LIMIT_LARGE } from '@/lib/defaults';
 
 // ---------------------------------------------------------------------------
 // CRUD
@@ -171,7 +172,7 @@ export function listAllFiles(
     limit?: number;
   } = {},
 ): FileListEntry[] {
-  const { directory, extension, language, filter, limit = 50 } = options;
+  const { directory, extension, language, filter, limit = LIST_LIMIT_LARGE } = options;
   const lowerFilter = filter?.toLowerCase();
   const results: FileListEntry[] = [];
 

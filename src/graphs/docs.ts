@@ -9,6 +9,7 @@ import { searchDocFiles, type DocFileSearchResult } from '@/lib/search/files';
 import { BM25Index, type SearchMode } from '@/lib/search/bm25';
 import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
 import { readJsonWithTmpFallback } from '@/lib/graph-persistence';
+import { LIST_LIMIT_SMALL } from '@/lib/defaults';
 
 export interface NodeAttributes {
   fileId: string;
@@ -126,7 +127,7 @@ export function getFileMtime(graph: DocGraph, fileId: string): number {
 export function listFiles(
   graph: DocGraph,
   filter?: string,
-  limit: number = 20,
+  limit: number = LIST_LIMIT_SMALL,
 ): Array<{ fileId: string; title: string; chunks: number }> {
   const files = new Map<string, { title: string; chunks: number }>();
   const lowerFilter = filter?.toLowerCase();

@@ -1,6 +1,7 @@
 import { cosineSimilarity } from '@/lib/embedder';
 import type { CodeGraph, CodeNodeAttributes } from '@/graphs/code-types';
 import { rrfFuse, type HybridOptions } from '@/lib/search/bm25';
+import { SEARCH_TOP_K, SEARCH_BFS_DEPTH, SEARCH_MAX_RESULTS, SEARCH_MIN_SCORE_CODE, SEARCH_BFS_DECAY, RRF_K } from '@/lib/defaults';
 
 export interface CodeSearchResult {
   id: string;
@@ -35,9 +36,9 @@ export function searchCode(
     includeBody?: boolean;
   } & HybridOptions = {},
 ): CodeSearchResult[] {
-  const { topK = 5, bfsDepth = 1, maxResults = 20, minScore = 0.3, bfsDecay = 0.8,
+  const { topK = SEARCH_TOP_K, bfsDepth = SEARCH_BFS_DEPTH, maxResults = SEARCH_MAX_RESULTS, minScore = SEARCH_MIN_SCORE_CODE, bfsDecay = SEARCH_BFS_DECAY,
     includeBody = false,
-    queryText, bm25Index, searchMode = 'hybrid', rrfK = 60 } = options;
+    queryText, bm25Index, searchMode = 'hybrid', rrfK = RRF_K } = options;
 
   const useVector = searchMode !== 'keyword';
   const useBm25 = searchMode !== 'vector' && !!queryText && !!bm25Index;

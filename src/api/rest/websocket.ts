@@ -3,6 +3,7 @@ import type http from 'http';
 import type { ProjectManager } from '@/lib/project-manager';
 import type { UserConfig } from '@/lib/multi-config';
 import { verifyToken } from '@/lib/jwt';
+import { WS_DEBOUNCE_MS } from '@/lib/defaults';
 
 export interface WebSocketOptions {
   jwtSecret?: string;
@@ -112,7 +113,7 @@ export function attachWebSocket(
         }
         pendingGraphUpdates = new Map();
         graphUpdateTimer = undefined;
-      }, 1000);
+      }, WS_DEBOUNCE_MS);
     }
   };
   projectManager.on('graph:updated', graphHandler);

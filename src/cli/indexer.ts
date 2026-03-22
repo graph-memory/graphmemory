@@ -7,6 +7,7 @@ import { updateFile, removeFile, getFileMtime, resolvePendingLinks, type DocGrap
 import { parseCodeFile } from '@/lib/parsers/code';
 import { updateCodeFile, removeCodeFile, getCodeFileMtime, resolvePendingImports, resolvePendingEdges, type CodeGraph } from '@/graphs/code';
 import { startWatcher, ALWAYS_IGNORED, type WatcherHandle } from '@/lib/watcher';
+import { INDEXER_PREVIEW_LEN } from '@/lib/defaults';
 import type { KnowledgeGraph } from '@/graphs/knowledge-types';
 import { cleanupProxies as cleanupKnowledgeProxies } from '@/graphs/knowledge';
 import type { TaskGraph } from '@/graphs/task-types';
@@ -131,7 +132,7 @@ export function createProjectIndexer(
     const rootChunk = chunks.find(c => c.level === 1);
     const embedText = rootChunk?.title
       ? `${fileId} ${rootChunk.title}`
-      : `${fileId} ${rootChunk?.content.slice(0, 200) ?? ''}`;
+      : `${fileId} ${rootChunk?.content.slice(0, INDEXER_PREVIEW_LEN) ?? ''}`;
     batchInputs.push({ title: embedText, content: '' });
     const embeddings = await embedBatch(batchInputs, config.docsModelName);
     for (let i = 0; i < chunks.length; i++) {

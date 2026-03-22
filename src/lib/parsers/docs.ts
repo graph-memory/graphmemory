@@ -1,6 +1,7 @@
 import path from 'path';
 import fs from 'fs';
 import { extractSymbols } from '@/lib/parsers/codeblock';
+import { WIKI_MAX_DEPTH } from '@/lib/defaults';
 
 export interface Chunk {
   id: string;        // "docs/api.md" | "docs/api.md::Section Title"
@@ -206,7 +207,7 @@ function getWikiIndex(projectDir: string): Map<string, string> {
   if (_wikiIndex.has(projectDir)) return _wikiIndex.get(projectDir)!;
 
   const index = new Map<string, string>();
-  const MAX_DEPTH = 10;
+  const MAX_DEPTH = WIKI_MAX_DEPTH;
 
   function walk(dir: string, depth: number): void {
     if (depth >= MAX_DEPTH) return;

@@ -6,8 +6,9 @@ import type { ProjectInstance } from '@/lib/project-manager';
 import { validateBody, validateQuery, createNoteSchema, updateNoteSchema, createRelationSchema, noteSearchSchema, noteListSchema, linkedQuerySchema, attachmentFilenameSchema } from '@/api/rest/validation';
 import { requireWriteAccess } from '@/api/rest/index';
 import { VersionConflictError } from '@/graphs/manager-types';
+import { MAX_UPLOAD_SIZE } from '@/lib/defaults';
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_UPLOAD_SIZE } });
 
 export function createKnowledgeRouter(): Router {
   const router = Router({ mergeParams: true });

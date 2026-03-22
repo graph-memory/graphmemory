@@ -9,6 +9,7 @@ import { hashPassword } from '@/lib/jwt';
 import { ProjectManager } from '@/lib/project-manager';
 import { loadModel } from '@/lib/embedder';
 import { startMultiProjectHttpServer } from '@/api/index';
+import { GRACEFUL_SHUTDOWN_TIMEOUT_MS, MAX_PASSWORD_LEN } from '@/lib/defaults';
 
 const program = new Command();
 
@@ -233,7 +234,7 @@ program
       const forceTimer = setTimeout(() => {
         process.stderr.write('[serve] Shutdown timeout, force exit\n');
         process.exit(1);
-      }, 5000);
+      }, GRACEFUL_SHUTDOWN_TIMEOUT_MS);
       try {
         httpServer.close();
         // Destroy all open connections (including WebSocket) so the server can close
@@ -331,7 +332,7 @@ usersCmd
       // Validate inputs
       if (/[\x00-\x1f\x7f]/.test(name)) { process.stderr.write('Name contains invalid characters\n'); process.exit(1); }
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { process.stderr.write('Invalid email format\n'); process.exit(1); }
-      if (password.length > 256) { process.stderr.write('Password too long (max 256)\n'); process.exit(1); }
+      if (password.length > MAX_PASSWORD_LEN) { process.stderr.write(`Password too long (max ${MAX_PASSWORD_LEN})\n`); process.exit(1); }
 
       const pwHash = await hashPassword(password);
       const apiKey = `mgm-${crypto.randomBytes(24).toString('base64url')}`;

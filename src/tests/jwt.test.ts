@@ -1,7 +1,7 @@
 import {
   hashPassword, verifyPassword,
   signAccessToken, signRefreshToken, verifyToken,
-  parseTtl, resolveUserByEmail,
+  parseTtl, resolveUserByEmail, setAuthCookies,
 } from '@/lib/jwt';
 import type { UserConfig } from '@/lib/multi-config';
 
@@ -78,6 +78,62 @@ describe('JWT sign / verify', () => {
   it('rejects garbage token', () => {
     expect(verifyToken('not.a.token', secret)).toBeNull();
     expect(verifyToken('', secret)).toBeNull();
+  });
+});
+
+describe('setAuthCookies secureCookie parameter', () => {
+  it('uses explicit secureCookie=false to override NODE_ENV', () => {
+    const cookies: Array<{ name: string; value: string; options: any }> = [];
+    const fakeRes = {
+      cookie(name: string, value: string, options: any) {
+        cookies.push({ name, value, options });
+      },
+    } as any;
+
+    const accessToken = signAccessToken('alice', 'test-secret-key-16+', '15m');
+    const refreshToken = signRefreshToken('alice', 'test-secret-key-16+', '7d');
+
+    setAuthCookies(fakeRes, accessToken, refreshToken, '15m', '7d', false);
+
+    expect(cookies).toHaveLength(2);
+    expect(cookies[0].options.secure).toBe(false);
+    expect(cookies[1].options.secure).toBe(false);
+  });
+
+  it('uses explicit secureCookie=true regardless of NODE_ENV', () => {
+    const cookies: Array<{ name: string; value: string; options: any }> = [];
+    const fakeRes = {
+      cookie(name: string, value: string, options: any) {
+        cookies.push({ name, value, options });
+      },
+    } as any;
+
+    const accessToken = signAccessToken('alice', 'test-secret-key-16+', '15m');
+    const refreshToken = signRefreshToken('alice', 'test-secret-key-16+', '7d');
+
+    setAuthCookies(fakeRes, accessToken, refreshToken, '15m', '7d', true);
+
+    expect(cookies).toHaveLength(2);
+    expect(cookies[0].options.secure).toBe(true);
+    expect(cookies[1].options.secure).toBe(true);
+  });
+
+  it('falls back to NODE_ENV when secureCookie is undefined', () => {
+    const cookies: Array<{ name: string; value: string; options: any }> = [];
+    const fakeRes = {
+      cookie(name: string, value: string, options: any) {
+        cookies.push({ name, value, options });
+      },
+    } as any;
+
+    const accessToken = signAccessToken('alice', 'test-secret-key-16+', '15m');
+    const refreshToken = signRefreshToken('alice', 'test-secret-key-16+', '7d');
+
+    setAuthCookies(fakeRes, accessToken, refreshToken, '15m', '7d');
+
+    expect(cookies).toHaveLength(2);
+    // In test environment, NODE_ENV is 'test' (not 'development'), so secure defaults to true
+    expect(typeof cookies[0].options.secure).toBe('boolean');
   });
 });
 

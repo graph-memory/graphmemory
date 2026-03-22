@@ -55,7 +55,7 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
   const hasUsers = Object.keys(users).length > 0;
 
   const corsOrigins = serverConfig?.corsOrigins;
-  app.use(cors(corsOrigins?.length ? { origin: corsOrigins, credentials: true } : {}));
+  app.use(cors(corsOrigins?.length ? { origin: corsOrigins, credentials: true } : { credentials: true }));
   app.use(express.json({ limit: '10mb' }));
   app.use(cookieParser());
 
@@ -88,6 +88,7 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
   }
 
   const jwtSecret = serverConfig?.jwtSecret;
+  const cookieSecure = serverConfig?.cookieSecure;
   const accessTokenTtl = serverConfig?.accessTokenTtl ?? '15m';
   const refreshTokenTtl = serverConfig?.refreshTokenTtl ?? '7d';
 
@@ -104,7 +105,7 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
         const payload = verifyToken(accessToken, jwtSecret);
         if (payload?.type === 'access' && users[payload.userId]) {
           const user = users[payload.userId];
-          return res.json({ required: true, authenticated: true, userId: payload.userId, name: user.name, apiKey: user.apiKey });
+          return res.json({ required: true, authenticated: true, userId: payload.userId, name: user.name });
         }
       }
     }
@@ -117,6 +118,23 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
     }
 
     return res.json({ required: true, authenticated: false });
+  });
+
+  // API key retrieval: requires valid JWT cookie (not exposed in /status)
+  app.get('/api/auth/apikey', (req, res) => {
+    if (!hasUsers || !jwtSecret) {
+      return res.status(400).json({ error: 'Authentication not configured' });
+    }
+    const accessToken = getAccessToken(req);
+    if (!accessToken) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    const payload = verifyToken(accessToken, jwtSecret);
+    if (!payload || payload.type !== 'access' || !users[payload.userId]) {
+      return res.status(401).json({ error: 'Invalid or expired token' });
+    }
+    const user = users[payload.userId];
+    res.json({ apiKey: user.apiKey ?? null });
   });
 
   // Login: email + password → set JWT cookies
@@ -141,7 +159,7 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
 
     const accessToken = signAccessToken(result.userId, jwtSecret, accessTokenTtl);
     const refreshToken = signRefreshToken(result.userId, jwtSecret, refreshTokenTtl);
-    setAuthCookies(res, accessToken, refreshToken, accessTokenTtl, refreshTokenTtl);
+    setAuthCookies(res, accessToken, refreshToken, accessTokenTtl, refreshTokenTtl, cookieSecure);
 
     res.json({ userId: result.userId, name: result.user.name });
   });
@@ -170,7 +188,7 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
 
     const newAccessToken = signAccessToken(payload.userId, jwtSecret, accessTokenTtl);
     const newRefreshToken = signRefreshToken(payload.userId, jwtSecret, refreshTokenTtl);
-    setAuthCookies(res, newAccessToken, newRefreshToken, accessTokenTtl, refreshTokenTtl);
+    setAuthCookies(res, newAccessToken, newRefreshToken, accessTokenTtl, refreshTokenTtl, cookieSecure);
 
     res.json({ userId: payload.userId, name: users[payload.userId].name });
   });

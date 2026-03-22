@@ -106,7 +106,13 @@ export function ConnectDialog({ open, onClose, projectId }: ConnectDialogProps) 
       .then(r => r.json())
       .then(data => {
         setAuthRequired(data.required === true)
-        if (data.apiKey) setApiKey(data.apiKey)
+        if (data.authenticated) {
+          // Fetch API key from dedicated endpoint (not exposed in /status)
+          fetch('/api/auth/apikey', { credentials: 'include' })
+            .then(r => r.ok ? r.json() : null)
+            .then(d => { if (d?.apiKey) setApiKey(d.apiKey) })
+            .catch(() => {})
+        }
       })
       .catch(() => setAuthRequired(false))
   }, [open])

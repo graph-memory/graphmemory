@@ -45,6 +45,7 @@ server:
   access:
     alice: rw
   jwtSecret: "your-secret-key-here"
+  cookieSecure: true
   accessTokenTtl: "15m"
   refreshTokenTtl: "7d"
   maxFileSize: 1048576
@@ -140,6 +141,7 @@ workspaces:
 | `defaultAccess` | string | `rw` | Default access for unknown/anonymous users: `deny`, `r`, `rw` |
 | `access` | object | — | Server-level per-user access overrides |
 | `jwtSecret` | string | — | **Required when users are defined.** Secret for signing JWT tokens |
+| `cookieSecure` | boolean | auto | Set cookie `Secure` flag explicitly. Defaults to `true` unless `NODE_ENV=development` |
 | `accessTokenTtl` | string | `15m` | JWT access token lifetime |
 | `refreshTokenTtl` | string | `7d` | JWT refresh token lifetime |
 | `model` | object | (see below) | Default model config for all graphs |

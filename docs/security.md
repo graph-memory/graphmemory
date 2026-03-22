@@ -93,7 +93,7 @@ server:
     - "https://app.example.com"
 ```
 
-When not set, allows all origins (`*`). `credentials: true` is only enabled when explicit origins are configured — without origins, credentials mode is off (prevents CORS credential leak to arbitrary domains).
+When not set, allows all origins (`*`). `credentials: true` is always enabled to support cookie-based auth behind reverse proxies.
 
 ## MCP authentication
 

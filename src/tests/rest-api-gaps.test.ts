@@ -543,3 +543,37 @@ describe('REST Index gaps', () => {
     expect(Array.isArray(res.body.results)).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// CORS credentials in zero-config mode
+// ---------------------------------------------------------------------------
+
+describe('CORS credentials', () => {
+  it('includes Access-Control-Allow-Credentials in zero-config mode', async () => {
+    const project = createFullProject();
+    const app = createRestApp(makeManager(project));
+    const res = await request(app)
+      .options('/api/projects')
+      .set('Origin', 'http://localhost:3000');
+    expect(res.headers['access-control-allow-credentials']).toBe('true');
+  });
+
+  it('includes Access-Control-Allow-Credentials with explicit corsOrigins', async () => {
+    const project = createFullProject();
+    const app = createRestApp(makeManager(project), {
+      serverConfig: {
+        host: '127.0.0.1', port: 3000, sessionTimeout: 1800,
+        modelsDir: '/tmp/models',
+        model: { ...TEST_MODEL },
+        embedding: { ...TEST_EMBEDDING },
+        corsOrigins: ['http://localhost:3000'],
+        defaultAccess: 'rw',
+        accessTokenTtl: '15m', refreshTokenTtl: '7d', rateLimit: { global: 0, search: 0, auth: 0 }, maxFileSize: 1048576, exclude: [],
+      },
+    });
+    const res = await request(app)
+      .options('/api/projects')
+      .set('Origin', 'http://localhost:3000');
+    expect(res.headers['access-control-allow-credentials']).toBe('true');
+  });
+});

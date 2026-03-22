@@ -199,20 +199,35 @@ When a graph has `readonly: true`, mutation tools are hidden for all users regar
 |----------|-------|---------|
 | `httpOnly` | `true` | Not accessible via JavaScript (XSS protection) |
 | `SameSite` | `Strict` | Only sent on same-site requests (CSRF protection) |
-| `Secure` | `true` in production | Only sent over HTTPS |
+| `Secure` | configurable via `server.cookieSecure` | Only sent over HTTPS |
 | `path` | `/api` or `/api/auth/refresh` | Scoped to API routes |
+
+The `Secure` flag is controlled by `server.cookieSecure` in the config. If not set, it falls back to `process.env.NODE_ENV !== 'development'`. Set it explicitly for production environments without HTTPS (e.g. behind a TLS-terminating reverse proxy):
+
+```yaml
+server:
+  cookieSecure: false  # set to true if clients connect over HTTPS
+```
 
 ## Auth status endpoint
 
 `GET /api/auth/status` — always accessible (before auth middleware):
 
 ```json
-{ "required": true, "authenticated": true, "userId": "alice", "name": "Alice", "apiKey": "gm_..." }
+{ "required": true, "authenticated": true, "userId": "alice", "name": "Alice" }
 ```
 
-When authenticated via cookie JWT, the response includes the user's `apiKey` — used by the UI's Connect MCP dialog to pre-fill configuration snippets.
+The response does **not** include the user's `apiKey` to prevent leaks in DevTools, proxy logs, or monitoring. Use the dedicated endpoint instead:
 
-The UI's `AuthGate` component checks this on load:
+`GET /api/auth/apikey` — requires valid JWT cookie:
+
+```json
+{ "apiKey": "gm_..." }
+```
+
+The UI's Connect MCP dialog fetches the API key from this endpoint to pre-fill configuration snippets.
+
+The UI's `AuthGate` component checks `/api/auth/status` on load:
 - `required: false` → render app (no auth configured)
 - `required: true, authenticated: false` → show login page
 - `required: true, authenticated: true` → render app

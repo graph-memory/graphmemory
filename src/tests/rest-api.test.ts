@@ -1075,7 +1075,7 @@ describe('REST API — JWT Cookie Auth', () => {
     expect(res.status).toBe(200);
     expect(res.body.authenticated).toBe(true);
     expect(res.body.userId).toBe('admin');
-    expect(res.body.apiKey).toBe('key-admin');
+    expect(res.body.apiKey).toBeUndefined(); // apiKey no longer leaked in /status
   });
 
   it('auth/status returns unauthenticated without cookie', async () => {
@@ -1083,6 +1083,25 @@ describe('REST API — JWT Cookie Auth', () => {
     expect(res.status).toBe(200);
     expect(res.body.required).toBe(true);
     expect(res.body.authenticated).toBe(false);
+  });
+
+  it('auth/apikey returns API key with valid cookie', async () => {
+    const loginRes = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'admin@test.com', password: 'admin-pass' });
+    const rawCookies = loginRes.headers['set-cookie'];
+    const cookies: string[] = Array.isArray(rawCookies) ? rawCookies : [rawCookies].filter(Boolean);
+
+    const res = await request(app)
+      .get('/api/auth/apikey')
+      .set('Cookie', cookies);
+    expect(res.status).toBe(200);
+    expect(res.body.apiKey).toBe('key-admin');
+  });
+
+  it('auth/apikey rejects without cookie', async () => {
+    const res = await request(app).get('/api/auth/apikey');
+    expect(res.status).toBe(401);
   });
 
   it('refresh endpoint renews access token', async () => {

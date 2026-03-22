@@ -104,6 +104,7 @@ const serverSchema = z.object({
   defaultAccess:   accessLevelSchema.optional(),
   access:          accessMapSchema,
   jwtSecret:       z.string().min(16).optional(),
+  cookieSecure:    z.boolean().optional(),
   accessTokenTtl:  z.string().optional(),
   refreshTokenTtl: z.string().optional(),
   rateLimit:       rateLimitSchema.optional(),
@@ -226,6 +227,7 @@ export interface ServerConfig {
   defaultAccess: AccessLevel;
   access?: AccessMap;
   jwtSecret?: string;
+  cookieSecure?: boolean;
   accessTokenTtl: string;
   refreshTokenTtl: string;
   rateLimit: RateLimitConfig;
@@ -419,6 +421,7 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
     defaultAccess:   srv.defaultAccess   ?? SERVER_DEFAULTS.defaultAccess,
     access:          srv.access          ?? undefined,
     jwtSecret:       srv.jwtSecret,
+    cookieSecure:    srv.cookieSecure,
     accessTokenTtl:  srv.accessTokenTtl  ?? SERVER_DEFAULTS.accessTokenTtl,
     refreshTokenTtl: srv.refreshTokenTtl ?? SERVER_DEFAULTS.refreshTokenTtl,
     rateLimit: {

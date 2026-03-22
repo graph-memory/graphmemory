@@ -44,7 +44,8 @@ export function createCodeRouter(): Router {
       const symbolId = joinParam((req.params as any).symbolId);
       const symbol = p.codeManager.getSymbol(symbolId);
       if (!symbol) return res.status(404).json({ error: 'Symbol not found' });
-      res.json(symbol);
+      const { embedding: _, fileEmbedding: _fe, ...rest } = symbol;
+      res.json(rest);
     } catch (err) { next(err); }
   });
 

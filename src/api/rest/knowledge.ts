@@ -46,7 +46,8 @@ export function createKnowledgeRouter(): Router {
       const p = getProject(req);
       const note = p.knowledgeManager.getNote(req.params.noteId as string);
       if (!note) return res.status(404).json({ error: 'Note not found' });
-      res.json(note);
+      const { embedding: _, ...rest } = note;
+      res.json(rest);
     } catch (err) { next(err); }
   });
 

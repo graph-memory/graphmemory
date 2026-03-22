@@ -6,6 +6,7 @@ import type { EmbedFns, ExternalGraphs, IncomingCrossLink } from '@/graphs/manag
 import { findIncomingCrossLinks } from '@/graphs/manager-types';
 import { searchFileIndex, type FileIndexSearchResult } from '@/lib/search/file-index';
 import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
+import { readJsonWithTmpFallback } from '@/lib/graph-persistence';
 
 // ---------------------------------------------------------------------------
 // CRUD
@@ -279,10 +280,10 @@ export function loadFileIndexGraph(graphMemory: string, fresh = false, embedding
   if (fresh) return graph;
   const file = path.join(graphMemory, 'file-index.json');
 
-  if (!fs.existsSync(file)) return graph;
+  const data = readJsonWithTmpFallback(file);
+  if (!data) return graph;
 
   try {
-    const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
     const stored = data.embeddingModel as string | undefined;
 
     if (embeddingFingerprint && stored !== embeddingFingerprint) {

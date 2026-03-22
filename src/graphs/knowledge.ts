@@ -9,6 +9,7 @@ import { searchKnowledge, type KnowledgeSearchResult } from '@/lib/search/knowle
 import { BM25Index } from '@/lib/search/bm25';
 import { mirrorNoteCreate, mirrorNoteUpdate, mirrorNoteRelation, mirrorAttachmentEvent, deleteMirrorDir, writeAttachment, deleteAttachment, getAttachmentPath as getAttPath, sanitizeFilename } from '@/lib/file-mirror';
 import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
+import { readJsonWithTmpFallback } from '@/lib/graph-persistence';
 import type { MirrorWriteTracker } from '@/lib/mirror-watcher';
 import type { ParsedNoteFile } from '@/lib/file-import';
 import type { AttachmentMeta } from '@/graphs/attachment-types';
@@ -424,10 +425,10 @@ export function loadKnowledgeGraph(graphMemory: string, fresh = false, embedding
   if (fresh) return graph;
   const file = path.join(graphMemory, 'knowledge.json');
 
-  if (!fs.existsSync(file)) return graph;
+  const data = readJsonWithTmpFallback(file);
+  if (!data) return graph;
 
   try {
-    const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
     const stored = data.embeddingModel as string | undefined;
 
     if (embeddingFingerprint && stored !== embeddingFingerprint) {

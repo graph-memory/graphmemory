@@ -11,6 +11,7 @@ import { searchTasks, type TaskSearchResult } from '@/lib/search/tasks';
 import { BM25Index } from '@/lib/search/bm25';
 import { mirrorTaskCreate, mirrorTaskUpdate, mirrorTaskRelation, mirrorAttachmentEvent, deleteMirrorDir, writeAttachment, deleteAttachment, getAttachmentPath as getAttPath, sanitizeFilename } from '@/lib/file-mirror';
 import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
+import { readJsonWithTmpFallback } from '@/lib/graph-persistence';
 import type { MirrorWriteTracker } from '@/lib/mirror-watcher';
 import type { ParsedTaskFile } from '@/lib/file-import';
 import { scanAttachments, MAX_ATTACHMENT_SIZE, MAX_ATTACHMENTS_PER_ENTITY } from '@/graphs/attachment-types';
@@ -629,10 +630,10 @@ export function loadTaskGraph(graphMemory: string, fresh = false, embeddingFinge
   if (fresh) return graph;
   const file = path.join(graphMemory, 'tasks.json');
 
-  if (!fs.existsSync(file)) return graph;
+  const data = readJsonWithTmpFallback(file);
+  if (!data) return graph;
 
   try {
-    const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
     const stored = data.embeddingModel as string | undefined;
 
     if (embeddingFingerprint && stored !== embeddingFingerprint) {

@@ -13,6 +13,7 @@ import { mirrorSkillCreate, mirrorSkillUpdate, mirrorSkillRelation, mirrorAttach
 import type { MirrorWriteTracker } from '@/lib/mirror-watcher';
 import type { ParsedSkillFile } from '@/lib/file-import';
 import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
+import { readJsonWithTmpFallback } from '@/lib/graph-persistence';
 import { scanAttachments, MAX_ATTACHMENT_SIZE, MAX_ATTACHMENTS_PER_ENTITY } from '@/graphs/attachment-types';
 import { diffRelations } from '@/lib/file-import';
 import type { RelationFrontmatter } from '@/lib/file-mirror';
@@ -607,10 +608,10 @@ export function loadSkillGraph(graphMemory: string, fresh = false, embeddingFing
   if (fresh) return graph;
   const file = path.join(graphMemory, 'skills.json');
 
-  if (!fs.existsSync(file)) return graph;
+  const data = readJsonWithTmpFallback(file);
+  if (!data) return graph;
 
   try {
-    const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
     const stored = data.embeddingModel as string | undefined;
 
     if (embeddingFingerprint && stored !== embeddingFingerprint) {

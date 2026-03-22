@@ -9,6 +9,7 @@ import { searchCode, type CodeSearchResult } from '@/lib/search/code';
 import { searchCodeFiles, type CodeFileSearchResult } from '@/lib/search/files';
 import { BM25Index, type SearchMode } from '@/lib/search/bm25';
 import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
+import { readJsonWithTmpFallback } from '@/lib/graph-persistence';
 
 export type { CodeGraph };
 export { createCodeGraph };
@@ -213,10 +214,10 @@ export function loadCodeGraph(graphMemory: string, fresh = false, embeddingFinge
   if (fresh) return graph;
   const file = path.join(graphMemory, 'code.json');
 
-  if (!fs.existsSync(file)) return graph;
+  const data = readJsonWithTmpFallback(file);
+  if (!data) return graph;
 
   try {
-    const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
     const stored = data.embeddingModel as string | undefined;
 
     if (embeddingFingerprint && stored !== embeddingFingerprint) {

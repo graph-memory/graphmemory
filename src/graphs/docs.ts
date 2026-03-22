@@ -8,6 +8,7 @@ import { search, type SearchResult } from '@/lib/search/docs';
 import { searchDocFiles, type DocFileSearchResult } from '@/lib/search/files';
 import { BM25Index, type SearchMode } from '@/lib/search/bm25';
 import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
+import { readJsonWithTmpFallback } from '@/lib/graph-persistence';
 
 export interface NodeAttributes {
   fileId: string;
@@ -171,10 +172,10 @@ export function loadGraph(graphMemory: string, fresh = false, embeddingFingerpri
   if (fresh) return graph;
   const file = path.join(graphMemory, 'docs.json');
 
-  if (!fs.existsSync(file)) return graph;
+  const data = readJsonWithTmpFallback(file);
+  if (!data) return graph;
 
   try {
-    const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
     const stored = data.embeddingModel as string | undefined;
 
     if (embeddingFingerprint && stored !== embeddingFingerprint) {

@@ -45,7 +45,8 @@ export function createDocsRouter(): Router {
       const nodeId = joinParam((req.params as any).nodeId);
       const node = p.docManager.getNode(nodeId);
       if (!node) return res.status(404).json({ error: 'Node not found' });
-      res.json(node);
+      const { embedding: _, ...rest } = node;
+      res.json(rest);
     } catch (err) { next(err); }
   });
 

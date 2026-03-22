@@ -9,16 +9,22 @@ export interface WebSocketOptions {
   users?: Record<string, UserConfig>;
 }
 
+export interface WebSocketHandle {
+  wss: WebSocketServer;
+  cleanup: () => void;
+}
+
 /**
  * Attach a WebSocket server to the HTTP server at /api/ws.
  * Broadcasts all ProjectManager events to connected clients.
  * Each event includes projectId — clients filter on their side.
+ * Returns a handle with a cleanup function to remove all listeners.
  */
 export function attachWebSocket(
   httpServer: http.Server,
   projectManager: ProjectManager,
   options?: WebSocketOptions,
-): WebSocketServer {
+): WebSocketHandle {
   const wss = new WebSocketServer({ noServer: true });
   const jwtSecret = options?.jwtSecret;
   const users = options?.users ?? {};
@@ -69,7 +75,9 @@ export function attachWebSocket(
     }
   }
 
-  // Subscribe to ProjectManager events
+  // Subscribe to ProjectManager events (track handlers for cleanup)
+  const listeners: Array<[string, (...args: any[]) => void]> = [];
+
   const events = [
     'note:created', 'note:updated', 'note:deleted',
     'note:attachment:added', 'note:attachment:deleted',
@@ -81,16 +89,18 @@ export function attachWebSocket(
   ];
 
   for (const eventType of events) {
-    projectManager.on(eventType, (data: any) => {
+    const handler = (data: any) => {
       broadcast({ projectId: data.projectId, type: eventType, data });
-    });
+    };
+    projectManager.on(eventType, handler);
+    listeners.push([eventType, handler]);
   }
 
   // Debounced graph:updated from indexer
   let graphUpdateTimer: ReturnType<typeof setTimeout> | undefined;
   let pendingGraphUpdates: Map<string, string[]> = new Map();
 
-  projectManager.on('graph:updated', (data: { projectId: string; file: string; graph: string }) => {
+  const graphHandler = (data: { projectId: string; file: string; graph: string }) => {
     const key = data.projectId;
     if (!pendingGraphUpdates.has(key)) pendingGraphUpdates.set(key, []);
     pendingGraphUpdates.get(key)!.push(data.file);
@@ -104,7 +114,20 @@ export function attachWebSocket(
         graphUpdateTimer = undefined;
       }, 1000);
     }
-  });
+  };
+  projectManager.on('graph:updated', graphHandler);
+  listeners.push(['graph:updated', graphHandler]);
 
-  return wss;
+  function cleanup(): void {
+    for (const [event, handler] of listeners) {
+      projectManager.removeListener(event, handler);
+    }
+    if (graphUpdateTimer) {
+      clearTimeout(graphUpdateTimer);
+      graphUpdateTimer = undefined;
+    }
+    pendingGraphUpdates.clear();
+  }
+
+  return { wss, cleanup };
 }

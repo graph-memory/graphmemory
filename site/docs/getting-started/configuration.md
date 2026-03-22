@@ -68,7 +68,7 @@ projects:
         include: "**/*.md"
       code:
         enabled: true
-        include: "**/*.{js,ts,jsx,tsx}"
+        include: "**/*.{js,ts,jsx,tsx,mjs,mts,cjs,cts}"
       knowledge:
         enabled: true
         readonly: false           # set true to block mutations

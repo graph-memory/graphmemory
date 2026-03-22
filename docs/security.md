@@ -3,7 +3,7 @@
 ## Authentication
 
 - **Password hashing**: scrypt via `node:crypto` with timing-safe verification
-- **JWT tokens**: HS256 algorithm (explicitly specified in sign/verify), httpOnly cookies with `SameSite=Strict` and `Secure` (default true unless `NODE_ENV=development`)
+- **JWT tokens**: HS256 algorithm (explicitly specified in sign/verify), httpOnly cookies with `SameSite=Strict` and `Secure` (configurable via `server.cookieSecure`, defaults to true unless `NODE_ENV=development`)
 - **API keys**: timing-safe comparison via `crypto.timingSafeEqual` for all key checks
 - **Refresh tokens**: scoped to `/api/auth/refresh` path, validated against current user config
 

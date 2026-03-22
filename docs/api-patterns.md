@@ -10,7 +10,7 @@ Express app
   ├── CORS middleware (credentials: true)
   ├── JSON body parser
   ├── Security headers (nosniff, DENY frame)
-  ├── Auth endpoints (login, refresh, logout, status) — no auth required
+  ├── Auth endpoints (login, refresh, logout, status, apikey) — no auth required (apikey verifies JWT internally)
   ├── Auth middleware (cookie JWT → Bearer apiKey → anonymous)
   ├── app.param('projectId') — project resolver
   ├── Domain routers (knowledge, tasks, skills, docs, code, files, graph, tools)

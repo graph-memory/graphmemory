@@ -83,7 +83,7 @@ projects:
           bob: rw
       code:
         enabled: true
-        include: "**/*.{js,ts,jsx,tsx}"    # Default — indexes all JS/TS files
+        include: "**/*.{js,ts,jsx,tsx,mjs,mts,cjs,cts}"  # Default — indexes all JS/TS files
         model:
           name: "Xenova/bge-base-en-v1.5"
       knowledge:

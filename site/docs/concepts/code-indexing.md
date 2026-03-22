@@ -136,7 +136,7 @@ projects:
     projectDir: "/path/to/my-app"
     graphs:
       code:
-        include: "**/*.{js,ts,jsx,tsx}"   # default pattern
+        include: "**/*.{js,ts,jsx,tsx,mjs,mts,cjs,cts}"   # default pattern
         exclude: "**/generated/**"        # skip certain paths
         enabled: true                     # set to false to disable
 ```

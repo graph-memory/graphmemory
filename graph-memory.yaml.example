@@ -141,7 +141,7 @@ projects:
     #       charlie: rw
     #   code:
     #     enabled: true
-    #     include: "**/*.{js,ts,jsx,tsx}"        # Glob for source files (default: "**/*.{js,ts,jsx,tsx}")
+    #     include: "**/*.{js,ts,jsx,tsx,mjs,mts,cjs,cts}"  # Glob for source files
     #     exclude: "**/generated/**"
     #   knowledge:
     #     enabled: true

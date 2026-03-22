@@ -257,6 +257,56 @@ describe('MCP skill attachment tools', () => {
 });
 
 // ---------------------------------------------------------------------------
+// No project directory configured
+// ---------------------------------------------------------------------------
+
+describe('attachment tools without projectDir', () => {
+  let ctx: McpTestContext;
+  let noteId: string;
+  let taskId: string;
+  let skillId: string;
+
+  beforeAll(async () => {
+    const knowledgeGraph = createKnowledgeGraph();
+    noteId = createNote(knowledgeGraph, 'No-Dir Note', 'content', [], unitVec(0));
+
+    const taskGraph = createTaskGraph();
+    taskId = createTask(taskGraph, 'No-Dir Task', 'desc', 'todo', 'medium', [], unitVec(0));
+
+    const skillGraph = createSkillGraph();
+    skillId = createSkill(skillGraph, 'No-Dir Skill', 'desc', [], [], [], [], [], 'user', 1, unitVec(0));
+
+    ctx = await setupMcpClient({
+      knowledgeGraph,
+      taskGraph,
+      skillGraph,
+      embedFn: createFakeEmbed(QUERY_AXES),
+      // no projectDir
+    });
+  });
+
+  afterAll(async () => { await ctx.close(); });
+
+  it('add_note_attachment: rejects when no projectDir', async () => {
+    const result = await ctx.call('add_note_attachment', { noteId, filePath: '/tmp/any.txt' });
+    expect(result.isError).toBe(true);
+    expect(text(result)).toContain('No project directory configured');
+  });
+
+  it('add_task_attachment: rejects when no projectDir', async () => {
+    const result = await ctx.call('add_task_attachment', { taskId, filePath: '/tmp/any.txt' });
+    expect(result.isError).toBe(true);
+    expect(text(result)).toContain('No project directory configured');
+  });
+
+  it('add_skill_attachment: rejects when no projectDir', async () => {
+    const result = await ctx.call('add_skill_attachment', { skillId, filePath: '/tmp/any.txt' });
+    expect(result.isError).toBe(true);
+    expect(text(result)).toContain('No project directory configured');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Filename validation (path traversal prevention)
 // ---------------------------------------------------------------------------
 

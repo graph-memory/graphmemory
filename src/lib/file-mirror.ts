@@ -63,7 +63,12 @@ export function mirrorNoteCreate(
   relations: RelationLike[],
 ): void {
   try {
-    const entityDir = path.join(notesDir, noteId);
+    const safeId = sanitizeEntityId(noteId);
+    if (!safeId) {
+      process.stderr.write(`[file-mirror] rejected invalid entity ID\n`);
+      return;
+    }
+    const entityDir = path.join(notesDir, safeId);
     fs.mkdirSync(entityDir, { recursive: true });
 
     const eventsPath = path.join(entityDir, 'events.jsonl');
@@ -97,7 +102,12 @@ export function mirrorNoteUpdate(
   relations: RelationLike[],
 ): void {
   try {
-    const entityDir = path.join(notesDir, noteId);
+    const safeId = sanitizeEntityId(noteId);
+    if (!safeId) {
+      process.stderr.write(`[file-mirror] rejected invalid entity ID\n`);
+      return;
+    }
+    const entityDir = path.join(notesDir, safeId);
     fs.mkdirSync(entityDir, { recursive: true });
 
     const eventsPath = path.join(entityDir, 'events.jsonl');
@@ -156,7 +166,12 @@ export function mirrorTaskCreate(
   relations: RelationLike[],
 ): void {
   try {
-    const entityDir = path.join(tasksDir, taskId);
+    const safeId = sanitizeEntityId(taskId);
+    if (!safeId) {
+      process.stderr.write(`[file-mirror] rejected invalid entity ID\n`);
+      return;
+    }
+    const entityDir = path.join(tasksDir, safeId);
     fs.mkdirSync(entityDir, { recursive: true });
 
     const eventsPath = path.join(entityDir, 'events.jsonl');
@@ -195,7 +210,12 @@ export function mirrorTaskUpdate(
   relations: RelationLike[],
 ): void {
   try {
-    const entityDir = path.join(tasksDir, taskId);
+    const safeId = sanitizeEntityId(taskId);
+    if (!safeId) {
+      process.stderr.write(`[file-mirror] rejected invalid entity ID\n`);
+      return;
+    }
+    const entityDir = path.join(tasksDir, safeId);
     fs.mkdirSync(entityDir, { recursive: true });
 
     const eventsPath = path.join(entityDir, 'events.jsonl');
@@ -265,7 +285,12 @@ export function mirrorSkillCreate(
   relations: RelationLike[],
 ): void {
   try {
-    const entityDir = path.join(skillsDir, skillId);
+    const safeId = sanitizeEntityId(skillId);
+    if (!safeId) {
+      process.stderr.write(`[file-mirror] rejected invalid entity ID\n`);
+      return;
+    }
+    const entityDir = path.join(skillsDir, safeId);
     fs.mkdirSync(entityDir, { recursive: true });
 
     const eventsPath = path.join(entityDir, 'events.jsonl');
@@ -307,7 +332,12 @@ export function mirrorSkillUpdate(
   relations: RelationLike[],
 ): void {
   try {
-    const entityDir = path.join(skillsDir, skillId);
+    const safeId = sanitizeEntityId(skillId);
+    if (!safeId) {
+      process.stderr.write(`[file-mirror] rejected invalid entity ID\n`);
+      return;
+    }
+    const entityDir = path.join(skillsDir, safeId);
     fs.mkdirSync(entityDir, { recursive: true });
 
     const eventsPath = path.join(entityDir, 'events.jsonl');
@@ -459,8 +489,13 @@ export function mirrorAttachmentEvent(
 
 /** Delete the entire mirror directory for a note, task or skill (including attachments). */
 export function deleteMirrorDir(dir: string, id: string): void {
+  const safeId = sanitizeEntityId(id);
+  if (!safeId) {
+    process.stderr.write(`[file-mirror] rejected invalid entity ID\n`);
+    return;
+  }
   try {
-    fs.rmSync(path.join(dir, id), { recursive: true, force: true });
+    fs.rmSync(path.join(dir, safeId), { recursive: true, force: true });
   } catch (err: unknown) {
     if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
       process.stderr.write(`[file-mirror] failed to delete ${id}/: ${err}\n`);
@@ -471,6 +506,13 @@ export function deleteMirrorDir(dir: string, id: string): void {
 // ---------------------------------------------------------------------------
 // Attachment file helpers (paths now go through attachments/ subdir)
 // ---------------------------------------------------------------------------
+
+/** Sanitize an entity ID: extract basename, strip null bytes and path traversal. */
+export function sanitizeEntityId(id: string): string {
+  const base = path.basename(id.replace(/\0/g, '').replace(/\\/g, '/')).trim();
+  if (base === '.' || base === '..') return '';
+  return base;
+}
 
 /** Sanitize a filename: extract basename, strip null bytes and path traversal. */
 export function sanitizeFilename(name: string): string {
@@ -483,16 +525,20 @@ export function sanitizeFilename(name: string): string {
 
 /** Write an attachment file to the entity's attachments/ subdirectory. */
 export function writeAttachment(baseDir: string, entityId: string, filename: string, data: Buffer): void {
+  const safeEntityId = sanitizeEntityId(entityId);
+  if (!safeEntityId) throw new Error('Entity ID is empty after sanitization');
   const safe = sanitizeFilename(filename);
   if (!safe) throw new Error('Attachment filename is empty after sanitization');
-  const attachmentsDir = path.join(baseDir, entityId, 'attachments');
+  const attachmentsDir = path.join(baseDir, safeEntityId, 'attachments');
   fs.mkdirSync(attachmentsDir, { recursive: true });
   fs.writeFileSync(path.join(attachmentsDir, safe), data);
 }
 
 /** Delete an attachment file from attachments/ subdir. Returns true if it existed. */
 export function deleteAttachment(baseDir: string, entityId: string, filename: string): boolean {
-  const filePath = path.join(baseDir, entityId, 'attachments', sanitizeFilename(filename));
+  const safeEntityId = sanitizeEntityId(entityId);
+  if (!safeEntityId) return false;
+  const filePath = path.join(baseDir, safeEntityId, 'attachments', sanitizeFilename(filename));
   try {
     fs.unlinkSync(filePath);
     return true;
@@ -506,6 +552,8 @@ export function deleteAttachment(baseDir: string, entityId: string, filename: st
 
 /** Get the absolute path of an attachment in attachments/ subdir, or null if not found. */
 export function getAttachmentPath(baseDir: string, entityId: string, filename: string): string | null {
-  const filePath = path.join(baseDir, entityId, 'attachments', sanitizeFilename(filename));
+  const safeEntityId = sanitizeEntityId(entityId);
+  if (!safeEntityId) return null;
+  const filePath = path.join(baseDir, safeEntityId, 'attachments', sanitizeFilename(filename));
   return fs.existsSync(filePath) ? filePath : null;
 }

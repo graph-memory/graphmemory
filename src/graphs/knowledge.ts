@@ -9,7 +9,7 @@ import { searchKnowledge, type KnowledgeSearchResult } from '@/lib/search/knowle
 import { BM25Index } from '@/lib/search/bm25';
 import { mirrorNoteCreate, mirrorNoteUpdate, mirrorNoteRelation, mirrorAttachmentEvent, deleteMirrorDir, writeAttachment, deleteAttachment, getAttachmentPath as getAttPath, sanitizeFilename } from '@/lib/file-mirror';
 import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
-import { readJsonWithTmpFallback } from '@/lib/graph-persistence';
+import { readJsonWithTmpFallback, validateGraphStructure } from '@/lib/graph-persistence';
 import { LIST_LIMIT_SMALL, CONTENT_PREVIEW_LEN } from '@/lib/defaults';
 import type { MirrorWriteTracker } from '@/lib/mirror-watcher';
 import type { ParsedNoteFile } from '@/lib/file-import';
@@ -434,6 +434,11 @@ export function loadKnowledgeGraph(graphMemory: string, fresh = false, embedding
 
     if (embeddingFingerprint && stored !== embeddingFingerprint) {
       process.stderr.write(`[knowledge-graph] Embedding config changed, re-indexing knowledge graph\n`);
+      return graph;
+    }
+
+    if (!validateGraphStructure(data.graph)) {
+      process.stderr.write(`[knowledge-graph] Invalid graph structure in ${file}, starting fresh\n`);
       return graph;
     }
 

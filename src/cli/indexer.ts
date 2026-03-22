@@ -283,6 +283,7 @@ export function createProjectIndexer(
     function walk(dir: string): void {
       for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
         if (entry.name.startsWith('.') || ALWAYS_IGNORED.has(entry.name)) continue;
+        if (entry.isSymbolicLink()) continue;
         const full = path.join(dir, entry.name);
         if (entry.isDirectory()) {
           const relDir = path.relative(config.projectDir, full);

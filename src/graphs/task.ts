@@ -11,7 +11,7 @@ import { searchTasks, type TaskSearchResult } from '@/lib/search/tasks';
 import { BM25Index } from '@/lib/search/bm25';
 import { mirrorTaskCreate, mirrorTaskUpdate, mirrorTaskRelation, mirrorAttachmentEvent, deleteMirrorDir, writeAttachment, deleteAttachment, getAttachmentPath as getAttPath, sanitizeFilename } from '@/lib/file-mirror';
 import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
-import { readJsonWithTmpFallback } from '@/lib/graph-persistence';
+import { readJsonWithTmpFallback, validateGraphStructure } from '@/lib/graph-persistence';
 import { LIST_LIMIT_LARGE, CONTENT_PREVIEW_LEN } from '@/lib/defaults';
 import type { MirrorWriteTracker } from '@/lib/mirror-watcher';
 import type { ParsedTaskFile } from '@/lib/file-import';
@@ -639,6 +639,11 @@ export function loadTaskGraph(graphMemory: string, fresh = false, embeddingFinge
 
     if (embeddingFingerprint && stored !== embeddingFingerprint) {
       process.stderr.write(`[task-graph] Embedding config changed, re-indexing task graph\n`);
+      return graph;
+    }
+
+    if (!validateGraphStructure(data.graph)) {
+      process.stderr.write(`[task-graph] Invalid graph structure in ${file}, starting fresh\n`);
       return graph;
     }
 

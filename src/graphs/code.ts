@@ -9,7 +9,7 @@ import { searchCode, type CodeSearchResult } from '@/lib/search/code';
 import { searchCodeFiles, type CodeFileSearchResult } from '@/lib/search/files';
 import { BM25Index, type SearchMode } from '@/lib/search/bm25';
 import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
-import { readJsonWithTmpFallback } from '@/lib/graph-persistence';
+import { readJsonWithTmpFallback, validateGraphStructure } from '@/lib/graph-persistence';
 import { BM25_BODY_MAX_CHARS, LIST_LIMIT_SMALL } from '@/lib/defaults';
 
 export type { CodeGraph };
@@ -223,6 +223,11 @@ export function loadCodeGraph(graphMemory: string, fresh = false, embeddingFinge
 
     if (embeddingFingerprint && stored !== embeddingFingerprint) {
       process.stderr.write(`[code-graph] Embedding config changed, re-indexing code graph\n`);
+      return graph;
+    }
+
+    if (!validateGraphStructure(data.graph)) {
+      process.stderr.write(`[code-graph] Invalid graph structure in ${file}, starting fresh\n`);
       return graph;
     }
 

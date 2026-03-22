@@ -8,7 +8,7 @@ import { search, type SearchResult } from '@/lib/search/docs';
 import { searchDocFiles, type DocFileSearchResult } from '@/lib/search/files';
 import { BM25Index, type SearchMode } from '@/lib/search/bm25';
 import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
-import { readJsonWithTmpFallback } from '@/lib/graph-persistence';
+import { readJsonWithTmpFallback, validateGraphStructure } from '@/lib/graph-persistence';
 import { LIST_LIMIT_SMALL } from '@/lib/defaults';
 
 export interface NodeAttributes {
@@ -181,6 +181,11 @@ export function loadGraph(graphMemory: string, fresh = false, embeddingFingerpri
 
     if (embeddingFingerprint && stored !== embeddingFingerprint) {
       process.stderr.write(`[graph] Embedding config changed, re-indexing docs graph\n`);
+      return graph;
+    }
+
+    if (!validateGraphStructure(data.graph)) {
+      process.stderr.write(`[graph] Invalid graph structure in ${file}, starting fresh\n`);
       return graph;
     }
 

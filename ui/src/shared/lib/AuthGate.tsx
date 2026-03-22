@@ -16,8 +16,8 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         setState('login');
       }
     } catch {
-      // Can't reach server — show app anyway, errors will surface naturally
-      setState('ok');
+      // Can't reach server — require login rather than exposing full UI
+      setState('login');
     }
   }, []);
 

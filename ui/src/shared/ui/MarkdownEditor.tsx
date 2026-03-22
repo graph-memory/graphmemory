@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { useTheme, CircularProgress, Box } from '@mui/material';
+import rehypeSanitize from 'rehype-sanitize';
 
 const MDEditor = lazy(() => import('@uiw/react-md-editor'));
 
@@ -22,6 +23,9 @@ export function MarkdownEditor({ value, onChange, height = 300 }: MarkdownEditor
           height={height}
           preview="edit"
           visibleDragbar={false}
+          previewOptions={{
+            rehypePlugins: [[rehypeSanitize]],
+          }}
         />
       </Suspense>
     </div>

@@ -22,15 +22,25 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
       const resolved = path.resolve(filePath);
 
       const projectDir = mgr.projectDir;
-      if (projectDir) {
-        const normalizedProject = path.resolve(projectDir) + path.sep;
-        if (!resolved.startsWith(normalizedProject) && resolved !== path.resolve(projectDir)) {
-          return { content: [{ type: 'text', text: JSON.stringify({ error: 'File path must be within the project directory' }) }], isError: true };
-        }
+      if (!projectDir) {
+        return { content: [{ type: 'text', text: JSON.stringify({ error: 'No project directory configured' }) }], isError: true };
+      }
+
+      let realResolved: string;
+      try { realResolved = fs.realpathSync(resolved); } catch {
+        return { content: [{ type: 'text', text: JSON.stringify({ error: 'File not found' }) }], isError: true };
+      }
+      let realProject: string;
+      try { realProject = fs.realpathSync(path.resolve(projectDir)); } catch {
+        return { content: [{ type: 'text', text: JSON.stringify({ error: 'Project directory not found' }) }], isError: true };
+      }
+      const normalizedProject = realProject + path.sep;
+      if (!realResolved.startsWith(normalizedProject) && realResolved !== realProject) {
+        return { content: [{ type: 'text', text: JSON.stringify({ error: 'File path must be within the project directory' }) }], isError: true };
       }
 
       let stat: fs.Stats;
-      try { stat = fs.statSync(resolved); } catch {
+      try { stat = fs.statSync(realResolved); } catch {
         return { content: [{ type: 'text', text: JSON.stringify({ error: 'File not found' }) }], isError: true };
       }
       if (!stat.isFile()) {
@@ -40,7 +50,7 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
         return { content: [{ type: 'text', text: JSON.stringify({ error: 'File exceeds 50 MB limit' }) }], isError: true };
       }
 
-      const data = fs.readFileSync(resolved);
+      const data = fs.readFileSync(realResolved);
       const filename = path.basename(resolved);
       const meta = mgr.addAttachment(skillId, filename, data);
 

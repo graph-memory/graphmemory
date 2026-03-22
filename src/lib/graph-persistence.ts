@@ -29,3 +29,38 @@ export function readJsonWithTmpFallback(file: string): any | null {
 
   return null;
 }
+
+/**
+ * Basic structural validation for Graphology serialized graph data.
+ * Ensures the shape matches what graph.import() expects, preventing
+ * injection of unexpected properties.
+ */
+export function validateGraphStructure(data: unknown): boolean {
+  if (data == null || typeof data !== 'object') return false;
+  const obj = data as Record<string, unknown>;
+
+  if (!Array.isArray(obj.nodes)) return false;
+  if (!Array.isArray(obj.edges)) return false;
+
+  for (const node of obj.nodes) {
+    if (node == null || typeof node !== 'object') return false;
+    const n = node as Record<string, unknown>;
+    if (typeof n.key !== 'string') return false;
+    if (n.attributes !== undefined) {
+      if (n.attributes == null || typeof n.attributes !== 'object') return false;
+      if (Object.prototype.hasOwnProperty.call(n.attributes, '__proto__') || Object.prototype.hasOwnProperty.call(n.attributes, 'constructor')) return false;
+    }
+  }
+
+  for (const edge of obj.edges) {
+    if (edge == null || typeof edge !== 'object') return false;
+    const e = edge as Record<string, unknown>;
+    if (typeof e.source !== 'string' || typeof e.target !== 'string') return false;
+    if (e.attributes !== undefined) {
+      if (e.attributes == null || typeof e.attributes !== 'object') return false;
+      if (Object.prototype.hasOwnProperty.call(e.attributes, '__proto__') || Object.prototype.hasOwnProperty.call(e.attributes, 'constructor')) return false;
+    }
+  }
+
+  return true;
+}

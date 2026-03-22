@@ -93,10 +93,14 @@ function extractTitleAndContent(body: string): { title: string; content: string 
  */
 function extractId(filePath: string): string {
   const basename = path.basename(filePath, '.md');
+  let id: string;
   if (basename === 'note' || basename === 'task' || basename === 'skill') {
-    return path.basename(path.dirname(filePath));
+    id = path.basename(path.dirname(filePath));
+  } else {
+    id = basename;
   }
-  return basename;
+  if (id === '..' || id === '.' || id.includes('\0')) return '';
+  return id;
 }
 
 export function parseNoteFile(filePath: string): ParsedNoteFile | null {

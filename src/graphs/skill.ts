@@ -13,7 +13,7 @@ import { mirrorSkillCreate, mirrorSkillUpdate, mirrorSkillRelation, mirrorAttach
 import type { MirrorWriteTracker } from '@/lib/mirror-watcher';
 import type { ParsedSkillFile } from '@/lib/file-import';
 import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
-import { readJsonWithTmpFallback } from '@/lib/graph-persistence';
+import { readJsonWithTmpFallback, validateGraphStructure } from '@/lib/graph-persistence';
 import { LIST_LIMIT_LARGE, CONTENT_PREVIEW_LEN } from '@/lib/defaults';
 import { scanAttachments, MAX_ATTACHMENT_SIZE, MAX_ATTACHMENTS_PER_ENTITY } from '@/graphs/attachment-types';
 import { diffRelations } from '@/lib/file-import';
@@ -617,6 +617,11 @@ export function loadSkillGraph(graphMemory: string, fresh = false, embeddingFing
 
     if (embeddingFingerprint && stored !== embeddingFingerprint) {
       process.stderr.write(`[skill-graph] Embedding config changed, re-indexing skill graph\n`);
+      return graph;
+    }
+
+    if (!validateGraphStructure(data.graph)) {
+      process.stderr.write(`[skill-graph] Invalid graph structure in ${file}, starting fresh\n`);
       return graph;
     }
 

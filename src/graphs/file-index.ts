@@ -6,7 +6,7 @@ import type { EmbedFns, ExternalGraphs, IncomingCrossLink } from '@/graphs/manag
 import { findIncomingCrossLinks } from '@/graphs/manager-types';
 import { searchFileIndex, type FileIndexSearchResult } from '@/lib/search/file-index';
 import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
-import { readJsonWithTmpFallback } from '@/lib/graph-persistence';
+import { readJsonWithTmpFallback, validateGraphStructure } from '@/lib/graph-persistence';
 import { LIST_LIMIT_LARGE } from '@/lib/defaults';
 
 // ---------------------------------------------------------------------------
@@ -289,6 +289,11 @@ export function loadFileIndexGraph(graphMemory: string, fresh = false, embedding
 
     if (embeddingFingerprint && stored !== embeddingFingerprint) {
       process.stderr.write(`[file-index] Embedding config changed, re-indexing file index\n`);
+      return graph;
+    }
+
+    if (!validateGraphStructure(data.graph)) {
+      process.stderr.write(`[file-index] Invalid graph structure in ${file}, starting fresh\n`);
       return graph;
     }
 

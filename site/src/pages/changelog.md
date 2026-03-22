@@ -5,6 +5,35 @@ description: Graph Memory release history and version changes.
 
 # Changelog
 
+## v1.3.3
+
+**Released: March 2026**
+
+### Highlights
+
+- **Security Audit** — comprehensive security audit and hardening across the entire codebase (~90 files changed). Fixed 4 HIGH, 4 MEDIUM, and 4 LOW severity findings.
+
+### Security
+
+- **Path traversal via entity IDs** — `sanitizeEntityId()` applied to all file mirror operations, preventing directory traversal through crafted note/task/skill IDs
+- **Path traversal via attachments** — attachment tools now reject operations when `projectDir` is not configured; use `fs.realpathSync()` to prevent case-insensitive and symlink-based bypasses
+- **Insecure graph deserialization** — `validateGraphStructure()` validates JSON structure before `graph.import()` in all 6 graph load functions, preventing injection of arbitrary nodes/edges
+- **Stored XSS via Markdown** — added `rehype-sanitize` to MDEditor preview pane to strip dangerous HTML
+- **Symlink following in indexer** — `scan()` now skips symbolic links, preventing indexing of files outside the project directory
+- **Input size limits** — added `.max()` constraints to all 58 MCP tool Zod schemas and REST list schemas, preventing memory exhaustion via oversized inputs
+- **AuthGate fail-open** — UI now redirects to login on network error instead of showing the full interface
+- **Error message disclosure** — removed user-supplied IDs from MCP tool error messages (18 handlers)
+- **Log injection** — added `sanitizeForLog()` to all `process.stderr.write` calls in file-mirror.ts
+- **scrypt cost increased** — `SCRYPT_COST` raised from 16384 to 65536 per OWASP 2023 recommendations
+- **projectDir disclosure** — removed server filesystem path from project list API response
+
+### Improvements
+
+- **Graph export size** — stripped `body`, `pendingImports`, `pendingEdges` from `/api/graph` response, reducing payload by 50-100 MB on large projects
+- **PromiseQueue rewrite** — replaced `.then()` chain with array-based drain loop to prevent memory growth under sustained mutation load
+
+---
+
 ## v1.3.2
 
 **Released: March 2026**

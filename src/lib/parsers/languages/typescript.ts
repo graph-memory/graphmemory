@@ -9,9 +9,9 @@ type TSNode = any; // tree-sitter Node
 
 /** Get the previous named sibling that is a JSDoc comment. */
 function getDocComment(node: TSNode): string {
-  let prev = node.previousSibling;
+  let prev = node.previousNamedSibling;
   while (prev && prev.type === 'comment' && !prev.text.startsWith('/**')) {
-    prev = prev.previousSibling;
+    prev = prev.previousNamedSibling;
   }
   if (prev && prev.type === 'comment' && prev.text.startsWith('/**')) {
     return prev.text.trim();

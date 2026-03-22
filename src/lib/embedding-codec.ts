@@ -7,16 +7,13 @@
 const EMBEDDING_FIELDS = ['embedding', 'fileEmbedding'];
 
 /** Convert a number[] to a Base64-encoded Float32Array. */
-function float32ToBase64(arr: number[]): string {
+export function float32ToBase64(arr: number[]): string {
   const f32 = new Float32Array(arr);
-  const bytes = new Uint8Array(f32.buffer);
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-  return Buffer.from(binary, 'binary').toString('base64');
+  return Buffer.from(f32.buffer).toString('base64');
 }
 
 /** Convert a Base64-encoded Float32Array back to number[]. */
-function base64ToFloat32(b64: string): number[] {
+export function base64ToFloat32(b64: string): number[] {
   const buf = Buffer.from(b64, 'base64');
   // Copy to aligned buffer to guarantee 4-byte alignment for Float32Array
   const aligned = new Uint8Array(buf.byteLength);

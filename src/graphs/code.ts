@@ -216,7 +216,7 @@ export function loadCodeGraph(graphMemory: string, fresh = false, embeddingFinge
 // ---------------------------------------------------------------------------
 
 export class CodeGraphManager {
-  private _bm25Index = new BM25Index<CodeNodeAttributes>((attrs) => `${attrs.name} ${attrs.signature} ${attrs.docComment} ${attrs.body}`);
+  private _bm25Index = new BM25Index<CodeNodeAttributes>((attrs) => `${attrs.name} ${attrs.signature} ${attrs.docComment} ${attrs.body.slice(0, 2000)}`);
 
   constructor(
     private _graph: CodeGraph,

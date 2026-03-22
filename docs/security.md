@@ -52,7 +52,13 @@ Validated at two levels:
 
 2. **MCP tool validation**: attachment tools also validate filenames with the same Zod schema (defense-in-depth)
 
-3. **MCP add-attachment tools**: validate file path with `fs.statSync()` — reject directories, enforce 50 MB size limit
+3. **MCP add-attachment tools**: validate file path with `fs.statSync()` — reject directories, enforce 50 MB upload limit
+
+### Attachment limits
+
+Graph managers enforce hard limits on attachments (defined in `src/graphs/attachment-types.ts`):
+- **10 MB** maximum per individual attachment file
+- **20** maximum attachments per entity (note, task, or skill)
 
 4. **Write-time sanitization** (`src/lib/file-mirror.ts`): `sanitizeFilename()` strips:
    - Null bytes

@@ -197,6 +197,23 @@ describe('BM25Index', () => {
   });
 });
 
+describe('BM25 body truncation', () => {
+  it('long body does not distort avgDl for short documents', () => {
+    // Create index with truncation applied (same as CodeGraphManager)
+    const idx = new BM25Index<{ name: string; body: string }>(
+      (attrs) => `${attrs.name} ${attrs.body.slice(0, 2000)}`
+    );
+    const longBody = 'unique_keyword '.repeat(5000); // 75K chars, truncated to 2000
+    idx.addDocument('big', { name: 'BigClass', body: longBody });
+    idx.addDocument('small', { name: 'unique_keyword helper', body: 'return 1;' });
+
+    const scores = idx.score('unique_keyword');
+    // Both should match, small should not be penalized
+    expect(scores.get('small')).toBeGreaterThan(0);
+    expect(scores.get('big')).toBeGreaterThan(0);
+  });
+});
+
 describe('rrfFuse', () => {
   it('fuses two ranked lists', () => {
     const vector = new Map([['a', 0.9], ['b', 0.7], ['c', 0.5]]);

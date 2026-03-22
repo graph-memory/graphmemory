@@ -25,3 +25,9 @@ export interface Данные {
 export const caféHandler = async (req: unknown): Promise<void> => {
   await req;
 };
+
+/** JSDoc separated by blank line */
+
+export function separatedFunc(): void {
+  // test
+}

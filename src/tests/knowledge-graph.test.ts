@@ -929,6 +929,29 @@ describe('Attachments (KnowledgeGraphManager)', () => {
       const names = attachments.map(a => a.filename).sort();
       expect(names).toEqual(['a.txt', 'b.txt']);
     });
+
+    it('returns null when buffer exceeds MAX_ATTACHMENT_SIZE (10MB)', () => {
+      // Create a buffer just over 10MB
+      const oversize = Buffer.alloc(10 * 1024 * 1024 + 1, 0x41);
+      const meta = manager.addAttachment(noteId, 'huge.bin', oversize);
+      expect(meta).toBeNull();
+      // No attachment should have been written
+      expect(manager.listAttachments(noteId)).toHaveLength(0);
+    });
+
+    it('returns null after MAX_ATTACHMENTS_PER_ENTITY (20) attachments', () => {
+      const small = Buffer.from('x');
+      for (let i = 0; i < 20; i++) {
+        const meta = manager.addAttachment(noteId, `file-${i}.txt`, small);
+        expect(meta).not.toBeNull();
+      }
+      expect(manager.listAttachments(noteId)).toHaveLength(20);
+
+      // 21st attachment should be rejected
+      const rejected = manager.addAttachment(noteId, 'file-20.txt', small);
+      expect(rejected).toBeNull();
+      expect(manager.listAttachments(noteId)).toHaveLength(20);
+    });
   });
 
   describe('listAttachments', () => {

@@ -45,7 +45,13 @@ Attachment filenames are validated at multiple levels (defense-in-depth):
 
 2. **MCP tool validation** -- attachment tools apply the same filename validation schema.
 
-3. **File path validation** -- the `add-attachment` tools verify the source file exists using `fs.statSync()`, reject directories, and enforce a 50 MB size limit.
+3. **File path validation** -- the `add-attachment` tools verify the source file exists using `fs.statSync()`, reject directories, and enforce a 50 MB upload limit.
+
+### Attachment limits
+
+Graph managers enforce hard limits on attachments:
+- **10 MB** maximum per individual attachment file
+- **20** maximum attachments per entity (note, task, or skill)
 
 4. **Write-time sanitization** -- when writing files to disk, `sanitizeFilename()` strips null bytes, `..` sequences, and path separators via `path.basename()`.
 

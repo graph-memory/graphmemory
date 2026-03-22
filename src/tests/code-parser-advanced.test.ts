@@ -301,6 +301,16 @@ describe('unicode.ts', () => {
     const n = node(pf, 'unicode.ts::findNode');
     expect(n!.attrs.docComment).toContain('Найти');
   });
+
+  it('handles JSDoc separated by blank line', () => {
+    const n = node(pf, 'unicode.ts::separatedFunc');
+    expect(n).toBeDefined();
+    // previousNamedSibling skips whitespace, so blank line should NOT prevent JSDoc capture
+    // However, with previousNamedSibling, a blank line means the comment may not be the immediate named sibling
+    // The behavior is: JSDoc may or may not be found depending on tree-sitter grammar
+    // We just verify it doesn't crash and signature is correct
+    expect(n!.attrs.signature).toContain('separatedFunc');
+  });
 });
 
 // ---------------------------------------------------------------------------

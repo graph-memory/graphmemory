@@ -16,7 +16,7 @@ const program = new Command();
 program
   .name('graphmemory')
   .description('MCP server for semantic graph memory from markdown docs and source code')
-  .version('1.3.0');
+  .version('1.3.1');
 
 const parseIntArg = (v: string) => parseInt(v, 10);
 

@@ -5,6 +5,35 @@ description: Graph Memory release history and version changes.
 
 # Changelog
 
+## v1.3.1
+
+**Released: March 2026**
+
+### Highlights
+
+- **Code Audit Bugfixes** — 10 bugs fixed from deep codebase audit: Unicode signature extraction, import-based symbol disambiguation, BM25 body truncation, embedding codec optimization, attachment limits, graph persistence recovery, WebSocket cleanup.
+- **Embedding API Base64** — `POST /api/embed` now supports `format: "base64"` for compact transfer (~2x smaller than JSON number arrays).
+- **REST Embedding Stripping** — GET endpoints for notes/symbols/docs no longer return raw embedding vectors.
+- **Centralized Defaults** — All magic numbers extracted to `src/lib/defaults.ts` (~80 constants).
+
+### Fixes
+
+- `buildSignature` — line-based slicing instead of byte offsets; correct for Cyrillic/emoji in JSDoc
+- `getDocComment` — use `previousNamedSibling` for robustness across tree-sitter grammars
+- `resolvePendingEdges` — disambiguate via import edges when multiple classes share the same name
+- `float32ToBase64` — O(n) `Buffer.from` instead of O(n²) string concatenation
+- BM25 body truncation to 2000 chars prevents `avgDl` distortion from large code files
+- Parser caches (`_pathMappings`, `_wikiIndex`) cleared between projects in multi-project mode
+- Graph `loadGraph` recovers from interrupted saves via `.tmp` file fallback
+- WebSocket `attachWebSocket` returns cleanup function for listener removal
+
+### Security
+
+- Attachment limits enforced: 10 MB per file, 20 per entity (note/task/skill)
+- REST endpoints strip embedding vectors from responses (matching MCP tool behavior)
+
+---
+
 ## v1.3.0
 
 **Released: March 2026**

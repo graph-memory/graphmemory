@@ -1,5 +1,11 @@
 RewriteEngine On
 
+# Remove trailing slash to match Docusaurus trailingSlash: false
+# /docs/getting-started/ → /docs/getting-started (which serves getting-started.html)
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteCond %{REQUEST_URI} ^(.+)/$
+RewriteRule ^ %1 [L,R=301]
+
 # SPA fallback: serve index.html for client-side routes
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d

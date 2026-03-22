@@ -5,6 +5,42 @@ description: Graph Memory release history and version changes.
 
 # Changelog
 
+## v1.3.2
+
+**Released: March 2026**
+
+### Highlights
+
+- **Signature Extraction Fix** — `sliceBeforeBody` now uses AST `bodyNode.startPosition.column` instead of `indexOf('{')`, fixing truncated signatures for functions with destructured params or type annotations containing braces.
+- **API Key Security** — `apiKey` removed from `GET /api/auth/status` response to prevent exposure in DevTools/proxy logs. New dedicated `GET /api/auth/apikey` endpoint (requires JWT cookie).
+- **Cookie Secure Flag** — New `server.cookieSecure` config option for explicit control over cookie `Secure` attribute, replacing unreliable `NODE_ENV` guessing.
+- **Indexer Race Condition Fix** — `dispatchRemove` now enqueues removals into serial queues instead of executing synchronously, preventing races with in-flight indexing tasks.
+
+### Fixes
+
+- `sliceBeforeBody` — use `bodyNode.startPosition.column` for accurate body brace detection; fixes signatures like `({ data }: { data: string }) =>` and `parse(cfg: { key: string })`
+- `_wikiIndex` — cache now invalidated when `.md` files are added or removed during watch mode; previously `[[NewFile]]` wiki links wouldn't resolve until restart
+- `dispatchRemove` — enqueued to serial queues (docs/code/files) to prevent race with in-flight `indexDocFile`/`indexCodeFile` tasks during rapid file changes
+- `dispatchAdd` — added missing `docGraph` null check (consistent with `dispatchRemove`)
+- Default `codeInclude` — expanded from `**/*.{js,ts,jsx,tsx}` to `**/*.{js,ts,jsx,tsx,mjs,mts,cjs,cts}` to cover ES module and CommonJS variants
+- File index removal now logged (`[indexer] removed file ...`) for debugging parity with docs/code removal
+- CORS `credentials: true` now always enabled (was missing in zero-config mode, breaking cookie auth behind reverse proxy)
+- CLI version now read from `package.json` instead of hardcoded
+
+### Security
+
+- `apiKey` no longer returned in `/api/auth/status` — use `GET /api/auth/apikey` instead
+- `server.cookieSecure` config for explicit `Secure` cookie flag (fallback: `NODE_ENV !== 'development'`)
+- CORS credentials always enabled for cookie-based auth support
+
+### Documentation
+
+- Deep audit of docs/, site/, UI help, and example config — fixed stale test counts, missing endpoints (`/api/workspaces`, `/api/auth/apikey`), wrong embed API format, missing server settings in config tables
+- Added `cookieSecure` to all config references (docs, site, UI help, example YAML)
+- Updated `codeInclude` default pattern across all documentation sources
+
+---
+
 ## v1.3.1
 
 **Released: March 2026**

@@ -65,7 +65,7 @@ Walks `projectDir` recursively with `fs.readdirSync`. For each entry:
 
 Starts a chokidar watcher on `projectDir`. Events:
 - `add` / `change` → dispatched to queues (same logic as scan)
-- `unlink` → synchronous removal of file's nodes from relevant graphs
+- `unlink` → enqueued removal of file's nodes from relevant graphs (serialized with adds to prevent races)
 
 See [Watcher](watcher.md) for details.
 
@@ -118,7 +118,7 @@ projects:
         include: "**/*.md"                # default
         exclude: "**/drafts/**"           # overrides project-level exclude
       code:
-        include: "**/*.{js,ts,jsx,tsx}"   # default
+        include: "**/*.{js,ts,jsx,tsx,mjs,mts,cjs,cts}"   # default
 ```
 
 The graph-level `exclude` overrides the project-level one (not merged).

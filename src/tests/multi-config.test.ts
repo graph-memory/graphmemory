@@ -23,7 +23,7 @@ projects:
     expect(p.projectDir).toBe('/tmp/my-app');
     expect(p.graphMemory).toBe('/tmp/my-app/.graph-memory');
     expect(p.graphConfigs.docs.include).toBe('**/*.md');
-    expect(p.graphConfigs.code.include).toBe('**/*.{js,ts,jsx,tsx}');
+    expect(p.graphConfigs.code.include).toBe('**/*.{js,ts,jsx,tsx,mjs,mts,cjs,cts}');
     expect(p.exclude).toContain('**/node_modules/**');
     expect(p.chunkDepth).toBe(4);
     expect(p.embedding.maxChars).toBe(8000);
@@ -31,6 +31,20 @@ projects:
     // All graphs enabled by default
     for (const gn of ['docs', 'code', 'knowledge', 'tasks', 'files', 'skills'] as const) {
       expect(p.graphConfigs[gn].enabled).toBe(true);
+    }
+  });
+
+  it('default codeInclude covers .mts/.cts/.mjs/.cjs extensions', () => {
+    const yamlPath = tmpYaml(`
+projects:
+  my-app:
+    projectDir: /tmp/my-app
+`);
+    const mc = loadMultiConfig(yamlPath);
+    const pattern = mc.projects.get('my-app')!.graphConfigs.code.include!;
+    const micromatch = require('micromatch');
+    for (const ext of ['.js', '.ts', '.jsx', '.tsx', '.mjs', '.mts', '.cjs', '.cts']) {
+      expect(micromatch.isMatch(`src/file${ext}`, pattern)).toBe(true);
     }
   });
 

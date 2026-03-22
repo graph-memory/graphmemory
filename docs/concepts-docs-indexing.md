@@ -46,7 +46,7 @@ Key principles:
 Each chunk's content is scanned for cross-file references:
 
 - **Markdown links**: `[Setup guide](./setup.md)` — resolved relative to the file's directory
-- **Wiki links**: `[[Setup Guide]]` or `[[Setup Guide|click here]]` — searched recursively within the project directory
+- **Wiki links**: `[[Setup Guide]]` or `[[Setup Guide|click here]]` — searched recursively within the project directory. The wiki index is cached per project and automatically invalidated when `.md` files are added or removed during watch mode
 - **External links** (`https://...`, `mailto:`, data URIs) are ignored
 - Only links to files that **actually exist on disk** are recorded — broken links are silently skipped
 

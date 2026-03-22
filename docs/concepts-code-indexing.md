@@ -48,7 +48,7 @@ The language mapper walks the AST and extracts **top-level declarations**:
 
 For each symbol, the parser extracts:
 - **name** — symbol name
-- **signature** — everything before the body (truncated to 300 chars), uses byte-offset slicing for accuracy
+- **signature** — everything before the body (truncated to 300 chars), uses AST `bodyNode.startPosition.column` for accurate slicing (handles destructured params and type annotations with braces)
 - **docComment** — JSDoc block (`/** ... */`) from the preceding comment node
 - **body** — full source text
 - **startLine / endLine** — 1-based line numbers
@@ -163,7 +163,7 @@ projects:
     projectDir: "/path/to/my-app"
     graphs:
       code:
-        include: "**/*.{js,ts,jsx,tsx}"   # default — indexes all JS/TS files
+        include: "**/*.{js,ts,jsx,tsx,mjs,mts,cjs,cts}"   # default — indexes all JS/TS files (incl. ESM and CJS variants)
         exclude: "**/generated/**"        # skip certain paths
         enabled: true
 ```

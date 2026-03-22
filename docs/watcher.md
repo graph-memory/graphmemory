@@ -18,7 +18,7 @@ Watches `**/*` (all files). Pattern filtering is done in the dispatcher via micr
 |-------|--------|
 | `add` | Dispatch to docs/code/file index queues based on pattern match |
 | `change` | Same as `add` — re-index the file |
-| `unlink` | Synchronously remove nodes from all relevant graphs + cleanup proxies |
+| `unlink` | Enqueue removal of nodes from all relevant graphs + cleanup proxies (serialized with adds) |
 
 ### Excluded paths
 

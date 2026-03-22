@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import micromatch from 'micromatch';
 import { embed, embedBatch } from '@/lib/embedder';
-import { parseFile } from '@/lib/parsers/docs';
+import { parseFile, clearWikiIndexCache } from '@/lib/parsers/docs';
 import { updateFile, removeFile, getFileMtime, resolvePendingLinks, type DocGraph } from '@/graphs/docs';
 import { parseCodeFile } from '@/lib/parsers/code';
 import { updateCodeFile, removeCodeFile, getCodeFileMtime, resolvePendingImports, resolvePendingEdges, type CodeGraph } from '@/graphs/code';
@@ -230,7 +230,8 @@ export function createProjectIndexer(
 
   function dispatchAdd(absolutePath: string): void {
     const rel = path.relative(config.projectDir, absolutePath);
-    if (config.docsInclude && !isExcluded(rel, docsExclude) && micromatch.isMatch(rel, config.docsInclude)) {
+    if (docGraph && config.docsInclude && !isExcluded(rel, docsExclude) && micromatch.isMatch(rel, config.docsInclude)) {
+      if (rel.endsWith('.md')) clearWikiIndexCache(config.projectDir);
       enqueueDoc(() => indexDocFile(absolutePath));
     }
     if (codeGraph && config.codeInclude && !isExcluded(rel, codeExclude) && micromatch.isMatch(rel, config.codeInclude)) {
@@ -244,24 +245,33 @@ export function createProjectIndexer(
   function dispatchRemove(absolutePath: string): void {
     const rel = path.relative(config.projectDir, absolutePath);
     if (docGraph && config.docsInclude && !isExcluded(rel, docsExclude) && micromatch.isMatch(rel, config.docsInclude)) {
-      removeFile(docGraph, rel);
-      if (knowledgeGraph) cleanupKnowledgeProxies(knowledgeGraph, 'docs', docGraph, config.projectId);
-      if (taskGraph) cleanupTaskProxies(taskGraph, 'docs', docGraph, config.projectId);
-      if (skillGraph) cleanupSkillProxies(skillGraph, 'docs', docGraph, config.projectId);
-      process.stderr.write(`[indexer] removed doc  ${rel}\n`);
+      if (rel.endsWith('.md')) clearWikiIndexCache(config.projectDir);
+      // Enqueue removal to avoid racing with in-flight indexDocFile tasks
+      enqueueDoc(async () => {
+        removeFile(docGraph, rel);
+        if (knowledgeGraph) cleanupKnowledgeProxies(knowledgeGraph, 'docs', docGraph, config.projectId);
+        if (taskGraph) cleanupTaskProxies(taskGraph, 'docs', docGraph, config.projectId);
+        if (skillGraph) cleanupSkillProxies(skillGraph, 'docs', docGraph, config.projectId);
+        process.stderr.write(`[indexer] removed doc  ${rel}\n`);
+      });
     }
     if (codeGraph && config.codeInclude && !isExcluded(rel, codeExclude) && micromatch.isMatch(rel, config.codeInclude)) {
-      removeCodeFile(codeGraph, rel);
-      if (knowledgeGraph) cleanupKnowledgeProxies(knowledgeGraph, 'code', codeGraph, config.projectId);
-      if (taskGraph) cleanupTaskProxies(taskGraph, 'code', codeGraph, config.projectId);
-      if (skillGraph) cleanupSkillProxies(skillGraph, 'code', codeGraph, config.projectId);
-      process.stderr.write(`[indexer] removed code ${rel}\n`);
+      enqueueCode(async () => {
+        removeCodeFile(codeGraph, rel);
+        if (knowledgeGraph) cleanupKnowledgeProxies(knowledgeGraph, 'code', codeGraph, config.projectId);
+        if (taskGraph) cleanupTaskProxies(taskGraph, 'code', codeGraph, config.projectId);
+        if (skillGraph) cleanupSkillProxies(skillGraph, 'code', codeGraph, config.projectId);
+        process.stderr.write(`[indexer] removed code ${rel}\n`);
+      });
     }
     if (fileIndexGraph && !isExcluded(rel, filesExclude)) {
-      removeFileEntry(fileIndexGraph, rel);
-      if (knowledgeGraph) cleanupKnowledgeProxies(knowledgeGraph, 'files', fileIndexGraph, config.projectId);
-      if (taskGraph) cleanupTaskProxies(taskGraph, 'files', fileIndexGraph, config.projectId);
-      if (skillGraph) cleanupSkillProxies(skillGraph, 'files', fileIndexGraph, config.projectId);
+      enqueueFile(async () => {
+        removeFileEntry(fileIndexGraph, rel);
+        if (knowledgeGraph) cleanupKnowledgeProxies(knowledgeGraph, 'files', fileIndexGraph, config.projectId);
+        if (taskGraph) cleanupTaskProxies(taskGraph, 'files', fileIndexGraph, config.projectId);
+        if (skillGraph) cleanupSkillProxies(skillGraph, 'files', fileIndexGraph, config.projectId);
+        process.stderr.write(`[indexer] removed file ${rel}\n`);
+      });
     }
   }
 

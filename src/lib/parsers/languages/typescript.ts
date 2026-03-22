@@ -41,13 +41,18 @@ function sliceBeforeBody(outerNode: TSNode, bodyNode: TSNode): string | null {
     const relativeRow = bodyStartRow - outerStartRow;
     const beforeBody = lines.slice(0, relativeRow);
     const bodyLine = lines[relativeRow] ?? '';
-    const braceIdx = bodyLine.indexOf('{');
-    if (braceIdx >= 0) beforeBody.push(bodyLine.slice(0, braceIdx));
+    // Use bodyNode.startPosition.column to find the exact body brace position,
+    // avoiding false matches on '{' in parameter destructuring or type annotations.
+    const col = bodyNode.startPosition.column;
+    if (col > 0) beforeBody.push(bodyLine.slice(0, col));
     return beforeBody.join('\n');
   }
 
-  const braceIdx = text.indexOf('{');
-  if (braceIdx > 0) return text.slice(0, braceIdx);
+  // Single-line case: body starts on the same line as the declaration.
+  // Use column offset to slice precisely instead of indexOf('{') which
+  // would match '{' in destructured params like `({ data }) => {`.
+  const col = bodyNode.startPosition.column - outerNode.startPosition.column;
+  if (col > 0) return text.slice(0, col);
 
   return null;
 }

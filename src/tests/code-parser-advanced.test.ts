@@ -709,6 +709,46 @@ describe('jsconfig.json fallback', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// destructured.ts — destructured params, type annotations with braces
+// ---------------------------------------------------------------------------
+
+describe('destructured.ts — signatures with braces in params', () => {
+  let pf: ParsedFile;
+  beforeAll(async () => { pf = await parseCodeFile(path.join(FIXTURES, 'destructured.ts'), FIXTURES, MTIME); });
+
+  it('arrow with destructured param does not truncate at param brace', () => {
+    const sig = node(pf, 'destructured.ts::handler')?.attrs.signature ?? '';
+    expect(sig).toContain('=>');
+    expect(sig).not.toContain('return');
+  });
+
+  it('single-line arrow with destructured param preserves full signature', () => {
+    const sig = node(pf, 'destructured.ts::compact')?.attrs.signature ?? '';
+    expect(sig).toContain('=>');
+    expect(sig).not.toContain('return');
+  });
+
+  it('function with object type param does not truncate at type brace', () => {
+    const sig = node(pf, 'destructured.ts::parse')?.attrs.signature ?? '';
+    expect(sig).toContain('parse');
+    expect(sig).toContain('cfg');
+    expect(sig).not.toContain('return');
+  });
+
+  it('function with default empty object does not truncate', () => {
+    const sig = node(pf, 'destructured.ts::createQueue')?.attrs.signature ?? '';
+    expect(sig).toContain('createQueue');
+    expect(sig).not.toContain('return');
+  });
+
+  it('multi-line function with type annotations on body line preserves signature', () => {
+    const sig = node(pf, 'destructured.ts::process')?.attrs.signature ?? '';
+    expect(sig).toContain('process');
+    expect(sig).not.toContain('return');
+  });
+});
+
 describe('function_expression in variable', () => {
   let pf: ParsedFile;
   beforeAll(async () => {

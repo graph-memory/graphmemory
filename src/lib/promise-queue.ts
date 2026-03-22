@@ -5,7 +5,8 @@
  * but the queue continues processing subsequent items.
  */
 export class PromiseQueue {
-  private chain: Promise<void> = Promise.resolve();
+  private queue: Array<() => Promise<void>> = [];
+  private running = false;
 
   /**
    * Enqueue an async function. Returns a promise that resolves/rejects
@@ -13,7 +14,19 @@ export class PromiseQueue {
    */
   enqueue<T>(fn: () => Promise<T>): Promise<T> {
     return new Promise<T>((resolve, reject) => {
-      this.chain = this.chain.then(fn).then(resolve, reject);
+      this.queue.push(async () => {
+        try { resolve(await fn()); } catch (e) { reject(e as Error); }
+      });
+      if (!this.running) this.drain();
     });
+  }
+
+  private async drain(): Promise<void> {
+    this.running = true;
+    while (this.queue.length > 0) {
+      const task = this.queue.shift()!;
+      await task();
+    }
+    this.running = false;
   }
 }

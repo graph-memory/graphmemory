@@ -16,7 +16,7 @@ function exportGraph(graph: any, graphName: string): GraphExport {
 
   graph.forEachNode((id: string, attrs: any) => {
     // Skip proxy nodes and embeddings for transfer size
-    const { embedding, fileEmbedding, ...rest } = attrs;
+    const { embedding, fileEmbedding, body, pendingImports, pendingEdges, ...rest } = attrs;
     nodes.push({ id, graph: graphName, ...rest });
   });
 

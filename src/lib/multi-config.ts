@@ -73,6 +73,7 @@ const projectSchema = z.object({
   chunkDepth:      z.number().int().positive().optional(),
   maxFileSize:     z.number().int().positive().optional(),
   model:           modelConfigSchema.optional(),
+  codeModel:       modelConfigSchema.optional(),
   embedding:       embeddingConfigSchema.optional(),
   graphs:          graphsConfigSchema.optional(),
   author:          authorSchema.optional(),
@@ -99,6 +100,7 @@ const serverSchema = z.object({
   modelsDir:       z.string().optional(),
   corsOrigins:     z.array(z.string()).optional(),
   model:           modelConfigSchema.optional(),
+  codeModel:       modelConfigSchema.optional(),
   embedding:       embeddingConfigSchema.optional(),
   embeddingApi:    embeddingApiSchema.optional(),
   defaultAccess:   accessLevelSchema.optional(),
@@ -132,6 +134,7 @@ const workspaceSchema = z.object({
   graphMemory:    z.string().optional(),
   mirrorDir:      z.string().optional(),
   model:          modelConfigSchema.optional(),
+  codeModel:      modelConfigSchema.optional(),
   embedding:      embeddingConfigSchema.optional(),
   graphs:         wsGraphsConfigSchema.optional(),
   author:         authorSchema.optional(),
@@ -222,6 +225,7 @@ export interface ServerConfig {
   modelsDir: string;
   corsOrigins?: string[];
   model: ModelConfig;
+  codeModel?: ModelConfig;
   embedding: EmbeddingConfig;
   embeddingApi?: EmbeddingApiConfig;
   defaultAccess: AccessLevel;
@@ -252,6 +256,7 @@ export interface ProjectConfig {
   chunkDepth: number;
   maxFileSize: number;
   model: ModelConfig;
+  codeModel?: ModelConfig;
   embedding: EmbeddingConfig;
   graphConfigs: Record<GraphName, GraphConfig>;
   author: AuthorConfig;
@@ -265,6 +270,7 @@ export interface WorkspaceConfig {
   graphMemory: string;
   mirrorDir: string;
   model: ModelConfig;
+  codeModel?: ModelConfig;
   embedding: EmbeddingConfig;
   graphConfigs: Record<WsGraphName, GraphConfig>;
   author: AuthorConfig;
@@ -309,6 +315,15 @@ const MODEL_DEFAULTS: ModelConfig = {
   documentPrefix: '',
 };
 
+const CODE_MODEL_DEFAULTS: ModelConfig = {
+  name:           'jinaai/jina-embeddings-v2-base-code',
+  pooling:        'mean',
+  normalize:      true,
+  dtype:          'q8',
+  queryPrefix:    '',
+  documentPrefix: '',
+};
+
 const EMBEDDING_DEFAULTS: EmbeddingConfig = {
   batchSize:      1,
   maxChars:       24_000,
@@ -327,6 +342,7 @@ const SERVER_DEFAULTS: Omit<ServerConfig, 'embedding'> & { embedding: EmbeddingC
   sessionTimeout:  1800,
   modelsDir:       path.join(HOME, '.graph-memory/models'),
   model:           MODEL_DEFAULTS,
+  codeModel:       CODE_MODEL_DEFAULTS,
   embedding:       EMBEDDING_DEFAULTS,
   defaultAccess:   'rw',
   accessTokenTtl:  '15m',
@@ -405,8 +421,9 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
   const srv = validated.server ?? {};
   const globalAuthor: AuthorConfig = validated.author ?? AUTHOR_DEFAULT;
 
-  // Server-level: model + embedding
+  // Server-level: model + codeModel + embedding
   const serverModel = resolveModel(srv.model, MODEL_DEFAULTS);
+  const serverCodeModel = resolveModel(srv.codeModel, CODE_MODEL_DEFAULTS);
   const serverEmbedding = resolveEmbedding(srv.embedding, EMBEDDING_DEFAULTS);
 
   const server: ServerConfig = {
@@ -416,6 +433,7 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
     modelsDir:       path.resolve(srv.modelsDir ?? SERVER_DEFAULTS.modelsDir),
     corsOrigins:     srv.corsOrigins,
     model:           serverModel,
+    codeModel:       serverCodeModel,
     embedding:       serverEmbedding,
     embeddingApi:    srv.embeddingApi ? { enabled: !!srv.embeddingApi.enabled, apiKey: srv.embeddingApi.apiKey, maxTexts: srv.embeddingApi.maxTexts ?? 100, maxTextChars: srv.embeddingApi.maxTextChars ?? 10_000 } : undefined,
     defaultAccess:   srv.defaultAccess   ?? SERVER_DEFAULTS.defaultAccess,
@@ -450,6 +468,7 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
       : path.join(projectDir, '.graph-memory');
 
     const projectModel = resolveModel(raw.model, serverModel);
+    const projectCodeModel = resolveModel(raw.codeModel, serverCodeModel);
     const projectEmbedding = resolveEmbedding(raw.embedding, serverEmbedding);
     // Exclude accumulates: server + project
     const projectExclude = [...server.exclude, ...parseExclude(raw.exclude)];
@@ -467,7 +486,7 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
         readonly: gc?.readonly ?? false,
         include: gc?.include ?? (gn === 'docs' ? PROJECT_DEFAULTS.docsInclude : gn === 'code' ? PROJECT_DEFAULTS.codeInclude : undefined),
         exclude: graphExclude,
-        model: resolveModel(gc?.model, projectModel),
+        model: resolveModel(gc?.model, gn === 'code' ? projectCodeModel : projectModel),
         embedding: resolveEmbedding(gc?.embedding, projectEmbedding),
         access: gc?.access ?? undefined,
       };
@@ -480,6 +499,7 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
       chunkDepth:      raw.chunkDepth      ?? PROJECT_DEFAULTS.chunkDepth,
       maxFileSize:     raw.maxFileSize     ?? -1,
       model:           projectModel,
+      codeModel:       projectCodeModel,
       embedding:       projectEmbedding,
       graphConfigs,
       author:          raw.author          ?? globalAuthor,
@@ -507,6 +527,7 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
         : graphMemory;
 
       const wsModel = resolveModel(raw.model, serverModel);
+      const wsCodeModel = resolveModel(raw.codeModel, serverCodeModel);
       const wsEmbedding = resolveEmbedding(raw.embedding, serverEmbedding);
       // Exclude accumulates: server + workspace
       const wsExclude = [...server.exclude, ...parseExclude(raw.exclude)];
@@ -532,6 +553,7 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
         graphMemory,
         mirrorDir,
         model:          wsModel,
+        codeModel:      wsCodeModel,
         embedding:      wsEmbedding,
         graphConfigs,
         author:         raw.author ?? globalAuthor,
@@ -582,6 +604,7 @@ export function defaultConfig(projectDir: string): MultiConfig {
     sessionTimeout:  SERVER_DEFAULTS.sessionTimeout,
     modelsDir:       path.resolve(SERVER_DEFAULTS.modelsDir),
     model:           MODEL_DEFAULTS,
+    codeModel:       CODE_MODEL_DEFAULTS,
     embedding:       EMBEDDING_DEFAULTS,
     defaultAccess:   SERVER_DEFAULTS.defaultAccess,
     accessTokenTtl:  SERVER_DEFAULTS.accessTokenTtl,
@@ -598,7 +621,7 @@ export function defaultConfig(projectDir: string): MultiConfig {
       readonly: false,
       include: gn === 'docs' ? PROJECT_DEFAULTS.docsInclude : gn === 'code' ? PROJECT_DEFAULTS.codeInclude : undefined,
       exclude: [...server.exclude],
-      model: MODEL_DEFAULTS,
+      model: gn === 'code' ? CODE_MODEL_DEFAULTS : MODEL_DEFAULTS,
       embedding: EMBEDDING_DEFAULTS,
     };
   }
@@ -610,6 +633,7 @@ export function defaultConfig(projectDir: string): MultiConfig {
     chunkDepth: PROJECT_DEFAULTS.chunkDepth,
     maxFileSize: server.maxFileSize,
     model: MODEL_DEFAULTS,
+    codeModel: CODE_MODEL_DEFAULTS,
     embedding: EMBEDDING_DEFAULTS,
     graphConfigs,
     author: AUTHOR_DEFAULT,

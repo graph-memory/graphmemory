@@ -47,7 +47,7 @@ interface ModelEntry {
   embedding: EmbeddingConfig;
   maxChars: number;
   cache: LruCache<number[]>;
-  remote?: { url: string; apiKey?: string };
+  remote?: { url: string; apiKey?: string; model?: string };
 }
 
 const _models = new Map<string, ModelEntry>();                     // name → { pipe, model, embedding }
@@ -70,7 +70,7 @@ export async function loadModel(
   // Remote embedding: register proxy, skip ONNX loading
   if (embedding.remote) {
     validateRemoteUrl(embedding.remote);
-    _models.set(name, { pipe: null, model, embedding, maxChars, cache: new LruCache(cacheSize), remote: { url: embedding.remote, apiKey: embedding.remoteApiKey } });
+    _models.set(name, { pipe: null, model, embedding, maxChars, cache: new LruCache(cacheSize), remote: { url: embedding.remote, apiKey: embedding.remoteApiKey, model: embedding.remoteModel } });
     process.stderr.write(`[embedder] Model "${name}" using remote endpoint ${embedding.remote}\n`);
     return;
   }
@@ -110,10 +110,12 @@ export async function loadModel(
 // ---------------------------------------------------------------------------
 
 
-async function remoteEmbed(url: string, texts: string[], apiKey?: string): Promise<number[][]> {
+async function remoteEmbed(url: string, texts: string[], apiKey?: string, remoteModel?: string): Promise<number[][]> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
-  const body = JSON.stringify({ texts });
+  const payload: Record<string, unknown> = { texts };
+  if (remoteModel) payload.model = remoteModel;
+  const body = JSON.stringify(payload);
 
   for (let attempt = 0; attempt < REMOTE_MAX_RETRIES; attempt++) {
     let resp: Response;
@@ -171,7 +173,7 @@ export async function embed(title: string, content: string, modelName = 'default
 
   let vec: number[];
   if (entry.remote) {
-    [vec] = await remoteEmbed(entry.remote.url, [text], entry.remote.apiKey);
+    [vec] = await remoteEmbed(entry.remote.url, [text], entry.remote.apiKey, entry.remote.model);
   } else {
     const tensor = await entry.pipe!._call(text, { pooling: entry.model.pooling, normalize: entry.model.normalize });
     vec = Array.from(tensor.data as Float32Array);
@@ -190,7 +192,7 @@ export async function embedQuery(query: string, modelName = 'default'): Promise<
 
   let vec: number[];
   if (entry.remote) {
-    [vec] = await remoteEmbed(entry.remote.url, [text], entry.remote.apiKey);
+    [vec] = await remoteEmbed(entry.remote.url, [text], entry.remote.apiKey, entry.remote.model);
   } else {
     const tensor = await entry.pipe!._call(text, { pooling: entry.model.pooling, normalize: entry.model.normalize });
     vec = Array.from(tensor.data as Float32Array);
@@ -221,7 +223,7 @@ export async function embedBatch(
   let missVecs: number[][];
 
   if (entry.remote) {
-    missVecs = await remoteEmbed(entry.remote.url, missTexts, entry.remote.apiKey);
+    missVecs = await remoteEmbed(entry.remote.url, missTexts, entry.remote.apiKey, entry.remote.model);
   } else {
     missVecs = [];
     const batchSize = entry.embedding.batchSize;

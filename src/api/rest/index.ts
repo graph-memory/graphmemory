@@ -28,7 +28,7 @@ import { RATE_LIMIT_WINDOW_MS } from '@/lib/defaults';
 export interface RestAppOptions {
   serverConfig?: ServerConfig;
   users?: Record<string, UserConfig>;
-  embeddingApiModelName?: string;
+  embeddingApiModelNames?: { default: string; code: string };
 }
 
 /**
@@ -403,8 +403,8 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
   }));
 
   // Embedding API (optional, gated by server.embeddingApi.enabled)
-  if (serverConfig?.embeddingApi?.enabled && options?.embeddingApiModelName) {
-    app.use('/api/embed', createEmbedRouter(serverConfig.embeddingApi, options.embeddingApiModelName));
+  if (serverConfig?.embeddingApi?.enabled && options?.embeddingApiModelNames) {
+    app.use('/api/embed', createEmbedRouter(serverConfig.embeddingApi, options.embeddingApiModelNames));
   }
 
   // Serve UI at /ui/ path — check dist/ui/ (npm package) then ui/dist/ (dev)

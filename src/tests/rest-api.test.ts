@@ -886,7 +886,7 @@ describe('REST API — Embedding API', () => {
         defaultAccess: 'rw',
         accessTokenTtl: '15m', refreshTokenTtl: '7d', rateLimit: { global: 0, search: 0, auth: 0 }, maxFileSize: 1048576, exclude: [],
       },
-      embeddingApiModelName: EMBED_MODEL_NAME,
+      embeddingApiModelNames: { default: EMBED_MODEL_NAME, code: EMBED_MODEL_NAME },
     });
   });
 

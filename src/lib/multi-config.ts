@@ -32,6 +32,7 @@ const embeddingConfigSchema = z.object({
   cacheSize:       z.number().int().min(0).optional(),
   remote:          z.string().optional(),    // Remote embedding API URL
   remoteApiKey:    z.string().optional(),    // API key for remote embedding
+  remoteModel:     z.enum(['default', 'code']).optional(),  // Which model to request from remote API
 });
 
 const accessLevelSchema = z.enum(['deny', 'r', 'rw']);
@@ -189,6 +190,7 @@ export interface EmbeddingConfig {
   cacheSize: number;
   remote?: string;       // Remote embedding API URL (replaces local ONNX)
   remoteApiKey?: string; // API key for remote embedding
+  remoteModel?: string;  // Which model to request from remote API ("default" or "code")
 }
 
 /** Resolved config combining model + embedding for a specific graph. */
@@ -402,6 +404,7 @@ function resolveEmbedding(
     cacheSize:      raw.cacheSize       ?? parent.cacheSize,
     remote:         raw.remote          ?? parent.remote,
     remoteApiKey:   raw.remoteApiKey    ?? parent.remoteApiKey,
+    remoteModel:    raw.remoteModel     ?? parent.remoteModel,
   };
 }
 

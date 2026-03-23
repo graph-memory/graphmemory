@@ -166,15 +166,18 @@ program
       await manager.addProject(id, config, reindex, projectWorkspace.get(id));
     }
 
-    // Embedding API model name (loaded in background with other models)
-    const embeddingApiModelName = mc.server.embeddingApi?.enabled ? '__server__' : undefined;
+    // Embedding API model names (loaded in background with other models)
+    const embeddingApiModelNames = mc.server.embeddingApi?.enabled
+      ? { default: '__server__', code: '__server_code__' } : undefined;
 
     // Load models and index all projects before starting HTTP
-    // Load embedding API model if enabled
-    if (embeddingApiModelName) {
+    // Load embedding API models if enabled (default + code)
+    if (embeddingApiModelNames) {
       try {
-        await loadModel(mc.server.model, mc.server.embedding, mc.server.modelsDir, embeddingApiModelName);
-        process.stderr.write(`[serve] Embedding API model ready\n`);
+        await loadModel(mc.server.model, mc.server.embedding, mc.server.modelsDir, embeddingApiModelNames.default);
+        const codeModel = mc.server.codeModel ?? mc.server.model;
+        await loadModel(codeModel, mc.server.embedding, mc.server.modelsDir, embeddingApiModelNames.code);
+        process.stderr.write(`[serve] Embedding API models ready (default + code)\n`);
       } catch (err: unknown) {
         process.stderr.write(`[serve] Failed to load embedding API model: ${err}\n`);
       }
@@ -215,7 +218,7 @@ program
     const httpServer = await startMultiProjectHttpServer(host, port, sessionTimeoutMs, manager, {
       serverConfig: mc.server,
       users: mc.users,
-      embeddingApiModelName,
+      embeddingApiModelNames,
     });
 
     // Track open connections for graceful shutdown

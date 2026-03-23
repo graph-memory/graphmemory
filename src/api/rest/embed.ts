@@ -8,13 +8,16 @@ import type { EmbeddingApiConfig } from '@/lib/multi-config';
 /**
  * Create an Express router for the embedding API.
  * POST /api/embed — embed texts using the server's embedding model.
+ *
+ * Accepts `model` parameter: "default" (general model) or "code" (code-optimized model).
  */
-export function createEmbedRouter(apiConfig: EmbeddingApiConfig, modelName: string): Router {
+export function createEmbedRouter(apiConfig: EmbeddingApiConfig, modelNames: { default: string; code: string }): Router {
   const router = Router();
 
   const embedRequestSchema = z.object({
     texts: z.array(z.string().max(apiConfig.maxTextChars)).min(1).max(apiConfig.maxTexts),
     format: z.enum(['json', 'base64']).optional().default('json'),
+    model: z.enum(['default', 'code']).optional().default('default'),
   });
 
   router.post('/', async (req, res, next) => {
@@ -34,6 +37,7 @@ export function createEmbedRouter(apiConfig: EmbeddingApiConfig, modelName: stri
 
       const parsed = embedRequestSchema.parse(req.body);
       const inputs = parsed.texts.map(text => ({ title: text, content: '' }));
+      const modelName = modelNames[parsed.model];
       const embeddings = await embedBatch(inputs, modelName);
 
       if (parsed.format === 'base64') {

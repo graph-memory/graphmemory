@@ -63,7 +63,7 @@ server:
     documentPrefix: ""
   embedding:
     batchSize: 1
-    maxChars: 8000
+    maxChars: 24000
     cacheSize: 10000
     remote: "http://gpu-server:3000/api/embed"
     remoteApiKey: "emb-secret-key"
@@ -86,7 +86,7 @@ projects:
     model:
       name: "Xenova/bge-m3"
     embedding:
-      maxChars: 8000
+      maxChars: 24000
     access:
       bob: r
     graphs:
@@ -126,7 +126,7 @@ workspaces:
     model:
       name: "Xenova/bge-m3"
     embedding:
-      maxChars: 8000
+      maxChars: 24000
 ```
 
 ## Server settings
@@ -145,6 +145,7 @@ workspaces:
 | `accessTokenTtl` | string | `15m` | JWT access token lifetime |
 | `refreshTokenTtl` | string | `7d` | JWT refresh token lifetime |
 | `model` | object | (see below) | Default model config for all graphs |
+| `codeModel` | object | (see below) | Default model config for code graph (overrides `model` for code) |
 | `embedding` | object | (see below) | Default embedding config for all graphs |
 | `embeddingApi` | object | — | Expose embedding model via `POST /api/embed` |
 | `rateLimit` | object | — | Rate limiting: `global` (default 600), `search` (default 120), `auth` (default 10) requests/min |
@@ -160,10 +161,15 @@ Can be set at four levels: `server.model`, `projects.<id>.model`, `projects.<id>
 graph.model → project.model → server.model → defaults
 ```
 
-| Field | Type | Default | Description |
+The **code graph** has its own inheritance chain via `codeModel`:
+```
+graphs.code.model → project.codeModel → server.codeModel → code defaults
+```
+
+| Field | Type | Default (general / code) | Description |
 |-------|------|---------|-------------|
-| `name` | string | `Xenova/bge-m3` | HuggingFace model ID |
-| `pooling` | string | `cls` | Pooling strategy: `mean` or `cls` |
+| `name` | string | `Xenova/bge-m3` / `jinaai/jina-embeddings-v2-base-code` | HuggingFace model ID |
+| `pooling` | string | `cls` / `mean` | Pooling strategy: `mean` or `cls` |
 | `normalize` | boolean | `true` | L2-normalize output vectors |
 | `dtype` | string | `q8` | Quantization: `fp32`, `fp16`, `q8`, `q4` |
 | `queryPrefix` | string | `""` | Prefix prepended to search queries |
@@ -181,7 +187,7 @@ graph.embedding → project.embedding → server.embedding → defaults
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `batchSize` | number | `1` | Texts per ONNX forward pass |
-| `maxChars` | number | `8000` | Max chars fed to embedder per node |
+| `maxChars` | number | `24000` | Max chars fed to embedder per node |
 | `cacheSize` | number | `10000` | Embedding cache size (0 = disabled) |
 | `remote` | string | — | Remote embedding API URL (replaces local ONNX) |
 | `remoteApiKey` | string | — | API key for remote embedding endpoint |
@@ -196,6 +202,7 @@ graph.embedding → project.embedding → server.embedding → defaults
 | `chunkDepth` | number | `4` | Max heading depth for chunk boundaries |
 | `maxFileSize` | number | (server default) | Max file size in bytes for indexing |
 | `model` | object | (server default) | Project-level model config |
+| `codeModel` | object | (server default) | Project-level code model config |
 | `embedding` | object | (server default) | Project-level embedding config |
 | `access` | object | — | Per-user access overrides for this project |
 | `author` | object | (root author) | Author for notes/tasks/skills in this project |
@@ -211,7 +218,7 @@ Each of the six graphs (`docs`, `code`, `knowledge`, `tasks`, `files`, `skills`)
 | `readonly` | boolean | `false` | When `true`, graph is loaded and searchable but mutations are blocked |
 | `include` | string | (depends on graph) | Glob for file matching (docs/code only) |
 | `exclude` | string | (project fallback) | Additional exclude (merged with project + server) |
-| `model` | object | (project/server fallback) | Full model config — first-defined-wins, no merge |
+| `model` | object | (project/server fallback; code graph uses `codeModel` chain) | Full model config — first-defined-wins, no merge |
 | `embedding` | object | (project/server fallback) | Embedding config — field-by-field merge |
 | `access` | object | — | Per-user access overrides for this graph |
 
@@ -277,6 +284,7 @@ Workspaces group projects that share a single KnowledgeGraph, TaskGraph, and Ski
 | `author` | object | Author for shared notes/tasks/skills |
 | `access` | object | Per-user access overrides for workspace graphs |
 | `model` | object | Model config for workspace shared graphs |
+| `codeModel` | object | Model config for code graph in workspace projects |
 | `embedding` | object | Embedding config for workspace shared graphs |
 | `maxFileSize` | number | Max file size (overrides server default) |
 | `exclude` | string | Additional exclude (merged with server default) |

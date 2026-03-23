@@ -59,7 +59,7 @@ server:
   #   search: 120                               # Search/embed endpoints (default: 120)
   #   auth: 10                                  # Login endpoints (default: 10)
 
-  # Default model config (fallback for all graphs in all projects).
+  # Default model config (fallback for all graphs except code).
   # Taken as a whole object from the first level that defines it (no field-by-field merge).
   # model:
   #   name: "Xenova/bge-m3"                     # HuggingFace model ID (default: Xenova/bge-m3)
@@ -69,11 +69,19 @@ server:
   #   queryPrefix: ""                           # Prefix prepended to search queries
   #   documentPrefix: ""                        # Prefix prepended to documents during indexing
 
+  # Default model for the code graph (separate from `model`).
+  # Resolution: graphs.code.model → project.codeModel → server.codeModel → code defaults
+  # codeModel:
+  #   name: "jinaai/jina-embeddings-v2-base-code"  # Code-optimized model (default)
+  #   pooling: "mean"
+  #   normalize: true
+  #   dtype: "q8"
+
   # Default embedding config (fallback for all graphs in all projects).
   # Each field individually inherits up the chain (field-by-field merge).
   # embedding:
   #   batchSize: 1                              # Texts per ONNX forward pass (increase for faster indexing, more memory)
-  #   maxChars: 8000                            # Max chars fed to embedder per node
+  #   maxChars: 24000                            # Max chars fed to embedder per node
   #   cacheSize: 10000                          # Embedding cache size (0 = disabled)
   #   remote: "http://gpu-server:3000/api/embed" # Use remote embedding API instead of local ONNX
   #   remoteApiKey: "emb-secret-key"             # API key for remote embedding
@@ -112,7 +120,7 @@ projects:
 
     # Per-project embedding config (overrides server.embedding — field-by-field merge)
     # embedding:
-    #   maxChars: 8000                           # Max chars fed to embedder per node
+    #   maxChars: 24000                           # Max chars fed to embedder per node
 
     # Per-project author (overrides root author)
     # author:
@@ -195,7 +203,7 @@ projects:
 #     #   normalize: true
 #     # Workspace-level embedding (overrides server.embedding for shared graphs)
 #     # embedding:
-#     #   maxChars: 8000
+#     #   maxChars: 24000
 #     # Per-graph config for shared graphs (knowledge, tasks, skills only)
 #     # graphs:
 #     #   knowledge:

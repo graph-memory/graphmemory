@@ -4,15 +4,24 @@
 
 The embedding system converts text into high-dimensional vectors for semantic search. Supports local ONNX models via `@huggingface/transformers` and remote HTTP proxies.
 
-## Default model
+## Default models
 
-**Xenova/bge-m3** — the default embedding model:
+**Xenova/bge-m3** — the default embedding model (docs, knowledge, tasks, skills, files):
 - 1024 dimensions
 - Multilingual (100+ languages)
 - 8K token context
 - ~560 MB download size
 - Pooling: `cls`
 - Normalization: L2-normalized (cosine similarity = dot product)
+
+**jinaai/jina-embeddings-v2-base-code** — the default code graph model:
+- 768 dimensions
+- Trained on code + natural language pairs
+- 8K token context
+- Pooling: `mean`
+- Normalization: L2-normalized
+
+The code graph uses a separate model inheritance chain (`codeModel`) so it can use a code-optimized model by default while other graphs use BGE-M3.
 
 ## Model registry
 
@@ -44,7 +53,8 @@ Configuration is split into two separate objects: **model** (what model to use) 
 Taken as a **whole object** from the first level that defines it (no field-by-field merge):
 
 ```
-graph.model → project.model → server.model → defaults
+graph.model → project.model     → server.model     → defaults        (all graphs except code)
+graph.model → project.codeModel → server.codeModel  → code defaults   (code graph)
 ```
 
 | Field | Type | Default | Description |
@@ -67,7 +77,7 @@ graph.embedding → project.embedding → server.embedding → defaults
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `batchSize` | number | `1` | Texts per ONNX forward pass |
-| `maxChars` | number | `8000` | Max characters fed to embedder per node |
+| `maxChars` | number | `24000` | Max characters fed to embedder per node |
 | `cacheSize` | number | `10000` | Embedding cache size (0 = disabled) |
 | `remote` | string | — | Remote embedding API URL |
 | `remoteApiKey` | string | — | API key for remote endpoint |

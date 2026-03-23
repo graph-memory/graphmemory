@@ -67,7 +67,7 @@ Each project needs at least `projectDir`:
 | `graphMemory` | `.graph-memory` | Where graph JSON files are stored (relative to projectDir) |
 | `exclude` | — | Additional glob to exclude (merged with server default `**/node_modules/**,**/dist/**`) |
 | `chunkDepth` | `4` | Max heading depth for markdown chunking |
-| `embedding.maxChars` | `8000` | Max characters fed to the embedding model per node (inherits: graph → project → workspace → server) |
+| `embedding.maxChars` | `24000` | Max characters fed to the embedding model per node (inherits: graph → project → workspace → server) |
 | `access` | — | Per-user access overrides for this project |
 
 > **Legacy fields:** `docsPattern` and `codePattern` have been removed. Use `graphs.docs.include` and `graphs.code.include` instead.

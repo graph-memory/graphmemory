@@ -31,10 +31,13 @@ From the fused results, take the top `topK` candidates above `minScore`.
 ### Step 4: BFS expansion
 
 From each seed node, traverse outgoing **and** incoming edges up to `bfsDepth` hops:
-- Each hop multiplies the score by `bfsDecay` (default 0.8)
-- Prune early if `score * bfsDecay < minScore`
+- Each hop multiplies the score by a decay factor
+- **Code graph** uses **edge-specific decay**: `contains` (0.95), `extends`/`implements` (0.85), `imports` (0.70). This reflects that a class→method relationship is much tighter than a cross-file import
+- **Other graphs** use a uniform `bfsDecay` (default 0.8)
+- Prune early if the best possible decay can't pass `minScore`
 - Neighboring nodes discovered via BFS inherit decayed scores
 - **Code graph**: incoming `imports` edges are excluded from BFS to avoid noise from popular utility files being pulled in as neighbors of every search result
+- When `bfsDecay` is explicitly passed as a parameter, it overrides edge-specific decay (uniform behavior)
 
 ### Step 5: Merge and output
 

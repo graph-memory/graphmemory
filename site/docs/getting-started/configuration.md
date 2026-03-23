@@ -122,7 +122,7 @@ Set at server, project, or graph level. Resolution: **graph → project → serv
 | Field | Default | Description |
 |-------|---------|-------------|
 | `batchSize` | `1` | Texts per forward pass |
-| `maxChars` | `8000` | Max characters per node |
+| `maxChars` | `24000` | Max characters per node |
 | `cacheSize` | `10000` | Embedding cache size (0 = disabled) |
 | `remote` | — | Remote embedding API URL |
 | `remoteApiKey` | — | API key for remote endpoint |

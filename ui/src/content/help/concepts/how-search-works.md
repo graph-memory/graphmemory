@@ -6,7 +6,7 @@ Graph Memory uses **hybrid search** — combining BM25 keyword matching with vec
 
 When content is indexed, each chunk (doc section, code symbol, file path, note, task, skill) is converted to a **vector embedding** — a list of ~1024 numbers that represent semantic meaning.
 
-The default model is `bge-m3`, a multilingual transformer that runs locally. No API calls, no data leaves your machine.
+The default model is `bge-m3` for docs, notes, tasks, skills, and files. The code graph uses `jina-embeddings-v2-base-code`, a model trained on code + natural language pairs. Both run locally — no API calls, no data leaves your machine.
 
 Similar concepts produce similar vectors:
 - "authentication" and "login" will have high similarity
@@ -18,7 +18,7 @@ Similar concepts produce similar vectors:
 |-------|-----------------|-----------------|
 | DocGraph | Each section/heading | Section title + content text |
 | DocGraph (file-level) | Each file root | File path + h1 title |
-| CodeGraph | Each symbol | Symbol name + signature + docComment |
+| CodeGraph | Each symbol | Symbol signature + docComment + body |
 | CodeGraph (file-level) | Each file root | File path only |
 | FileIndexGraph | Each file | File path |
 | KnowledgeGraph | Each note | Note title + content |
@@ -44,7 +44,7 @@ projects:
       # knowledge, tasks, files, skills inherit project.model
 ```
 
-Model resolution: `graph.model → project.model → server.model → defaults`. Each level is a complete config block — no field-by-field merge. Embedding config (`batchSize`, `maxChars`, etc.) is separate and merges field-by-field.
+Model resolution: `graph.model → project.model → server.model → defaults`. The code graph has its own chain: `graphs.code.model → project.codeModel → server.codeModel → code defaults`. Each level is a complete config block — no field-by-field merge. Embedding config (`batchSize`, `maxChars`, etc.) is separate and merges field-by-field.
 
 ## Cosine similarity
 
@@ -63,7 +63,7 @@ After finding the top-K most similar nodes, the search expands outward through t
 
 1. Start with the top-K seed nodes
 2. Follow edges to neighboring nodes (linked sections, related code symbols, connected notes)
-3. Each hop applies a **decay factor** (default 0.8) — relevance decreases with distance
+3. Each hop applies a **decay factor** — relevance decreases with distance. Code graph uses edge-specific decay (`contains`: 0.95, `extends`/`implements`: 0.85, `imports`: 0.70); other graphs use uniform 0.8
 4. Continue up to `bfsDepth` hops (default 1)
 
 This is powerful because relevant content is often **near** other relevant content in the graph.

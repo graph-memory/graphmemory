@@ -42,7 +42,7 @@ After the initial scoring, Graph Memory takes the top results and **expands outw
 
 For example, searching for "authentication" might directly match a note about JWT tokens. BFS expansion then pulls in related notes about session management and linked code symbols — nodes you did not search for but that are connected to your results.
 
-Each hop away from the original result reduces the score by a decay factor (default: 0.8), so directly connected nodes rank higher than nodes two hops away.
+Each hop away from the original result reduces the score by a decay factor, so directly connected nodes rank higher than nodes two hops away. The code graph uses **edge-specific decay** (`contains`: 0.95, `extends`/`implements`: 0.85, `imports`: 0.70) to reflect that a class→method link is tighter than a cross-file import. Other graphs use a uniform decay of 0.8.
 
 :::tip
 BFS expansion is what makes graph-based search more powerful than flat document search. Connections between your notes, code, docs, and tasks enrich every query.

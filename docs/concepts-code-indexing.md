@@ -95,7 +95,7 @@ src/admin.ts::AdminService [implements] → src/admin.ts::Auditable
 
 ### Step 4: Embed symbols
 
-Each symbol is embedded from its `name + signature + docComment`. This captures both the structural identity and the semantic intent.
+Each symbol is embedded from its `signature + docComment + body`. The signature captures the structural identity, the docComment provides semantic intent, and the body gives the full implementation context. The embedder's `maxChars` limit (default 24000) handles truncation for large functions.
 
 File root nodes get a `fileEmbedding` from the file path — used for file-level search ("find files related to authentication").
 

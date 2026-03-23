@@ -98,7 +98,7 @@ If you use path aliases (like `@/` or `~/`), make sure you have a `tsconfig.json
 search_code({ query: "function that hashes passwords" })
 ```
 
-Finds symbols by meaning. Even if no function is literally named `hashPassword`, Graph Memory can find the relevant function based on its signature, JSDoc comments, and semantic similarity.
+Finds symbols by meaning. Even if no function is literally named `hashPassword`, Graph Memory can find the relevant function based on its signature, JSDoc comments, body, and semantic similarity. Each symbol is embedded from its full content (signature + docComment + body), so even functions without JSDoc are visible to semantic search.
 
 ### Symbol lookup
 

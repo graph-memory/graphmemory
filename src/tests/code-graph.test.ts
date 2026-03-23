@@ -5,6 +5,7 @@ import {
   saveCodeGraph, loadCodeGraph,
 } from '@/graphs/code';
 import type { ParsedFile } from '@/lib/parsers/code';
+import { GRAPH_DATA_VERSION } from '@/lib/defaults';
 
 const STORE = '/tmp/code-graph-test';
 
@@ -241,6 +242,22 @@ describe('code graph CRUD', () => {
     it('loadCodeGraph with no file returns empty', () => {
       const graph3 = loadCodeGraph(STORE + '/nonexistent');
       expect(graph3.order).toBe(0);
+    });
+
+    it('discards graph when version mismatches', () => {
+      const file = STORE + '/code.json';
+      const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
+      data.version = 1;
+      fs.writeFileSync(file, JSON.stringify(data));
+      const graph4 = loadCodeGraph(STORE);
+      expect(graph4.order).toBe(0);
+    });
+
+    it('saved graph includes GRAPH_DATA_VERSION', () => {
+      saveCodeGraph(graph, STORE);
+      const file = STORE + '/code.json';
+      const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
+      expect(data.version).toBe(GRAPH_DATA_VERSION);
     });
   });
 

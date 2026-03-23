@@ -4,6 +4,7 @@ import {
   saveGraph, loadGraph,
 } from '@/graphs/docs';
 import type { Chunk } from '@/lib/parsers/docs';
+import { GRAPH_DATA_VERSION } from '@/lib/defaults';
 import fs from 'fs';
 
 const STORE = '/tmp/graph-test-assertions';
@@ -169,6 +170,32 @@ describe('docs graph CRUD', () => {
     it('loadGraph with no file returns empty graph', () => {
       const graph3 = loadGraph(STORE + '/nonexistent');
       expect(graph3.order).toBe(0);
+    });
+
+    it('loadGraph discards graph when version mismatches', () => {
+      // Tamper stored version to simulate old data
+      const file = STORE + '/docs.json';
+      const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
+      data.version = 1;
+      fs.writeFileSync(file, JSON.stringify(data));
+      const graph4 = loadGraph(STORE);
+      expect(graph4.order).toBe(0); // discarded, empty graph
+    });
+
+    it('loadGraph discards graph when version is missing', () => {
+      const file = STORE + '/docs.json';
+      const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
+      delete data.version;
+      fs.writeFileSync(file, JSON.stringify(data));
+      const graph5 = loadGraph(STORE);
+      expect(graph5.order).toBe(0);
+    });
+
+    it('saved graph includes current GRAPH_DATA_VERSION', () => {
+      saveGraph(graph, STORE);
+      const file = STORE + '/docs.json';
+      const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
+      expect(data.version).toBe(GRAPH_DATA_VERSION);
     });
   });
 

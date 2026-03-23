@@ -3,16 +3,16 @@ DirectorySlash Off
 
 RewriteEngine On
 
-# Directory with trailing slash → strip slash (prevent mod_dir loop)
-RewriteCond %{REQUEST_FILENAME} -d
+# Trailing slash → strip it
 RewriteCond %{REQUEST_URI} ^(.+)/$
 RewriteRule ^ %1 [R=301,L]
 
-# Not-a-directory with trailing slash → strip slash
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.+)/$ /$1 [R=301,L]
+# Directory exists and .html file with same name exists → serve .html
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteCond %{REQUEST_FILENAME}.html -f
+RewriteRule ^ %{REQUEST_URI}.html [L]
 
-# Clean URLs: /docs/faq → /docs/faq.html
+# Clean URLs: no file, no dir, but .html exists → serve .html
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_FILENAME}.html -f

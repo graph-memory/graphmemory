@@ -61,12 +61,18 @@ server:
     dtype: "q8"
     queryPrefix: ""
     documentPrefix: ""
+  codeModel:
+    name: "jinaai/jina-embeddings-v2-base-code"
+    pooling: "mean"
+    normalize: true
+    dtype: "q8"
   embedding:
     batchSize: 1
     maxChars: 24000
     cacheSize: 10000
     remote: "http://gpu-server:3000/api/embed"
     remoteApiKey: "emb-secret-key"
+    remoteModel: "default"
   embeddingApi:
     enabled: false
     apiKey: "emb-secret-key"
@@ -191,6 +197,7 @@ graph.embedding → project.embedding → server.embedding → defaults
 | `cacheSize` | number | `10000` | Embedding cache size (0 = disabled) |
 | `remote` | string | — | Remote embedding API URL (replaces local ONNX) |
 | `remoteApiKey` | string | — | API key for remote embedding endpoint |
+| `remoteModel` | string | — | Which model to request from remote API: `"default"` or `"code"`. Auto-set to `"code"` for code graph |
 
 ## Per-project settings
 

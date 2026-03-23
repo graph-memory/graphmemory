@@ -81,6 +81,7 @@ graph.embedding → project.embedding → server.embedding → defaults
 | `cacheSize` | number | `10000` | Embedding cache size (0 = disabled) |
 | `remote` | string | — | Remote embedding API URL |
 | `remoteApiKey` | string | — | API key for remote endpoint |
+| `remoteModel` | string | — | Which model to request: `"default"` or `"code"` (auto-set to `"code"` for code graph) |
 
 ## Model examples
 
@@ -193,12 +194,17 @@ server:
 `POST /api/embed`
 
 ```json
-// Request
+// Request (default model)
 { "texts": ["hello world", "another text"] }
+
+// Request (code model)
+{ "texts": ["function login() { ... }"], "model": "code" }
 
 // Response
 { "embeddings": [[0.1, 0.2, ...], [0.3, 0.4, ...]] }
 ```
+
+The `model` parameter selects which embedding model to use: `"default"` (general, BGE-M3) or `"code"` (code-optimized, jina-code). Both models are loaded when the embedding API is enabled.
 
 ### Embedding API configuration
 

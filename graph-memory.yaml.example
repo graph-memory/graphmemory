@@ -85,6 +85,7 @@ server:
   #   cacheSize: 10000                          # Embedding cache size (0 = disabled)
   #   remote: "http://gpu-server:3000/api/embed" # Use remote embedding API instead of local ONNX
   #   remoteApiKey: "emb-secret-key"             # API key for remote embedding
+  #   remoteModel: "default"                     # Which model to request: "default" or "code" (auto-set to "code" for code graph)
 
   # Embedding API: expose server's embedding model via POST /api/embed
   # embeddingApi:
@@ -118,6 +119,12 @@ projects:
     #   pooling: "cls"
     #   normalize: true
 
+    # Per-project code model (overrides server.codeModel — separate chain for code graph)
+    # codeModel:
+    #   name: "jinaai/jina-embeddings-v2-base-code"
+    #   pooling: "mean"
+    #   normalize: true
+
     # Per-project embedding config (overrides server.embedding — field-by-field merge)
     # embedding:
     #   maxChars: 24000                           # Max chars fed to embedder per node
@@ -133,8 +140,9 @@ projects:
 
     # Per-graph configuration
     # Each graph can be enabled/disabled, have its own include, exclude, model, and embedding.
-    # Model resolution: graph.model ?? project.model ?? server.model (whole-object, first-defined-wins)
-    # Embedding resolution: graph.embedding ?? project.embedding ?? server.embedding (field-by-field merge)
+    # Model resolution: graph.model → project.model → server.model (whole-object, first-defined-wins)
+    # Code graph: graph.model → project.codeModel → server.codeModel (separate chain)
+    # Embedding resolution: graph.embedding → project.embedding → server.embedding (field-by-field merge)
     # graphs:
     #   docs:
     #     enabled: true                          # default: true (set false to disable)
@@ -278,25 +286,23 @@ projects:
 #     dtype: "q8"
 #
 # ── Mixed config: different models per graph ──────────────────────────────
-# Use a smaller model for file paths and a larger model for content search.
-# Note: model is taken as whole object (first-defined-wins, no merge with parent).
+# The code graph defaults to jinaai/jina-embeddings-v2-base-code via `codeModel`.
+# Other graphs default to Xenova/bge-m3 via `model`. You can override per-graph:
 #
 # projects:
 #   my-app:
 #     projectDir: "/path/to/my-app"
 #     model:
-#       name: "Xenova/bge-m3"
+#       name: "Xenova/bge-m3"                     # default for docs, knowledge, tasks, skills, files
 #       pooling: "cls"
+#       normalize: true
+#     codeModel:
+#       name: "jinaai/jina-embeddings-v2-base-code"  # default for code graph (separate chain)
+#       pooling: "mean"
 #       normalize: true
 #     graphs:
 #       files:
 #         model:
-#           name: "Xenova/bge-small-en-v1.5"
+#           name: "Xenova/bge-small-en-v1.5"      # smaller model for file paths
 #           pooling: "cls"
 #           normalize: true
-#       code:
-#         model:
-#           name: "Xenova/bge-base-en-v1.5"
-#           pooling: "cls"
-#           normalize: true
-#           queryPrefix: "Represent this sentence for searching relevant passages: "

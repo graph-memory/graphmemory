@@ -5,6 +5,14 @@ description: Graph Memory release history and version changes.
 
 # Changelog
 
+## v1.3.4
+
+**Released: March 2026**
+
+### Bug Fixes
+
+- **Fix UI 404 when Node is installed via nvm/fnm/volta** — the `send` module's default `dotfiles: 'ignore'` policy rejected `sendFile` paths containing dot-directories (`.nvm`, `.fnm`, `.volta`), causing the SPA fallback to silently fail. Now passes `dotfiles: 'allow'` to `sendFile`.
+
 ## v1.3.3
 
 **Released: March 2026**

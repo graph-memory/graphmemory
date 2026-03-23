@@ -59,7 +59,7 @@ BFS expansion is what makes graph-based search more powerful than flat document 
 | `minScore` | 0.5 (docs, notes, tasks, skills) / 0.3 (code) | Minimum score threshold |
 
 :::note File Index search defaults
-File Index search (`search_all_files`) uses different defaults: `topK: 10`, `minScore: 0.3`, and no BFS expansion. It uses vector-only search (no BM25) since file paths have no meaningful keyword text.
+File-level searches (`search_files`, `search_topic_files`, `search_all_files`) use `topK: 10`, `minScore: 0.3`, and no BFS expansion. They use hybrid BM25 + vector search, so exact filename queries (e.g. "embedder.ts") work via keyword matching. File paths are normalized (slashes/dots → spaces) for better embedding quality.
 :::
 
 :::note Code graph BFS behavior

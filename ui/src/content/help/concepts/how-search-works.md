@@ -131,11 +131,11 @@ Full parameter set:
 | `bfsDecay` | 0.8 | Score multiplier per hop |
 | `searchMode` | `hybrid` | `hybrid`, `vector`, or `keyword` |
 
-### File-level search (cosine only)
+### File-level search (hybrid, no BFS)
 
 Used by: `search_topic_files`, `search_files`, `search_all_files`, `search_snippets`
 
-Simpler — no BFS expansion, just vector similarity:
+Uses the same hybrid BM25 + vector approach as node search, but without BFS expansion. File paths are normalized (slashes/dots → spaces) for better embedding quality. Exact filename queries (e.g. "embedder.ts") work via BM25 keyword matching:
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|

@@ -103,11 +103,14 @@ Each graph defines what text to extract for BM25 indexing:
 
 ## File-level search
 
-`search_files` and `search_topic_files` use **file-level embeddings** stored on root nodes:
-- Code: file path only
+`search_files`, `search_topic_files`, and `search_all_files` use **file-level embeddings** stored on root nodes:
+- Code: file path + exported symbol names + import summary
 - Docs: file path + h1 title
+- FileIndex: file path
 
-These searches use simple cosine similarity with no BFS expansion. Default `minScore: 0.3`, `topK: 10`.
+File searches use the same **hybrid approach** (BM25 + vector, fused via RRF) as node-level search. This means exact filename queries (e.g. "embedder.ts") find files by keyword match, while semantic queries (e.g. "authentication helpers") work via vector similarity. No BFS expansion. Default `minScore: 0.3`, `topK: 10`.
+
+File paths are normalized for embedding (slashes/dots → spaces) so that path segments like `src`, `lib`, `search` are treated as separate tokens by the embedding model.
 
 ## Search modules
 

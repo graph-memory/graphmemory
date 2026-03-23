@@ -100,3 +100,10 @@ export const DEFAULT_EMBEDDING_CACHE_SIZE = 10_000;
 // ---------------------------------------------------------------------------
 
 export const WIKI_MAX_DEPTH = 10;
+
+// ---------------------------------------------------------------------------
+// Graph data version — bump when changing what gets embedded, stored format,
+// or any schema change that requires re-indexing
+// ---------------------------------------------------------------------------
+
+export const GRAPH_DATA_VERSION = 2;  // v2: body in code embeddings, path normalization, hybrid file search

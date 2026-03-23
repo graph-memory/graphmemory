@@ -10,7 +10,7 @@ import { BM25Index } from '@/lib/search/bm25';
 import { mirrorNoteCreate, mirrorNoteUpdate, mirrorNoteRelation, mirrorAttachmentEvent, deleteMirrorDir, writeAttachment, deleteAttachment, getAttachmentPath as getAttPath, sanitizeFilename } from '@/lib/file-mirror';
 import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
 import { readJsonWithTmpFallback, validateGraphStructure } from '@/lib/graph-persistence';
-import { LIST_LIMIT_SMALL, CONTENT_PREVIEW_LEN } from '@/lib/defaults';
+import { LIST_LIMIT_SMALL, CONTENT_PREVIEW_LEN, GRAPH_DATA_VERSION } from '@/lib/defaults';
 import type { MirrorWriteTracker } from '@/lib/mirror-watcher';
 import type { ParsedNoteFile } from '@/lib/file-import';
 import type { AttachmentMeta } from '@/graphs/attachment-types';
@@ -413,7 +413,7 @@ export function saveKnowledgeGraph(graph: KnowledgeGraph, graphMemory: string, e
   try {
     const exported = graph.export();
     compressEmbeddings(exported);
-    fs.writeFileSync(tmp, JSON.stringify({ embeddingModel: embeddingFingerprint, graph: exported }));
+    fs.writeFileSync(tmp, JSON.stringify({ version: GRAPH_DATA_VERSION, embeddingModel: embeddingFingerprint, graph: exported }));
     fs.renameSync(tmp, file);
   } catch (err) {
     try { fs.unlinkSync(tmp); } catch { /* ignore cleanup error */ }
@@ -430,8 +430,13 @@ export function loadKnowledgeGraph(graphMemory: string, fresh = false, embedding
   if (!data) return graph;
 
   try {
-    const stored = data.embeddingModel as string | undefined;
+    const storedVersion = data.version as number | undefined;
+    if (storedVersion !== GRAPH_DATA_VERSION) {
+      process.stderr.write(`[knowledge-graph] Data version changed (${storedVersion ?? 'none'} → ${GRAPH_DATA_VERSION}), re-indexing knowledge graph\n`);
+      return graph;
+    }
 
+    const stored = data.embeddingModel as string | undefined;
     if (embeddingFingerprint && stored !== embeddingFingerprint) {
       process.stderr.write(`[knowledge-graph] Embedding config changed, re-indexing knowledge graph\n`);
       return graph;

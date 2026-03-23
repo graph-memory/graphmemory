@@ -8,7 +8,7 @@ import { searchFileIndex, type FileIndexSearchResult } from '@/lib/search/file-i
 import { BM25Index } from '@/lib/search/bm25';
 import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
 import { readJsonWithTmpFallback, validateGraphStructure } from '@/lib/graph-persistence';
-import { LIST_LIMIT_LARGE } from '@/lib/defaults';
+import { LIST_LIMIT_LARGE, GRAPH_DATA_VERSION } from '@/lib/defaults';
 
 // ---------------------------------------------------------------------------
 // CRUD
@@ -269,7 +269,7 @@ export function saveFileIndexGraph(graph: FileIndexGraph, graphMemory: string, e
   try {
     const exported = graph.export();
     compressEmbeddings(exported);
-    fs.writeFileSync(tmp, JSON.stringify({ embeddingModel: embeddingFingerprint, graph: exported }));
+    fs.writeFileSync(tmp, JSON.stringify({ version: GRAPH_DATA_VERSION, embeddingModel: embeddingFingerprint, graph: exported }));
     fs.renameSync(tmp, file);
   } catch (err) {
     try { fs.unlinkSync(tmp); } catch { /* ignore cleanup error */ }
@@ -286,8 +286,13 @@ export function loadFileIndexGraph(graphMemory: string, fresh = false, embedding
   if (!data) return graph;
 
   try {
-    const stored = data.embeddingModel as string | undefined;
+    const storedVersion = data.version as number | undefined;
+    if (storedVersion !== GRAPH_DATA_VERSION) {
+      process.stderr.write(`[file-index] Data version changed (${storedVersion ?? 'none'} → ${GRAPH_DATA_VERSION}), re-indexing file index\n`);
+      return graph;
+    }
 
+    const stored = data.embeddingModel as string | undefined;
     if (embeddingFingerprint && stored !== embeddingFingerprint) {
       process.stderr.write(`[file-index] Embedding config changed, re-indexing file index\n`);
       return graph;

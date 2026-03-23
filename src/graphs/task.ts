@@ -12,7 +12,7 @@ import { BM25Index } from '@/lib/search/bm25';
 import { mirrorTaskCreate, mirrorTaskUpdate, mirrorTaskRelation, mirrorAttachmentEvent, deleteMirrorDir, writeAttachment, deleteAttachment, getAttachmentPath as getAttPath, sanitizeFilename } from '@/lib/file-mirror';
 import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
 import { readJsonWithTmpFallback, validateGraphStructure } from '@/lib/graph-persistence';
-import { LIST_LIMIT_LARGE, CONTENT_PREVIEW_LEN } from '@/lib/defaults';
+import { LIST_LIMIT_LARGE, CONTENT_PREVIEW_LEN, GRAPH_DATA_VERSION } from '@/lib/defaults';
 import type { MirrorWriteTracker } from '@/lib/mirror-watcher';
 import type { ParsedTaskFile } from '@/lib/file-import';
 import { scanAttachments, MAX_ATTACHMENT_SIZE, MAX_ATTACHMENTS_PER_ENTITY } from '@/graphs/attachment-types';
@@ -618,7 +618,7 @@ export function saveTaskGraph(graph: TaskGraph, graphMemory: string, embeddingFi
   try {
     const exported = graph.export();
     compressEmbeddings(exported);
-    fs.writeFileSync(tmp, JSON.stringify({ embeddingModel: embeddingFingerprint, graph: exported }));
+    fs.writeFileSync(tmp, JSON.stringify({ version: GRAPH_DATA_VERSION, embeddingModel: embeddingFingerprint, graph: exported }));
     fs.renameSync(tmp, file);
   } catch (err) {
     try { fs.unlinkSync(tmp); } catch { /* ignore cleanup error */ }
@@ -635,8 +635,13 @@ export function loadTaskGraph(graphMemory: string, fresh = false, embeddingFinge
   if (!data) return graph;
 
   try {
-    const stored = data.embeddingModel as string | undefined;
+    const storedVersion = data.version as number | undefined;
+    if (storedVersion !== GRAPH_DATA_VERSION) {
+      process.stderr.write(`[task-graph] Data version changed (${storedVersion ?? 'none'} → ${GRAPH_DATA_VERSION}), re-indexing task graph\n`);
+      return graph;
+    }
 
+    const stored = data.embeddingModel as string | undefined;
     if (embeddingFingerprint && stored !== embeddingFingerprint) {
       process.stderr.write(`[task-graph] Embedding config changed, re-indexing task graph\n`);
       return graph;

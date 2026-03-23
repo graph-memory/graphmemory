@@ -14,7 +14,7 @@ import type { MirrorWriteTracker } from '@/lib/mirror-watcher';
 import type { ParsedSkillFile } from '@/lib/file-import';
 import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
 import { readJsonWithTmpFallback, validateGraphStructure } from '@/lib/graph-persistence';
-import { LIST_LIMIT_LARGE, CONTENT_PREVIEW_LEN } from '@/lib/defaults';
+import { LIST_LIMIT_LARGE, CONTENT_PREVIEW_LEN, GRAPH_DATA_VERSION } from '@/lib/defaults';
 import { scanAttachments, MAX_ATTACHMENT_SIZE, MAX_ATTACHMENTS_PER_ENTITY } from '@/graphs/attachment-types';
 import { diffRelations } from '@/lib/file-import';
 import type { RelationFrontmatter } from '@/lib/file-mirror';
@@ -596,7 +596,7 @@ export function saveSkillGraph(graph: SkillGraph, graphMemory: string, embedding
   try {
     const exported = graph.export();
     compressEmbeddings(exported);
-    fs.writeFileSync(tmp, JSON.stringify({ embeddingModel: embeddingFingerprint, graph: exported }));
+    fs.writeFileSync(tmp, JSON.stringify({ version: GRAPH_DATA_VERSION, embeddingModel: embeddingFingerprint, graph: exported }));
     fs.renameSync(tmp, file);
   } catch (err) {
     try { fs.unlinkSync(tmp); } catch { /* ignore cleanup error */ }
@@ -613,8 +613,13 @@ export function loadSkillGraph(graphMemory: string, fresh = false, embeddingFing
   if (!data) return graph;
 
   try {
-    const stored = data.embeddingModel as string | undefined;
+    const storedVersion = data.version as number | undefined;
+    if (storedVersion !== GRAPH_DATA_VERSION) {
+      process.stderr.write(`[skill-graph] Data version changed (${storedVersion ?? 'none'} → ${GRAPH_DATA_VERSION}), re-indexing skill graph\n`);
+      return graph;
+    }
 
+    const stored = data.embeddingModel as string | undefined;
     if (embeddingFingerprint && stored !== embeddingFingerprint) {
       process.stderr.write(`[skill-graph] Embedding config changed, re-indexing skill graph\n`);
       return graph;

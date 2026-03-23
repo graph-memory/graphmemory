@@ -10,7 +10,7 @@ import { searchCodeFiles, type CodeFileSearchResult } from '@/lib/search/files';
 import { BM25Index, type SearchMode } from '@/lib/search/bm25';
 import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
 import { readJsonWithTmpFallback, validateGraphStructure } from '@/lib/graph-persistence';
-import { BM25_BODY_MAX_CHARS, LIST_LIMIT_SMALL } from '@/lib/defaults';
+import { BM25_BODY_MAX_CHARS, LIST_LIMIT_SMALL, GRAPH_DATA_VERSION } from '@/lib/defaults';
 
 export type { CodeGraph };
 export { createCodeGraph };
@@ -202,7 +202,7 @@ export function saveCodeGraph(graph: CodeGraph, graphMemory: string, embeddingFi
   try {
     const exported = graph.export();
     compressEmbeddings(exported);
-    fs.writeFileSync(tmp, JSON.stringify({ embeddingModel: embeddingFingerprint, graph: exported }));
+    fs.writeFileSync(tmp, JSON.stringify({ version: GRAPH_DATA_VERSION, embeddingModel: embeddingFingerprint, graph: exported }));
     fs.renameSync(tmp, file);
   } catch (err) {
     try { fs.unlinkSync(tmp); } catch { /* ignore cleanup error */ }
@@ -219,8 +219,13 @@ export function loadCodeGraph(graphMemory: string, fresh = false, embeddingFinge
   if (!data) return graph;
 
   try {
-    const stored = data.embeddingModel as string | undefined;
+    const storedVersion = data.version as number | undefined;
+    if (storedVersion !== GRAPH_DATA_VERSION) {
+      process.stderr.write(`[code-graph] Data version changed (${storedVersion ?? 'none'} → ${GRAPH_DATA_VERSION}), re-indexing code graph\n`);
+      return graph;
+    }
 
+    const stored = data.embeddingModel as string | undefined;
     if (embeddingFingerprint && stored !== embeddingFingerprint) {
       process.stderr.write(`[code-graph] Embedding config changed, re-indexing code graph\n`);
       return graph;

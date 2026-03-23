@@ -89,8 +89,9 @@ export function search(
     ];
     const localVisited = new Set<string>();
 
-    while (queue.length > 0) {
-      const item = queue.shift()!;
+    let head = 0;
+    while (head < queue.length) {
+      const item = queue[head++];
       if (localVisited.has(item.id)) continue;
       localVisited.add(item.id);
 

@@ -311,7 +311,7 @@ const MODEL_DEFAULTS: ModelConfig = {
 
 const EMBEDDING_DEFAULTS: EmbeddingConfig = {
   batchSize:      1,
-  maxChars:       8000,
+  maxChars:       24_000,
   cacheSize:      10_000,
 };
 

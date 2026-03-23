@@ -169,7 +169,12 @@ export function createProjectIndexer(
     }
     const parsed = await parseCodeFile(absolutePath, config.projectDir, mtime);
     // Batch-embed all symbols + file-level in one forward pass
-    const batchInputs = parsed.nodes.map(({ attrs }) => ({ title: attrs.signature, content: attrs.docComment }));
+    const batchInputs = parsed.nodes.map(({ attrs }) => ({
+      title: attrs.signature,
+      content: attrs.kind !== 'file'
+        ? [attrs.docComment, attrs.body].filter(Boolean).join('\n')
+        : attrs.docComment,
+    }));
     // File-level embedding: path + exported symbol names + import summary
     const fileNode = parsed.nodes.find(n => n.attrs.kind === 'file');
     const exportedNames = parsed.nodes

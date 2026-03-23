@@ -5,6 +5,7 @@ import { getLanguage, getMimeType } from '@/graphs/file-lang';
 import type { EmbedFns, ExternalGraphs, IncomingCrossLink } from '@/graphs/manager-types';
 import { findIncomingCrossLinks } from '@/graphs/manager-types';
 import { searchFileIndex, type FileIndexSearchResult } from '@/lib/search/file-index';
+import { BM25Index } from '@/lib/search/bm25';
 import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
 import { readJsonWithTmpFallback, validateGraphStructure } from '@/lib/graph-persistence';
 import { LIST_LIMIT_LARGE } from '@/lib/defaults';
@@ -312,11 +313,17 @@ export function loadFileIndexGraph(graphMemory: string, fresh = false, embedding
 // ---------------------------------------------------------------------------
 
 export class FileIndexGraphManager {
+  private _bm25Index = new BM25Index<FileIndexNodeAttributes>((attrs) => attrs.filePath);
+
   constructor(
     private _graph: FileIndexGraph,
     private embedFns: EmbedFns,
     private ext: ExternalGraphs = {},
-  ) {}
+  ) {
+    _graph.forEachNode((id, attrs) => {
+      if (attrs.kind === 'file') this._bm25Index.addDocument(id, attrs);
+    });
+  }
 
   get graph(): FileIndexGraph { return this._graph; }
 
@@ -324,9 +331,13 @@ export class FileIndexGraphManager {
 
   updateFileEntry(filePath: string, size: number, mtime: number, embedding: number[]): void {
     updateFileEntry(this._graph, filePath, size, mtime, embedding);
+    if (this._graph.hasNode(filePath)) {
+      this._bm25Index.updateDocument(filePath, this._graph.getNodeAttributes(filePath));
+    }
   }
 
   removeFileEntry(filePath: string): void {
+    this._bm25Index.removeDocument(filePath);
     removeFileEntry(this._graph, filePath);
   }
 
@@ -357,6 +368,6 @@ export class FileIndexGraphManager {
     topK?: number; minScore?: number;
   }): Promise<FileIndexSearchResult[]> {
     const embedding = await this.embedFns.query(query);
-    return searchFileIndex(this._graph, embedding, opts);
+    return searchFileIndex(this._graph, embedding, { ...opts, queryText: query, bm25Index: this._bm25Index });
   }
 }

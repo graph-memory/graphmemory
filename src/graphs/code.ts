@@ -247,6 +247,7 @@ export function loadCodeGraph(graphMemory: string, fresh = false, embeddingFinge
 
 export class CodeGraphManager {
   private _bm25Index = new BM25Index<CodeNodeAttributes>((attrs) => `${attrs.name} ${attrs.signature} ${attrs.docComment} ${attrs.body.slice(0, BM25_BODY_MAX_CHARS)}`);
+  private _fileBm25 = new BM25Index<{ fileId: string }>((attrs) => attrs.fileId);
 
   constructor(
     private _graph: CodeGraph,
@@ -255,6 +256,7 @@ export class CodeGraphManager {
   ) {
     _graph.forEachNode((id, attrs) => {
       this._bm25Index.addDocument(id, attrs);
+      if (attrs.kind === 'file') this._fileBm25.addDocument(attrs.fileId, { fileId: attrs.fileId });
     });
   }
 
@@ -268,17 +270,20 @@ export class CodeGraphManager {
     this._graph.forEachNode((id, attrs) => {
       if (attrs.fileId === parsed.fileId) this._bm25Index.removeDocument(id);
     });
+    this._fileBm25.removeDocument(parsed.fileId);
     updateCodeFile(this._graph, parsed);
     // Add new nodes to BM25
     this._graph.forEachNode((id, attrs) => {
       if (attrs.fileId === parsed.fileId) this._bm25Index.addDocument(id, attrs);
     });
+    this._fileBm25.addDocument(parsed.fileId, { fileId: parsed.fileId });
   }
 
   removeFile(fileId: string): void {
     this._graph.forEachNode((id, attrs) => {
       if (attrs.fileId === fileId) this._bm25Index.removeDocument(id);
     });
+    this._fileBm25.removeDocument(fileId);
     removeCodeFile(this._graph, fileId);
   }
 
@@ -314,6 +319,6 @@ export class CodeGraphManager {
     topK?: number; minScore?: number;
   }): Promise<CodeFileSearchResult[]> {
     const embedding = await this.embedFns.query(query);
-    return searchCodeFiles(this._graph, embedding, opts);
+    return searchCodeFiles(this._graph, embedding, { ...opts, queryText: query, bm25Index: this._fileBm25 });
   }
 }

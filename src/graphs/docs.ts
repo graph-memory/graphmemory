@@ -205,6 +205,7 @@ export function loadGraph(graphMemory: string, fresh = false, embeddingFingerpri
 
 export class DocGraphManager {
   private _bm25Index = new BM25Index<NodeAttributes>((attrs) => `${attrs.title} ${attrs.content}`);
+  private _fileBm25 = new BM25Index<{ fileId: string; title: string }>((attrs) => `${attrs.fileId} ${attrs.title}`);
 
   constructor(
     private _graph: DocGraph,
@@ -213,6 +214,7 @@ export class DocGraphManager {
   ) {
     _graph.forEachNode((id, attrs) => {
       this._bm25Index.addDocument(id, attrs);
+      if (attrs.level === 1) this._fileBm25.addDocument(attrs.fileId, { fileId: attrs.fileId, title: attrs.title });
     });
   }
 
@@ -228,6 +230,7 @@ export class DocGraphManager {
       this._graph.forEachNode((id, attrs) => {
         if (attrs.fileId === fileId) this._bm25Index.removeDocument(id);
       });
+      this._fileBm25.removeDocument(fileId);
     }
     updateFile(this._graph, chunks, mtime);
     // Add new nodes to BM25
@@ -236,6 +239,8 @@ export class DocGraphManager {
       this._graph.forEachNode((id, attrs) => {
         if (attrs.fileId === fileId) this._bm25Index.addDocument(id, attrs);
       });
+      const root = chunks.find(c => c.level === 1);
+      if (root) this._fileBm25.addDocument(fileId, { fileId, title: root.title });
     }
   }
 
@@ -243,6 +248,7 @@ export class DocGraphManager {
     this._graph.forEachNode((id, attrs) => {
       if (attrs.fileId === fileId) this._bm25Index.removeDocument(id);
     });
+    this._fileBm25.removeDocument(fileId);
     removeFile(this._graph, fileId);
   }
 
@@ -278,6 +284,6 @@ export class DocGraphManager {
     topK?: number; minScore?: number;
   }): Promise<DocFileSearchResult[]> {
     const embedding = await this.embedFns.query(query);
-    return searchDocFiles(this._graph, embedding, opts);
+    return searchDocFiles(this._graph, embedding, { ...opts, queryText: query, bm25Index: this._fileBm25 });
   }
 }

@@ -18,6 +18,8 @@ import { cleanupProxies as cleanupSkillProxies } from '@/graphs/skill';
 import type { FileIndexGraph } from '@/graphs/file-index-types';
 import { updateFileEntry, removeFileEntry, getFileEntryMtime, rebuildDirectoryStats } from '@/graphs/file-index';
 
+export type IndexPhase = 'docs' | 'code' | 'files';
+
 export interface ProjectIndexerConfig {
   projectId?: string;
   projectDir: string;
@@ -34,12 +36,12 @@ export interface ProjectIndexerConfig {
 }
 
 export interface ProjectIndexer {
-  /** Walk projectDir once, dispatch each file to the matching queue. */
-  scan(): void;
+  /** Walk projectDir, dispatch files to queues. With phase, only the matching queue. */
+  scan(phase?: IndexPhase): void;
   /** Start a single chokidar watcher; dispatch add/change/unlink by pattern. */
   watch(): WatcherHandle;
-  /** Resolves when both docs and code queues are empty. */
-  drain(): Promise<void>;
+  /** Wait for queues to idle. With phase, only the matching queue (no finalize). Without phase, all queues + finalize. */
+  drain(phase?: IndexPhase): Promise<void>;
 }
 
 export function createProjectIndexer(
@@ -236,23 +238,27 @@ export function createProjectIndexer(
     return patterns.length > 0 && micromatch.isMatch(rel, patterns);
   }
 
+  // Phase filter — set before scan(), checked in dispatch.
+  // undefined = all queues (watcher mode / legacy).
+  let currentPhase: IndexPhase | undefined;
+
   function dispatchAdd(absolutePath: string): void {
     const rel = path.relative(config.projectDir, absolutePath);
-    if (docGraph && config.docsInclude && !isExcluded(rel, docsExclude) && micromatch.isMatch(rel, config.docsInclude)) {
+    if ((!currentPhase || currentPhase === 'docs') && docGraph && config.docsInclude && !isExcluded(rel, docsExclude) && micromatch.isMatch(rel, config.docsInclude)) {
       if (rel.endsWith('.md')) clearWikiIndexCache(config.projectDir);
       enqueueDoc(() => indexDocFile(absolutePath));
     }
-    if (codeGraph && config.codeInclude && !isExcluded(rel, codeExclude) && micromatch.isMatch(rel, config.codeInclude)) {
+    if ((!currentPhase || currentPhase === 'code') && codeGraph && config.codeInclude && !isExcluded(rel, codeExclude) && micromatch.isMatch(rel, config.codeInclude)) {
       enqueueCode(() => indexCodeFile(absolutePath));
     }
-    if (fileIndexGraph && !isExcluded(rel, filesExclude)) {
+    if ((!currentPhase || currentPhase === 'files') && fileIndexGraph && !isExcluded(rel, filesExclude)) {
       enqueueFile(() => indexFileEntry(absolutePath));
     }
   }
 
   function dispatchRemove(absolutePath: string): void {
     const rel = path.relative(config.projectDir, absolutePath);
-    if (docGraph && config.docsInclude && !isExcluded(rel, docsExclude) && micromatch.isMatch(rel, config.docsInclude)) {
+    if ((!currentPhase || currentPhase === 'docs') && docGraph && config.docsInclude && !isExcluded(rel, docsExclude) && micromatch.isMatch(rel, config.docsInclude)) {
       if (rel.endsWith('.md')) clearWikiIndexCache(config.projectDir);
       // Enqueue removal to avoid racing with in-flight indexDocFile tasks
       enqueueDoc(async () => {
@@ -263,7 +269,7 @@ export function createProjectIndexer(
         process.stderr.write(`[indexer] removed doc  ${rel}\n`);
       });
     }
-    if (codeGraph && config.codeInclude && !isExcluded(rel, codeExclude) && micromatch.isMatch(rel, config.codeInclude)) {
+    if ((!currentPhase || currentPhase === 'code') && codeGraph && config.codeInclude && !isExcluded(rel, codeExclude) && micromatch.isMatch(rel, config.codeInclude)) {
       enqueueCode(async () => {
         removeCodeFile(codeGraph, rel);
         if (knowledgeGraph) cleanupKnowledgeProxies(knowledgeGraph, 'code', codeGraph, config.projectId);
@@ -272,7 +278,7 @@ export function createProjectIndexer(
         process.stderr.write(`[indexer] removed code ${rel}\n`);
       });
     }
-    if (fileIndexGraph && !isExcluded(rel, filesExclude)) {
+    if ((!currentPhase || currentPhase === 'files') && fileIndexGraph && !isExcluded(rel, filesExclude)) {
       enqueueFile(async () => {
         removeFileEntry(fileIndexGraph, rel);
         if (knowledgeGraph) cleanupKnowledgeProxies(knowledgeGraph, 'files', fileIndexGraph, config.projectId);
@@ -287,7 +293,8 @@ export function createProjectIndexer(
   // Public API
   // ---------------------------------------------------------------------------
 
-  function scan(): void {
+  function scan(phase?: IndexPhase): void {
+    currentPhase = phase;
     function walk(dir: string): void {
       for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
         if (entry.name.startsWith('.') || ALWAYS_IGNORED.has(entry.name)) continue;
@@ -307,6 +314,7 @@ export function createProjectIndexer(
       }
     }
     walk(config.projectDir);
+    currentPhase = undefined; // reset for watcher
   }
 
   function watch(): WatcherHandle {
@@ -322,7 +330,16 @@ export function createProjectIndexer(
     );
   }
 
-  async function drain(): Promise<void> {
+  async function drain(phase?: IndexPhase): Promise<void> {
+    if (phase) {
+      // Wait for a single queue — no finalize
+      if (phase === 'docs') await docsQueue.waitIdle();
+      else if (phase === 'code') await codeQueue.waitIdle();
+      else if (phase === 'files') await fileQueue.waitIdle();
+      return;
+    }
+
+    // No phase = wait all + finalize (legacy / after all phases)
     await Promise.all([docsQueue.waitIdle(), codeQueue.waitIdle(), fileQueue.waitIdle()]);
     if (fileIndexGraph) rebuildDirectoryStats(fileIndexGraph);
 

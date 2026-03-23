@@ -82,7 +82,7 @@ program
         await manager.addProject(id, project, reindex, projectWorkspace.get(id));
       }
 
-      // Load models (workspaces first, then projects)
+      // Register models for lazy loading (workspaces first, then projects)
       for (const wsId of manager.listWorkspaces()) {
         await manager.loadWorkspaceModels(wsId);
       }
@@ -90,10 +90,28 @@ program
         await manager.loadModels(id);
       }
 
-      // Index all projects
+      // Create indexers for all projects
       for (const id of ids) {
-        process.stderr.write(`[index] Indexing project "${id}"...\n`);
-        await manager.startIndexing(id);
+        manager.ensureIndexer(id);
+      }
+
+      // Three-phase sequential indexing: docs → files → code
+      // Models load lazily on first embed, so only one ONNX pipeline at a time.
+      const phases = [
+        { phase: 'docs' as const, label: '1/3 docs' },
+        { phase: 'files' as const, label: '2/3 files' },
+        { phase: 'code' as const, label: '3/3 code' },
+      ];
+      for (const { phase, label } of phases) {
+        for (const id of ids) {
+          process.stderr.write(`[index] Phase ${label} for "${id}"...\n`);
+          await manager.startIndexingPhase(id, phase);
+        }
+      }
+
+      // Finalize all projects (drain edges, start watchers, save, mirror)
+      for (const id of ids) {
+        await manager.finalizeIndexing(id);
         const instance = manager.getProject(id)!;
         if (instance.docGraph) {
           process.stderr.write(`[index] "${id}" docs: ${instance.docGraph.order} nodes, ${instance.docGraph.size} edges\n`);
@@ -183,22 +201,50 @@ program
       }
     }
 
-    // Load workspace models
+    // Register models for lazy loading (workspaces first, then projects)
     for (const wsId of manager.listWorkspaces()) {
       try {
         await manager.loadWorkspaceModels(wsId);
       } catch (err: unknown) {
-        process.stderr.write(`[serve] Failed to load workspace "${wsId}" models: ${err}\n`);
+        process.stderr.write(`[serve] Failed to register workspace "${wsId}" models: ${err}\n`);
       }
     }
 
-    // Load project models and start indexing
-    for (const id of manager.listProjects()) {
+    const projectIds = manager.listProjects();
+    for (const id of projectIds) {
       try {
         await manager.loadModels(id);
-        await manager.startIndexing(id);
       } catch (err: unknown) {
-        process.stderr.write(`[serve] Failed to initialize project "${id}": ${err}\n`);
+        process.stderr.write(`[serve] Failed to register project "${id}" models: ${err}\n`);
+      }
+    }
+
+    // Three-phase sequential indexing: docs → files → code
+    for (const id of projectIds) {
+      try { manager.ensureIndexer(id); } catch (err: unknown) {
+        process.stderr.write(`[serve] Failed to create indexer for "${id}": ${err}\n`);
+      }
+    }
+    const phases = [
+      { phase: 'docs' as const, label: '1/3 docs' },
+      { phase: 'files' as const, label: '2/3 files' },
+      { phase: 'code' as const, label: '3/3 code' },
+    ];
+    for (const { phase, label } of phases) {
+      for (const id of projectIds) {
+        try {
+          process.stderr.write(`[serve] Phase ${label} for "${id}"...\n`);
+          await manager.startIndexingPhase(id, phase);
+        } catch (err: unknown) {
+          process.stderr.write(`[serve] Failed phase ${label} for "${id}": ${err}\n`);
+        }
+      }
+    }
+    for (const id of projectIds) {
+      try {
+        await manager.finalizeIndexing(id);
+      } catch (err: unknown) {
+        process.stderr.write(`[serve] Failed to finalize "${id}": ${err}\n`);
       }
     }
 

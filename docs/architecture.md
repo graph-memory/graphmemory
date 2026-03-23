@@ -77,11 +77,11 @@ Entry point: `src/cli/index.ts` (Commander.js). Three main commands (`index`, `m
 
 ### 4. Indexing Layer
 
-`src/cli/indexer.ts` — `ProjectIndexer` walks the project directory, dispatches files to three independent serial queues (docs, code, file index). Uses chokidar for live watching. See [Indexer](indexer.md) and [Watcher](watcher.md).
+`src/cli/indexer.ts` — `ProjectIndexer` walks the project directory, dispatches files to three serial queues (docs, code, file index). During initial indexing, queues run sequentially by phase (docs → files → code) to minimize peak memory; after that, the chokidar watcher dispatches to all queues in parallel. See [Indexer](indexer.md) and [Watcher](watcher.md).
 
 ### 5. Embedding Layer
 
-`src/lib/embedder.ts` — named model registry with deduplication. Supports local ONNX models via `@huggingface/transformers` and remote HTTP proxies. See [Embeddings](embeddings.md).
+`src/lib/embedder.ts` — named model registry with lazy loading and deduplication. Models are registered at startup but the ONNX pipeline is only created on first use, reducing peak memory. ONNX sessions use memory-optimized options (`enableCpuMemArena: false`, `enableMemPattern: false`, sequential execution). Supports local ONNX models via `@huggingface/transformers` and remote HTTP proxies. See [Embeddings](embeddings.md).
 
 ### 6. Graph Layer
 

@@ -117,6 +117,22 @@ server:
 
 This exposes `POST /api/embed` which accepts `{ "texts": ["..."] }` and returns `{ "embeddings": [[...]] }`. Pass `format: "base64"` in the request body to receive embeddings as Base64-encoded Float32 arrays instead of JSON number arrays.
 
+## Lazy model loading
+
+Embedding models are **registered at startup but not loaded into memory** until the first embedding is needed. The heavy ONNX pipeline — which can use 1 GB or more of RAM per model — is only initialized on first use. This keeps startup fast and avoids allocating memory for models that may not be needed immediately.
+
+Additionally, ONNX Runtime session options are tuned to reduce memory overhead during inference.
+
+## Three-phase sequential indexing
+
+During initial indexing, Graph Memory processes graphs in a fixed order: **docs → files → code**. Each phase completes before the next begins. Because models are loaded lazily, this means only one embedding model is resident in memory at a time during indexing.
+
+For multi-project setups where each project has its own model configuration, this reduces peak memory by up to **~3 GB** compared to loading all models simultaneously. Projects are indexed sequentially as well, so the memory footprint stays flat regardless of how many projects are configured.
+
+:::tip
+If you run multiple projects with per-graph models, the sequential indexing pipeline ensures you never have more than one model loaded at a time during the initial index pass.
+:::
+
 ## Embedding compression
 
 Embedding vectors are stored using **Base64 encoding** for compact serialization. Float32 arrays are encoded as Base64 strings, saving roughly 3x space compared to raw JSON number arrays. This compression is transparent — it happens automatically during save and load.

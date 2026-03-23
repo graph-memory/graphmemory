@@ -101,6 +101,12 @@ projects:
 
 The Web UI at `http://localhost:3000` includes a project selector dropdown. Switch between projects to browse their graphs, search content, and manage tasks independently.
 
+## Memory-efficient indexing
+
+When managing multiple projects, Graph Memory indexes them **sequentially** in three phases per project: docs → files → code. Embedding models are loaded lazily — the ONNX pipeline only initializes when the first embedding is needed — and each phase completes before the next begins. This means only one model is resident in memory at a time, keeping peak memory low regardless of how many projects you configure.
+
+For setups with three or more projects using the default model, this reduces peak memory by up to **~3 GB** compared to loading all models simultaneously.
+
 ## Indexing Individual Projects
 
 You can index a single project without starting the server:

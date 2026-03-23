@@ -6,7 +6,7 @@ import { loadKnowledgeGraph, saveKnowledgeGraph, KnowledgeGraphManager } from '@
 import { loadFileIndexGraph, saveFileIndexGraph, FileIndexGraphManager } from '@/graphs/file-index';
 import { loadTaskGraph, saveTaskGraph, TaskGraphManager } from '@/graphs/task';
 import { loadSkillGraph, saveSkillGraph, SkillGraphManager } from '@/graphs/skill';
-import { createProjectIndexer, type ProjectIndexer } from '@/cli/indexer';
+import { createProjectIndexer, type ProjectIndexer, type IndexPhase } from '@/cli/indexer';
 import { clearPathMappingsCache } from '@/lib/parsers/code';
 import { clearWikiIndexCache } from '@/lib/parsers/docs';
 import { PromiseQueue } from '@/lib/promise-queue';
@@ -347,10 +347,29 @@ export class ProjectManager extends EventEmitter {
 
   /**
    * Start indexing + watching for a project. Call after loadModels.
+   * Uses three sequential phases: docs → files → code, then finalize.
    */
   async startIndexing(id: string): Promise<void> {
+    this.ensureIndexer(id);
+    const instance = this.projects.get(id)!;
+
+    // Three sequential phases
+    for (const phase of ['docs', 'files', 'code'] as IndexPhase[]) {
+      instance.indexer!.scan(phase);
+      await instance.indexer!.drain(phase);
+    }
+
+    await this.finalizeIndexing(id);
+  }
+
+  /**
+   * Create the indexer and watcher for a project (if not already created).
+   * Call before startIndexingPhase or startIndexing.
+   */
+  ensureIndexer(id: string): void {
     const instance = this.projects.get(id);
     if (!instance) throw new Error(`Project "${id}" not found`);
+    if (instance.indexer) return; // already created
 
     // Clear parser caches to prevent cross-project leaks in multi-project mode
     clearPathMappingsCache();
@@ -373,9 +392,38 @@ export class ProjectManager extends EventEmitter {
     }, instance.knowledgeGraph, instance.fileIndexGraph, instance.taskGraph, instance.skillGraph);
 
     instance.indexer = indexer;
-    instance.watcher = indexer.watch();
-    await instance.watcher.whenReady;
-    await indexer.drain();
+  }
+
+  /**
+   * Run a single indexing phase (docs, code, or files) for a project.
+   * Call ensureIndexer first. Watcher is NOT started — call finalizeIndexing when done.
+   */
+  async startIndexingPhase(id: string, phase: IndexPhase): Promise<void> {
+    const instance = this.projects.get(id);
+    if (!instance) throw new Error(`Project "${id}" not found`);
+    if (!instance.indexer) throw new Error(`Indexer not created for "${id}". Call ensureIndexer() first.`);
+
+    instance.indexer.scan(phase);
+    await instance.indexer.drain(phase);
+  }
+
+  /**
+   * Finalize indexing: run full drain (finalize edges), start watcher, save, mirror, emit.
+   * Call after all phases are done.
+   */
+  async finalizeIndexing(id: string): Promise<void> {
+    const instance = this.projects.get(id);
+    if (!instance) throw new Error(`Project "${id}" not found`);
+    if (!instance.indexer) throw new Error(`Indexer not created for "${id}". Call ensureIndexer() first.`);
+
+    // Full drain with finalize (rebuildDirectoryStats, resolvePendingLinks, etc.)
+    await instance.indexer.drain();
+
+    // Start watcher for live re-indexing
+    if (!instance.watcher) {
+      instance.watcher = instance.indexer.watch();
+      await instance.watcher.whenReady;
+    }
 
     // Save after initial scan
     this.saveProject(instance);

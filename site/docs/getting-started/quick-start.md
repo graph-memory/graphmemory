@@ -19,7 +19,7 @@ graphmemory serve
 That's it. No config file needed — the current directory becomes your project. Graph Memory will:
 
 1. Download the embedding model on first run (~560 MB, cached for future use)
-2. Index all markdown docs, TypeScript/JavaScript files, and project files
+2. Index your project in three sequential phases: docs → files → code (models load lazily, keeping memory usage low)
 3. Start the server on `http://localhost:3000`
 
 ## 2. Open the Web UI

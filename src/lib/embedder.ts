@@ -42,9 +42,11 @@ class LruCache<V> {
 // ---------------------------------------------------------------------------
 
 interface ModelEntry {
-  pipe: FeatureExtractionPipeline | null;  // null for remote models
+  pipe: FeatureExtractionPipeline | null;  // null for remote & lazy models
+  pipePromise: Promise<FeatureExtractionPipeline> | null; // lazy init in-flight
   model: ModelConfig;
   embedding: EmbeddingConfig;
+  modelsDir: string;
   maxChars: number;
   cache: LruCache<number[]>;
   remote?: { url: string; apiKey?: string; model?: string };
@@ -61,6 +63,11 @@ function validateRemoteUrl(url: string): void {
   }
 }
 
+/**
+ * Register a model for lazy loading. The ONNX pipeline is NOT created here —
+ * it will be loaded on the first embed/embedQuery/embedBatch call.
+ * Remote models are registered immediately (no ONNX needed).
+ */
 export async function loadModel(
   model: ModelConfig, embedding: EmbeddingConfig, modelsDir: string, name = 'default',
 ): Promise<void> {
@@ -70,39 +77,113 @@ export async function loadModel(
   // Remote embedding: register proxy, skip ONNX loading
   if (embedding.remote) {
     validateRemoteUrl(embedding.remote);
-    _models.set(name, { pipe: null, model, embedding, maxChars, cache: new LruCache(cacheSize), remote: { url: embedding.remote, apiKey: embedding.remoteApiKey, model: embedding.remoteModel } });
+    _models.set(name, { pipe: null, pipePromise: null, model, embedding, modelsDir, maxChars, cache: new LruCache(cacheSize), remote: { url: embedding.remote, apiKey: embedding.remoteApiKey, model: embedding.remoteModel } });
     process.stderr.write(`[embedder] Model "${name}" using remote endpoint ${embedding.remote}\n`);
     return;
   }
 
-  // Cache key includes dtype since same model with different dtype = different pipeline
-  const cacheKey = `${model.name}|${model.dtype ?? ''}`;
+  // Register for lazy loading — pipeline created on first use
+  _models.set(name, { pipe: null, pipePromise: null, model, embedding, modelsDir, maxChars, cache: new LruCache(cacheSize) });
+  process.stderr.write(`[embedder] Registered model ${model.name} for "${name}" (lazy)\n`);
+}
 
-  // Reuse pipeline if same model+dtype already loaded
+// ---------------------------------------------------------------------------
+// Lazy pipeline initialization
+// ---------------------------------------------------------------------------
+
+/** ONNX session options to reduce memory footprint. */
+const SESSION_OPTIONS = {
+  enableCpuMemArena: false,
+  enableMemPattern: false,
+  executionMode: 'sequential' as const,
+};
+
+/**
+ * Ensure the ONNX pipeline is loaded for a model entry.
+ * Deduplicates by model+dtype via _pipeCache. Concurrent calls share the same promise.
+ */
+async function ensurePipeline(entry: ModelEntry): Promise<FeatureExtractionPipeline> {
+  if (entry.pipe) return entry.pipe;
+  if (entry.remote) throw new Error('ensurePipeline called on remote model');
+
+  const cacheKey = `${entry.model.name}|${entry.model.dtype ?? ''}`;
+
+  // Reuse pipeline if same model+dtype already loaded by another entry
   const cached = _pipeCache.get(cacheKey);
   if (cached) {
-    _models.set(name, { pipe: cached, model, embedding, maxChars, cache: new LruCache(cacheSize) });
-    process.stderr.write(`[embedder] Reusing model ${model.name} for "${name}"\n`);
-    return;
+    entry.pipe = cached;
+    entry.pipePromise = null;
+    process.stderr.write(`[embedder] Reusing model ${entry.model.name} for lazy init\n`);
+    return cached;
   }
 
-  env.cacheDir = modelsDir;
-  const modelDir = path.join(modelsDir, model.name.replace('/', path.sep));
-  if (fs.existsSync(modelDir)) {
-    env.allowRemoteModels = false;
-    process.stderr.write(`[embedder] Using local model at ${modelDir}\n`);
-  } else {
-    env.allowRemoteModels = true;
-    process.stderr.write(`[embedder] Downloading model ${model.name} to ${modelsDir}...\n`);
+  // Deduplicate concurrent lazy inits for same entry
+  if (entry.pipePromise) return entry.pipePromise;
+
+  entry.pipePromise = (async () => {
+    env.cacheDir = entry.modelsDir;
+    const modelDir = path.join(entry.modelsDir, entry.model.name.replace('/', path.sep));
+    if (fs.existsSync(modelDir)) {
+      env.allowRemoteModels = false;
+      process.stderr.write(`[embedder] Loading local model ${entry.model.name}...\n`);
+    } else {
+      env.allowRemoteModels = true;
+      process.stderr.write(`[embedder] Downloading model ${entry.model.name} to ${entry.modelsDir}...\n`);
+    }
+
+    const pipeOpts: Record<string, unknown> = { session_options: SESSION_OPTIONS };
+    if (entry.model.dtype) pipeOpts.dtype = entry.model.dtype;
+
+    const pipe = await pipeline('feature-extraction', entry.model.name, pipeOpts);
+    _pipeCache.set(cacheKey, pipe);
+    entry.pipe = pipe;
+    entry.pipePromise = null;
+    process.stderr.write(`[embedder] Model ${entry.model.name} ready\n`);
+    return pipe;
+  })();
+
+  return entry.pipePromise;
+}
+
+// ---------------------------------------------------------------------------
+// Dispose
+// ---------------------------------------------------------------------------
+
+/** Dispose a single model entry. Pipeline is only disposed if no other entries reference it. */
+export async function disposeModel(name: string): Promise<void> {
+  const entry = _models.get(name);
+  if (!entry) return;
+
+  if (entry.pipe) {
+    // Check if any other entry shares this pipeline
+    const cacheKey = `${entry.model.name}|${entry.model.dtype ?? ''}`;
+    let shared = false;
+    for (const [n, e] of _models) {
+      if (n !== name && e.pipe === entry.pipe) { shared = true; break; }
+    }
+    if (!shared) {
+      await entry.pipe.dispose();
+      _pipeCache.delete(cacheKey);
+      process.stderr.write(`[embedder] Disposed pipeline ${entry.model.name}\n`);
+    }
   }
 
-  const pipeOpts: Record<string, unknown> = {};
-  if (model.dtype) pipeOpts.dtype = model.dtype;
+  entry.cache.clear();
+  _models.delete(name);
+}
 
-  const pipe = await pipeline('feature-extraction', model.name, pipeOpts);
-  _pipeCache.set(cacheKey, pipe);
-  _models.set(name, { pipe, model, embedding, maxChars, cache: new LruCache(cacheSize) });
-  process.stderr.write(`[embedder] Model "${name}" ready\n`);
+/** Dispose all pipelines and clear registries. */
+export async function disposeAllModels(): Promise<void> {
+  const disposed = new Set<FeatureExtractionPipeline>();
+  for (const entry of _models.values()) {
+    if (entry.pipe && !disposed.has(entry.pipe)) {
+      disposed.add(entry.pipe);
+      await entry.pipe.dispose();
+    }
+    entry.cache.clear();
+  }
+  _models.clear();
+  _pipeCache.clear();
 }
 
 // ---------------------------------------------------------------------------
@@ -175,7 +256,8 @@ export async function embed(title: string, content: string, modelName = 'default
   if (entry.remote) {
     [vec] = await remoteEmbed(entry.remote.url, [text], entry.remote.apiKey, entry.remote.model);
   } else {
-    const tensor = await entry.pipe!._call(text, { pooling: entry.model.pooling, normalize: entry.model.normalize });
+    const pipe = await ensurePipeline(entry);
+    const tensor = await pipe._call(text, { pooling: entry.model.pooling, normalize: entry.model.normalize });
     vec = Array.from(tensor.data as Float32Array);
   }
   entry.cache.set(text, vec);
@@ -194,7 +276,8 @@ export async function embedQuery(query: string, modelName = 'default'): Promise<
   if (entry.remote) {
     [vec] = await remoteEmbed(entry.remote.url, [text], entry.remote.apiKey, entry.remote.model);
   } else {
-    const tensor = await entry.pipe!._call(text, { pooling: entry.model.pooling, normalize: entry.model.normalize });
+    const pipe = await ensurePipeline(entry);
+    const tensor = await pipe._call(text, { pooling: entry.model.pooling, normalize: entry.model.normalize });
     vec = Array.from(tensor.data as Float32Array);
   }
   entry.cache.set(text, vec);
@@ -225,11 +308,12 @@ export async function embedBatch(
   if (entry.remote) {
     missVecs = await remoteEmbed(entry.remote.url, missTexts, entry.remote.apiKey, entry.remote.model);
   } else {
+    const pipe = await ensurePipeline(entry);
     missVecs = [];
     const batchSize = entry.embedding.batchSize;
     for (let start = 0; start < missTexts.length; start += batchSize) {
       const chunk = missTexts.slice(start, start + batchSize);
-      const tensor = await entry.pipe!._call(chunk, { pooling: entry.model.pooling, normalize: entry.model.normalize });
+      const tensor = await pipe._call(chunk, { pooling: entry.model.pooling, normalize: entry.model.normalize });
       const dim = tensor.dims[1];
       const data = tensor.data as Float32Array;
       for (let i = 0; i < chunk.length; i++) {
@@ -249,6 +333,7 @@ export async function embedBatch(
 }
 
 export function resetEmbedder(): void {
+  for (const entry of _models.values()) entry.cache.clear();
   _models.clear();
   _pipeCache.clear();
 }

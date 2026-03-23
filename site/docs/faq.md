@@ -65,6 +65,10 @@ projects:
 
 Each project gets its own MCP endpoint (`/mcp/frontend`, `/mcp/backend`) and its own set of graphs. See the [Multi-Project Setup](/docs/guides/multi-project) guide.
 
+## How much memory does indexing use?
+
+Embedding models are loaded **lazily** — they are registered at startup but the ONNX pipeline only loads into memory when the first embedding is actually needed. During initial indexing, graphs are processed in three sequential phases (**docs → files → code**), so only one model is in memory at a time. This keeps peak memory low even for multi-project setups with per-graph models. Combined with ONNX Runtime session tuning, this approach reduces peak memory by up to ~3 GB compared to loading all models at once.
+
 ## What happens if I change the embedding model?
 
 Graph Memory detects changes automatically. Each graph stores a data version and embedding model fingerprint. When you change the model in `graph-memory.yaml`, upgrade to a new version with schema changes, or restart after any update that affects stored data, the affected graphs are automatically discarded and re-indexed. No manual `--reindex` is needed.

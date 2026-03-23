@@ -1,6 +1,6 @@
 # Indexing Pipeline
 
-The indexer (`src/cli/indexer.ts`) walks the project directory and dispatches files to three independent serial queues for parsing and embedding.
+The indexer (`src/cli/indexer.ts`) walks the project directory and dispatches files to three serial queues for parsing and embedding. During initial indexing, the queues run sequentially by phase to reduce peak memory usage; after that, the file watcher dispatches to all queues in parallel.
 
 ## Architecture
 
@@ -17,9 +17,24 @@ File detected (scan or watch event)
 └────────────────┴────────────────┴────────────────┘
 ```
 
-## Three independent serial queues
+## Three-phase sequential indexing
 
-Each queue is a Promise chain — `queue = queue.then(fn).catch(log)`. Errors are logged to stderr but don't stop the queue. The three queues run concurrently with each other.
+During initial indexing, the three queues run **sequentially by phase** rather than concurrently. This ensures only one embedding model is loaded at a time, reducing peak memory:
+
+```
+Phase 1: docs   → scan(docs)  + drain(docs)   — triggers bge-m3 lazy load
+Phase 2: files  → scan(files) + drain(files)  — reuses bge-m3 (already loaded)
+Phase 3: code   → scan(code)  + drain(code)   — triggers jina-code lazy load
+Finalize:  rebuildDirectoryStats, resolvePendingLinks, scanMirrorDirs (K/T/S)
+```
+
+The `IndexPhase` type defines the three phases: `"docs" | "files" | "code"`. `ProjectManager.startIndexingPhase(phase)` runs `scan(phase)` + `drain(phase)` for a single phase, and `ProjectManager.finalizeIndexing()` runs the post-indexing steps.
+
+After initial indexing completes, the chokidar watcher dispatches to all three queues concurrently as before.
+
+## Serial queues
+
+Each queue is a Promise chain — `queue = queue.then(fn).catch(log)`. Errors are logged to stderr but don't stop the queue.
 
 ### Docs queue
 
@@ -53,13 +68,15 @@ A single file can be dispatched to multiple queues (e.g. a `.ts` file goes to bo
 
 ## Operations
 
-### `scan()`
+### `scan(phase?)`
 
 Walks `projectDir` recursively with `fs.readdirSync`. For each entry:
 - Skips dotfiles/dotdirs (names starting with `.`)
 - Skips `ALWAYS_IGNORED` directories (`node_modules`, `dist`, `build`, etc.) at any nesting level
 - Prunes directories matching the exclude pattern (not descended into)
 - Dispatches matching files to relevant queues
+
+When called with an `IndexPhase` argument (`"docs"`, `"files"`, or `"code"`), only dispatches files to the queue for that phase. When called without arguments, dispatches to all queues (used by the watcher).
 
 ### `watch()`
 
@@ -69,14 +86,19 @@ Starts a chokidar watcher on `projectDir`. Events:
 
 See [Watcher](watcher.md) for details.
 
-### `drain()`
+### `drain(phase?)`
+
+When called with an `IndexPhase` argument, waits for only the specified queue to complete. When called without arguments, waits for all three queues:
 
 ```typescript
+// drain all queues
 await Promise.all([docsQueue, codeQueue, fileQueue]);
-rebuildDirectoryStats();
+
+// drain single phase
+await docsQueue;  // drain("docs")
 ```
 
-Waits for all three queues to complete. After draining, rebuilds directory stats in the FileIndexGraph (aggregate size and fileCount up the tree).
+During initial indexing, `drain(phase)` is called after each `scan(phase)` to ensure one phase finishes before the next begins. The post-drain steps (rebuild directory stats, resolve pending links, scan mirror dirs) are handled separately by `ProjectManager.finalizeIndexing()`.
 
 ## Incremental indexing
 

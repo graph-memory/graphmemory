@@ -25,24 +25,42 @@ The code graph uses a separate model inheritance chain (`codeModel`) so it can u
 
 ## Model registry
 
-Two-level cache with deduplication:
+Two-level cache with deduplication and **lazy loading**:
 
 ```
-_pipes: Map<name, Pipeline>        — named models (e.g. "my-app:docs", "my-app:code")
-_modelCache: Map<modelString, Pipeline> — deduplicates by model config string
+_pipes: Map<name, Pipeline | ModelConfig>  — named models (e.g. "my-app:docs", "my-app:code")
+_modelCache: Map<modelString, Pipeline>    — deduplicates by model config string
 ```
+
+`loadModel()` only registers the model configuration in `_pipes` — it does **not** create the ONNX pipeline. The actual pipeline is created lazily on the first call to `embed()`, `embedBatch()`, or `embedQuery()` for that model. This reduces peak memory by deferring model loads until each model is actually needed.
 
 The same physical model is loaded only once in memory, even if used by multiple graphs or projects.
+
+### ONNX session options
+
+When creating a pipeline, the following ONNX Runtime session options are applied to reduce memory footprint:
+
+```typescript
+session_options: {
+  enableCpuMemArena: false,     // disable pre-allocated CPU memory arena
+  enableMemPattern: false,      // disable memory pattern optimization
+  executionMode: 'sequential',  // single-threaded execution
+}
+```
+
+These options trade a small amount of throughput for significantly lower memory usage, which is important when multiple models may be loaded simultaneously.
 
 ## Functions
 
 | Function | Description |
 |----------|-------------|
-| `loadModel(model, embedding, modelsDir, name)` | Load model from local cache or download from HuggingFace |
-| `embed(title, content, modelName?)` | Single embedding: `"title\ncontent"` → `number[]` |
-| `embedQuery(query, modelName?)` | Query embedding with `queryPrefix` prepended |
-| `embedBatch(inputs, modelName?)` | Batch embedding: multiple items in one forward pass |
+| `loadModel(model, embedding, modelsDir, name)` | Register model config (lazy — pipeline created on first use) |
+| `embed(title, content, modelName?)` | Single embedding: `"title\ncontent"` → `number[]` (triggers lazy load if needed) |
+| `embedQuery(query, modelName?)` | Query embedding with `queryPrefix` prepended (triggers lazy load if needed) |
+| `embedBatch(inputs, modelName?)` | Batch embedding: multiple items in one forward pass (triggers lazy load if needed) |
 | `cosineSimilarity(a, b)` | Dot product (vectors are L2-normalized) |
+| `disposeModel(name)` | Dispose a single named pipeline and free its resources |
+| `disposeAllModels()` | Dispose all loaded pipelines and clear the model cache |
 
 ## Config structure
 

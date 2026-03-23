@@ -100,7 +100,7 @@ function AdvancedBuilderInner() {
   const tokens = useMemo(() => estimateTokens(prompt), [prompt]);
   const enabledSections = state.promptSections.filter(s => s.enabled).length;
   const enabledGraphs = useMemo(
-    () => ALL_GRAPHS.filter(g => state.graphs[g] && graphStats.find(s => s.name === g)?.available),
+    () => ALL_GRAPHS.filter(g => state.graphs[g]),
     [state.graphs, graphStats],
   );
 
@@ -202,7 +202,7 @@ function AdvancedBuilderInner() {
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case 0: return <ScenarioTab graphStats={graphStats} />;
+      case 0: return <ScenarioTab />;
       case 1: return <GraphsTab graphStats={graphStats} />;
       case 2: return <RoleTab />;
       case 3: return <StyleTab />;

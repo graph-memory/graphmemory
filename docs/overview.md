@@ -23,7 +23,7 @@
 | **Multi-project** | One process manages multiple projects with independent graphs |
 | **Workspaces** | Share knowledge/tasks/skills across related projects (e.g. microservices) |
 | **REST API** | Express-based HTTP API for all CRUD operations |
-| **Web UI** | React 19 + MUI 7 dashboard with kanban board, graph visualization, search |
+| **Web UI** | React 19 + MUI 7 dashboard with kanban board, code browsing, search |
 | **Real-time updates** | WebSocket push events on every mutation |
 | **Authentication** | Password-based login with JWT cookies, API keys for programmatic access |
 | **Access control** | 4-level ACL: graph > project > workspace > server > default |

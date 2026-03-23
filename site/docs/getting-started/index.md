@@ -31,7 +31,7 @@ Graph Memory is an [MCP (Model Context Protocol)](https://modelcontextprotocol.i
 | **Hybrid search** | BM25 keyword + vector cosine similarity with graph expansion |
 | **Real-time** | File watching + WebSocket push to UI |
 | **Multi-project** | One process manages multiple projects from a single config |
-| **Web UI** | Dashboard, kanban board, graph visualization, search, prompt builder |
+| **Web UI** | Dashboard, kanban board, code browser, search, prompt builder |
 
 ## How it works
 

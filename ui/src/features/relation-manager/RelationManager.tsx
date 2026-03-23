@@ -54,7 +54,7 @@ function getNavigationPath(projectId: string, graph: string, targetId: string): 
   if (graph === 'skills') return `/${projectId}/skills/${targetId}`;
   if (graph === 'files') return `/${projectId}/files/view/${targetId}`;
   if (graph === 'docs') return `/${projectId}/docs/${encodeURIComponent(targetId)}`;
-  if (graph === 'code') return `/${projectId}/graph?focus=${encodeURIComponent(targetId)}&scope=code`;
+  if (graph === 'code') return `/${projectId}/code/${encodeURIComponent(targetId)}`;
   return null;
 }
 

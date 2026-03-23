@@ -357,29 +357,6 @@ describe('REST API', () => {
     });
   });
 
-  describe('Graph export', () => {
-    it('exports all graphs', async () => {
-      await request(app)
-        .post('/api/projects/test/knowledge/notes')
-        .send({ title: 'Export Test', content: 'Data' });
-
-      const res = await request(app).get('/api/projects/test/graph');
-      expect(res.status).toBe(200);
-      expect(res.body.nodes).toBeDefined();
-      expect(res.body.edges).toBeDefined();
-      expect(res.body.nodes.length).toBeGreaterThan(0);
-    });
-
-    it('exports knowledge scope only', async () => {
-      await request(app)
-        .post('/api/projects/test/knowledge/notes')
-        .send({ title: 'Scoped', content: 'Data' });
-
-      const res = await request(app).get('/api/projects/test/graph?scope=knowledge');
-      expect(res.status).toBe(200);
-      expect(res.body.nodes.every((n: any) => n.graph === 'knowledge')).toBe(true);
-    });
-  });
 });
 
 // ---------------------------------------------------------------------------
@@ -739,6 +716,100 @@ describe('Attachment REST endpoints', () => {
     it('returns empty list for task with no attachments', async () => {
       const taskId = await createTask();
       const res = await request(app).get(`${tasksBase}/${taskId}/attachments`);
+      expect(res.status).toBe(200);
+      expect(res.body.results).toHaveLength(0);
+    });
+  });
+
+  describe('Skill attachments', () => {
+    const skillsBase = '/api/projects/test/skills';
+
+    async function createSkill() {
+      const res = await request(app)
+        .post(skillsBase)
+        .send({ title: 'Attach Skill', description: 'For attachments' });
+      expect(res.status).toBe(201);
+      return res.body.id as string;
+    }
+
+    it('uploads an attachment and returns metadata', async () => {
+      const skillId = await createSkill();
+
+      const res = await request(app)
+        .post(`${skillsBase}/${skillId}/attachments`)
+        .attach('file', Buffer.from('skill data'), 'guide.md');
+
+      expect(res.status).toBe(201);
+      expect(res.body.filename).toBe('guide.md');
+      expect(res.body.size).toBe(Buffer.from('skill data').length);
+      expect(typeof res.body.addedAt).toBe('number');
+    });
+
+    it('lists attachments for a skill', async () => {
+      const skillId = await createSkill();
+
+      await request(app)
+        .post(`${skillsBase}/${skillId}/attachments`)
+        .attach('file', Buffer.from('a'), 'a.txt');
+      await request(app)
+        .post(`${skillsBase}/${skillId}/attachments`)
+        .attach('file', Buffer.from('b'), 'b.txt');
+
+      const res = await request(app).get(`${skillsBase}/${skillId}/attachments`);
+      expect(res.status).toBe(200);
+      expect(res.body.results).toHaveLength(2);
+    });
+
+    it('downloads a skill attachment', async () => {
+      const skillId = await createSkill();
+      const content = 'skill content';
+
+      await request(app)
+        .post(`${skillsBase}/${skillId}/attachments`)
+        .attach('file', Buffer.from(content), 'info.txt');
+
+      const res = await request(app)
+        .get(`${skillsBase}/${skillId}/attachments/info.txt`)
+        .buffer(true)
+        .parse((res, cb) => {
+          let data = '';
+          res.setEncoding('utf8');
+          res.on('data', (chunk: string) => { data += chunk; });
+          res.on('end', () => cb(null, data));
+        });
+      expect(res.status).toBe(200);
+      expect(res.body).toBe(content);
+    });
+
+    it('deletes a skill attachment with 204', async () => {
+      const skillId = await createSkill();
+
+      await request(app)
+        .post(`${skillsBase}/${skillId}/attachments`)
+        .attach('file', Buffer.from('bye'), 'remove.txt');
+
+      const del = await request(app).delete(`${skillsBase}/${skillId}/attachments/remove.txt`);
+      expect(del.status).toBe(204);
+
+      const list = await request(app).get(`${skillsBase}/${skillId}/attachments`);
+      expect(list.body.results).toHaveLength(0);
+    });
+
+    it('returns 404 for non-existent skill attachment', async () => {
+      const skillId = await createSkill();
+      const res = await request(app).get(`${skillsBase}/${skillId}/attachments/missing.txt`);
+      expect(res.status).toBe(404);
+    });
+
+    it('returns 400 when no file is provided', async () => {
+      const skillId = await createSkill();
+      const res = await request(app).post(`${skillsBase}/${skillId}/attachments`);
+      expect(res.status).toBe(400);
+    });
+
+    it('returns empty list for skill with no attachments', async () => {
+      const skillId = await createSkill();
+      const res = await request(app).get(`${skillsBase}/${skillId}/attachments`);
       expect(res.status).toBe(200);
       expect(res.body.results).toHaveLength(0);
     });

@@ -45,6 +45,7 @@ function getResultPath(projectId: string, r: SearchResult): string | null {
   if (r.scope === 'skills') return `/${projectId}/skills/${r.id}`;
   if (r.scope === 'files') return `/${projectId}/files/view/${r.id}`;
   if (r.scope === 'docs') return `/${projectId}/docs/${encodeURIComponent(r.id)}`;
+  if (r.scope === 'code') return `/${projectId}/code/${encodeURIComponent(r.id)}`;
   return null;
 }
 
@@ -224,7 +225,7 @@ export default function SearchPage() {
         <Stack spacing={1.5}>
           {results.map((r, i) => {
             const config = SCOPE_CONFIG[r.scope];
-            const clickable = r.scope !== 'code';
+            const clickable = getResultPath(projectId!, r) !== null;
             return (
               <Card
                 key={`${r.scope}-${r.id}-${i}`}

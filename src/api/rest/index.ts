@@ -19,7 +19,6 @@ import { createSkillsRouter } from '@/api/rest/skills';
 import { createDocsRouter } from '@/api/rest/docs';
 import { createCodeRouter } from '@/api/rest/code';
 import { createFilesRouter } from '@/api/rest/files';
-import { createGraphRouter } from '@/api/rest/graph';
 import { createToolsRouter } from '@/api/rest/tools';
 import { createEmbedRouter } from '@/api/rest/embed';
 import { scanTeamDir } from '@/lib/team';
@@ -381,15 +380,6 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
   app.use('/api/projects/:projectId/docs', ...graphMiddleware('docManager', 'docs'), createDocsRouter());
   app.use('/api/projects/:projectId/code', ...graphMiddleware('codeManager', 'code'), createCodeRouter());
   app.use('/api/projects/:projectId/files', ...graphMiddleware('fileIndexManager', 'files'), createFilesRouter());
-  app.use('/api/projects/:projectId/graph', createGraphRouter((req, graphName) => {
-    if (!serverConfig) return true; // no config = no auth enforcement
-    const p = (req as any).project;
-    if (!p) return true;
-    const userId = (req as any).userId as string | undefined;
-    const ws = p.workspaceId ? projectManager.getWorkspace(p.workspaceId) : undefined;
-    const access = resolveAccess(userId, graphName, p.config, serverConfig, ws?.config);
-    return canRead(access);
-  }));
   app.use('/api/projects/:projectId/tools', createToolsRouter(projectManager, (req, graphName, level) => {
     if (!serverConfig) return true;
     const p = (req as any).project;

@@ -36,6 +36,18 @@ export function createCodeRouter(): Router {
     } catch (err) { next(err); }
   });
 
+  // Get edges for a symbol (imports, contains, extends, implements)
+  // Must be registered before /symbols/*symbolId to avoid wildcard consuming "edges"
+  router.get('/symbols/*symbolId/edges', (req, res, next) => {
+    try {
+      const p = getProject(req);
+      if (!p.codeManager) return res.status(404).json({ error: 'No code graph' });
+      const symbolId = joinParam((req.params as any).symbolId);
+      const edges = p.codeManager.getSymbolEdges(symbolId);
+      res.json({ results: edges });
+    } catch (err) { next(err); }
+  });
+
   // Get symbol by ID
   router.get('/symbols/*symbolId', (req, res, next) => {
     try {

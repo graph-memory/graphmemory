@@ -1,12 +1,12 @@
 ---
-title: "Search & Graph Visualization"
-sidebar_label: "Search & Graph"
+title: "Search & Code Browsing"
+sidebar_label: "Search & Code"
 sidebar_position: 4
-description: "Search across all six graphs from one search box, visualize connections with an interactive force-directed graph, and test MCP tools live from the browser."
-keywords: [search, graph visualization, Cytoscape.js, MCP tools, semantic search]
+description: "Search across all six graphs from one search box, browse code symbols with navigable detail pages, and test MCP tools live from the browser."
+keywords: [search, code browser, MCP tools, semantic search]
 ---
 
-# Search & Graph Visualization
+# Search & Code Browsing
 
 ## Unified search
 
@@ -40,57 +40,24 @@ Results are organized by graph type:
 
 Each result shows a relevance score. Click any result to navigate to its detail view.
 
-## Graph visualization
+## Code browsing
 
-The Graph page renders an interactive force-directed graph using [Cytoscape.js](https://js.cytoscape.org/).
+The Code pages (`/code` and `/code/:symbolId`) let you browse all indexed code symbols extracted from your project's TypeScript and JavaScript files.
 
-![Graph visualization](/img/screenshots/graph-dark.png)
+### Symbol list
 
-### Layout
+The main code page (`/code`) displays all indexed symbols -- functions, classes, interfaces, and type aliases -- with search and filtering. Each entry shows the symbol name, kind, and source file path.
 
-Nodes automatically position themselves based on their connections using a force-directed algorithm. Connected nodes cluster together, while unrelated nodes drift apart. You can drag individual nodes to rearrange them.
+### Symbol detail
 
-### Color coding
+Click any symbol to open its detail page (`/code/:symbolId`), which shows:
 
-Each graph type has a distinct color, making it easy to identify nodes at a glance:
+- Symbol name, kind, and source file location
+- The full source code of the symbol
+- Cross-graph links to related docs, notes, tasks, and other symbols
+- Navigable references to other symbols in the same file or project
 
-- Documentation nodes, code nodes, knowledge nodes, tasks, files, and skills each have their own color
-- Cross-graph proxy nodes are visually distinguished from regular nodes
-
-### Interaction
-
-- **Click** a node to select it and highlight its immediate neighbors
-- **Hover** over a node to see a tooltip with its name and type
-- **Drag** nodes to manually reposition them
-- **Mouse wheel** to zoom in and out
-- **Click and drag** the background to pan
-
-### Node inspector
-
-When you click a node, the inspector panel opens on the side showing:
-
-- Node type and graph
-- Title or name
-- Key metadata fields
-- List of connections to other nodes
-
-### Scope filter
-
-A dropdown at the top lets you filter which graph types are visible:
-
-- View all graphs at once for a complete picture
-- Focus on a single graph type (e.g., only knowledge nodes)
-- Combine specific graphs (e.g., docs + code to see how documentation relates to source files)
-
-### Search within graph
-
-A search box on the graph page lets you find and highlight specific nodes. Matching nodes are visually emphasized while non-matching nodes fade, helping you locate items in large graphs.
-
-### Controls
-
-- **Zoom to fit** -- resets the viewport to show all visible nodes
-- **Zoom in / out** -- buttons for precise zoom control
-- **Reset layout** -- re-runs the force-directed algorithm to reposition all nodes
+Code search results from the unified Search page link directly to these detail pages for quick navigation.
 
 ## Tools explorer
 

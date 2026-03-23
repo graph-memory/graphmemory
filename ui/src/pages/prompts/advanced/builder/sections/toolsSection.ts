@@ -9,7 +9,7 @@ export function buildToolsSection(
   toolChains: ToolChain[],
 ): string | null {
   const enabledGraphs = new Set(
-    graphStats.filter(g => graphs[g.name] && g.available).map(g => g.name),
+    graphStats.filter(g => graphs[g.name]).map(g => g.name),
   );
 
   const availableTools = Object.entries(TOOL_CATALOG)

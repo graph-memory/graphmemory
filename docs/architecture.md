@@ -158,7 +158,6 @@ src/
       docs.ts                # Docs search routes
       code.ts                # Code search routes
       files.ts               # Files REST routes
-      graph.ts               # Graph export endpoint
       tools.ts               # Tools explorer REST routes
       websocket.ts           # WebSocket server
       embed.ts               # POST /api/embed endpoint
@@ -276,7 +275,6 @@ Read-only tools (list, get, search) run without queueing — Graphology's in-mem
 | `react` + `react-dom` | UI framework (v19) |
 | `react-router-dom` | Client-side routing (v7) |
 | `@mui/material` + `@mui/icons-material` | Component library (v7) |
-| `cytoscape` | Graph visualization |
 | `react-markdown` + `remark-gfm` | Markdown rendering |
 | `@uiw/react-md-editor` | Markdown editor |
 | `vite` | Build tool + dev server (v8) |

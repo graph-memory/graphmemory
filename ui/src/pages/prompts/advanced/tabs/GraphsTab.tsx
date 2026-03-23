@@ -23,9 +23,8 @@ export default function GraphsTab({ graphStats }: GraphsTabProps) {
       <List dense disablePadding>
         {ALL_GRAPHS.map((name, i) => {
           const stat = graphStats.find(s => s.name === name);
-          const available = stat?.available ?? false;
           const count = stat?.nodeCount ?? 0;
-          const enabled = state.graphs[name] && available;
+          const enabled = !!state.graphs[name];
           return (
             <Box key={name}>
               {i > 0 && <Divider />}
@@ -35,7 +34,6 @@ export default function GraphsTab({ graphStats }: GraphsTabProps) {
                 secondaryAction={
                   <Switch
                     checked={enabled}
-                    disabled={!available}
                     onChange={() => { dispatch({ type: 'TOGGLE_GRAPH', name }); ensureSectionEnabled('graphs'); }}
                     size="small"
                     inputProps={{ 'aria-label': `Toggle ${GRAPH_LABELS[name]} graph` }}
@@ -46,10 +44,10 @@ export default function GraphsTab({ graphStats }: GraphsTabProps) {
                   primary={
                     <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                       {GRAPH_LABELS[name]}
-                      <Chip label={available ? count : 'n/a'} size="small" variant="outlined" sx={{ height: 18, fontSize: '0.65rem' }} />
+                      <Chip label={count} size="small" variant="outlined" sx={{ height: 18, fontSize: '0.65rem' }} />
                     </Box>
                   }
-                  secondary={enabled ? 'Included in prompt' : available ? 'Excluded' : 'Not indexed'}
+                  secondary={enabled ? 'Included in prompt' : 'Excluded'}
                   primaryTypographyProps={{ variant: 'body2', fontWeight: enabled ? 600 : 400, component: 'span' }}
                   secondaryTypographyProps={{ variant: 'caption' }}
                   sx={{ opacity: enabled ? 1 : 0.5 }}

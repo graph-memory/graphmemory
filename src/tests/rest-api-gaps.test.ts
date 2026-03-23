@@ -332,6 +332,34 @@ describe('REST Code', () => {
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.results)).toBe(true);
   });
+
+  it('GET /symbols/:symbolId/edges returns edges', async () => {
+    const res = await request(app).get('/api/projects/test/code/symbols/src/app.ts/edges');
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.results)).toBe(true);
+    // src/app.ts has a 'contains' edge to src/app.ts::main
+    expect(res.body.results.length).toBeGreaterThan(0);
+    const containsEdge = res.body.results.find((e: any) => e.kind === 'contains');
+    expect(containsEdge).toBeDefined();
+    expect(containsEdge.source).toBe('src/app.ts');
+    expect(containsEdge.target).toBe('src/app.ts::main');
+  });
+
+  it('GET /symbols/:symbolId/edges returns empty for leaf symbol', async () => {
+    // src/app.ts::main only has an incoming 'contains' edge (from file node)
+    const res = await request(app).get('/api/projects/test/code/symbols/src/app.ts::main/edges');
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.results)).toBe(true);
+    // Should have the incoming 'contains' edge
+    const containsEdge = res.body.results.find((e: any) => e.kind === 'contains');
+    expect(containsEdge).toBeDefined();
+  });
+
+  it('GET /symbols/:symbolId/edges returns empty array for unknown symbol', async () => {
+    const res = await request(app).get('/api/projects/test/code/symbols/ghost::bar/edges');
+    expect(res.status).toBe(200);
+    expect(res.body.results).toEqual([]);
+  });
 });
 
 // ---------------------------------------------------------------------------

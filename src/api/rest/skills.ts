@@ -190,9 +190,10 @@ export function createSkillsRouter(): Router {
       const skillId = req.params.skillId as string;
       const file = req.file;
       if (!file) return res.status(400).json({ error: 'No file uploaded' });
+      const filename = attachmentFilenameSchema.parse(file.originalname);
 
       const meta = await p.mutationQueue.enqueue(async () => {
-        return p.skillManager.addAttachment(skillId, file.originalname, file.buffer);
+        return p.skillManager.addAttachment(skillId, filename, file.buffer);
       });
       if (!meta) return res.status(404).json({ error: 'Skill not found' });
       res.status(201).json(meta);

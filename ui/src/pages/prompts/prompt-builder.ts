@@ -6,7 +6,6 @@ import {
 export interface GraphStats {
   name: GraphName;
   nodeCount: number;
-  available: boolean;
 }
 
 export interface BuilderState {
@@ -22,7 +21,7 @@ export function buildPrompt(
   focusTools: string[],
 ): string {
   const enabledGraphs = graphStats.filter(
-    g => state.graphs[g.name] && g.available,
+    g => state.graphs[g.name],
   );
   const enabledGraphNames = new Set(enabledGraphs.map(g => g.name));
 

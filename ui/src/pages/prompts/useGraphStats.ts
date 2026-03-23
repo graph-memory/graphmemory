@@ -16,17 +16,17 @@ export function useGraphStats(projectId: string | undefined) {
         if (cancelled) return;
         const s = stats as ProjectDetailedStats;
         setGraphStats([
-          { name: 'docs', nodeCount: s.docs?.nodes ?? 0, available: (s.docs?.nodes ?? 0) > 0 },
-          { name: 'code', nodeCount: s.code?.nodes ?? 0, available: (s.code?.nodes ?? 0) > 0 },
-          { name: 'files', nodeCount: s.fileIndex?.nodes ?? 0, available: (s.fileIndex?.nodes ?? 0) > 0 },
-          { name: 'knowledge', nodeCount: s.knowledge?.nodes ?? 0, available: (s.knowledge?.nodes ?? 0) > 0 },
-          { name: 'tasks', nodeCount: s.tasks?.nodes ?? 0, available: (s.tasks?.nodes ?? 0) > 0 },
-          { name: 'skills', nodeCount: s.skills?.nodes ?? 0, available: (s.skills?.nodes ?? 0) > 0 },
+          { name: 'docs', nodeCount: s.docs?.nodes ?? 0 },
+          { name: 'code', nodeCount: s.code?.nodes ?? 0 },
+          { name: 'files', nodeCount: s.fileIndex?.nodes ?? 0 },
+          { name: 'knowledge', nodeCount: s.knowledge?.nodes ?? 0 },
+          { name: 'tasks', nodeCount: s.tasks?.nodes ?? 0 },
+          { name: 'skills', nodeCount: s.skills?.nodes ?? 0 },
         ]);
       })
       .catch(() => {
         if (cancelled) return;
-        setGraphStats(ALL_GRAPHS.map(name => ({ name, nodeCount: 0, available: false })));
+        setGraphStats(ALL_GRAPHS.map(name => ({ name, nodeCount: 0 })));
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };

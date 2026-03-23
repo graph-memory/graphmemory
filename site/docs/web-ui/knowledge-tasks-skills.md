@@ -134,7 +134,7 @@ The skill detail view shows all configured triggers, making it clear what activa
 
 All three pages support cross-graph links. A note can reference a task, a task can link to a code symbol, and a skill can point to relevant documentation. These links create a connected knowledge web that your AI assistant can traverse when answering questions or performing tasks.
 
-Cross-graph links appear as proxy nodes in the graph visualization, prefixed with the source graph name (e.g., `@docs::`, `@code::`, `@tasks::`, `@knowledge::`, `@files::`, `@skills::`).
+Cross-graph links appear as proxy nodes prefixed with the source graph name (e.g., `@docs::`, `@code::`, `@tasks::`, `@knowledge::`, `@files::`, `@skills::`). These links are navigable from detail pages such as the Code symbol detail view.
 
 ## Read-only access
 

@@ -2,8 +2,8 @@
 title: "Web UI Overview"
 sidebar_label: "Overview"
 sidebar_position: 1
-description: "Graph Memory includes a full-featured web UI for browsing graphs, managing knowledge, tasks, and skills, searching across all data, and visualizing connections."
-keywords: [web UI, dashboard, graph visualization, search, knowledge management]
+description: "Graph Memory includes a full-featured web UI for browsing graphs, managing knowledge, tasks, and skills, searching across all data, and browsing code."
+keywords: [web UI, dashboard, search, code browser, knowledge management]
 ---
 
 # Web UI Overview
@@ -29,9 +29,9 @@ The UI is organized into dedicated pages, each accessible from the sidebar:
 | **Tasks** | Kanban board with drag-and-drop, priorities, assignees, and due dates |
 | **Skills** | Manage reusable recipes and procedures with steps and triggers |
 | **Docs** | Browse all indexed markdown documentation with rendered content |
+| **Code** | Browse indexed code symbols with navigable detail pages |
 | **Files** | Navigate the file index with metadata and directory hierarchy |
 | **Search** | Unified semantic search across all six graphs in one query |
-| **Graph** | Interactive force-directed visualization of nodes and connections |
 | **Prompts** | Generate AI system prompts with scenario presets, roles, and graph selection |
 | **Tools** | Browse and live-test all 58 MCP tools from your browser |
 | **Help** | Built-in searchable documentation with getting-started guides and concept explanations |
@@ -50,7 +50,7 @@ All data pages update automatically via WebSocket:
 - **Knowledge** note list updates on create, edit, or delete
 - **Tasks** kanban board reflects moves, new tasks, and status changes instantly
 - **Skills** list updates on any modification
-- **Graph** visualization refreshes as the indexer processes files
+- **Code** browser updates as the indexer processes files
 
 You never need to manually refresh the page to see the latest data.
 
@@ -67,4 +67,4 @@ If a graph is disabled in your configuration (for example, `code.enabled: false`
 
 - [Dashboard and Navigation](dashboard-navigation.md) -- project selector, stats, and sidebar
 - [Knowledge, Tasks, and Skills](knowledge-tasks-skills.md) -- managing your persistent data
-- [Search and Graph Visualization](search-graph.md) -- finding and exploring connections
+- [Search](search-graph.md) -- finding content across all graphs

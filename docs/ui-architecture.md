@@ -9,7 +9,6 @@
 | React | 19 | UI framework |
 | Material UI (MUI) | 7 | Component library |
 | React Router DOM | 7 | Client-side routing |
-| Cytoscape.js | 3.33 | Graph visualization |
 | Vite | 8 | Build tool + dev server |
 | react-markdown + remark-gfm | — | Markdown rendering |
 | @uiw/react-md-editor | — | Markdown editor |
@@ -29,10 +28,10 @@ ui/src/
 │   ├── tasks/                    # Kanban board + drag-drop + detail/edit/new
 │   ├── skills/                   # Skill management + triggers + usage
 │   ├── docs/                     # Browse documentation + detail view
+│   ├── code/                     # Code browser + symbol detail
 │   ├── files/                    # File browser + search + detail
 │   ├── prompts/                  # AI prompt generator
 │   ├── search/                   # Cross-graph unified search
-│   ├── graph/                    # Cytoscape.js visualization
 │   ├── tools/                    # MCP tools explorer
 │   ├── help/                     # Searchable documentation
 │   └── login/                    # Email + password login
@@ -50,7 +49,6 @@ ui/src/
 │   ├── file/                     # FileInfo type, API
 │   ├── doc/                      # searchDocs API
 │   ├── code/                     # searchCode API
-│   └── graph/                    # GraphNode, GraphEdge, exportGraph API
 ├── content/
 │   ├── help/                     # Help articles (markdown, bundled via ?raw)
 │   └── prompts/                  # Prompt templates (roles, styles, scenarios, graphs)
@@ -90,10 +88,11 @@ All routes are scoped to a project: `/:projectId/...`
 | `/:projectId/skills` | SkillsPage |
 | `/:projectId/skills/:skillId` | Skill detail |
 | `/:projectId/docs` | DocsPage |
+| `/:projectId/code` | CodePage |
+| `/:projectId/code/:symbolId` | CodeDetailPage |
 | `/:projectId/files` | FilesPage |
 | `/:projectId/prompts` | PromptsPage |
 | `/:projectId/search` | SearchPage |
-| `/:projectId/graph` | GraphPage |
 | `/:projectId/tools` | ToolsPage |
 | `/:projectId/help` | HelpPage |
 

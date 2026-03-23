@@ -100,12 +100,11 @@ See [Authentication](authentication.md) for details on auth middleware.
 | GET | `/api/projects/:id/skills/:skillId/attachments/:filename` | Download attachment |
 | DELETE | `/api/projects/:id/skills/:skillId/attachments/:filename` | Delete attachment |
 
-## Search endpoints (docs/code/files)
+## Search endpoints (docs/files)
 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/projects/:id/docs/search?q=...` | Search docs |
-| GET | `/api/projects/:id/code/search?q=...` | Search code symbols |
 | GET | `/api/projects/:id/files` | List files (query: `directory`, `extension`, `language`, `filter`, `limit`) |
 | GET | `/api/projects/:id/files/search?q=...` | Search files by path |
 
@@ -115,11 +114,15 @@ See [Authentication](authentication.md) for details on auth middleware.
 |--------|------|-------------|
 | GET | `/api/projects/:id/team` | List team members |
 
-## Graph export
+## Code endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/projects/:id/graph?scope=...` | Export graph for visualization (scope: `knowledge`, `tasks`, `docs`, `code`, `files`, `skills`, `all`) |
+| GET | `/api/projects/:id/code/files` | List indexed code files |
+| GET | `/api/projects/:id/code/files/:fileId/symbols` | List symbols for a file |
+| GET | `/api/projects/:id/code/symbols/:symbolId` | Get symbol detail |
+| GET | `/api/projects/:id/code/symbols/:symbolId/edges` | Get edges for a symbol (imports, contains, extends, implements) |
+| GET | `/api/projects/:id/code/search?q=...` | Search code symbols |
 
 ## Tools explorer
 

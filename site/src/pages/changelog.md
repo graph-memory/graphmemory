@@ -5,6 +5,50 @@ description: Graph Memory release history and version changes.
 
 # Changelog
 
+## v1.5.0
+
+**Released: March 2026**
+
+### Highlights
+
+- **Code Browsing UI** — new dedicated Code section in the Web UI. Browse indexed files, expand to see symbols with kind chips and signature snippets, view full source code and graph relations (imports, extends, contains), navigate between symbols. Semantic search with clickable results.
+- **Graph Visualization Removed** — the Cytoscape.js force-directed graph page has been removed from the UI along with the `GET /api/projects/:id/graph` export endpoint. Code browsing and search provide better navigation.
+- **Prompt Builder Unlocked** — empty graphs can now be toggled on in the prompt builder. Previously, graphs with 0 nodes were disabled and couldn't be included in generated prompts.
+
+### Security
+
+- **Upload filename validation** — attachment uploads now validate `file.originalname` through `attachmentFilenameSchema` in all three routers (knowledge, tasks, skills), preventing path traversal via crafted filenames
+- **Relation schema length limits** — added `.max()` constraints to `fromId`, `toId`, `kind`, and `projectId` in `createRelationSchema`, `createTaskLinkSchema`, and `createSkillLinkSchema`
+- **Code edges encapsulation** — new `getSymbolEdges()` public method on `CodeGraphManager` replaces direct `_graph` access in the REST endpoint
+
+### New Endpoints
+
+- `GET /api/projects/:id/code/symbols/:symbolId/edges` — returns all incoming and outgoing edges for a code symbol (imports, contains, extends, implements)
+
+### UI Changes
+
+- New Code list page: file list with symbol counts, expandable symbols with kind/export chips and signature preview
+- New Code detail page: metadata, signature, source code, relations (in-graph edges + cross-graph links), file siblings
+- Code search results in unified Search page are now clickable and navigate to symbol detail
+- Docs TOC entries now show content snippets (first 120 chars)
+- Removed Graph page, graph entity, Cytoscape/cytoscape-fcose dependencies
+- Fixed RelationManager navigation for code links (was routing to removed graph page)
+- Cleaned orphaned `cytoscape-fcose.d.ts` type declaration and vite `vendor-graph` chunk config
+
+### Tests
+
+- Added 3 tests for code symbol edges endpoint (edges returned, leaf symbol, unknown symbol)
+- Added 7 tests for skill attachment CRUD (upload, list, download, delete, 404, no-file, empty-list)
+- Removed graph export tests (endpoint removed)
+
+### Documentation
+
+- Updated docs/: removed graph visualization references, added Code endpoints and Code browsing sections
+- Updated site/: search-graph → "Search & Code Browsing", updated getting-started, quick-start, knowledge-tasks-skills
+- Updated UI help: fixed RelationManager code link navigation
+
+---
+
 ## v1.4.0
 
 **Released: March 2026**

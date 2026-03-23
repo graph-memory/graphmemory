@@ -99,16 +99,15 @@ export default function GraphCards({ graphs, graphStats, onToggle }: GraphCardsP
       }}>
         {CARD_DATA.map(card => {
           const stat = graphStats.find(s => s.name === card.name);
-          const available = stat?.available ?? false;
           const count = stat?.nodeCount ?? 0;
-          const enabled = graphs[card.name] && available;
+          const enabled = !!graphs[card.name];
 
           return (
             <Box
               key={card.name}
               role="button"
               tabIndex={0}
-              aria-label={`${card.label} graph — ${enabled ? 'enabled' : available ? 'disabled' : 'not indexed'}`}
+              aria-label={`${card.label} graph — ${enabled ? 'enabled' : 'disabled'}`}
               onClick={e => setPopover({ card, anchor: e.currentTarget as HTMLElement })}
               onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPopover({ card, anchor: e.currentTarget as HTMLElement }); } }}
               sx={{
@@ -118,9 +117,8 @@ export default function GraphCards({ graphs, graphStats, onToggle }: GraphCardsP
                 p: 1.5,
                 cursor: 'pointer',
                 bgcolor: enabled ? `${GRAPH_COLORS[card.name]}08` : 'transparent',
-                opacity: available ? 1 : 0.4,
                 transition: 'all 200ms',
-                '&:hover': available ? { borderColor: `${GRAPH_COLORS[card.name]}90`, bgcolor: `${GRAPH_COLORS[card.name]}12` } : {},
+                '&:hover': { borderColor: `${GRAPH_COLORS[card.name]}90`, bgcolor: `${GRAPH_COLORS[card.name]}12` },
               }}
             >
               {/* Header row */}
@@ -132,7 +130,7 @@ export default function GraphCards({ graphs, graphStats, onToggle }: GraphCardsP
                   {card.label}
                 </Typography>
                 <Chip
-                  label={available ? count : 'n/a'}
+                  label={count}
                   size="small"
                   sx={{
                     height: 20,
@@ -143,7 +141,6 @@ export default function GraphCards({ graphs, graphStats, onToggle }: GraphCardsP
                 />
                 <Switch
                   checked={enabled}
-                  disabled={!available}
                   onChange={e => { e.stopPropagation(); onToggle(card.name); }}
                   onClick={e => e.stopPropagation()}
                   size="small"

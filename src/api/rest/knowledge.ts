@@ -153,9 +153,10 @@ export function createKnowledgeRouter(): Router {
       const noteId = req.params.noteId as string;
       const file = req.file;
       if (!file) return res.status(400).json({ error: 'No file uploaded' });
+      const filename = attachmentFilenameSchema.parse(file.originalname);
 
       const meta = await p.mutationQueue.enqueue(async () => {
-        return p.knowledgeManager.addAttachment(noteId, file.originalname, file.buffer);
+        return p.knowledgeManager.addAttachment(noteId, filename, file.buffer);
       });
       if (!meta) return res.status(404).json({ error: 'Note not found' });
       res.status(201).json(meta);

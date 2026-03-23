@@ -12,6 +12,7 @@ import LightbulbIcon from '@mui/icons-material/Lightbulb';
 import ViewKanbanIcon from '@mui/icons-material/ViewKanban';
 import FolderIcon from '@mui/icons-material/Folder';
 import DescriptionIcon from '@mui/icons-material/Description';
+import CodeIcon from '@mui/icons-material/Code';
 import SearchIcon from '@mui/icons-material/Search';
 import HubIcon from '@mui/icons-material/Hub';
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -35,6 +36,7 @@ const NAV_GRAPH_MAP: Record<string, string> = {
   tasks: 'tasks',
   skills: 'skills',
   docs: 'docs',
+  code: 'code',
   files: 'files',
 };
 
@@ -44,9 +46,9 @@ const NAV_ITEMS = [
   { label: 'Tasks', icon: <ViewKanbanIcon />, path: 'tasks' },
   { label: 'Skills', icon: <PsychologyIcon />, path: 'skills' },
   { label: 'Docs', icon: <DescriptionIcon />, path: 'docs' },
+  { label: 'Code', icon: <CodeIcon />, path: 'code' },
   { label: 'Files', icon: <FolderIcon />, path: 'files' },
   { label: 'Search', icon: <SearchIcon />, path: 'search' },
-  { label: 'Graph', icon: <HubIcon />, path: 'graph' },
   { label: 'Prompts', icon: <AutoAwesomeIcon />, path: 'prompts' },
   { label: 'Tools', icon: <BuildIcon />, path: 'tools' },
   { label: 'Help', icon: <MenuBookIcon />, path: 'help' },
@@ -58,9 +60,9 @@ const PAGE_TITLES: Record<string, string> = {
   tasks: 'Tasks',
   skills: 'Skills',
   docs: 'Docs',
+  code: 'Code',
   files: 'Files',
   search: 'Search',
-  graph: 'Graph',
   prompts: 'Prompts',
   tools: 'Tools',
   help: 'Help',

@@ -306,6 +306,18 @@ export class CodeGraphManager {
     return getCodeFileMtime(this._graph, fileId);
   }
 
+  getSymbolEdges(nodeId: string): Array<{ source: string; target: string; kind: string }> {
+    if (!this._graph.hasNode(nodeId)) return [];
+    const edges: Array<{ source: string; target: string; kind: string }> = [];
+    this._graph.forEachOutEdge(nodeId, (_edge, attrs, source, target) => {
+      edges.push({ source, target, kind: attrs.kind });
+    });
+    this._graph.forEachInEdge(nodeId, (_edge, attrs, source, target) => {
+      edges.push({ source, target, kind: attrs.kind });
+    });
+    return edges;
+  }
+
   getSymbol(nodeId: string): ({ id: string; crossLinks?: IncomingCrossLink[] } & CodeNodeAttributes) | null {
     if (!this._graph.hasNode(nodeId)) return null;
     const crossLinks = findIncomingCrossLinks(this.ext, 'code', nodeId);

@@ -21,10 +21,11 @@ const SkillNewPage = lazy(() => import('@/pages/skills/new.tsx'));
 const SkillEditPage = lazy(() => import('@/pages/skills/edit.tsx'));
 const DocsPage = lazy(() => import('@/pages/docs/index.tsx'));
 const DocDetailPage = lazy(() => import('@/pages/docs/[docId].tsx'));
+const CodePage = lazy(() => import('@/pages/code/index.tsx'));
+const CodeDetailPage = lazy(() => import('@/pages/code/[symbolId].tsx'));
 const FilesPage = lazy(() => import('@/pages/files/index.tsx'));
 const FileDetailPage = lazy(() => import('@/pages/files/[filePath].tsx'));
 const SearchPage = lazy(() => import('@/pages/search/index.tsx'));
-const GraphPage = lazy(() => import('@/pages/graph/index.tsx'));
 const ToolsPage = lazy(() => import('@/pages/tools/index.tsx'));
 const ToolDetailPage2 = lazy(() => import('@/pages/tools/[toolName].tsx'));
 const PromptsPage = lazy(() => import('@/pages/prompts/index.tsx'));
@@ -60,10 +61,11 @@ export default function App() {
           <Route path="skills/:skillId" element={<SkillDetailPage />} />
           <Route path="docs" element={<DocsPage />} />
           <Route path="docs/:docId" element={<DocDetailPage />} />
+          <Route path="code" element={<CodePage />} />
+          <Route path="code/:symbolId" element={<CodeDetailPage />} />
           <Route path="files" element={<FilesPage />} />
           <Route path="files/view/*" element={<FileDetailPage />} />
           <Route path="search" element={<SearchPage />} />
-          <Route path="graph" element={<GraphPage />} />
           <Route path="prompts/simple" element={<PromptsPage />} />
           <Route path="prompts/advanced" element={<PromptsPage />} />
           <Route path="prompts" element={<PromptsPage />} />

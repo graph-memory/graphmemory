@@ -9,10 +9,10 @@
 | **Tasks** | Kanban board with drag-drop |
 | **Skills** | Recipe/procedure management |
 | **Docs** | Browse indexed documentation |
+| **Code** | Code browser with symbol navigation |
 | **Files** | File browser with search |
 | **Prompts** | AI prompt generator |
 | **Search** | Cross-graph unified search |
-| **Graph** | Interactive graph visualization |
 | **Tools** | MCP tools explorer |
 | **Help** | Built-in documentation |
 | **Login** | Email + password authentication |
@@ -58,9 +58,16 @@ Stats cards showing counts for each graph (notes, tasks, skills, docs, code, fil
 ## Docs
 
 - **File list** — browse all indexed markdown files
-- **Table of contents** — heading hierarchy for each file
+- **Table of contents** — heading hierarchy for each file with content snippets
 - **Detail view** — rendered markdown content with syntax highlighting
 - **Search** — semantic search across documentation
+
+## Code
+
+- **File list** — browse indexed code files with symbol counts per file
+- **Expandable symbols** — each file expands to show symbols with kind chips (function, class, interface, etc.) and signature snippets
+- **Semantic search** — hybrid search across code symbols
+- **Detail page** — view source code, relations, and edges (imports, contains, extends, implements)
 
 ## Files
 
@@ -88,16 +95,6 @@ Unified semantic search across all 6 graphs:
 - Results grouped by graph type (docs, code, knowledge, tasks, files, skills)
 - Score-based ranking within each group
 - Click results to navigate to detail views
-
-## Graph
-
-Interactive force-directed graph visualization using Cytoscape.js:
-
-- **Scope filter** — view knowledge, tasks, skills, docs, code, files, or all
-- **Force-directed layout** — nodes automatically position based on connections
-- **Node inspector** — click a node to see its details
-- **Zoom/pan** — mouse wheel zoom, drag to pan
-- **Color coding** — different colors per graph type
 
 ## Tools
 
@@ -145,7 +142,6 @@ All data pages react to WebSocket events:
 - **Tasks** — kanban board updates on create/update/delete/move
 - **Skills** — skill list updates on create/update/delete
 - **Dashboard** — stats and recent activity refresh
-- **Graph** — visualization updates when indexer processes files
 
 ## Responsive design
 

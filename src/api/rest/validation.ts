@@ -57,11 +57,11 @@ export const updateNoteSchema = z.object({
 });
 
 export const createRelationSchema = z.object({
-  fromId: z.string().min(1),
-  toId:   z.string().min(1),
-  kind:   z.string().min(1),
+  fromId: z.string().min(1).max(MAX_TARGET_NODE_ID_LEN),
+  toId:   z.string().min(1).max(MAX_TARGET_NODE_ID_LEN),
+  kind:   z.string().min(1).max(MAX_LINK_KIND_LEN),
   targetGraph: z.enum(['docs', 'code', 'files', 'tasks', 'skills']).optional(),
-  projectId: z.string().min(1).optional(),
+  projectId: z.string().min(1).max(MAX_PROJECT_ID_LEN).optional(),
 });
 
 export const noteSearchSchema = z.object({
@@ -110,11 +110,11 @@ export const moveTaskSchema = z.object({
 });
 
 export const createTaskLinkSchema = z.object({
-  fromId: z.string().min(1),
-  toId:   z.string().min(1),
-  kind:   z.string().min(1),
+  fromId: z.string().min(1).max(MAX_TARGET_NODE_ID_LEN),
+  toId:   z.string().min(1).max(MAX_TARGET_NODE_ID_LEN),
+  kind:   z.string().min(1).max(MAX_LINK_KIND_LEN),
   targetGraph: z.enum(['docs', 'code', 'files', 'knowledge', 'skills']).optional(),
-  projectId: z.string().min(1).optional(),
+  projectId: z.string().min(1).max(MAX_PROJECT_ID_LEN).optional(),
 });
 
 export const taskSearchSchema = z.object({
@@ -162,10 +162,6 @@ export const fileListSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
-// Graph export schema
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
 // Skill schemas
 // ---------------------------------------------------------------------------
 
@@ -195,11 +191,11 @@ export const updateSkillSchema = z.object({
 });
 
 export const createSkillLinkSchema = z.object({
-  fromId:      z.string().min(1),
-  toId:        z.string().min(1),
-  kind:        z.string().min(1),
+  fromId:      z.string().min(1).max(MAX_TARGET_NODE_ID_LEN),
+  toId:        z.string().min(1).max(MAX_TARGET_NODE_ID_LEN),
+  kind:        z.string().min(1).max(MAX_LINK_KIND_LEN),
   targetGraph: z.enum(['docs', 'code', 'files', 'knowledge', 'tasks']).optional(),
-  projectId:   z.string().min(1).optional(),
+  projectId:   z.string().min(1).max(MAX_PROJECT_ID_LEN).optional(),
 });
 
 export const skillSearchSchema = z.object({
@@ -216,9 +212,6 @@ export const skillListSchema = z.object({
   limit:  z.coerce.number().int().positive().max(1000).optional(),
 });
 
-export const graphExportSchema = z.object({
-  scope: z.enum(['all', 'docs', 'code', 'knowledge', 'tasks', 'files', 'skills']).default('all'),
-});
 
 // ---------------------------------------------------------------------------
 // Attachment schemas

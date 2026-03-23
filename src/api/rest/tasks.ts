@@ -182,9 +182,10 @@ export function createTasksRouter(): Router {
       const taskId = req.params.taskId as string;
       const file = req.file;
       if (!file) return res.status(400).json({ error: 'No file uploaded' });
+      const filename = attachmentFilenameSchema.parse(file.originalname);
 
       const meta = await p.mutationQueue.enqueue(async () => {
-        return p.taskManager.addAttachment(taskId, file.originalname, file.buffer);
+        return p.taskManager.addAttachment(taskId, filename, file.buffer);
       });
       if (!meta) return res.status(404).json({ error: 'Task not found' });
       res.status(201).json(meta);

@@ -65,7 +65,7 @@
 ## UI
 
 - [UI Architecture](ui-architecture.md) — React + MUI + FSD stack, routing, auth flow
-- [UI Features](ui-features.md) — all pages: dashboard, kanban, graph viz, prompt generator, etc.
+- [UI Features](ui-features.md) — all pages: dashboard, kanban, code browser, prompt generator, etc.
 - [UI Patterns](ui-patterns.md) — FSD conventions, page patterns, hooks, state management, WebSocket, ACL
 
 ## Development

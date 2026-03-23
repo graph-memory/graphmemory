@@ -5,7 +5,7 @@ export function buildGraphsSection(
   graphs: Record<GraphName, boolean>,
   graphStats: GraphStats[],
 ): string | null {
-  const enabled = graphStats.filter(g => graphs[g.name] && g.available);
+  const enabled = graphStats.filter(g => graphs[g.name]);
   if (enabled.length === 0) return '### Available Graphs\n\n*No graphs indexed yet.*';
 
   return '### Available Graphs\n\n' + enabled

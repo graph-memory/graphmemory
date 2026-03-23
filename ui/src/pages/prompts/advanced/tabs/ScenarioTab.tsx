@@ -8,24 +8,17 @@ import { ALL_GRAPHS, TOOL_CATALOG, type GraphName } from '@/content/prompts/inde
 import { SCENARIOS, type ScenarioConfig } from '../../scenarios.tsx';
 import { useBuilderContext } from '../context/BuilderContext.tsx';
 import { createDefaultState } from '../defaults.ts';
-import type { GraphStats } from '../../prompt-builder.ts';
-
-interface ScenarioTabProps {
-  graphStats: GraphStats[];
-}
-
-export default function ScenarioTab({ graphStats }: ScenarioTabProps) {
+export default function ScenarioTab() {
   const { state, dispatch } = useBuilderContext();
 
   const selectScenario = (scenario: ScenarioConfig) => {
     const defaults = createDefaultState();
     const adv = scenario.advancedDefaults;
 
-    // Graphs — enable scenario defaults, disable unavailable
+    // Graphs — enable scenario defaults
     const graphs = {} as Record<GraphName, boolean>;
     for (const g of ALL_GRAPHS) {
-      const available = graphStats.find(s => s.name === g)?.available ?? false;
-      graphs[g] = scenario.defaultGraphs.includes(g) && available;
+      graphs[g] = scenario.defaultGraphs.includes(g);
     }
 
     // Tool configs — set focusTools as 'prefer', rest as 'available'

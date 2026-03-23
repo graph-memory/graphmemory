@@ -26,8 +26,6 @@ export default defineConfig({
               return 'vendor-md-editor'
             if (id.includes('react-markdown') || id.includes('remark-gfm') || id.includes('rehype') || id.includes('remark') || id.includes('unified') || id.includes('mdast') || id.includes('hast') || id.includes('micromark') || id.includes('unist'))
               return 'vendor-markdown'
-            if (id.includes('cytoscape'))
-              return 'vendor-graph'
           }
         },
       },

@@ -72,14 +72,7 @@ export default function SimpleBuilder() {
   });
 
   const selectScenario = useCallback((scenario: ScenarioConfig) => {
-    const newState = initState(scenario);
-    if (graphStats.length > 0) {
-      for (const g of ALL_GRAPHS) {
-        const stat = graphStats.find(s => s.name === g);
-        if (stat && !stat.available) newState.graphs[g] = false;
-      }
-    }
-    setState(newState);
+    setState(initState(scenario));
   }, [graphStats]);
 
   const toggleGraph = useCallback((name: GraphName) => {
@@ -96,7 +89,7 @@ export default function SimpleBuilder() {
   );
 
   const enabledGraphs = useMemo(
-    () => ALL_GRAPHS.filter(g => state.graphs[g] && graphStats.find(s => s.name === g)?.available),
+    () => ALL_GRAPHS.filter(g => state.graphs[g]),
     [state.graphs, graphStats],
   );
 

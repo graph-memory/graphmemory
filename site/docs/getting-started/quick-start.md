@@ -85,4 +85,4 @@ Graph Memory creates six interconnected graphs from your project:
 
 - [Configuration](./configuration) — customize with `graph-memory.yaml`
 - [MCP Tools](/docs/mcp-tools) — explore all 58 tools
-- [Web UI](/docs/web-ui) — dashboard, kanban, graph visualization
+- [Web UI](/docs/web-ui) — dashboard, kanban, code browser, search

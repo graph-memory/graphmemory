@@ -5,6 +5,40 @@ description: Graph Memory release history and version changes.
 
 # Changelog
 
+## v1.4.0
+
+**Released: March 2026**
+
+### Highlights
+
+- **Code-Optimized Embedding Model** — code graph now defaults to `jinaai/jina-embeddings-v2-base-code` via new `codeModel` config field. Separate inheritance chain: `graphs.code.model → project.codeModel → server.codeModel → code defaults`.
+- **Full Body in Code Embeddings** — code symbols now embed `signature + docComment + body` (was signature + docComment only). Functions without JSDoc are now visible to semantic search.
+- **Edge-Specific BFS Decay** — code graph BFS uses per-edge-type decay: `contains` (0.95), `extends/implements` (0.85), `imports` (0.70). Reflects that class→method is a tighter relationship than a cross-file import.
+- **Hybrid File Search** — file-level searches (`search_files`, `search_topic_files`, `search_all_files`) now use BM25 + vector hybrid (was vector-only). Exact filename queries like "embedder.ts" now work reliably.
+- **Embedding API Model Selection** — `POST /api/embed` accepts `model: "default" | "code"` to select which embedding model to use. Both models loaded at startup when `embeddingApi` is enabled.
+- **Graph Data Versioning** — persisted graphs now store `GRAPH_DATA_VERSION`. Version mismatch triggers automatic re-index (alongside existing embedding fingerprint check).
+
+### Search Improvements
+
+- BFS `queue.shift()` replaced with index pointer — O(1) dequeue instead of O(n) array shift
+- File paths normalized for embedding: `src/lib/search/code.ts` → `src lib search code ts` for better tokenization
+- `embedding.maxChars` default raised from 8000 to 24000, matching ~8k token model capacity
+
+### Configuration
+
+- New `codeModel` field at server/project/workspace levels with its own inheritance chain
+- New `embedding.remoteModel` field: `"default"` or `"code"` — auto-set to `"code"` for code graph with remote embedding
+- New `CODE_EDGE_DECAY` constants in defaults for per-edge-type BFS decay
+- `GRAPH_DATA_VERSION = 2` — bump when changing embedding content or stored format
+
+### Breaking Changes
+
+- Code graph default model changed from `Xenova/bge-m3` to `jinaai/jina-embeddings-v2-base-code` — existing code graphs will be automatically re-indexed on first startup
+- `embedding.maxChars` default changed from 8000 to 24000
+- Embedding API `embeddingApiModelName` option replaced with `embeddingApiModelNames: { default, code }`
+
+---
+
 ## v1.3.4
 
 **Released: March 2026**

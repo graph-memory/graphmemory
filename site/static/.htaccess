@@ -1,18 +1,18 @@
 DirectoryIndex index.html
+DirectorySlash Off
 
 RewriteEngine On
 
-# Remove trailing slash
+# Directory with trailing slash → strip slash (prevent mod_dir loop)
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteCond %{REQUEST_URI} ^(.+)/$
+RewriteRule ^ %1 [R=301,L]
+
+# Not-a-directory with trailing slash → strip slash
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.+)/$ /$1 [R=301,L]
 
-# If directory with trailing slash — try serving dir/index.html or redirect to without slash
-RewriteCond %{REQUEST_FILENAME} -d
-RewriteCond %{REQUEST_URI} ^(.+)/$
-RewriteCond %{DOCUMENT_ROOT}/$1.html -f
-RewriteRule ^(.+)/$ /$1 [R=301,L]
-
-# Serve .html extension for clean URLs
+# Clean URLs: /docs/faq → /docs/faq.html
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_FILENAME}.html -f

@@ -484,13 +484,19 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
       // Exclude accumulates: server + project + graph
       const graphExclude = [...projectExclude, ...parseExclude(gc?.exclude)];
 
+      const graphEmbedding = resolveEmbedding(gc?.embedding, projectEmbedding);
+      // Auto-set remoteModel for code graph when using remote embedding
+      if (gn === 'code' && graphEmbedding.remote && !graphEmbedding.remoteModel) {
+        graphEmbedding.remoteModel = 'code';
+      }
+
       graphConfigs[gn] = {
         enabled: gc?.enabled ?? true,
         readonly: gc?.readonly ?? false,
         include: gc?.include ?? (gn === 'docs' ? PROJECT_DEFAULTS.docsInclude : gn === 'code' ? PROJECT_DEFAULTS.codeInclude : undefined),
         exclude: graphExclude,
         model: resolveModel(gc?.model, gn === 'code' ? projectCodeModel : projectModel),
-        embedding: resolveEmbedding(gc?.embedding, projectEmbedding),
+        embedding: graphEmbedding,
         access: gc?.access ?? undefined,
       };
     }

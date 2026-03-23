@@ -1,7 +1,7 @@
 import { cosineSimilarity } from '@/lib/embedder';
 import type { CodeGraph, CodeNodeAttributes } from '@/graphs/code-types';
 import { rrfFuse, type HybridOptions } from '@/lib/search/bm25';
-import { SEARCH_TOP_K, SEARCH_BFS_DEPTH, SEARCH_MAX_RESULTS, SEARCH_MIN_SCORE_CODE, SEARCH_BFS_DECAY, RRF_K } from '@/lib/defaults';
+import { SEARCH_TOP_K, SEARCH_BFS_DEPTH, SEARCH_MAX_RESULTS, SEARCH_MIN_SCORE_CODE, SEARCH_BFS_DECAY, RRF_K, CODE_EDGE_DECAY } from '@/lib/defaults';
 
 export interface CodeSearchResult {
   id: string;
@@ -83,6 +83,7 @@ export function searchCode(
 
   // --- 3. BFS expansion ---
   const scoreMap = new Map<string, number>(seeds.map(s => [s.id, s.score]));
+  const maxEdgeDecay = Math.max(...Object.values(CODE_EDGE_DECAY), bfsDecay);
 
   function bfs(startId: string, seedScore: number): void {
     const queue: Array<{ id: string; depth: number; score: number }> = [
@@ -100,16 +101,18 @@ export function searchCode(
       if (item.score > prev) scoreMap.set(item.id, item.score);
 
       if (item.depth >= bfsDepth) continue;
-      if (item.score * bfsDecay < minS) continue;
+      if (item.score * maxEdgeDecay < minS) continue;
 
-      const nextScore = item.score * bfsDecay;
-      // Follow all outgoing edges (contains, imports, extends, implements)
-      graph.outNeighbors(item.id).forEach(n => queue.push({ id: n, depth: item.depth + 1, score: nextScore }));
+      // Follow all outgoing edges with edge-specific decay
+      graph.forEachOutEdge(item.id, (_edge, edgeAttrs, _src, target) => {
+        const decay = CODE_EDGE_DECAY[edgeAttrs.kind] ?? bfsDecay;
+        queue.push({ id: target, depth: item.depth + 1, score: item.score * decay });
+      });
       // Follow incoming edges, but NOT reverse imports (avoids noise from popular utility files)
-      graph.forEachInEdge(item.id, (_edge, attrs, source) => {
-        if (attrs.kind !== 'imports') {
-          queue.push({ id: source, depth: item.depth + 1, score: nextScore });
-        }
+      graph.forEachInEdge(item.id, (_edge, edgeAttrs, source) => {
+        if (edgeAttrs.kind === 'imports') return;
+        const decay = CODE_EDGE_DECAY[edgeAttrs.kind] ?? bfsDecay;
+        queue.push({ id: source, depth: item.depth + 1, score: item.score * decay });
       });
     }
   }

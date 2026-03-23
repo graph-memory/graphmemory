@@ -16,6 +16,14 @@ export const SEARCH_TOP_K       = 5;
 export const SEARCH_BFS_DEPTH   = 1;
 export const SEARCH_MAX_RESULTS = 20;
 export const SEARCH_BFS_DECAY   = 0.8;
+
+/** Edge-specific BFS decay for code graph — stronger edges propagate more score. */
+export const CODE_EDGE_DECAY: Record<string, number> = {
+  contains:   0.95,   // file→declaration, class→method — nearly the same entity
+  extends:    0.85,   // class inheritance — strong semantic link
+  implements: 0.85,   // interface implementation — strong semantic link
+  imports:    0.70,   // cross-file import — weaker dependency
+};
 export const SEARCH_MIN_SCORE   = 0.5;
 export const SEARCH_MIN_SCORE_CODE  = 0.3;
 export const SEARCH_MIN_SCORE_FILES = 0.3;

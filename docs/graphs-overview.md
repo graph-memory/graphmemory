@@ -80,12 +80,15 @@ Each graph is serialized as JSON using Graphology's `export()`/`import()`:
 
 ```json
 {
+  "version": 2,
   "embeddingModel": "Xenova/bge-m3|cls|true||q8",
   "graph": { /* graphology export */ }
 }
 ```
 
-The `embeddingModel` field stores a fingerprint of the embedding config (model + pooling + normalize + documentPrefix + dtype). On load, if the fingerprint differs from the configured model, the graph is **automatically discarded and re-indexed** from scratch.
+Two checks trigger automatic re-indexing on load:
+- **`version`** — a data schema version (`GRAPH_DATA_VERSION` in `defaults.ts`). Bumped when changing what gets embedded, path normalization, stored format, or any change requiring fresh data. If missing or mismatched, the graph is discarded.
+- **`embeddingModel`** — a fingerprint of the embedding config (model + pooling + normalize + documentPrefix + dtype). If the configured model differs from the stored one, the graph is discarded.
 
 Files are stored in the `graphMemory` directory (default: `{projectDir}/.graph-memory/`).
 

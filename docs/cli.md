@@ -102,9 +102,9 @@ Both main commands (`index`, `serve`) support `--reindex`:
 - Creates fresh empty graphs
 - Re-indexes all files from scratch
 
-### Automatic re-index on model change
+### Automatic re-index
 
-Each graph JSON file stores the embedding model fingerprint (model + pooling + normalize + dtype + documentPrefix). On load, if the configured model differs from the stored model, the graph is automatically discarded and re-indexed — no `--reindex` needed.
+Each graph JSON file stores a data version and embedding model fingerprint. On load, if either differs from the current config, the graph is automatically discarded and re-indexed — no `--reindex` needed. This covers both model changes and schema upgrades (e.g. new embedding content, path normalization changes).
 
 ## MCP client configuration
 

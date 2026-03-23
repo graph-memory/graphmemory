@@ -97,5 +97,5 @@ Both `serve` and `index` support `--reindex`:
 - Re-indexes all files from scratch
 
 :::tip Automatic re-index
-If you change the embedding model in config, Graph Memory automatically detects the mismatch and re-indexes without needing `--reindex`.
+Graph Memory automatically detects model changes and data version upgrades. If either differs from what's stored, graphs are re-indexed without needing `--reindex`.
 :::

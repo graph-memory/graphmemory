@@ -269,9 +269,13 @@ projects:
           normalize: true
 ```
 
-## Automatic re-index on model change
+## Automatic re-index
 
-Each persisted graph JSON stores an embedding fingerprint (model name + pooling + normalize + documentPrefix + dtype). On load, if the fingerprint doesn't match the current config, the graph is automatically discarded and re-indexed from scratch.
+Each persisted graph JSON stores two fields that trigger re-indexing:
+- **`version`** — a data schema version (`GRAPH_DATA_VERSION`). Bumped on changes to what gets embedded, path normalization, or stored format.
+- **`embeddingModel`** — a fingerprint of the embedding config (model name + pooling + normalize + documentPrefix + dtype).
+
+On load, if either field doesn't match the current values, the graph is automatically discarded and re-indexed from scratch.
 
 ## Model cache
 

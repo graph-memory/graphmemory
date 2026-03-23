@@ -67,7 +67,7 @@ Each project gets its own MCP endpoint (`/mcp/frontend`, `/mcp/backend`) and its
 
 ## What happens if I change the embedding model?
 
-Graph Memory detects model changes automatically. Each graph stores the embedding model fingerprint (model name, pooling strategy, normalization, dtype, and document prefix). When you change the model in `graph-memory.yaml` and restart, the affected graphs are automatically discarded and re-indexed with the new model. No manual `--reindex` is needed.
+Graph Memory detects changes automatically. Each graph stores a data version and embedding model fingerprint. When you change the model in `graph-memory.yaml`, upgrade to a new version with schema changes, or restart after any update that affects stored data, the affected graphs are automatically discarded and re-indexed. No manual `--reindex` is needed.
 
 ## Does it support other languages besides TypeScript?
 

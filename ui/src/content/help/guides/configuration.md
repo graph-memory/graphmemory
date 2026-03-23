@@ -373,4 +373,4 @@ Restart the server process to apply changes to `graph-memory.yaml`.
 
 ## Automatic re-indexing
 
-Each graph stores which embedding model was used. If you change the model in config, the graph is automatically discarded and re-indexed on next startup — no `--reindex` flag needed.
+Each graph stores a data version and embedding model fingerprint. If the version or model changes (via config change or software upgrade), the graph is automatically discarded and re-indexed on next startup — no `--reindex` flag needed.

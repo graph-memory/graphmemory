@@ -423,7 +423,7 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
   app.use('/ui', (_req, res, next) => {
     // Skip requests for actual files (assets with extensions like .js, .css, .png)
     if (_req.path.includes('.') && !_req.path.endsWith('.html')) return next();
-    res.sendFile(indexHtml, (err) => {
+    res.sendFile(indexHtml, { dotfiles: 'allow' }, (err) => {
       if (err) next();
     });
   });

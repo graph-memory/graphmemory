@@ -26,7 +26,7 @@ projects:
     expect(p.graphConfigs.code.include).toBe('**/*.{js,ts,jsx,tsx,mjs,mts,cjs,cts}');
     expect(p.exclude).toContain('**/node_modules/**');
     expect(p.chunkDepth).toBe(4);
-    expect(p.embedding.maxChars).toBe(8000);
+    expect(p.embedding.maxChars).toBe(24000);
     expect(p.model.name).toBe('Xenova/bge-m3');
     // All graphs enabled by default
     for (const gn of ['docs', 'code', 'knowledge', 'tasks', 'files', 'skills'] as const) {
@@ -181,8 +181,8 @@ projects:
     expect(x.graphConfigs.docs.model.name).toBe('docs/model');
     expect(x.graphConfigs.docs.model.pooling).toBe('mean');
     expect(x.graphConfigs.docs.model.queryPrefix).toBe(''); // NOT inherited from project
-    // code still inherits from project
-    expect(x.graphConfigs.code.model.name).toBe('proj/model');
+    // code inherits from codeModel chain (not project model)
+    expect(x.graphConfigs.code.model.name).toBe('jinaai/jina-embeddings-v2-base-code');
   });
 
   it('graphs.*.enabled controls graph creation', () => {

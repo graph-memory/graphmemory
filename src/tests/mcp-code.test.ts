@@ -263,8 +263,8 @@ describe('MCP code tools', () => {
         expect(hits[0].id).toBe('src/graph.ts::updateFile');
       });
 
-      it('minScore=0.9 returns only exact match', async () => {
-        const hits = json<CodeHit[]>(await call('search_code', { query: 'update file', topK: 1, bfsDepth: 1, minScore: 0.9, searchMode: 'vector' }));
+      it('minScore=0.96 returns only exact match (edge decay 0.95 filters BFS nodes)', async () => {
+        const hits = json<CodeHit[]>(await call('search_code', { query: 'update file', topK: 1, bfsDepth: 1, minScore: 0.96, searchMode: 'vector' }));
         expect(hits.length).toBe(1);
         expect(hits[0].id).toBe('src/graph.ts::updateFile');
       });
@@ -295,12 +295,13 @@ describe('MCP code tools', () => {
         expect(hits[0].id).toBe('src/graph.ts::updateFile');
       });
 
-      it('default decay: BFS score = seed * 0.8', async () => {
+      it('default decay: BFS score uses edge-specific decay (contains=0.95)', async () => {
         const hits = json<CodeHit[]>(await call('search_code', { query: 'update file', topK: 1, bfsDepth: 1, searchMode: 'vector' }));
         const seedScore = hits.find(h => h.id === 'src/graph.ts::updateFile')!.score;
         const bfsScore = hits.find(h => h.id === 'src/graph.ts')?.score ?? 0;
         expect(bfsScore).toBeLessThan(seedScore);
-        expect(Math.abs(bfsScore - seedScore * 0.8)).toBeLessThan(0.001);
+        // File node connected via 'contains' edge (decay=0.95)
+        expect(Math.abs(bfsScore - seedScore * 0.95)).toBeLessThan(0.001);
       });
     });
   });

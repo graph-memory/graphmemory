@@ -39,6 +39,8 @@ export function searchCode(
   const { topK = SEARCH_TOP_K, bfsDepth = SEARCH_BFS_DEPTH, maxResults = SEARCH_MAX_RESULTS, minScore = SEARCH_MIN_SCORE_CODE, bfsDecay = SEARCH_BFS_DECAY,
     includeBody = false,
     queryText, bm25Index, searchMode = 'hybrid', rrfK = RRF_K } = options;
+  // When bfsDecay is explicitly provided, use uniform decay; otherwise use edge-specific
+  const useEdgeDecay = options.bfsDecay == null;
 
   const useVector = searchMode !== 'keyword';
   const useBm25 = searchMode !== 'vector' && !!queryText && !!bm25Index;
@@ -83,7 +85,7 @@ export function searchCode(
 
   // --- 3. BFS expansion ---
   const scoreMap = new Map<string, number>(seeds.map(s => [s.id, s.score]));
-  const maxEdgeDecay = Math.max(...Object.values(CODE_EDGE_DECAY), bfsDecay);
+  const maxEdgeDecay = useEdgeDecay ? Math.max(...Object.values(CODE_EDGE_DECAY)) : bfsDecay;
 
   function bfs(startId: string, seedScore: number): void {
     const queue: Array<{ id: string; depth: number; score: number }> = [
@@ -103,15 +105,15 @@ export function searchCode(
       if (item.depth >= bfsDepth) continue;
       if (item.score * maxEdgeDecay < minS) continue;
 
-      // Follow all outgoing edges with edge-specific decay
+      // Follow all outgoing edges — edge-specific decay when no explicit bfsDecay
       graph.forEachOutEdge(item.id, (_edge, edgeAttrs, _src, target) => {
-        const decay = CODE_EDGE_DECAY[edgeAttrs.kind] ?? bfsDecay;
+        const decay = useEdgeDecay ? (CODE_EDGE_DECAY[edgeAttrs.kind] ?? bfsDecay) : bfsDecay;
         queue.push({ id: target, depth: item.depth + 1, score: item.score * decay });
       });
       // Follow incoming edges, but NOT reverse imports (avoids noise from popular utility files)
       graph.forEachInEdge(item.id, (_edge, edgeAttrs, source) => {
         if (edgeAttrs.kind === 'imports') return;
-        const decay = CODE_EDGE_DECAY[edgeAttrs.kind] ?? bfsDecay;
+        const decay = useEdgeDecay ? (CODE_EDGE_DECAY[edgeAttrs.kind] ?? bfsDecay) : bfsDecay;
         queue.push({ id: source, depth: item.depth + 1, score: item.score * decay });
       });
     }

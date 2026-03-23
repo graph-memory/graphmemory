@@ -8,6 +8,7 @@ import { parseCodeFile } from '@/lib/parsers/code';
 import { updateCodeFile, removeCodeFile, getCodeFileMtime, resolvePendingImports, resolvePendingEdges, type CodeGraph } from '@/graphs/code';
 import { startWatcher, ALWAYS_IGNORED, type WatcherHandle } from '@/lib/watcher';
 import { INDEXER_PREVIEW_LEN } from '@/lib/defaults';
+import { normalizePathForEmbed } from '@/lib/path-utils';
 import type { KnowledgeGraph } from '@/graphs/knowledge-types';
 import { cleanupProxies as cleanupKnowledgeProxies } from '@/graphs/knowledge';
 import type { TaskGraph } from '@/graphs/task-types';
@@ -130,9 +131,10 @@ export function createProjectIndexer(
     // Batch-embed all chunks + file-level in one forward pass
     const batchInputs = chunks.map(c => ({ title: c.title, content: c.content }));
     const rootChunk = chunks.find(c => c.level === 1);
+    const normalizedPath = normalizePathForEmbed(fileId);
     const embedText = rootChunk?.title
-      ? `${fileId} ${rootChunk.title}`
-      : `${fileId} ${rootChunk?.content.slice(0, INDEXER_PREVIEW_LEN) ?? ''}`;
+      ? `${normalizedPath} ${rootChunk.title}`
+      : `${normalizedPath} ${rootChunk?.content.slice(0, INDEXER_PREVIEW_LEN) ?? ''}`;
     batchInputs.push({ title: embedText, content: '' });
     const embeddings = await embedBatch(batchInputs, config.docsModelName);
     for (let i = 0; i < chunks.length; i++) {
@@ -180,9 +182,10 @@ export function createProjectIndexer(
     const exportedNames = parsed.nodes
       .filter(n => n.attrs.isExported && n.attrs.kind !== 'file')
       .map(n => n.attrs.name);
+    const normalizedCodePath = normalizePathForEmbed(fileId);
     const fileEmbedTitle = exportedNames.length > 0
-      ? `${fileId} ${exportedNames.join(' ')}`
-      : fileId;
+      ? `${normalizedCodePath} ${exportedNames.join(' ')}`
+      : normalizedCodePath;
     const fileEmbedContent = fileNode?.attrs.body ?? ''; // body = importSummary for file nodes
     batchInputs.push({ title: fileEmbedTitle, content: fileEmbedContent });
     const embeddings = await embedBatch(batchInputs, config.codeModelName);
@@ -214,7 +217,7 @@ export function createProjectIndexer(
     const mtime = stat.mtimeMs;
     const filePath = path.relative(config.projectDir, absolutePath);
     if (getFileEntryMtime(fileIndexGraph, filePath) === mtime) return;
-    const embedding = await embed(filePath, '', config.filesModelName);
+    const embedding = await embed(normalizePathForEmbed(filePath), '', config.filesModelName);
     updateFileEntry(fileIndexGraph, filePath, stat.size, mtime, embedding);
   }
 

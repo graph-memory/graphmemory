@@ -108,6 +108,8 @@ workspaces:
 
 Set at server, project, or graph level. Resolution: **graph → project → server → defaults** (whole-object, first-defined-wins — no field-by-field merge).
 
+The **code graph** has its own chain via `codeModel`: **graphs.code.model → project.codeModel → server.codeModel → code defaults** (defaults to `jinaai/jina-embeddings-v2-base-code` with `mean` pooling).
+
 | Field | Default | Description |
 |-------|---------|-------------|
 | `name` | `Xenova/bge-m3` | HuggingFace model ID |
@@ -126,6 +128,7 @@ Set at server, project, or graph level. Resolution: **graph → project → serv
 | `cacheSize` | `10000` | Embedding cache size (0 = disabled) |
 | `remote` | — | Remote embedding API URL |
 | `remoteApiKey` | — | API key for remote endpoint |
+| `remoteModel` | — | Which model to request: `"default"` or `"code"` (auto for code graph) |
 
 ## Per-graph settings
 

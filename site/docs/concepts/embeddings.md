@@ -146,3 +146,4 @@ If you change the embedding model, the first startup after the change will take 
 | `embedding.cacheSize` | `10000` | Embedding cache size (0 = disabled) |
 | `embedding.remote` | — | Remote embedding API URL |
 | `embedding.remoteApiKey` | — | API key for remote endpoint |
+| `embedding.remoteModel` | — | Which model to request: `"default"` or `"code"` (auto-set to `"code"` for code graph) |

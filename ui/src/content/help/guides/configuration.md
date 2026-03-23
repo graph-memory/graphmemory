@@ -49,9 +49,11 @@ Can be overridden per project or per workspace.
 | `rateLimit.global` | `600` | Requests/min per IP for all API routes |
 | `rateLimit.search` | `120` | Requests/min per IP for search/embed endpoints |
 | `rateLimit.auth` | `10` | Requests/min per IP for login endpoint |
-| `embedding.model` | `Xenova/bge-m3` | Default model for all graphs |
+| `embedding.model` | `Xenova/bge-m3` | Default model for all graphs (except code) |
+| `embedding.codeModel` | `jinaai/jina-embeddings-v2-base-code` | Default model for code graph (separate chain) |
 | `embedding.remote` | — | Remote embedding API URL (delegates instead of local model) |
 | `embedding.remoteApiKey` | — | API key for remote embedding |
+| `embedding.remoteModel` | — | Which model to request from remote: `"default"` or `"code"` (auto-set to `"code"` for code graph) |
 | `embeddingApi.enabled` | `false` | Expose local model via `POST /api/embed` |
 | `embeddingApi.apiKey` | — | API key for the embedding endpoint |
 | `embeddingApi.maxTexts` | `100` | Max texts per embedding request |
@@ -300,7 +302,7 @@ When `remote` is set, the server sends embedding requests to the remote URL inst
 - Sharing a single model instance across multiple Graph Memory servers
 - Using a dedicated embedding service
 
-The `remote` and `remoteApiKey` fields can be set at server, project, or graph level following the same embedding resolution order.
+The `remote`, `remoteApiKey`, and `remoteModel` fields can be set at server, project, or graph level following the same embedding resolution order. The code graph automatically sets `remoteModel: "code"` when using remote embedding, so the remote server returns code-optimized embeddings.
 
 ## CORS origins
 

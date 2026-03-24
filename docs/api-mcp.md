@@ -47,25 +47,25 @@ The set of tools registered for an MCP session depends on:
 | Tool | Input | Output |
 |------|-------|--------|
 | `docs_list_files` | optional `filter`, `limit` | `[{ fileId, title, chunks }]` |
-| `docs_docs_get_toc` | `fileId` | `[{ id, title, level }]` |
+| `docs_get_toc` | `fileId` | `[{ id, title, level }]` |
 | `docs_search` | `query` + optional `topK`, `bfsDepth`, `maxResults`, `minScore`, `bfsDecay`, `searchMode` | `[{ id, fileId, title, content, level, score }]` |
-| `docs_docs_get_node` | `nodeId` | `{ id, fileId, title, content, level, mtime }` |
-| `docs_code_search_files` | `query` + optional `topK`, `minScore` | `[{ fileId, title, chunks, score }]` |
+| `docs_get_node` | `nodeId` | `{ id, fileId, title, content, level, mtime }` |
+| `docs_search_files` | `query` + optional `limit`, `minScore` | `[{ fileId, title, chunks, score }]` |
 
 ## Code block tools
 
 | Tool | Input | Output |
 |------|-------|--------|
-| `docs_docs_find_examples` | `symbol` + optional `language`, `fileId` | `[{ id, fileId, language, symbols, content, parentId, parentTitle }]` |
-| `docs_docs_search_snippets` | `query` + optional `topK`, `minScore` | `[{ id, fileId, language, symbols, content, score }]` |
-| `docs_docs_list_snippets` | optional `fileId`, `language`, `filter` | `[{ id, fileId, language, symbols, preview }]` |
-| `docs_docs_explain_symbol` | `symbol` + optional `fileId` | `{ codeBlock, explanation, fileId }` |
+| `docs_find_examples` | `symbol` + optional `limit` | `[{ id, fileId, language, symbols, content, parentId, parentTitle }]` |
+| `docs_search_snippets` | `query` + optional `limit`, `minScore`, `language` | `[{ id, fileId, language, symbols, content, score }]` |
+| `docs_list_snippets` | optional `fileId`, `language`, `filter`, `limit` | `[{ id, fileId, language, symbols, preview }]` |
+| `docs_explain_symbol` | `symbol` + optional `limit` | `{ codeBlock, explanation, fileId }` |
 
 ## Cross-graph tools
 
 | Tool | Input | Output |
 |------|-------|--------|
-| `docs_docs_cross_references` | `symbol` | `{ definitions, documentation, examples }` |
+| `docs_cross_references` | `symbol` | `{ definitions, documentation, examples }` |
 
 Requires both DocGraph and CodeGraph to be enabled. Bridges code definitions with documentation examples.
 
@@ -74,17 +74,17 @@ Requires both DocGraph and CodeGraph to be enabled. Bridges code definitions wit
 | Tool | Input | Output |
 |------|-------|--------|
 | `code_list_files` | optional `filter`, `limit` | `[{ fileId, symbolCount }]` |
-| `code_code_get_file_symbols` | `fileId` | `[{ id, kind, name, signature, startLine, endLine, isExported }]` |
+| `code_get_file_symbols` | `fileId` | `[{ id, kind, name, signature, startLine, endLine, isExported }]` |
 | `code_search` | `query` + optional `topK`, `bfsDepth`, `maxResults`, `minScore`, `bfsDecay`, `searchMode`, `includeBody` | `[{ id, fileId, kind, name, signature, docComment, startLine, endLine, score, body? }]` |
-| `code_code_get_symbol` | `nodeId` | `{ id, fileId, kind, name, signature, docComment, body, startLine, endLine, isExported, crossLinks? }` |
-| `code_code_search_files` | `query` + optional `topK`, `minScore` | `[{ fileId, symbolCount, score }]` |
+| `code_get_symbol` | `nodeId` | `{ id, fileId, kind, name, signature, docComment, body, startLine, endLine, isExported, crossLinks? }` |
+| `code_search_files` | `query` + optional `limit`, `minScore` | `[{ fileId, symbolCount, score }]` |
 
 ## File index tools
 
 | Tool | Input | Output |
 |------|-------|--------|
 | `files_list` | optional `directory`, `extension`, `language`, `filter`, `limit` | `[{ filePath, kind, fileName, extension, language, mimeType, size, fileCount }]` |
-| `files_search` | `query` + optional `topK`, `minScore` | `[{ filePath, fileName, extension, language, size, score }]` |
+| `files_search` | `query` + optional `limit`, `minScore` | `[{ filePath, fileName, extension, language, size, score }]` |
 | `files_get_info` | `filePath` | `{ filePath, kind, fileName, directory, extension, language, mimeType, size, fileCount, mtime }` |
 
 ## Knowledge tools
@@ -108,7 +108,7 @@ Requires both DocGraph and CodeGraph to be enabled. Bridges code definitions wit
 
 | Tool | Input | Output |
 |------|-------|--------|
-| `tasks_create` | `title` + optional `description`, `status`, `priority`, `tags`, `dueDate`, `estimate`, `assignee` | `{ taskId }` |
+| `tasks_create` | `title`, `description`, `priority` + optional `status`, `tags`, `dueDate`, `estimate`, `assignee` | `{ taskId }` |
 | `tasks_update` | `taskId` + optional fields | `{ taskId, updated }` |
 | `tasks_delete` | `taskId` | `{ taskId, deleted }` |
 | `tasks_get` | `taskId` | `{ id, title, description, status, priority, tags, dueDate, estimate, assignee, completedAt, createdAt, updatedAt, subtasks, blockedBy, blocks, related, crossLinks? }` |
@@ -137,7 +137,7 @@ Requires both DocGraph and CodeGraph to be enabled. Bridges code definitions wit
 | `skills_link` | `fromId`, `toId`, `kind` (`depends_on`, `related_to`, `variant_of`) | `{ fromId, toId, kind, created }` |
 | `skills_create_link` | `skillId`, `targetId`, `targetGraph`, `kind` + optional `projectId` | `{ skillId, targetId, targetGraph, kind, created }` |
 | `skills_delete_link` | `skillId`, `targetId`, `targetGraph` + optional `projectId` | `{ skillId, targetId, deleted }` |
-| `skills_find_linked` | `targetId`, `targetGraph` + optional `kind`, `projectId` | `[{ skillId, title, kind, source, tags }]` |
+| `skills_find_linked` | `targetGraph`, `targetId` + optional `kind`, `projectId` | `[{ skillId, title, kind, source, confidence, tags }]` |
 | `skills_add_attachment` | `skillId`, `filePath` (absolute path on disk) | `{ filename, mimeType, size, addedAt }` |
 | `skills_remove_attachment` | `skillId`, `filename` | `{ deleted: filename }` |
 

@@ -135,7 +135,7 @@ Tree-sitter parser and language WASM grammars are loaded lazily on first parse. 
 
 ## File-level embeddings
 
-File root nodes have a `fileEmbedding` field — embedded from the file path only. Used by `code_code_search_files` for file-level semantic search.
+File root nodes have a `fileEmbedding` field — embedded from the file path only. Used by `code_search_files` for file-level semantic search.
 
 ## Persistence
 

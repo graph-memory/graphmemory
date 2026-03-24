@@ -14,19 +14,19 @@ Tasks here are tightly integrated with your project's knowledge graph:
 
 | Tool | Purpose | Type |
 |------|---------|------|
-| `create_task` | Create a task | Mutation |
-| `update_task` | Modify task fields | Mutation |
-| `delete_task` | Remove a task and all its edges | Mutation |
-| `get_task` | Read a task with all relations | Read |
-| `list_tasks` | List tasks with filters | Read |
-| `search_tasks` | Semantic search across tasks | Read |
-| `move_task` | Change task status (kanban move) | Mutation |
-| `link_task` | Create task-to-task relation | Mutation |
-| `create_task_link` | Link task to external graph node | Mutation |
-| `delete_task_link` | Remove cross-graph link | Mutation |
-| `find_linked_tasks` | Reverse lookup: find tasks linked to an external node | Read |
-| `add_task_attachment` | Attach a file to a task | Mutation |
-| `remove_task_attachment` | Remove an attachment from a task | Mutation |
+| `tasks_create` | Create a task | Mutation |
+| `tasks_update` | Modify task fields | Mutation |
+| `tasks_delete` | Remove a task and all its edges | Mutation |
+| `tasks_get` | Read a task with all relations | Read |
+| `tasks_list` | List tasks with filters | Read |
+| `tasks_search` | Semantic search across tasks | Read |
+| `tasks_move` | Change task status (kanban move) | Mutation |
+| `tasks_link` | Create task-to-task relation | Mutation |
+| `tasks_create_link` | Link task to external graph node | Mutation |
+| `tasks_delete_link` | Remove cross-graph link | Mutation |
+| `tasks_find_linked` | Reverse lookup: find tasks linked to an external node | Read |
+| `tasks_add_attachment` | Attach a file to a task | Mutation |
+| `tasks_remove_attachment` | Remove an attachment from a task | Mutation |
 
 > **Mutation tools** are serialized through a queue to prevent concurrent graph modifications.
 
@@ -36,7 +36,7 @@ Tasks here are tightly integrated with your project's knowledge graph:
 |----------|------|-----------------|-------|
 | `title` | string | Free text | Becomes slug ID |
 | `description` | string | Markdown | Full task description |
-| `status` | enum | `backlog`, `todo`, `in_progress`, `review`, `done`, `cancelled` | Use `move_task` to change |
+| `status` | enum | `backlog`, `todo`, `in_progress`, `review`, `done`, `cancelled` | Use `tasks_move` to change |
 | `priority` | enum | `critical`, `high`, `medium`, `low` | Affects sort order |
 | `tags` | string[] | Free-form | For filtering |
 | `dueDate` | number | Unix timestamp in milliseconds | Optional deadline |
@@ -54,7 +54,7 @@ Like notes, task IDs are slugified from the title:
 
 ## Tool reference
 
-### create_task
+### tasks_create
 
 Create a new task. Automatically embedded for semantic search.
 
@@ -71,7 +71,7 @@ Create a new task. Automatically embedded for semantic search.
 
 **Returns:** `{ taskId }`
 
-### update_task
+### tasks_update
 
 Update an existing task. Only provided fields change. Re-embeds if title or description changes. Status changes auto-manage `completedAt`.
 
@@ -89,9 +89,9 @@ Update an existing task. Only provided fields change. Re-embeds if title or desc
 
 **Returns:** `{ taskId, updated: true }`
 
-> Use `move_task` for a simpler status-only change — it's more explicit about `completedAt` management.
+> Use `tasks_move` for a simpler status-only change — it's more explicit about `completedAt` management.
 
-### delete_task
+### tasks_delete
 
 Delete a task and all its edges (relations + cross-graph links). Orphaned proxy nodes cleaned up automatically. **Irreversible.**
 
@@ -101,7 +101,7 @@ Delete a task and all its edges (relations + cross-graph links). Orphaned proxy 
 
 **Returns:** `{ taskId, deleted: true }`
 
-### get_task
+### tasks_get
 
 Return full task details including all relations. This is the most complete view of a task.
 
@@ -123,7 +123,7 @@ Return full task details including all relations. This is the most complete view
 
 The `subtasks`, `blockedBy`, `blocks`, and `related` arrays are automatically populated from task-to-task edges.
 
-### list_tasks
+### tasks_list
 
 List tasks with optional filters. Sorted by priority (critical → low) then due date (earliest first, nulls last).
 
@@ -138,7 +138,7 @@ List tasks with optional filters. Sorted by priority (critical → low) then due
 
 **Returns:** `[{ id, title, description, status, priority, tags, dueDate, estimate, assignee, completedAt, createdAt, updatedAt }]`
 
-### search_tasks
+### tasks_search
 
 Semantic search over the task graph with BFS expansion.
 
@@ -154,7 +154,7 @@ Semantic search over the task graph with BFS expansion.
 
 **Returns:** `[{ id, title, description, status, priority, tags, score }]`
 
-### move_task
+### tasks_move
 
 Change task status. The preferred way to move tasks through the kanban workflow.
 
@@ -169,7 +169,7 @@ Change task status. The preferred way to move tasks through the kanban workflow.
 - Moving to `done` or `cancelled` → sets `completedAt` to current time
 - Moving from `done`/`cancelled` to any other status → clears `completedAt`
 
-### link_task
+### tasks_link
 
 Create a directed relation between two tasks.
 
@@ -186,7 +186,7 @@ Create a directed relation between two tasks.
 - `blocks` — `fromId` blocks `toId` (blocker → blocked task)
 - `related_to` — free association between tasks
 
-### create_task_link
+### tasks_create_link
 
 Link a task to a node in another graph (docs, code, files, or knowledge).
 
@@ -201,13 +201,13 @@ Link a task to a node in another graph (docs, code, files, or knowledge).
 
 **Examples:**
 ```
-create_task_link({ taskId: "fix-auth", targetId: "src/auth.ts::login", targetGraph: "code", kind: "fixes" })
-create_task_link({ taskId: "update-docs", targetId: "guide.md::Authentication", targetGraph: "docs", kind: "updates" })
-create_task_link({ taskId: "review-config", targetId: "src/config.ts", targetGraph: "files", kind: "references" })
-create_task_link({ taskId: "implement-arch", targetId: "auth-architecture", targetGraph: "knowledge", kind: "implements" })
+tasks_create_link({ taskId: "fix-auth", targetId: "src/auth.ts::login", targetGraph: "code", kind: "fixes" })
+tasks_create_link({ taskId: "update-docs", targetId: "guide.md::Authentication", targetGraph: "docs", kind: "updates" })
+tasks_create_link({ taskId: "review-config", targetId: "src/config.ts", targetGraph: "files", kind: "references" })
+tasks_create_link({ taskId: "implement-arch", targetId: "auth-architecture", targetGraph: "knowledge", kind: "implements" })
 ```
 
-### delete_task_link
+### tasks_delete_link
 
 Remove a cross-graph link from a task. Orphaned proxy nodes cleaned up automatically.
 
@@ -219,7 +219,7 @@ Remove a cross-graph link from a task. Orphaned proxy nodes cleaned up automatic
 
 **Returns:** `{ taskId, targetId, targetGraph, deleted: true }`
 
-### find_linked_tasks
+### tasks_find_linked
 
 Reverse lookup: given a node in an external graph, find all tasks that link to it.
 
@@ -231,9 +231,9 @@ Reverse lookup: given a node in an external graph, find all tasks that link to i
 
 **Returns:** `[{ taskId, title, kind, status, priority, tags }]`
 
-**Use case:** When working on a file, call `find_linked_tasks({ targetId: "src/auth.ts", targetGraph: "code" })` to see all tasks related to that file.
+**Use case:** When working on a file, call `tasks_find_linked({ targetId: "src/auth.ts", targetGraph: "code" })` to see all tasks related to that file.
 
-### add_task_attachment
+### tasks_add_attachment
 
 Attach a file to a task. The file is copied into the task's directory (`.tasks/{taskId}/`).
 
@@ -244,7 +244,7 @@ Attach a file to a task. The file is copied into the task's directory (`.tasks/{
 
 **Returns:** `{ taskId, attachment: { filename, mimeType, size } }`
 
-### remove_task_attachment
+### tasks_remove_attachment
 
 Remove an attachment from a task. Deletes the file from disk.
 
@@ -270,14 +270,14 @@ The Tasks page provides a visual kanban board with these features:
 
 ## Tips
 
-- Use `move_task` instead of `update_task` for status changes — it explicitly handles `completedAt`
-- `get_task` returns the richest data — includes subtasks, blockers, and related tasks
-- `list_tasks` is sorted by priority then due date — critical overdue tasks appear first
+- Use `tasks_move` instead of `tasks_update` for status changes — it explicitly handles `completedAt`
+- `tasks_get` returns the richest data — includes subtasks, blockers, and related tasks
+- `tasks_list` is sorted by priority then due date — critical overdue tasks appear first
 - Link tasks to code files they affect — makes it easy to find related tasks when working on code
-- Use `search_tasks` to find tasks by meaning, not just title keywords
-- `update_task` with `dueDate: null` or `estimate: null` clears those fields
-- `update_task` with `tags` replaces the entire array — include all tags you want to keep
+- Use `tasks_search` to find tasks by meaning, not just title keywords
+- `tasks_update` with `dueDate: null` or `estimate: null` clears those fields
+- `tasks_update` with `tags` replaces the entire array — include all tags you want to keep
 - Task-to-task `kind` values are a fixed enum (`subtask_of`, `blocks`, `related_to`), unlike knowledge relations which are free-form
-- Tasks support file attachments — attach screenshots, logs, or any file via `add_task_attachment`
+- Tasks support file attachments — attach screenshots, logs, or any file via `tasks_add_attachment`
 - Attachments are stored in `.tasks/{taskId}/` alongside the task's markdown file
 - When the task graph is configured as `readonly: true`, mutation tools (create, update, delete, move) are hidden from MCP clients and REST mutation endpoints return 403. The UI hides write buttons and disables drag-and-drop on the kanban board.

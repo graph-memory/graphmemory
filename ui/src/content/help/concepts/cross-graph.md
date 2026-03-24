@@ -4,7 +4,7 @@ One of Graph Memory's most powerful features is the ability to **link knowledge 
 
 ## How it works
 
-When you create a cross-graph link (via `create_relation`, `create_task_link`, or `create_skill_link`), the system creates a **proxy node** — a lightweight placeholder in the source graph that represents a node from another graph.
+When you create a cross-graph link (via `notes_create_link`, `tasks_create_link`, or `skills_create_link`), the system creates a **proxy node** — a lightweight placeholder in the source graph that represents a node from another graph.
 
 Proxy node IDs follow the format `@{graph}::{nodeId}`:
 - `@docs::guide.md::Setup` — a doc section
@@ -18,10 +18,10 @@ Proxy node IDs follow the format `@{graph}::{nodeId}`:
 
 ### From Knowledge (notes)
 
-Use `create_relation` with the `targetGraph` parameter:
+Use `notes_create_link` with the `targetGraph` parameter:
 
 ```
-create_relation({
+notes_create_link({
   fromId: "auth-architecture",
   toId: "auth.ts::AuthService",
   kind: "documents",
@@ -33,10 +33,10 @@ Supported target graphs: `docs`, `code`, `files`, `tasks`, `skills`
 
 ### From Tasks
 
-Use `create_task_link` with the `targetGraph` parameter:
+Use `tasks_create_link` with the `targetGraph` parameter:
 
 ```
-create_task_link({
+tasks_create_link({
   taskId: "update-auth-docs",
   targetId: "guide.md::Authentication",
   kind: "relates_to",
@@ -48,10 +48,10 @@ Supported target graphs: `docs`, `code`, `files`, `knowledge`, `skills`
 
 ### From Skills
 
-Use `create_skill_link` with the `targetGraph` parameter:
+Use `skills_create_link` with the `targetGraph` parameter:
 
 ```
-create_skill_link({
+skills_create_link({
   skillId: "add-rest-endpoint",
   targetId: "api-guide.md::REST",
   kind: "relates_to",
@@ -63,12 +63,12 @@ Supported target graphs: `docs`, `code`, `files`, `knowledge`, `tasks`
 
 ## Discovering cross-graph links
 
-- `find_linked_notes` — find all notes linked to a specific external node
-- `find_linked_tasks` — find all tasks linked to a specific external node
-- `find_linked_skills` — find all skills linked to a specific external node
-- `list_relations` — list all relations for a note (including cross-graph)
-- `get_task` — returns enriched task data including all cross-graph links
-- `get_skill` — returns enriched skill data including all cross-graph links
+- `notes_find_linked` — find all notes linked to a specific external node
+- `tasks_find_linked` — find all tasks linked to a specific external node
+- `skills_find_linked` — find all skills linked to a specific external node
+- `notes_list_links` — list all relations for a note (including cross-graph)
+- `tasks_get` — returns enriched task data including all cross-graph links
+- `skills_get` — returns enriched skill data including all cross-graph links
 
 ## Proxy cleanup
 

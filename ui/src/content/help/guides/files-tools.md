@@ -6,9 +6,9 @@ The file index tools provide access to metadata about **every file and directory
 
 | Tool | Purpose | When to use |
 |------|---------|-------------|
-| `list_all_files` | List files/directories with filters | Browse project structure, filter by extension/language |
-| `search_all_files` | Semantic search by file path | Find files by what they might contain |
-| `get_file_info` | Get metadata for a specific path | Check size, language, modification date |
+| `files_list` | List files/directories with filters | Browse project structure, filter by extension/language |
+| `files_search` | Semantic search by file path | Find files by what they might contain |
+| `files_get_info` | Get metadata for a specific path | Check size, language, modification date |
 
 ## What gets indexed
 
@@ -29,19 +29,19 @@ For directories:
 
 ### Directory browsing
 
-`list_all_files` with the `directory` parameter returns **immediate children** (files + subdirectories) of that directory. This is how you browse the project tree:
+`files_list` with the `directory` parameter returns **immediate children** (files + subdirectories) of that directory. This is how you browse the project tree:
 
 ```
-list_all_files({ directory: "." })           → root contents
-list_all_files({ directory: "src" })         → src/ contents
-list_all_files({ directory: "src/api" })     → src/api/ contents
+files_list({ directory: "." })           → root contents
+files_list({ directory: "src" })         → src/ contents
+files_list({ directory: "src/api" })     → src/api/ contents
 ```
 
 Without `directory`, it returns all files matching filters (flat list, no directories).
 
 ### File search
 
-`search_all_files` embeds file paths for semantic search. You can search by:
+`files_search` embeds file paths for semantic search. You can search by:
 - Partial paths: `"config"` finds configuration files
 - Concepts: `"authentication"` finds files in auth-related directories
 - File types: `"typescript source"` finds `.ts` files
@@ -50,7 +50,7 @@ The `minScore` default is **0.3** (lower than node search) because file path emb
 
 ## Tool reference
 
-### list_all_files
+### files_list
 
 List project files and directories with optional filters.
 
@@ -72,19 +72,19 @@ List project files and directories with optional filters.
 - With `directory` set: returns both files and subdirectories (immediate children only)
 - Without `directory`: returns only files (no directories), across the entire project
 
-### search_all_files
+### files_search
 
 Semantic search over file nodes by path embedding. Searches files only (not directories).
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `query` | string | Yes | — | Search query (natural language or path fragment) |
-| `topK` | number | No | 10 | Maximum results |
+| `limit` | number | No | 10 | Maximum results |
 | `minScore` | number | No | 0.3 | Minimum cosine similarity score (0–1) |
 
 **Returns:** `[{ filePath, fileName, extension, language, size, score }]`
 
-### get_file_info
+### files_get_info
 
 Get full metadata for a specific file or directory. Use `"."` for the project root.
 
@@ -112,24 +112,24 @@ Files can be linked from notes and tasks:
 
 ```
 // From a knowledge note
-create_relation({ fromId: "config-format", toId: "src/config.ts", kind: "documents", targetGraph: "files" })
+notes_create_link({ fromId: "config-format", toId: "src/config.ts", kind: "documents", targetGraph: "files" })
 
 // From a task
-create_task_link({ taskId: "refactor-config", targetId: "src/config.ts", targetGraph: "files", kind: "affects" })
+tasks_create_link({ taskId: "refactor-config", targetId: "src/config.ts", targetGraph: "files", kind: "affects" })
 ```
 
-Use `find_linked_notes` or `find_linked_tasks` with `targetGraph: "files"` to discover what knowledge or tasks reference a specific file:
+Use `notes_find_linked` or `tasks_find_linked` with `targetGraph: "files"` to discover what knowledge or tasks reference a specific file:
 
 ```
-find_linked_notes({ targetId: "src/auth.ts", targetGraph: "files" })
-find_linked_tasks({ targetId: "src/auth.ts", targetGraph: "files" })
+notes_find_linked({ targetId: "src/auth.ts", targetGraph: "files" })
+tasks_find_linked({ targetId: "src/auth.ts", targetGraph: "files" })
 ```
 
 ## Tips
 
-- Use `list_all_files` with `directory` to browse top-down through the project tree
-- Use `list_all_files` with `extension: ".ts"` or `language: "typescript"` to find all files of a type
-- `get_file_info` on `"."` gives project-level stats (total size, file count)
-- `search_all_files` works better with path-like queries than abstract concepts
+- Use `files_list` with `directory` to browse top-down through the project tree
+- Use `files_list` with `extension: ".ts"` or `language: "typescript"` to find all files of a type
+- `files_get_info` on `"."` gives project-level stats (total size, file count)
+- `files_search` works better with path-like queries than abstract concepts
 - File index is always active — no `graphs.docs.include` or `graphs.code.include` configuration needed
-- The `language` filter in `list_all_files` uses detected language names like `"typescript"`, `"javascript"`, `"markdown"`, `"json"`, `"yaml"`, `"css"`, `"html"`, `"python"`, etc.
+- The `language` filter in `files_list` uses detected language names like `"typescript"`, `"javascript"`, `"markdown"`, `"json"`, `"yaml"`, `"css"`, `"html"`, `"python"`, etc.

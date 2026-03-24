@@ -38,7 +38,7 @@ export const helpArticles: HelpArticle[] = [
     title: 'How Semantic Search Works',
     summary: 'Vector embeddings, cosine similarity, and BFS graph expansion explained.',
     category: 'concept',
-    relatedTools: ['search', 'search_code', 'search_notes', 'search_tasks', 'search_skills', 'search_all_files', 'search_topic_files', 'search_files', 'search_snippets'],
+    relatedTools: ['docs_search', 'code_search', 'notes_search', 'tasks_search', 'skills_search', 'files_search', 'docs_search_files', 'code_search_files', 'docs_search_snippets'],
     content: howSearchWorks,
   },
   {
@@ -46,7 +46,7 @@ export const helpArticles: HelpArticle[] = [
     title: 'Graph Structure',
     summary: 'The six graphs: DocGraph, CodeGraph, FileIndexGraph, KnowledgeGraph, TaskGraph, SkillGraph.',
     category: 'concept',
-    relatedTools: ['list_topics', 'get_toc', 'get_node', 'list_files', 'get_file_symbols', 'get_symbol', 'list_all_files', 'get_file_info', 'list_notes', 'get_note', 'list_tasks', 'get_task', 'list_skills', 'get_skill'],
+    relatedTools: ['docs_list_files', 'docs_get_toc', 'docs_get_node', 'code_list_files', 'code_get_file_symbols', 'code_get_symbol', 'files_list', 'files_get_info', 'notes_list', 'notes_get', 'tasks_list', 'tasks_get', 'skills_list', 'skills_get'],
     content: graphStructure,
   },
   {
@@ -54,7 +54,7 @@ export const helpArticles: HelpArticle[] = [
     title: 'Cross-Graph Links',
     summary: 'How to link notes and tasks to code, docs, and files via proxy nodes.',
     category: 'concept',
-    relatedTools: ['create_relation', 'delete_relation', 'list_relations', 'create_task_link', 'delete_task_link', 'create_skill_link', 'delete_skill_link', 'find_linked_notes', 'find_linked_tasks', 'find_linked_skills'],
+    relatedTools: ['notes_create_link', 'notes_delete_link', 'notes_list_links', 'tasks_create_link', 'tasks_delete_link', 'skills_create_link', 'skills_delete_link', 'notes_find_linked', 'tasks_find_linked', 'skills_find_linked'],
     content: crossGraph,
   },
 
@@ -83,8 +83,8 @@ export const helpArticles: HelpArticle[] = [
     summary: 'Search, browse, and navigate indexed markdown documentation.',
     category: 'guide',
     relatedTools: [
-      'list_topics', 'get_toc', 'search', 'get_node', 'search_topic_files',
-      'find_examples', 'search_snippets', 'list_snippets', 'explain_symbol',
+      'docs_list_files', 'docs_get_toc', 'docs_search', 'docs_get_node', 'docs_search_files',
+      'docs_find_examples', 'docs_search_snippets', 'docs_list_snippets', 'docs_explain_symbol',
     ],
     content: docsTools,
   },
@@ -93,7 +93,7 @@ export const helpArticles: HelpArticle[] = [
     title: 'Code Tools',
     summary: 'Search and navigate TypeScript/JavaScript source code symbols.',
     category: 'guide',
-    relatedTools: ['list_files', 'get_file_symbols', 'search_code', 'get_symbol', 'search_files'],
+    relatedTools: ['code_list_files', 'code_get_file_symbols', 'code_search', 'code_get_symbol', 'code_search_files'],
     content: codeTools,
   },
   {
@@ -102,9 +102,9 @@ export const helpArticles: HelpArticle[] = [
     summary: 'Create and manage notes, facts, and decisions in a persistent knowledge graph.',
     category: 'guide',
     relatedTools: [
-      'create_note', 'update_note', 'delete_note', 'get_note', 'list_notes',
-      'search_notes', 'create_relation', 'delete_relation', 'list_relations', 'find_linked_notes',
-      'add_note_attachment', 'remove_note_attachment',
+      'notes_create', 'notes_update', 'notes_delete', 'notes_get', 'notes_list',
+      'notes_search', 'notes_create_link', 'notes_delete_link', 'notes_list_links', 'notes_find_linked',
+      'notes_add_attachment', 'notes_remove_attachment',
     ],
     content: knowledgeTools,
   },
@@ -114,9 +114,9 @@ export const helpArticles: HelpArticle[] = [
     summary: 'Kanban task management with priorities, dependencies, and cross-graph links.',
     category: 'guide',
     relatedTools: [
-      'create_task', 'update_task', 'delete_task', 'get_task', 'list_tasks',
-      'search_tasks', 'move_task', 'link_task', 'create_task_link', 'delete_task_link', 'find_linked_tasks',
-      'add_task_attachment', 'remove_task_attachment',
+      'tasks_create', 'tasks_update', 'tasks_delete', 'tasks_get', 'tasks_list',
+      'tasks_search', 'tasks_move', 'tasks_link', 'tasks_create_link', 'tasks_delete_link', 'tasks_find_linked',
+      'tasks_add_attachment', 'tasks_remove_attachment',
     ],
     content: taskTools,
   },
@@ -126,9 +126,9 @@ export const helpArticles: HelpArticle[] = [
     summary: 'Create and manage reusable skills, recipes, and procedures with triggers and usage tracking.',
     category: 'guide',
     relatedTools: [
-      'create_skill', 'update_skill', 'delete_skill', 'get_skill', 'list_skills',
-      'search_skills', 'link_skill', 'create_skill_link', 'delete_skill_link', 'find_linked_skills',
-      'add_skill_attachment', 'remove_skill_attachment', 'recall_skills', 'bump_skill_usage',
+      'skills_create', 'skills_update', 'skills_delete', 'skills_get', 'skills_list',
+      'skills_search', 'skills_link', 'skills_create_link', 'skills_delete_link', 'skills_find_linked',
+      'skills_add_attachment', 'skills_remove_attachment', 'skills_recall', 'skills_bump_usage',
     ],
     content: skillTools,
   },
@@ -137,7 +137,7 @@ export const helpArticles: HelpArticle[] = [
     title: 'File Index Tools',
     summary: 'Browse and search metadata for every file and directory in your project.',
     category: 'guide',
-    relatedTools: ['list_all_files', 'search_all_files', 'get_file_info'],
+    relatedTools: ['files_list', 'files_search', 'files_get_info'],
     content: filesTools,
   },
   {
@@ -145,7 +145,7 @@ export const helpArticles: HelpArticle[] = [
     title: 'Cross References Tool',
     summary: 'Bridge code definitions and documentation examples for any symbol.',
     category: 'guide',
-    relatedTools: ['cross_references'],
+    relatedTools: ['docs_cross_references'],
     content: crossReferences,
   },
 ];

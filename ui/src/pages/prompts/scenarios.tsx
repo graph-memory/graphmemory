@@ -48,14 +48,14 @@ export const SCENARIOS: ScenarioConfig[] = [
     defaultGraphs: ['docs', 'code', 'files', 'knowledge', 'tasks', 'skills'],
     defaultRole: 'developer',
     defaultStyle: 'balanced',
-    focusTools: ['search', 'search_code', 'cross_references', 'explain_symbol', 'get_toc', 'list_topics', 'get_symbol', 'search_all_files'],
+    focusTools: ['docs_search', 'code_search', 'docs_cross_references', 'docs_explain_symbol', 'docs_get_toc', 'docs_list_files', 'code_get_symbol', 'files_search'],
     triggers: ['onboarding', 'new developer', 'explore project'],
     advancedDefaults: {
       behavior: { verbosity: 'detailed', codeExamples: 'always', explanationDepth: 'deep-dive' },
       memoryStrategy: { autoCreateNotes: 'ask', relationStrategy: 'conservative', taskAutoCreate: 'never' },
       searchStrategy: { defaultDepth: 'deep', crossGraphExpansion: 'always', bfsHops: 3 },
       collaboration: { mode: 'solo', reviewStrictness: 'lenient' },
-      enableSections: ['behavior', 'search'],
+      enableSections: ['behavior', 'docs_search'],
     },
   },
   {
@@ -66,7 +66,7 @@ export const SCENARIOS: ScenarioConfig[] = [
     defaultGraphs: ['docs', 'code', 'files', 'knowledge', 'tasks', 'skills'],
     defaultRole: 'developer',
     defaultStyle: 'proactive',
-    focusTools: ['search_code', 'get_symbol', 'search_tasks', 'move_task', 'recall_skills', 'create_note', 'find_linked_tasks', 'cross_references'],
+    focusTools: ['code_search', 'code_get_symbol', 'tasks_search', 'tasks_move', 'skills_recall', 'notes_create', 'tasks_find_linked', 'docs_cross_references'],
     triggers: ['development', 'coding', 'implement', 'write code'],
     advancedDefaults: {
       memoryStrategy: { autoCreateNotes: 'ask', taskAutoCreate: 'ask', relationStrategy: 'conservative' },
@@ -82,7 +82,7 @@ export const SCENARIOS: ScenarioConfig[] = [
     defaultGraphs: ['code', 'docs', 'files', 'tasks'],
     defaultRole: 'reviewer',
     defaultStyle: 'reactive',
-    focusTools: ['search_code', 'get_symbol', 'find_linked_tasks', 'find_examples', 'cross_references', 'search_notes', 'get_file_symbols'],
+    focusTools: ['code_search', 'code_get_symbol', 'tasks_find_linked', 'docs_find_examples', 'docs_cross_references', 'notes_search', 'code_get_file_symbols'],
     triggers: ['code review', 'pull request', 'PR review'],
     advancedDefaults: {
       behavior: { verbosity: 'concise', codeExamples: 'when-helpful' },
@@ -100,13 +100,13 @@ export const SCENARIOS: ScenarioConfig[] = [
     defaultGraphs: ['code', 'knowledge', 'tasks', 'files'],
     defaultRole: 'developer',
     defaultStyle: 'proactive',
-    focusTools: ['search_code', 'get_symbol', 'search_notes', 'find_linked_tasks', 'create_task', 'create_note', 'get_file_symbols', 'search_all_files'],
+    focusTools: ['code_search', 'code_get_symbol', 'notes_search', 'tasks_find_linked', 'tasks_create', 'notes_create', 'code_get_file_symbols', 'files_search'],
     triggers: ['bug', 'debug', 'investigate', 'fix issue'],
     advancedDefaults: {
       behavior: { verbosity: 'detailed', codeExamples: 'always', explanationDepth: 'deep-dive' },
       memoryStrategy: { autoCreateNotes: 'always', relationStrategy: 'aggressive', taskAutoCreate: 'always' },
       searchStrategy: { defaultDepth: 'deep', crossGraphExpansion: 'always', bfsHops: 3 },
-      enableSections: ['memory', 'search'],
+      enableSections: ['memory', 'docs_search'],
     },
   },
   {
@@ -117,12 +117,12 @@ export const SCENARIOS: ScenarioConfig[] = [
     defaultGraphs: ['code', 'docs', 'files', 'tasks'],
     defaultRole: 'developer',
     defaultStyle: 'reactive',
-    focusTools: ['search_code', 'get_file_symbols', 'get_symbol', 'cross_references', 'find_linked_tasks', 'list_files', 'search_files'],
+    focusTools: ['code_search', 'code_get_file_symbols', 'code_get_symbol', 'docs_cross_references', 'tasks_find_linked', 'code_list_files', 'code_search_files'],
     triggers: ['refactoring', 'restructure', 'reorganize code'],
     advancedDefaults: {
       memoryStrategy: { autoCreateNotes: 'ask', taskAutoCreate: 'ask' },
       searchStrategy: { defaultDepth: 'deep', crossGraphExpansion: 'always', bfsHops: 3 },
-      enableSections: ['search'],
+      enableSections: ['docs_search'],
     },
   },
   {
@@ -133,13 +133,13 @@ export const SCENARIOS: ScenarioConfig[] = [
     defaultGraphs: ['code', 'docs', 'files', 'knowledge', 'skills'],
     defaultRole: 'architect',
     defaultStyle: 'proactive',
-    focusTools: ['search', 'search_code', 'cross_references', 'list_files', 'get_toc', 'create_note', 'create_skill', 'recall_skills'],
+    focusTools: ['docs_search', 'code_search', 'docs_cross_references', 'code_list_files', 'docs_get_toc', 'notes_create', 'skills_create', 'skills_recall'],
     triggers: ['architecture', 'design', 'system design', 'new feature'],
     advancedDefaults: {
       behavior: { verbosity: 'detailed', explanationDepth: 'deep-dive' },
       memoryStrategy: { autoCreateNotes: 'always', relationStrategy: 'aggressive', taskAutoCreate: 'ask' },
       searchStrategy: { defaultDepth: 'deep', crossGraphExpansion: 'always', bfsHops: 3 },
-      enableSections: ['behavior', 'memory', 'search'],
+      enableSections: ['behavior', 'memory', 'docs_search'],
     },
   },
   {
@@ -150,7 +150,7 @@ export const SCENARIOS: ScenarioConfig[] = [
     defaultGraphs: ['docs', 'code', 'knowledge', 'files'],
     defaultRole: 'tech-writer',
     defaultStyle: 'proactive',
-    focusTools: ['search', 'get_toc', 'cross_references', 'search_topic_files', 'get_node', 'search_code', 'create_note', 'list_topics'],
+    focusTools: ['docs_search', 'docs_get_toc', 'docs_cross_references', 'docs_search_files', 'docs_get_node', 'code_search', 'notes_create', 'docs_list_files'],
     triggers: ['documentation', 'write docs', 'update docs'],
     advancedDefaults: {
       behavior: { verbosity: 'detailed', codeExamples: 'always', explanationDepth: 'deep-dive' },
@@ -167,7 +167,7 @@ export const SCENARIOS: ScenarioConfig[] = [
     defaultGraphs: ['tasks', 'skills', 'knowledge', 'code'],
     defaultRole: 'team-lead',
     defaultStyle: 'proactive',
-    focusTools: ['list_tasks', 'search_tasks', 'create_task', 'move_task', 'recall_skills', 'create_note', 'link_task', 'find_linked_tasks'],
+    focusTools: ['tasks_list', 'tasks_search', 'tasks_create', 'tasks_move', 'skills_recall', 'notes_create', 'tasks_link', 'tasks_find_linked'],
     triggers: ['sprint planning', 'task planning', 'backlog grooming'],
     advancedDefaults: {
       behavior: { verbosity: 'concise', codeExamples: 'never', explanationDepth: 'brief' },
@@ -184,13 +184,13 @@ export const SCENARIOS: ScenarioConfig[] = [
     defaultGraphs: ['knowledge', 'tasks', 'skills', 'code'],
     defaultRole: 'developer',
     defaultStyle: 'proactive',
-    focusTools: ['create_note', 'create_relation', 'create_skill', 'create_task', 'create_task_link', 'search_notes', 'search_code'],
+    focusTools: ['notes_create', 'notes_create_link', 'skills_create', 'tasks_create', 'tasks_create_link', 'notes_search', 'code_search'],
     triggers: ['knowledge capture', 'meeting notes', 'decision record'],
     advancedDefaults: {
       behavior: { verbosity: 'detailed' },
       memoryStrategy: { autoCreateNotes: 'always', noteDetailLevel: 4, relationStrategy: 'aggressive', skillCaptureThreshold: 2, taskAutoCreate: 'always' },
       searchStrategy: { defaultDepth: 'deep', crossGraphExpansion: 'always' },
-      enableSections: ['memory', 'search'],
+      enableSections: ['memory', 'docs_search'],
     },
   },
   {
@@ -201,14 +201,14 @@ export const SCENARIOS: ScenarioConfig[] = [
     defaultGraphs: ['code', 'docs', 'files', 'knowledge'],
     defaultRole: 'developer',
     defaultStyle: 'read-only',
-    focusTools: ['explain_symbol', 'cross_references', 'get_toc', 'search', 'search_code', 'get_symbol', 'get_node', 'list_topics'],
+    focusTools: ['docs_explain_symbol', 'docs_cross_references', 'docs_get_toc', 'docs_search', 'code_search', 'code_get_symbol', 'docs_get_node', 'docs_list_files'],
     triggers: ['mentoring', 'explain code', 'teach', 'onboard junior'],
     advancedDefaults: {
       behavior: { verbosity: 'exhaustive', codeExamples: 'always', explanationDepth: 'deep-dive' },
       memoryStrategy: { autoCreateNotes: 'never', relationStrategy: 'manual', taskAutoCreate: 'never' },
       searchStrategy: { defaultDepth: 'deep', crossGraphExpansion: 'always', bfsHops: 3 },
       collaboration: { mode: 'pair', reviewStrictness: 'lenient' },
-      enableSections: ['behavior', 'search', 'collaboration'],
+      enableSections: ['behavior', 'docs_search', 'collaboration'],
     },
   },
   {
@@ -219,13 +219,13 @@ export const SCENARIOS: ScenarioConfig[] = [
     defaultGraphs: ['code', 'knowledge', 'tasks', 'files', 'skills'],
     defaultRole: 'developer',
     defaultStyle: 'proactive',
-    focusTools: ['search_code', 'get_symbol', 'search_notes', 'recall_skills', 'create_task', 'create_note', 'find_linked_tasks', 'search_all_files'],
+    focusTools: ['code_search', 'code_get_symbol', 'notes_search', 'skills_recall', 'tasks_create', 'notes_create', 'tasks_find_linked', 'files_search'],
     triggers: ['incident', 'production issue', 'outage', 'critical bug'],
     advancedDefaults: {
       behavior: { verbosity: 'concise', explanationDepth: 'brief' },
       memoryStrategy: { autoCreateNotes: 'always', relationStrategy: 'aggressive', taskAutoCreate: 'always' },
       searchStrategy: { defaultDepth: 'deep', crossGraphExpansion: 'always', bfsHops: 3 },
-      enableSections: ['memory', 'search'],
+      enableSections: ['memory', 'docs_search'],
     },
   },
   {
@@ -236,12 +236,12 @@ export const SCENARIOS: ScenarioConfig[] = [
     defaultGraphs: ['code', 'files', 'knowledge', 'tasks'],
     defaultRole: 'architect',
     defaultStyle: 'balanced',
-    focusTools: ['search_all_files', 'list_all_files', 'get_file_info', 'search_code', 'get_file_symbols', 'list_files', 'create_note'],
+    focusTools: ['files_search', 'files_list', 'files_get_info', 'code_search', 'code_get_file_symbols', 'code_list_files', 'notes_create'],
     triggers: ['dependency audit', 'audit dependencies', 'package analysis'],
     advancedDefaults: {
       memoryStrategy: { autoCreateNotes: 'ask', taskAutoCreate: 'ask' },
       searchStrategy: { defaultDepth: 'deep', crossGraphExpansion: 'always' },
-      enableSections: ['search'],
+      enableSections: ['docs_search'],
     },
   },
   {
@@ -252,7 +252,7 @@ export const SCENARIOS: ScenarioConfig[] = [
     defaultGraphs: ['tasks', 'knowledge', 'skills', 'code'],
     defaultRole: 'team-lead',
     defaultStyle: 'proactive',
-    focusTools: ['list_tasks', 'search_tasks', 'list_notes', 'search_notes', 'recall_skills', 'create_note', 'create_task', 'create_skill'],
+    focusTools: ['tasks_list', 'tasks_search', 'notes_list', 'notes_search', 'skills_recall', 'notes_create', 'tasks_create', 'skills_create'],
     triggers: ['retrospective', 'retro', 'sprint review', 'post-mortem'],
     advancedDefaults: {
       memoryStrategy: { autoCreateNotes: 'always', relationStrategy: 'aggressive', skillCaptureThreshold: 2, taskAutoCreate: 'always' },

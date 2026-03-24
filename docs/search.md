@@ -103,7 +103,7 @@ Each graph defines what text to extract for BM25 indexing:
 
 ## File-level search
 
-`code_code_search_files`, `docs_code_search_files`, and `files_search` use **file-level embeddings** stored on root nodes:
+`code_search_files`, `docs_search_files`, and `files_search` use **file-level embeddings** stored on root nodes:
 - Code: file path + exported symbol names + import summary
 - Docs: file path + h1 title
 - FileIndex: file path
@@ -121,7 +121,7 @@ File paths are normalized for embedding (slashes/dots → spaces) so that path s
 | Knowledge search | `src/lib/search/knowledge.ts` | `notes_search` MCP tool |
 | Task search | `src/lib/search/tasks.ts` | `tasks_search` MCP tool |
 | Skill search | `src/lib/search/skills.ts` | `skills_search`, `skills_recall` MCP tools |
-| File-level search | `src/lib/search/files.ts` | `code_code_search_files`, `docs_code_search_files` MCP tools |
+| File-level search | `src/lib/search/files.ts` | `code_search_files`, `docs_search_files` MCP tools |
 | File index search | `src/lib/search/file-index.ts` | `files_search` MCP tool |
 
 ## Proxy node exclusion

@@ -15,20 +15,20 @@ Skills here are tightly integrated with your project's knowledge graph:
 
 | Tool | Purpose | Type |
 |------|---------|------|
-| `create_skill` | Create a skill with steps, triggers, and metadata | Mutation |
-| `update_skill` | Modify skill fields (partial update) | Mutation |
-| `delete_skill` | Remove a skill and all its edges | Mutation |
-| `get_skill` | Read a skill with all relations | Read |
-| `list_skills` | List skills with filters | Read |
-| `search_skills` | Semantic search across skills | Read |
-| `link_skill` | Create skill-to-skill relation | Mutation |
-| `create_skill_link` | Link skill to external graph node | Mutation |
-| `delete_skill_link` | Remove cross-graph link | Mutation |
-| `find_linked_skills` | Reverse lookup: find skills linked to an external node | Read |
-| `add_skill_attachment` | Attach a file to a skill | Mutation |
-| `remove_skill_attachment` | Remove an attachment from a skill | Mutation |
-| `recall_skills` | Recall relevant skills for a task context | Read |
-| `bump_skill_usage` | Increment usage counter + set lastUsedAt | Mutation |
+| `skills_create` | Create a skill with steps, triggers, and metadata | Mutation |
+| `skills_update` | Modify skill fields (partial update) | Mutation |
+| `skills_delete` | Remove a skill and all its edges | Mutation |
+| `skills_get` | Read a skill with all relations | Read |
+| `skills_list` | List skills with filters | Read |
+| `skills_search` | Semantic search across skills | Read |
+| `skills_link` | Create skill-to-skill relation | Mutation |
+| `skills_create_link` | Link skill to external graph node | Mutation |
+| `skills_delete_link` | Remove cross-graph link | Mutation |
+| `skills_find_linked` | Reverse lookup: find skills linked to an external node | Read |
+| `skills_add_attachment` | Attach a file to a skill | Mutation |
+| `skills_remove_attachment` | Remove an attachment from a skill | Mutation |
+| `skills_recall` | Recall relevant skills for a task context | Read |
+| `skills_bump_usage` | Increment usage counter + set lastUsedAt | Mutation |
 
 > **Mutation tools** are serialized through a queue to prevent concurrent graph modifications.
 
@@ -42,8 +42,8 @@ Skills here are tightly integrated with your project's knowledge graph:
 | `triggers` | string[] | Free-form | When to apply this skill |
 | `source` | enum | `user`, `learned` | How the skill was created |
 | `tags` | string[] | Free-form | For filtering |
-| `usageCount` | number | Auto-managed | Incremented by `bump_skill_usage` |
-| `lastUsedAt` | number | Unix timestamp (auto) | Set by `bump_skill_usage` |
+| `usageCount` | number | Auto-managed | Incremented by `skills_bump_usage` |
+| `lastUsedAt` | number | Unix timestamp (auto) | Set by `skills_bump_usage` |
 | `createdAt` | number | Unix timestamp (auto) | Set at creation |
 | `updatedAt` | number | Unix timestamp (auto) | Updated on every change |
 
@@ -55,7 +55,7 @@ Like notes and tasks, skill IDs are slugified from the title:
 
 ## Tool reference
 
-### create_skill
+### skills_create
 
 Create a new skill. Automatically embedded for semantic search.
 
@@ -70,7 +70,7 @@ Create a new skill. Automatically embedded for semantic search.
 
 **Returns:** `{ skillId }`
 
-### update_skill
+### skills_update
 
 Update an existing skill. Only provided fields change. Re-embeds if title, description, or triggers change.
 
@@ -86,7 +86,7 @@ Update an existing skill. Only provided fields change. Re-embeds if title, descr
 
 **Returns:** `{ skillId, updated: true }`
 
-### delete_skill
+### skills_delete
 
 Delete a skill and all its edges (relations + cross-graph links). Orphaned proxy nodes cleaned up automatically. **Irreversible.**
 
@@ -96,7 +96,7 @@ Delete a skill and all its edges (relations + cross-graph links). Orphaned proxy
 
 **Returns:** `{ skillId, deleted: true }`
 
-### get_skill
+### skills_get
 
 Return full skill details including all relations. This is the most complete view of a skill.
 
@@ -118,7 +118,7 @@ Return full skill details including all relations. This is the most complete vie
 
 The `dependsOn`, `dependedBy`, `related`, and `variants` arrays are automatically populated from skill-to-skill edges.
 
-### list_skills
+### skills_list
 
 List skills with optional filters. Sorted by usage count (most used first).
 
@@ -131,7 +131,7 @@ List skills with optional filters. Sorted by usage count (most used first).
 
 **Returns:** `[{ id, title, description, steps, triggers, source, tags, usageCount, lastUsedAt, createdAt, updatedAt }]`
 
-### search_skills
+### skills_search
 
 Semantic search over the skill graph with BFS expansion.
 
@@ -147,7 +147,7 @@ Semantic search over the skill graph with BFS expansion.
 
 **Returns:** `[{ id, title, description, steps, triggers, source, tags, score }]`
 
-### recall_skills
+### skills_recall
 
 Recall relevant skills for a task context. Uses a lower default `minScore` (0.3) for higher recall.
 
@@ -159,7 +159,7 @@ Recall relevant skills for a task context. Uses a lower default `minScore` (0.3)
 
 **Returns:** `[{ id, title, description, steps, triggers, source, tags, score, usageCount }]`
 
-### bump_skill_usage
+### skills_bump_usage
 
 Record that a skill was used. Increments `usageCount` and sets `lastUsedAt` to the current time.
 
@@ -169,7 +169,7 @@ Record that a skill was used. Increments `usageCount` and sets `lastUsedAt` to t
 
 **Returns:** `{ skillId, usageCount, lastUsedAt }`
 
-### link_skill
+### skills_link
 
 Create a directed relation between two skills.
 
@@ -186,7 +186,7 @@ Create a directed relation between two skills.
 - `related_to` -- free association between skills
 - `variant_of` -- `fromId` is a variation of `toId`
 
-### create_skill_link
+### skills_create_link
 
 Link a skill to a node in another graph (docs, code, files, knowledge, or tasks).
 
@@ -201,12 +201,12 @@ Link a skill to a node in another graph (docs, code, files, knowledge, or tasks)
 
 **Examples:**
 ```
-create_skill_link({ skillId: "add-rest-endpoint", targetId: "src/routes/index.ts", targetGraph: "code", kind: "applies_to" })
-create_skill_link({ skillId: "add-rest-endpoint", targetId: "guide.md::REST API", targetGraph: "docs", kind: "documented_in" })
-create_skill_link({ skillId: "add-rest-endpoint", targetId: "implement-api", targetGraph: "tasks", kind: "used_by" })
+skills_create_link({ skillId: "add-rest-endpoint", targetId: "src/routes/index.ts", targetGraph: "code", kind: "applies_to" })
+skills_create_link({ skillId: "add-rest-endpoint", targetId: "guide.md::REST API", targetGraph: "docs", kind: "documented_in" })
+skills_create_link({ skillId: "add-rest-endpoint", targetId: "implement-api", targetGraph: "tasks", kind: "used_by" })
 ```
 
-### delete_skill_link
+### skills_delete_link
 
 Remove a cross-graph link from a skill. Orphaned proxy nodes cleaned up automatically.
 
@@ -218,7 +218,7 @@ Remove a cross-graph link from a skill. Orphaned proxy nodes cleaned up automati
 
 **Returns:** `{ skillId, targetId, targetGraph, deleted: true }`
 
-### find_linked_skills
+### skills_find_linked
 
 Reverse lookup: given a node in an external graph, find all skills that link to it.
 
@@ -230,9 +230,9 @@ Reverse lookup: given a node in an external graph, find all skills that link to 
 
 **Returns:** `[{ skillId, title, kind, source, tags }]`
 
-**Use case:** When working on a file, call `find_linked_skills({ targetId: "src/routes/index.ts", targetGraph: "code" })` to see all skills related to that file.
+**Use case:** When working on a file, call `skills_find_linked({ targetId: "src/routes/index.ts", targetGraph: "code" })` to see all skills related to that file.
 
-### add_skill_attachment
+### skills_add_attachment
 
 Attach a file to a skill. The file is copied into the skill's directory (`.skills/{skillId}/`).
 
@@ -243,7 +243,7 @@ Attach a file to a skill. The file is copied into the skill's directory (`.skill
 
 **Returns:** `{ skillId, attachment: { filename, mimeType, size } }`
 
-### remove_skill_attachment
+### skills_remove_attachment
 
 Remove an attachment from a skill. Deletes the file from disk.
 
@@ -256,14 +256,14 @@ Remove an attachment from a skill. Deletes the file from disk.
 
 ## Tips
 
-- Use `recall_skills` when starting a task to find relevant procedures -- it uses a lower threshold for better recall
-- Call `bump_skill_usage` after applying a skill to track which skills are most useful
+- Use `skills_recall` when starting a task to find relevant procedures -- it uses a lower threshold for better recall
+- Call `skills_bump_usage` after applying a skill to track which skills are most useful
 - Skills with `source: "learned"` are typically created by AI agents that discover patterns
 - Skills with `source: "user"` are created by humans documenting their procedures
 - Link skills to code files they apply to -- makes it easy to find relevant skills when working on code
-- Use `search_skills` to find skills by meaning, not just title keywords
-- `update_skill` with `tags` replaces the entire array -- include all tags you want to keep
+- Use `skills_search` to find skills by meaning, not just title keywords
+- `skills_update` with `tags` replaces the entire array -- include all tags you want to keep
 - Skill-to-skill `kind` values are a fixed enum (`depends_on`, `related_to`, `variant_of`)
-- Skills support file attachments -- attach templates, examples, or reference files via `add_skill_attachment`
+- Skills support file attachments -- attach templates, examples, or reference files via `skills_add_attachment`
 - Attachments are stored in `.skills/{skillId}/` alongside the skill's markdown file
 - When the skill graph is configured as `readonly: true`, mutation tools (create, update, delete) are hidden from MCP clients and REST mutation endpoints return 403. The UI hides write buttons accordingly.

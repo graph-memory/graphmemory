@@ -117,7 +117,7 @@ Use `vector` mode when you want pure semantic search. Use `keyword` when you kno
 
 ### Node search (hybrid + BFS)
 
-Used by: `search`, `search_code`, `search_notes`, `search_tasks`, `search_skills`
+Used by: `docs_search`, `code_search`, `notes_search`, `tasks_search`, `skills_search`
 
 Full parameter set:
 
@@ -133,14 +133,14 @@ Full parameter set:
 
 ### File-level search (hybrid, no BFS)
 
-Used by: `search_topic_files`, `search_files`, `search_all_files`, `search_snippets`
+Used by: `docs_search_files`, `code_search_files`, `files_search`, `docs_search_snippets`
 
 Uses the same hybrid BM25 + vector approach as node search, but without BFS expansion. File paths are normalized (slashes/dots → spaces) for better embedding quality. Exact filename queries (e.g. "embedder.ts") work via BM25 keyword matching:
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `query` | (required) | Search query |
-| `topK` | 10 | Maximum results |
+| `limit` | 10 | Maximum results |
 | `minScore` | 0.3 | Minimum relevance score (0–1) |
 
 Lower `minScore` default because file path and code snippet embeddings are less semantically rich than full content.
@@ -149,15 +149,15 @@ Lower `minScore` default because file path and code snippet embeddings are less 
 
 | Tool | Graph | Search type | What it searches |
 |------|-------|-------------|-----------------|
-| `search` | DocGraph | Node (BFS) | Documentation sections |
-| `search_topic_files` | DocGraph | File-level | Documentation files |
-| `search_snippets` | DocGraph | File-level | Code blocks in docs (+ language filter) |
-| `search_code` | CodeGraph | Node (BFS) | Code symbols |
-| `search_files` | CodeGraph | File-level | Source code files |
-| `search_all_files` | FileIndexGraph | File-level | All project files |
-| `search_notes` | KnowledgeGraph | Node (BFS) | Knowledge notes |
-| `search_tasks` | TaskGraph | Node (BFS) | Tasks |
-| `search_skills` | SkillGraph | Node (BFS) | Skills |
+| `docs_search` | DocGraph | Node (BFS) | Documentation sections |
+| `docs_search_files` | DocGraph | File-level | Documentation files |
+| `docs_search_snippets` | DocGraph | File-level | Code blocks in docs (+ language filter) |
+| `code_search` | CodeGraph | Node (BFS) | Code symbols |
+| `code_search_files` | CodeGraph | File-level | Source code files |
+| `files_search` | FileIndexGraph | File-level | All project files |
+| `notes_search` | KnowledgeGraph | Node (BFS) | Knowledge notes |
+| `tasks_search` | TaskGraph | Node (BFS) | Tasks |
+| `skills_search` | SkillGraph | Node (BFS) | Skills |
 
 ## Tips
 

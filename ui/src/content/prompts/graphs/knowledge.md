@@ -5,9 +5,9 @@ User-created notes, facts, decisions, and insights with typed relations and cros
 **What it stores:** notes with title, markdown content, and tags. Each note can have typed relations to other notes (e.g., "related-to", "contradicts", "extends") and cross-graph links to code symbols, doc sections, files, tasks, and skills.
 
 **Example queries:**
-- `search_notes({ query: "why we chose JWT over sessions" })` → finds the decision note
-- `list_notes({ tag: "architecture" })` → lists all architecture-related notes
-- `find_linked_notes({ targetId: "src/auth/middleware.ts::authMiddleware" })` → finds notes about auth middleware
+- `notes_search({ query: "why we chose JWT over sessions" })` → finds the decision note
+- `notes_list({ tag: "architecture" })` → lists all architecture-related notes
+- `notes_find_linked({ targetId: "src/auth/middleware.ts::authMiddleware" })` → finds notes about auth middleware
 
 **Use cases:**
 - Capturing decisions and their rationale (ADRs, design choices)
@@ -16,8 +16,8 @@ User-created notes, facts, decisions, and insights with typed relations and cros
 - Linking scattered knowledge to the code and docs it relates to
 
 **Connections to other graphs (when enabled):**
-- Code Graph: link notes to code symbols they describe with `create_relation`
+- Code Graph: link notes to code symbols they describe with `notes_create_link`
 - Docs Graph: link notes to doc sections they reference
 - Task Graph: link notes to tasks that implement or track the noted issue
 - Skill Graph: link notes to skills that document the procedure
-- File Index: attach files to notes with `add_note_attachment`
+- File Index: attach files to notes with `notes_add_attachment`

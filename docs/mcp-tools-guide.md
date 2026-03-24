@@ -65,7 +65,7 @@ List all indexed markdown files.
 
 **When to use**: To get an overview of available documentation.
 
-### `docs_docs_get_toc`
+### `docs_get_toc`
 
 Table of contents for a specific documentation file.
 
@@ -93,7 +93,7 @@ Semantic search over documentation with BFS expansion.
 
 **When to use**: Finding relevant documentation sections by meaning. Always prefer this over reading files directly.
 
-### `docs_docs_get_node`
+### `docs_get_node`
 
 Full content of a specific doc chunk.
 
@@ -102,11 +102,11 @@ Full content of a specific doc chunk.
 
 **When to use**: After search finds a relevant chunk — get the full text.
 
-### `docs_code_search_files`
+### `docs_search_files`
 
 File-level semantic search (by path + title).
 
-**Input**: `query`, optional `topK` (default 10), `minScore` (default 0.3)
+**Input**: `query`, optional `limit` (default 10), `minScore` (default 0.3)
 **Output**: `[{ fileId, title, score }]`
 
 **When to use**: Finding which documentation files are relevant before drilling into sections.
@@ -115,7 +115,7 @@ File-level semantic search (by path + title).
 
 ## Code block tools
 
-### `docs_docs_find_examples`
+### `docs_find_examples`
 
 Find code blocks in documentation that contain a specific symbol.
 
@@ -124,16 +124,16 @@ Find code blocks in documentation that contain a specific symbol.
 
 **When to use**: "Show me examples of how `UserService` is used in the docs."
 
-### `docs_docs_search_snippets`
+### `docs_search_snippets`
 
 Semantic search over code blocks extracted from documentation.
 
-**Input**: `query`, optional `topK`, `minScore`
+**Input**: `query`, optional `limit`, `minScore`, `language`
 **Output**: `[{ id, fileId, language, symbols, content, score }]`
 
 **When to use**: Finding code examples by what they do, not just what symbols they contain.
 
-### `docs_docs_list_snippets`
+### `docs_list_snippets`
 
 List code blocks with optional filters.
 
@@ -142,7 +142,7 @@ List code blocks with optional filters.
 
 **When to use**: Browsing all code examples in docs, optionally filtered by language.
 
-### `docs_docs_explain_symbol`
+### `docs_explain_symbol`
 
 Find a code example and its surrounding text explanation.
 
@@ -155,7 +155,7 @@ Find a code example and its surrounding text explanation.
 
 ## Cross-graph tools
 
-### `docs_docs_cross_references`
+### `docs_cross_references`
 
 Full picture: code definitions + documentation examples + explanations for a symbol.
 
@@ -175,7 +175,7 @@ List all indexed source files.
 **Input**: none
 **Output**: `[{ fileId, symbolCount }]`
 
-### `code_code_get_file_symbols`
+### `code_get_file_symbols`
 
 List all symbols in a source file, sorted by line number.
 
@@ -193,7 +193,7 @@ Semantic search over code symbols with BFS expansion.
 
 **When to use**: Finding code by what it does. "Find the function that handles password hashing."
 
-### `code_code_get_symbol`
+### `code_get_symbol`
 
 Full source body of a specific symbol.
 
@@ -202,11 +202,11 @@ Full source body of a specific symbol.
 
 **When to use**: Reading the full implementation of a specific function, class, or method.
 
-### `code_code_search_files`
+### `code_search_files`
 
 File-level semantic search over source files (by path).
 
-**Input**: `query`, optional `topK`, `minScore`
+**Input**: `query`, optional `limit`, `minScore`
 **Output**: `[{ fileId, score }]`
 
 **When to use**: Finding relevant source files before diving into symbols.
@@ -234,7 +234,7 @@ List all project files and directories with filters.
 
 Semantic search over files by path.
 
-**Input**: `query`, optional `topK` (default 10), `minScore` (default 0.3)
+**Input**: `query`, optional `limit` (default 10), `minScore` (default 0.3)
 **Output**: `[{ filePath, fileName, extension, language, size, score }]`
 
 **When to use**: "Find files related to database configuration."
@@ -432,7 +432,7 @@ File attachments on skills.
 3. **Create notes for decisions** — persist architectural choices and non-obvious context
 4. **Use `skills_recall` before complex tasks** — there might be a saved recipe
 5. **Use `tasks_move`** for status changes, not `tasks_update` — manages `completedAt` automatically
-6. **Use `docs_docs_cross_references`** for complete symbol context — bridges code and docs
+6. **Use `docs_cross_references`** for complete symbol context — bridges code and docs
 7. **Use `tasks_find_linked`** before changing code — see related tasks
 8. **Bump skill usage** after applying a recipe — surfaces frequently used skills
 9. **Link everything** — connect notes to code, tasks to files, skills to docs

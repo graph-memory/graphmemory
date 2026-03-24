@@ -5,9 +5,9 @@ Complete project file tree — every file and directory with metadata, language 
 **What gets indexed:** file paths, directory structure, file sizes, modification times, detected programming language, MIME type, file extension.
 
 **Example queries:**
-- `search_all_files({ query: "docker configuration" })` → finds Dockerfiles, docker-compose.yml
-- `list_all_files({ directory: "src/", extension: ".ts" })` → lists all TypeScript files in src/
-- `get_file_info({ path: "package.json" })` → full metadata including size, type, modified date
+- `files_search({ query: "docker configuration" })` → finds Dockerfiles, docker-compose.yml
+- `files_list({ directory: "src/", extension: ".ts" })` → lists all TypeScript files in src/
+- `files_get_info({ path: "package.json" })` → full metadata including size, type, modified date
 
 **Use cases:**
 - Understanding project structure and organization before diving into code
@@ -18,4 +18,4 @@ Complete project file tree — every file and directory with metadata, language 
 **Connections to other graphs (when enabled):**
 - Code Graph: source files in File Index have corresponding symbol-level detail in Code Graph
 - Docs Graph: markdown files in File Index have section-level detail in Docs Graph
-- Task Graph: tasks can link to any file via `create_task_link`
+- Task Graph: tasks can link to any file via `tasks_create_link`

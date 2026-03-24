@@ -92,7 +92,7 @@ Fenced code blocks (` ```lang ... ``` `) in markdown are extracted as child chun
 
 ## File-level embeddings
 
-Root nodes (level 1) have a `fileEmbedding` field — embedded from the file path + h1 title. Used by `docs_code_search_files` for file-level semantic search (simple cosine similarity, no BFS).
+Root nodes (level 1) have a `fileEmbedding` field — embedded from the file path + h1 title. Used by `docs_search_files` for file-level semantic search (simple cosine similarity, no BFS).
 
 ## Persistence
 

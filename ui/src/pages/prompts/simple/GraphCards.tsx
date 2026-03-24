@@ -31,7 +31,7 @@ const CARD_DATA: GraphCardData[] = [
     shortDesc: 'Markdown sections & code blocks',
     indexed: 'Every .md file parsed into heading sections with code blocks and cross-file links',
     useCase: 'Find documentation by meaning, verify code examples, explain symbols with context',
-    keyTools: ['search', 'get_toc', 'cross_references', 'explain_symbol'],
+    keyTools: ['docs_search', 'docs_get_toc', 'docs_cross_references', 'docs_explain_symbol'],
   },
   {
     name: 'code',
@@ -40,7 +40,7 @@ const CARD_DATA: GraphCardData[] = [
     shortDesc: 'Functions, classes, interfaces',
     indexed: 'Every .ts/.js/.tsx/.jsx file parsed with tree-sitter into symbol-level nodes',
     useCase: 'Find code by meaning, read full implementations, see code-to-docs connections',
-    keyTools: ['search_code', 'get_symbol', 'get_file_symbols', 'cross_references'],
+    keyTools: ['code_search', 'code_get_symbol', 'code_get_file_symbols', 'docs_cross_references'],
   },
   {
     name: 'files',
@@ -49,7 +49,7 @@ const CARD_DATA: GraphCardData[] = [
     shortDesc: 'Full project file tree',
     indexed: 'Every file and directory — paths, sizes, MIME types, modification times',
     useCase: 'Understand project structure, find configs, discover non-code files',
-    keyTools: ['search_all_files', 'list_all_files', 'get_file_info'],
+    keyTools: ['files_search', 'files_list', 'files_get_info'],
   },
   {
     name: 'knowledge',
@@ -58,7 +58,7 @@ const CARD_DATA: GraphCardData[] = [
     shortDesc: 'Notes, facts & decisions',
     indexed: 'User-created notes with titles, content, tags, and cross-graph links. Mirrored to .notes/',
     useCase: 'Capture decisions, record gotchas, build searchable knowledge base',
-    keyTools: ['create_note', 'search_notes', 'create_relation', 'find_linked_notes'],
+    keyTools: ['notes_create', 'notes_search', 'notes_create_link', 'notes_find_linked'],
   },
   {
     name: 'tasks',
@@ -67,7 +67,7 @@ const CARD_DATA: GraphCardData[] = [
     shortDesc: 'Kanban with cross-graph links',
     indexed: 'Tasks with status (backlog→done), priority, assignee, due dates. Mirrored to .tasks/',
     useCase: 'Track work, manage priorities, link tasks to code and docs',
-    keyTools: ['create_task', 'list_tasks', 'move_task', 'find_linked_tasks'],
+    keyTools: ['tasks_create', 'tasks_list', 'tasks_move', 'tasks_find_linked'],
   },
   {
     name: 'skills',
@@ -76,7 +76,7 @@ const CARD_DATA: GraphCardData[] = [
     shortDesc: 'Reusable procedures & recipes',
     indexed: 'Skills with steps, triggers, usage tracking. Mirrored to .skills/',
     useCase: 'Recall procedures before starting work, save reusable workflows',
-    keyTools: ['recall_skills', 'create_skill', 'search_skills', 'bump_skill_usage'],
+    keyTools: ['skills_recall', 'skills_create', 'skills_search', 'skills_bump_usage'],
   },
 ];
 

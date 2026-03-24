@@ -12,16 +12,16 @@ interface GraphLink {
 }
 
 const GRAPH_LINKS: GraphLink[] = [
-  { from: 'docs', to: 'code', tools: ['cross_references', 'explain_symbol', 'find_examples'], description: 'Code symbols linked to their documentation sections and examples' },
-  { from: 'code', to: 'tasks', tools: ['find_linked_tasks', 'create_task_link'], description: 'Tasks linked to the code files and symbols they affect' },
-  { from: 'code', to: 'knowledge', tools: ['find_linked_notes', 'create_relation'], description: 'Knowledge notes linked to code areas they describe' },
-  { from: 'tasks', to: 'knowledge', tools: ['create_task_link', 'find_linked_notes'], description: 'Tasks linked to notes providing context and decisions' },
-  { from: 'tasks', to: 'skills', tools: ['recall_skills', 'find_linked_skills'], description: 'Skills recalled for tasks, linked to procedures that help' },
-  { from: 'knowledge', to: 'skills', tools: ['create_skill_link', 'find_linked_skills'], description: 'Skills linked to knowledge notes with background context' },
-  { from: 'files', to: 'code', tools: ['search_all_files', 'get_file_info'], description: 'File Index covers all files; Code Graph adds symbol-level detail for source' },
-  { from: 'files', to: 'docs', tools: ['search_all_files'], description: 'File Index covers all files; Docs Graph adds section-level detail for markdown' },
-  { from: 'docs', to: 'knowledge', tools: ['create_relation', 'find_linked_notes'], description: 'Notes linked to documentation sections they reference' },
-  { from: 'code', to: 'skills', tools: ['create_skill_link', 'find_linked_skills'], description: 'Skills linked to code areas they apply to' },
+  { from: 'docs', to: 'code', tools: ['docs_cross_references', 'docs_explain_symbol', 'docs_find_examples'], description: 'Code symbols linked to their documentation sections and examples' },
+  { from: 'code', to: 'tasks', tools: ['tasks_find_linked', 'tasks_create_link'], description: 'Tasks linked to the code files and symbols they affect' },
+  { from: 'code', to: 'knowledge', tools: ['notes_find_linked', 'notes_create_link'], description: 'Knowledge notes linked to code areas they describe' },
+  { from: 'tasks', to: 'knowledge', tools: ['tasks_create_link', 'notes_find_linked'], description: 'Tasks linked to notes providing context and decisions' },
+  { from: 'tasks', to: 'skills', tools: ['skills_recall', 'skills_find_linked'], description: 'Skills recalled for tasks, linked to procedures that help' },
+  { from: 'knowledge', to: 'skills', tools: ['skills_create_link', 'skills_find_linked'], description: 'Skills linked to knowledge notes with background context' },
+  { from: 'files', to: 'code', tools: ['files_search', 'files_get_info'], description: 'File Index covers all files; Code Graph adds symbol-level detail for source' },
+  { from: 'files', to: 'docs', tools: ['files_search'], description: 'File Index covers all files; Docs Graph adds section-level detail for markdown' },
+  { from: 'docs', to: 'knowledge', tools: ['notes_create_link', 'notes_find_linked'], description: 'Notes linked to documentation sections they reference' },
+  { from: 'code', to: 'skills', tools: ['skills_create_link', 'skills_find_linked'], description: 'Skills linked to code areas they apply to' },
 ];
 
 const GRAPH_META: Record<GraphName, { label: string; abbr: string }> = {

@@ -2,9 +2,9 @@ You work in **aggressive mode** — capture everything, link everything, build t
 
 **Search behavior:**
 - Search extensively before every action — query multiple graphs to build complete context
-- Always check for duplicates with `search_notes` and `search_tasks` before creating new entries
-- Use `recall_skills` at the start of every workflow to apply established procedures
-- Cross-reference all findings across graphs with `cross_references`, `find_linked_tasks`, `find_linked_notes`
+- Always check for duplicates with `notes_search` and `tasks_search` before creating new entries
+- Use `skills_recall` at the start of every workflow to apply established procedures
+- Cross-reference all findings across graphs with `docs_cross_references`, `tasks_find_linked`, `notes_find_linked`
 
 **Mutation behavior (capture everything):**
 - Create knowledge notes for every decision, discovery, pattern, workaround, observation, and non-obvious behavior — even minor ones
@@ -20,4 +20,4 @@ You work in **aggressive mode** — capture everything, link everything, build t
 - Use typed relations: "documents", "implements", "blocks", "depends-on", "related-to", "derived-from"
 
 **Graph hygiene:**
-- When finding duplicate or outdated notes, update them with `update_note` rather than creating new ones
+- When finding duplicate or outdated notes, update them with `notes_update` rather than creating new ones

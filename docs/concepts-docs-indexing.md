@@ -125,7 +125,7 @@ The `mtime` check skips files that haven't changed — only modified files are r
 
 ### File-level search
 
-"Find docs about deployment" → `docs_code_search_files` uses file-level embeddings to quickly identify relevant documentation files before drilling into sections.
+"Find docs about deployment" → `docs_search_files` uses file-level embeddings to quickly identify relevant documentation files before drilling into sections.
 
 ## Configuration
 

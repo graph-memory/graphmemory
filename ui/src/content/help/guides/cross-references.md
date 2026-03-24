@@ -1,10 +1,10 @@
 # Cross References Tool
 
-`cross_references` is the only tool that works across **both** the CodeGraph and DocGraph simultaneously. It's the most comprehensive way to understand a symbol — combining source code definitions, documentation context, and usage examples.
+`docs_cross_references` is the only tool that works across **both** the CodeGraph and DocGraph simultaneously. It's the most comprehensive way to understand a symbol — combining source code definitions, documentation context, and usage examples.
 
 ## When to use it
 
-Use `cross_references` when you want to fully understand a symbol:
+Use `docs_cross_references` when you want to fully understand a symbol:
 - "Where is `createUser` defined, and where is it documented?"
 - "Show me all examples of `AuthService` in the docs"
 - "What does `parseConfig` do, and how is it used?"
@@ -15,7 +15,7 @@ This tool is **only available** when both `graphs.docs.include` and `graphs.code
 
 ## Tool reference
 
-### cross_references
+### docs_cross_references
 
 Find all references to a symbol across both code and documentation graphs.
 
@@ -69,7 +69,7 @@ The tool iterates over all nodes in the DocGraph, checking the `symbols` array o
 3. Top-level symbol names are extracted: function declarations, class declarations, variable declarations
 4. These are stored in the `symbols` field
 
-So `cross_references` can find a code block like:
+So `docs_cross_references` can find a code block like:
 
 ```typescript
 const user = createUser({ name: 'Alice', role: 'admin' });
@@ -102,7 +102,7 @@ Project structure:
 - `src/auth.ts` contains `export function createUser(data: UserInput): User { ... }`
 - `docs/guide.md` has a section "## Creating Users" with an example code block that declares/uses `createUser`
 
-Calling `cross_references({ symbol: "createUser" })` returns:
+Calling `docs_cross_references({ symbol: "createUser" })` returns:
 - **definitions**: `[{ id: "src/auth.ts::createUser", kind: "function", signature: "function createUser(data: UserInput): User", ... }]`
 - **examples**: `[{ id: "docs/guide.md::Creating Users::code-1", language: "typescript", symbols: ["createUser"], content: "..." }]`
 - **documentation**: `[{ id: "docs/guide.md::Creating Users", title: "Creating Users", content: "To create a new user, call..." }]`
@@ -111,11 +111,11 @@ Calling `cross_references({ symbol: "createUser" })` returns:
 
 | Tool | Graph | Finds | Best for |
 |------|-------|-------|----------|
-| `get_symbol` | CodeGraph only | One specific symbol by ID | Reading full implementation |
-| `search_code` | CodeGraph only | Symbols by semantic similarity | Finding code by description |
-| `find_examples` | DocGraph only | Code blocks by symbol name | Finding doc examples |
-| `explain_symbol` | DocGraph only | Code blocks + parent text | Understanding via docs |
-| `cross_references` | Both graphs | Definitions + examples + docs | Complete understanding |
+| `code_get_symbol` | CodeGraph only | One specific symbol by ID | Reading full implementation |
+| `code_search` | CodeGraph only | Symbols by semantic similarity | Finding code by description |
+| `docs_find_examples` | DocGraph only | Code blocks by symbol name | Finding doc examples |
+| `docs_explain_symbol` | DocGraph only | Code blocks + parent text | Understanding via docs |
+| `docs_cross_references` | Both graphs | Definitions + examples + docs | Complete understanding |
 
 ## Tips
 
@@ -123,4 +123,4 @@ Calling `cross_references({ symbol: "createUser" })` returns:
 - If you get no results, check that both `graphs.docs.include` and `graphs.code.include` are configured
 - Empty `definitions` + non-empty `examples` means the symbol is documented but not in your indexed code
 - Empty `examples` + non-empty `definitions` means the symbol exists in code but isn't documented with examples
-- Combine with `get_symbol` to read the full implementation body (which `cross_references` doesn't include)
+- Combine with `code_get_symbol` to read the full implementation body (which `docs_cross_references` doesn't include)

@@ -410,7 +410,7 @@ function AdvancedBuilderInner() {
         <DialogTitle sx={{ pb: 1 }}>Export as Skill</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Save the generated prompt as a skill in the project's Skill Graph. It will be searchable via <code>recall_skills</code>.
+            Save the generated prompt as a skill in the project's Skill Graph. It will be searchable via <code>skills_recall</code>.
           </Typography>
           <TextField
             size="small"

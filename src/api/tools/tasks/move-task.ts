@@ -5,7 +5,7 @@ import { VersionConflictError } from '@/graphs/manager-types';
 
 export function register(server: McpServer, mgr: TaskGraphManager): void {
   server.registerTool(
-    'move_task',
+    'tasks_move',
     {
       description:
         'Change a task status. Automatically manages completedAt: ' +

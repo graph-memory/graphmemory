@@ -15,13 +15,13 @@ Unlike code comments or doc files, knowledge notes are:
 ### Architectural decisions
 
 ```
-create_note({
+notes_create({
   title: "Why we chose PostgreSQL over MongoDB",
   content: "We need ACID transactions for payment processing...",
   tags: ["architecture", "database"]
 })
 
-create_relation({
+notes_create_link({
   fromId: "why-we-chose-postgresql-over-mongodb",
   toId: "src/db/connection.ts",
   targetGraph: "code",
@@ -29,12 +29,12 @@ create_relation({
 })
 ```
 
-Now when someone asks "why do we use PostgreSQL?", `search_notes` finds the answer, and the cross-graph link points to the relevant code.
+Now when someone asks "why do we use PostgreSQL?", `notes_search` finds the answer, and the cross-graph link points to the relevant code.
 
 ### Bug investigations
 
 ```
-create_note({
+notes_create({
   title: "Auth redirect loop root cause",
   content: "The session cookie was not being cleared on logout because SameSite=Lax allows...",
   tags: ["bug", "auth"]
@@ -44,7 +44,7 @@ create_note({
 ### Non-obvious patterns
 
 ```
-create_note({
+notes_create({
   title: "File mirror write ordering matters",
   content: "Always update the graph BEFORE writing the mirror file, because the mirror watcher...",
   tags: ["pattern", "gotcha"]
@@ -54,7 +54,7 @@ create_note({
 ### Meeting notes and context
 
 ```
-create_note({
+notes_create({
   title: "Sprint 12 planning decisions",
   content: "Decided to defer Feature 6. Auth work takes priority...",
   tags: ["sprint-12", "planning"]
@@ -79,7 +79,7 @@ Two types of relations:
 #### Note-to-note
 
 ```
-create_relation({
+notes_create_link({
   fromId: "auth-architecture",
   toId: "session-management-design",
   kind: "depends_on"
@@ -91,7 +91,7 @@ Free-form `kind` — any string works. Common kinds: `relates_to`, `depends_on`,
 #### Cross-graph links
 
 ```
-create_relation({
+notes_create_link({
   fromId: "auth-architecture",
   toId: "src/auth.ts::UserService",
   targetGraph: "code",
@@ -114,7 +114,7 @@ Cross-graph links use **phantom proxy nodes** — lightweight nodes in the Knowl
 ### Searching
 
 ```
-search_notes({ query: "how does authentication work?" })
+notes_search({ query: "how does authentication work?" })
 ```
 
 Uses hybrid search (BM25 + vector cosine similarity):
@@ -126,7 +126,7 @@ Uses hybrid search (BM25 + vector cosine similarity):
 ### Reverse lookup
 
 ```
-find_linked_notes({
+notes_find_linked({
   targetId: "src/auth.ts::loginUser",
   targetGraph: "code"
 })
@@ -194,7 +194,7 @@ You can open `.notes/auth-architecture/note.md` in your editor, change the conte
 
 Cross-graph proxy nodes are managed automatically:
 
-1. **Created** when you make a cross-graph relation (e.g. `create_relation` with `targetGraph`)
+1. **Created** when you make a cross-graph relation (e.g. `notes_create_link` with `targetGraph`)
 2. **Validated** — the target node must exist in the external graph
 3. **Cleaned up** when they become orphaned (zero edges remaining)
 4. **Bulk cleaned** by the indexer when a file is removed — all proxies pointing to nodes from that file are deleted
@@ -208,7 +208,7 @@ This means you never deal with stale phantom references — the system keeps the
 | Searchable by meaning | No | Yes (vector search) |
 | Cross-references | Manual (`// see foo.ts`) | Structured (graph edges) |
 | Survives refactoring | Often broken | Links by ID, stable |
-| Discovery | Must know file location | `search_notes("why")` |
+| Discovery | Must know file location | `notes_search("why")` |
 | Attachments | No | Images, files, data |
 | Authored by LLMs | Awkward | Natural workflow |
 | Version controlled | Yes | Yes (mirror files) |

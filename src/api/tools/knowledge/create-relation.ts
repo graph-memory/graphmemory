@@ -5,7 +5,7 @@ import { MAX_LINK_KIND_LEN, MAX_PROJECT_ID_LEN } from '@/lib/defaults';
 
 export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
   server.registerTool(
-    'create_relation',
+    'notes_create_link',
     {
       description:
         'Create a directed relation from a note to another note or to a node in the docs/code/files graph. ' +

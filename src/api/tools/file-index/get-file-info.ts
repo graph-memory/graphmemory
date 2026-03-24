@@ -4,7 +4,7 @@ import type { FileIndexGraphManager } from '@/graphs/file-index';
 
 export function register(server: McpServer, mgr: FileIndexGraphManager): void {
   server.registerTool(
-    'get_file_info',
+    'files_get_info',
     {
       description:
         'Get full metadata for a specific file or directory by path. ' +

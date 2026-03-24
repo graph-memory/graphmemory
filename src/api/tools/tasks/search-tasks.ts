@@ -5,7 +5,7 @@ import { MAX_SEARCH_QUERY_LEN } from '@/lib/defaults';
 
 export function register(server: McpServer, mgr: TaskGraphManager): void {
   server.registerTool(
-    'search_tasks',
+    'tasks_search',
     {
       description:
         'Semantic search over the task graph. ' +
@@ -18,7 +18,7 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
         query:      z.string().max(MAX_SEARCH_QUERY_LEN).describe('Natural language search query'),
         topK:       z.number().min(1).max(500).optional().describe('How many top similar tasks to use as seeds (default 5)'),
         bfsDepth:   z.number().min(0).max(10).optional().describe('How many hops to follow relations from each seed (default 1; 0 = no expansion)'),
-        maxResults: z.number().min(1).max(500).optional().describe('Maximum number of results to return (default 20)'),
+        maxResults: z.number().min(1).max(500).optional().describe('Maximum number of results to return'),
         minScore:   z.number().min(0).max(1).optional().describe('Minimum relevance score 0–1 (default 0.5)'),
         bfsDecay:   z.number().min(0).max(1).optional().describe('Score multiplier per hop (default 0.8)'),
         searchMode: z.enum(['hybrid', 'vector', 'keyword']).optional().describe('Search mode: hybrid (default, BM25 + vector), vector (embedding only), keyword (BM25 only)'),

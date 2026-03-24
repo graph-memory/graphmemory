@@ -5,14 +5,14 @@ import { MAX_TARGET_NODE_ID_LEN, MAX_LINK_KIND_LEN, MAX_PROJECT_ID_LEN } from '@
 
 export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
   server.registerTool(
-    'find_linked_notes',
+    'notes_find_linked',
     {
       description:
         'Find all notes in the knowledge graph that link to a specific node in the docs, code, files, or tasks graph. ' +
         'This is a reverse lookup — given a target (e.g. a file, a code symbol, or a doc section), ' +
         'returns all notes that reference it via cross-graph relations. ' +
         'Returns an array of { noteId, title, kind, tags }. ' +
-        'Use get_note to fetch full content of a returned note.',
+        'Use notes_get to fetch full content of a returned note.',
       inputSchema: {
         targetId:    z.string().max(MAX_TARGET_NODE_ID_LEN).describe('Target node ID in the external graph (e.g. "src/config.ts", "src/auth.ts::login", "docs/api.md::Setup")'),
         targetGraph: z.enum(['docs', 'code', 'files', 'tasks', 'skills']).describe('Which graph the target belongs to'),

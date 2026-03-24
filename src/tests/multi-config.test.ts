@@ -57,7 +57,7 @@ projects:
     const mc = loadMultiConfig(yamlPath);
     expect(mc.server.host).toBe('127.0.0.1');
     expect(mc.server.port).toBe(3000);
-    expect(mc.server.sessionTimeout).toBe(1800);
+    expect(mc.server.sessionTimeout).toBe(3600);
     expect(mc.server.model.name).toBe('Xenova/bge-m3');
     expect(mc.server.model.pooling).toBe('cls');
     expect(mc.server.model.queryPrefix).toBe('');

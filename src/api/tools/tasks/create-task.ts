@@ -5,7 +5,7 @@ import { MAX_TITLE_LEN, MAX_DESCRIPTION_LEN, MAX_TAG_LEN, MAX_TAGS_COUNT, MAX_AS
 
 export function register(server: McpServer, mgr: TaskGraphManager): void {
   server.registerTool(
-    'create_task',
+    'tasks_create',
     {
       description:
         'Create a new task in the task graph. ' +

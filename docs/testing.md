@@ -42,11 +42,11 @@ npx tsx src/tests/parser.debug.ts      # Debug script, no assertions
 
 | Suite | File | Description |
 |-------|------|-------------|
-| `mcp-docs.test.ts` | Docs tools | list_topics, get_toc, search, get_node, search_topic_files |
-| `mcp-code.test.ts` | Code tools | list_files, get_file_symbols, search_code, get_symbol, search_files |
-| `mcp-codeblocks.test.ts` | Code block tools | find_examples, search_snippets, list_snippets, explain_symbol, cross_references |
+| `mcp-docs.test.ts` | Docs tools | docs_code_list_files, docs_get_toc, search, docs_get_node, docs_code_search_files |
+| `mcp-code.test.ts` | Code tools | code_code_list_files, code_get_file_symbols, code_search, code_get_symbol, code_search_files |
+| `mcp-codeblocks.test.ts` | Code block tools | docs_find_examples, docs_search_snippets, docs_list_snippets, docs_explain_symbol, docs_cross_references |
 | `mcp-knowledge.test.ts` | Knowledge tools | CRUD notes + relations + search + cross-graph links |
-| `mcp-file-index.test.ts` | File index tools | list_all_files, search_all_files, get_file_info + cross-graph links |
+| `mcp-file-index.test.ts` | File index tools | files_list, files_search, files_get_info + cross-graph links |
 | `mcp-tasks.test.ts` | Task tools | CRUD tasks + relations + search + cross-graph links |
 | `mcp-skills.test.ts` | Skill tools | CRUD skills + relations + search + cross-graph links |
 | `mcp-context.test.ts` | Context tool | get_context project/workspace context |
@@ -156,7 +156,7 @@ const { client } = await setupMcpClient({
   embedFn: fakeEmbed,
 });
 
-const result = await client.callTool({ name: 'create_note', arguments: { title: '...', content: '...' } });
+const result = await client.callTool({ name: 'notes_create', arguments: { title: '...', content: '...' } });
 const data = json(result);
 expect(data.noteId).toBe('my-note');
 ```

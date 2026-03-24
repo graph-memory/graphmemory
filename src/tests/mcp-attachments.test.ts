@@ -1,8 +1,8 @@
 /**
  * MCP attachment tool tests for all 6 attachment tools:
- * - add_note_attachment / remove_note_attachment
- * - add_task_attachment / remove_task_attachment
- * - add_skill_attachment / remove_skill_attachment
+ * - notes_add_attachment / notes_remove_attachment
+ * - tasks_add_attachment / tasks_remove_attachment
+ * - skills_add_attachment / skills_remove_attachment
  *
  * Tests cover: successful attach, file not found, not a file (directory),
  * size limit (mocked), remove success, remove not found, filename validation.
@@ -64,54 +64,54 @@ describe('MCP note attachment tools', () => {
     fs.rmSync(projectDir, { recursive: true, force: true });
   });
 
-  it('add_note_attachment: attaches file successfully', async () => {
-    const result = await ctx.call('add_note_attachment', { noteId, filePath });
+  it('notes_add_attachment: attaches file successfully', async () => {
+    const result = await ctx.call('notes_add_attachment', { noteId, filePath });
     expect(result.isError).toBeFalsy();
     const meta = json<{ filename: string; mimeType: string; size: number }>(result);
     expect(meta.filename).toBe('doc.txt');
     expect(meta.size).toBeGreaterThan(0);
   });
 
-  it('add_note_attachment: file not found returns error', async () => {
+  it('notes_add_attachment: file not found returns error', async () => {
     const missing = path.join(projectDir, 'nonexistent.txt');
-    const result = await ctx.call('add_note_attachment', { noteId, filePath: missing });
+    const result = await ctx.call('notes_add_attachment', { noteId, filePath: missing });
     expect(result.isError).toBe(true);
     expect(text(result)).toContain('File not found');
   });
 
-  it('add_note_attachment: directory returns error', async () => {
+  it('notes_add_attachment: directory returns error', async () => {
     const subDir = path.join(projectDir, 'subdir');
     fs.mkdirSync(subDir, { recursive: true });
-    const result = await ctx.call('add_note_attachment', { noteId, filePath: subDir });
+    const result = await ctx.call('notes_add_attachment', { noteId, filePath: subDir });
     expect(result.isError).toBe(true);
     expect(text(result)).toContain('not a regular file');
   });
 
-  it('add_note_attachment: path traversal rejected', async () => {
+  it('notes_add_attachment: path traversal rejected', async () => {
     const outside = createTmpFile(os.tmpdir(), 'evil.txt', 'secrets');
-    const result = await ctx.call('add_note_attachment', { noteId, filePath: outside });
+    const result = await ctx.call('notes_add_attachment', { noteId, filePath: outside });
     expect(result.isError).toBe(true);
     expect(text(result)).toContain('within the project directory');
     fs.unlinkSync(outside);
   });
 
-  it('add_note_attachment: note not found returns error', async () => {
-    const result = await ctx.call('add_note_attachment', { noteId: 'ghost-note', filePath });
+  it('notes_add_attachment: note not found returns error', async () => {
+    const result = await ctx.call('notes_add_attachment', { noteId: 'ghost-note', filePath });
     expect(result.isError).toBe(true);
   });
 
-  it('remove_note_attachment: removes successfully', async () => {
+  it('notes_remove_attachment: removes successfully', async () => {
     // First attach
-    await ctx.call('add_note_attachment', { noteId, filePath });
+    await ctx.call('notes_add_attachment', { noteId, filePath });
     // Then remove
-    const result = await ctx.call('remove_note_attachment', { noteId, filename: 'doc.txt' });
+    const result = await ctx.call('notes_remove_attachment', { noteId, filename: 'doc.txt' });
     expect(result.isError).toBeFalsy();
     const data = json<{ deleted: string }>(result);
     expect(data.deleted).toBe('doc.txt');
   });
 
-  it('remove_note_attachment: not found returns error', async () => {
-    const result = await ctx.call('remove_note_attachment', { noteId, filename: 'ghost.txt' });
+  it('notes_remove_attachment: not found returns error', async () => {
+    const result = await ctx.call('notes_remove_attachment', { noteId, filename: 'ghost.txt' });
     expect(result.isError).toBe(true);
   });
 });
@@ -145,43 +145,43 @@ describe('MCP task attachment tools', () => {
     fs.rmSync(projectDir, { recursive: true, force: true });
   });
 
-  it('add_task_attachment: attaches file', async () => {
-    const result = await ctx.call('add_task_attachment', { taskId, filePath });
+  it('tasks_add_attachment: attaches file', async () => {
+    const result = await ctx.call('tasks_add_attachment', { taskId, filePath });
     expect(result.isError).toBeFalsy();
     const meta = json<{ filename: string; size: number }>(result);
     expect(meta.filename).toBe('report.csv');
   });
 
-  it('add_task_attachment: file not found', async () => {
+  it('tasks_add_attachment: file not found', async () => {
     const missing = path.join(projectDir, 'nope.txt');
-    const result = await ctx.call('add_task_attachment', { taskId, filePath: missing });
+    const result = await ctx.call('tasks_add_attachment', { taskId, filePath: missing });
     expect(result.isError).toBe(true);
   });
 
-  it('add_task_attachment: directory returns error', async () => {
+  it('tasks_add_attachment: directory returns error', async () => {
     const subDir = path.join(projectDir, 'subdir');
     fs.mkdirSync(subDir, { recursive: true });
-    const result = await ctx.call('add_task_attachment', { taskId, filePath: subDir });
+    const result = await ctx.call('tasks_add_attachment', { taskId, filePath: subDir });
     expect(result.isError).toBe(true);
   });
 
-  it('add_task_attachment: path traversal rejected', async () => {
+  it('tasks_add_attachment: path traversal rejected', async () => {
     const outside = createTmpFile(os.tmpdir(), 'evil.csv', 'stolen');
-    const result = await ctx.call('add_task_attachment', { taskId, filePath: outside });
+    const result = await ctx.call('tasks_add_attachment', { taskId, filePath: outside });
     expect(result.isError).toBe(true);
     expect(text(result)).toContain('within the project directory');
     fs.unlinkSync(outside);
   });
 
-  it('remove_task_attachment: removes', async () => {
-    await ctx.call('add_task_attachment', { taskId, filePath });
-    const result = await ctx.call('remove_task_attachment', { taskId, filename: 'report.csv' });
+  it('tasks_remove_attachment: removes', async () => {
+    await ctx.call('tasks_add_attachment', { taskId, filePath });
+    const result = await ctx.call('tasks_remove_attachment', { taskId, filename: 'report.csv' });
     expect(result.isError).toBeFalsy();
     expect(json<{ deleted: string }>(result).deleted).toBe('report.csv');
   });
 
-  it('remove_task_attachment: not found', async () => {
-    const result = await ctx.call('remove_task_attachment', { taskId, filename: 'nope.txt' });
+  it('tasks_remove_attachment: not found', async () => {
+    const result = await ctx.call('tasks_remove_attachment', { taskId, filename: 'nope.txt' });
     expect(result.isError).toBe(true);
   });
 });
@@ -215,43 +215,43 @@ describe('MCP skill attachment tools', () => {
     fs.rmSync(projectDir, { recursive: true, force: true });
   });
 
-  it('add_skill_attachment: attaches file', async () => {
-    const result = await ctx.call('add_skill_attachment', { skillId, filePath });
+  it('skills_add_attachment: attaches file', async () => {
+    const result = await ctx.call('skills_add_attachment', { skillId, filePath });
     expect(result.isError).toBeFalsy();
     const meta = json<{ filename: string; size: number }>(result);
     expect(meta.filename).toBe('template.yaml');
   });
 
-  it('add_skill_attachment: file not found', async () => {
+  it('skills_add_attachment: file not found', async () => {
     const missing = path.join(projectDir, 'missing.file');
-    const result = await ctx.call('add_skill_attachment', { skillId, filePath: missing });
+    const result = await ctx.call('skills_add_attachment', { skillId, filePath: missing });
     expect(result.isError).toBe(true);
   });
 
-  it('add_skill_attachment: directory returns error', async () => {
+  it('skills_add_attachment: directory returns error', async () => {
     const subDir = path.join(projectDir, 'subdir');
     fs.mkdirSync(subDir, { recursive: true });
-    const result = await ctx.call('add_skill_attachment', { skillId, filePath: subDir });
+    const result = await ctx.call('skills_add_attachment', { skillId, filePath: subDir });
     expect(result.isError).toBe(true);
   });
 
-  it('add_skill_attachment: path traversal rejected', async () => {
+  it('skills_add_attachment: path traversal rejected', async () => {
     const outside = createTmpFile(os.tmpdir(), 'evil.yaml', 'stolen');
-    const result = await ctx.call('add_skill_attachment', { skillId, filePath: outside });
+    const result = await ctx.call('skills_add_attachment', { skillId, filePath: outside });
     expect(result.isError).toBe(true);
     expect(text(result)).toContain('within the project directory');
     fs.unlinkSync(outside);
   });
 
-  it('remove_skill_attachment: removes', async () => {
-    await ctx.call('add_skill_attachment', { skillId, filePath });
-    const result = await ctx.call('remove_skill_attachment', { skillId, filename: 'template.yaml' });
+  it('skills_remove_attachment: removes', async () => {
+    await ctx.call('skills_add_attachment', { skillId, filePath });
+    const result = await ctx.call('skills_remove_attachment', { skillId, filename: 'template.yaml' });
     expect(result.isError).toBeFalsy();
     expect(json<{ deleted: string }>(result).deleted).toBe('template.yaml');
   });
 
-  it('remove_skill_attachment: not found', async () => {
-    const result = await ctx.call('remove_skill_attachment', { skillId, filename: 'ghost.bin' });
+  it('skills_remove_attachment: not found', async () => {
+    const result = await ctx.call('skills_remove_attachment', { skillId, filename: 'ghost.bin' });
     expect(result.isError).toBe(true);
   });
 });
@@ -287,20 +287,20 @@ describe('attachment tools without projectDir', () => {
 
   afterAll(async () => { await ctx.close(); });
 
-  it('add_note_attachment: rejects when no projectDir', async () => {
-    const result = await ctx.call('add_note_attachment', { noteId, filePath: '/tmp/any.txt' });
+  it('notes_add_attachment: rejects when no projectDir', async () => {
+    const result = await ctx.call('notes_add_attachment', { noteId, filePath: '/tmp/any.txt' });
     expect(result.isError).toBe(true);
     expect(text(result)).toContain('No project directory configured');
   });
 
-  it('add_task_attachment: rejects when no projectDir', async () => {
-    const result = await ctx.call('add_task_attachment', { taskId, filePath: '/tmp/any.txt' });
+  it('tasks_add_attachment: rejects when no projectDir', async () => {
+    const result = await ctx.call('tasks_add_attachment', { taskId, filePath: '/tmp/any.txt' });
     expect(result.isError).toBe(true);
     expect(text(result)).toContain('No project directory configured');
   });
 
-  it('add_skill_attachment: rejects when no projectDir', async () => {
-    const result = await ctx.call('add_skill_attachment', { skillId, filePath: '/tmp/any.txt' });
+  it('skills_add_attachment: rejects when no projectDir', async () => {
+    const result = await ctx.call('skills_add_attachment', { skillId, filePath: '/tmp/any.txt' });
     expect(result.isError).toBe(true);
     expect(text(result)).toContain('No project directory configured');
   });
@@ -328,22 +328,22 @@ describe('attachment filename validation', () => {
   afterAll(async () => { await ctx.close(); });
 
   it('rejects filename with path separator /', async () => {
-    const result = await ctx.call('remove_note_attachment', { noteId, filename: '../etc/passwd' });
+    const result = await ctx.call('notes_remove_attachment', { noteId, filename: '../etc/passwd' });
     expect(result.isError).toBe(true);
   });
 
   it('rejects filename with backslash', async () => {
-    const result = await ctx.call('remove_note_attachment', { noteId, filename: '..\\etc\\passwd' });
+    const result = await ctx.call('notes_remove_attachment', { noteId, filename: '..\\etc\\passwd' });
     expect(result.isError).toBe(true);
   });
 
   it('rejects filename with ..', async () => {
-    const result = await ctx.call('remove_note_attachment', { noteId, filename: '..secret' });
+    const result = await ctx.call('notes_remove_attachment', { noteId, filename: '..secret' });
     expect(result.isError).toBe(true);
   });
 
   it('rejects empty filename', async () => {
-    const result = await ctx.call('remove_note_attachment', { noteId, filename: '' });
+    const result = await ctx.call('notes_remove_attachment', { noteId, filename: '' });
     expect(result.isError).toBe(true);
   });
 });

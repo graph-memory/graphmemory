@@ -4,7 +4,7 @@ import type { SkillGraphManager } from '@/graphs/skill';
 
 export function register(server: McpServer, mgr: SkillGraphManager): void {
   server.registerTool(
-    'remove_skill_attachment',
+    'skills_remove_attachment',
     {
       description:
         'Remove an attachment from a skill. The file is deleted from disk.',

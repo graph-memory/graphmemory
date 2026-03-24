@@ -4,7 +4,7 @@ import type { CodeGraphManager } from '@/graphs/code';
 
 export function register(server: McpServer, mgr: CodeGraphManager): void {
   server.registerTool(
-    'list_files',
+    'code_list_files',
     {
       description:
         'List indexed source files in the code graph. ' +
@@ -16,7 +16,7 @@ export function register(server: McpServer, mgr: CodeGraphManager): void {
           'Case-insensitive substring to match against file paths, e.g. "graph" or "src/lib"',
         ),
         limit: z.number().max(1000).optional().describe(
-          'Maximum number of results to return (default 20)',
+          'Maximum number of results to return',
         ),
       },
     },

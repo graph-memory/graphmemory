@@ -4,7 +4,7 @@ import type { DocGraphManager } from '@/graphs/docs';
 
 export function register(server: McpServer, mgr: DocGraphManager): void {
   server.registerTool(
-    'get_toc',
+    'docs_get_toc',
     {
       description:
         'Return the table of contents (headings hierarchy) for a specific file. ' +

@@ -58,33 +58,33 @@ async function listToolNames(
 // ---------------------------------------------------------------------------
 
 const KNOWLEDGE_READ = [
-  'get_note', 'list_notes', 'search_notes', 'list_relations', 'find_linked_notes',
+  'notes_get', 'notes_list', 'notes_search', 'notes_list_links', 'notes_find_linked',
 ].sort();
 
 const KNOWLEDGE_MUTATION = [
-  'create_note', 'update_note', 'delete_note',
-  'create_relation', 'delete_relation',
-  'add_note_attachment', 'remove_note_attachment',
+  'notes_create', 'notes_update', 'notes_delete',
+  'notes_create_link', 'notes_delete_link',
+  'notes_add_attachment', 'notes_remove_attachment',
 ].sort();
 
 const TASK_READ = [
-  'get_task', 'list_tasks', 'search_tasks', 'find_linked_tasks',
+  'tasks_get', 'tasks_list', 'tasks_search', 'tasks_find_linked',
 ].sort();
 
 const TASK_MUTATION = [
-  'create_task', 'update_task', 'delete_task', 'move_task',
-  'link_task', 'create_task_link', 'delete_task_link',
-  'add_task_attachment', 'remove_task_attachment',
+  'tasks_create', 'tasks_update', 'tasks_delete', 'tasks_move',
+  'tasks_link', 'tasks_create_link', 'tasks_delete_link',
+  'tasks_add_attachment', 'tasks_remove_attachment',
 ].sort();
 
 const SKILL_READ = [
-  'get_skill', 'list_skills', 'search_skills', 'find_linked_skills', 'recall_skills',
+  'skills_get', 'skills_list', 'skills_search', 'skills_find_linked', 'skills_recall',
 ].sort();
 
 const SKILL_MUTATION = [
-  'create_skill', 'update_skill', 'delete_skill',
-  'link_skill', 'create_skill_link', 'delete_skill_link',
-  'add_skill_attachment', 'remove_skill_attachment', 'bump_skill_usage',
+  'skills_create', 'skills_update', 'skills_delete',
+  'skills_link', 'skills_create_link', 'skills_delete_link',
+  'skills_add_attachment', 'skills_remove_attachment', 'skills_bump_usage',
 ].sort();
 
 const ALL_TOOLS_COUNT = KNOWLEDGE_READ.length + KNOWLEDGE_MUTATION.length
@@ -183,9 +183,9 @@ describe('MCP per-user access', () => {
     const client = new Client({ name: 'test-readonly-call', version: '1.0.0' });
     await client.connect(clientTransport);
 
-    // search_notes should still work (read tool) even on a readonly graph
+    // notes_search should still work (read tool) even on a readonly graph
     const result = await client.callTool({
-      name: 'search_notes',
+      name: 'notes_search',
       arguments: { query: 'test query', limit: 5 },
     }) as { content: Array<{ type: string; text: string }> };
 

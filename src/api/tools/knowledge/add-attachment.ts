@@ -7,7 +7,7 @@ import { MAX_UPLOAD_SIZE } from '@/lib/defaults';
 
 export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
   server.registerTool(
-    'add_note_attachment',
+    'notes_add_attachment',
     {
       description:
         'Attach a file to a note. Provide the absolute path to a local file. ' +

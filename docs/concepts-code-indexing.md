@@ -141,19 +141,19 @@ After the full scan completes, the indexer calls `resolvePendingImports()` and `
 
 ### Semantic code search
 
-"Find the function that hashes passwords" → `search_code` finds `hashPassword` by meaning, not by grepping for "hash" or "password" in function names.
+"Find the function that hashes passwords" → `code_search` finds `hashPassword` by meaning, not by grepping for "hash" or "password" in function names.
 
 ### Symbol lookup
 
-`get_symbol("src/auth.ts::UserService::login")` → returns full source body, signature, JSDoc, line numbers. An LLM gets exactly the code it needs.
+`code_get_symbol("src/auth.ts::UserService::login")` → returns full source body, signature, JSDoc, line numbers. An LLM gets exactly the code it needs.
 
 ### Structural navigation
 
-`get_file_symbols("src/auth.ts")` → lists all symbols sorted by line number. Like a miniature IDE outline.
+`code_get_file_symbols("src/auth.ts")` → lists all symbols sorted by line number. Like a miniature IDE outline.
 
 ### Cross-graph bridging
 
-`cross_references("loginUser")` → finds the code definition AND any documentation examples or explanations that reference this symbol.
+`docs_cross_references("loginUser")` → finds the code definition AND any documentation examples or explanations that reference this symbol.
 
 ## Configuration
 

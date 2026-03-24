@@ -5,7 +5,7 @@ import { MAX_TAG_LEN } from '@/lib/defaults';
 
 export function register(server: McpServer, mgr: SkillGraphManager): void {
   server.registerTool(
-    'list_skills',
+    'skills_list',
     {
       description:
         'List skills with optional filters. ' +

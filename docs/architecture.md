@@ -210,7 +210,7 @@ Client request (MCP tool call or REST API)
 ### Cross-graph link flow
 
 ```
-create_relation(fromNote, targetNodeId, targetGraph="docs")
+notes_create_link(fromNote, targetNodeId, targetGraph="docs")
   → check target exists in docs graph
   → create proxy node @docs::targetNodeId in knowledge graph (empty embedding)
   → create edge: fromNote → @docs::targetNodeId with kind

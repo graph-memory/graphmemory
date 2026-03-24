@@ -5,7 +5,7 @@ import { MAX_PROJECT_ID_LEN } from '@/lib/defaults';
 
 export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
   server.registerTool(
-    'delete_relation',
+    'notes_delete_link',
     {
       description:
         'Delete a directed relation between a note and another note or a cross-graph target. ' +

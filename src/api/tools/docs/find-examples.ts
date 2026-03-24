@@ -2,13 +2,13 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { DocGraph, NodeAttributes } from '@/graphs/docs';
 import type { DocGraphManager } from '@/graphs/docs';
-import { MAX_SEARCH_QUERY_LEN } from '@/lib/defaults';
+import { MAX_SEARCH_QUERY_LEN, LIST_LIMIT_SMALL } from '@/lib/defaults';
 
 export function register(server: McpServer, mgr: DocGraphManager): void {
   const graph = mgr.graph;
 
   server.registerTool(
-    'find_examples',
+    'docs_find_examples',
     {
       description:
         'Find code examples in documentation that contain a specific symbol (function, class, interface, etc.). ' +
@@ -17,10 +17,10 @@ export function register(server: McpServer, mgr: DocGraphManager): void {
         'Returns matching code block nodes with id, fileId, language, symbols, content, and the parent section context.',
       inputSchema: {
         symbol: z.string().max(MAX_SEARCH_QUERY_LEN).describe('Symbol name to search for, e.g. "createUser", "UserService"'),
-        limit:  z.number().optional().describe('Max results to return (default 20)'),
+        limit:  z.number().optional().describe('Max results to return'),
       },
     },
-    async ({ symbol, limit = 20 }) => {
+    async ({ symbol, limit = LIST_LIMIT_SMALL }) => {
       const symbolLower = symbol.toLowerCase();
       const results: Array<{
         id: string;

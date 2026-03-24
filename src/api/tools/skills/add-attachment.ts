@@ -7,7 +7,7 @@ import { MAX_UPLOAD_SIZE } from '@/lib/defaults';
 
 export function register(server: McpServer, mgr: SkillGraphManager): void {
   server.registerTool(
-    'add_skill_attachment',
+    'skills_add_attachment',
     {
       description:
         'Attach a file to a skill. Provide the absolute path to a local file. ' +

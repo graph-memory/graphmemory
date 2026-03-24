@@ -4,7 +4,7 @@ import type { SkillGraphManager } from '@/graphs/skill';
 
 export function register(server: McpServer, mgr: SkillGraphManager): void {
   server.registerTool(
-    'link_skill',
+    'skills_link',
     {
       description:
         'Create a directed relation between two skills. ' +

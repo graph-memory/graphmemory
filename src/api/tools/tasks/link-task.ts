@@ -4,7 +4,7 @@ import type { TaskGraphManager } from '@/graphs/task';
 
 export function register(server: McpServer, mgr: TaskGraphManager): void {
   server.registerTool(
-    'link_task',
+    'tasks_link',
     {
       description:
         'Create a directed relation between two tasks. ' +

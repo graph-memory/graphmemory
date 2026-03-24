@@ -55,10 +55,10 @@ describe('knowledge tools', () => {
   let note2: CreateNoteResult;
   let note3: CreateNoteResult;
 
-  // ── create_note ──
+  // ── notes_create ──
 
-  it('create_note: first note returns slug noteId', async () => {
-    note1 = json<CreateNoteResult>(await call('create_note', {
+  it('notes_create: first note returns slug noteId', async () => {
+    note1 = json<CreateNoteResult>(await call('notes_create', {
       title: 'Auth JWT Knowledge',
       content: 'The system uses JWT for authentication.',
       tags: ['auth', 'security'],
@@ -67,8 +67,8 @@ describe('knowledge tools', () => {
     expect(note1.noteId).toBe('auth-jwt-knowledge');
   });
 
-  it('create_note: second note', async () => {
-    note2 = json<CreateNoteResult>(await call('create_note', {
+  it('notes_create: second note', async () => {
+    note2 = json<CreateNoteResult>(await call('notes_create', {
       title: 'Database Postgres',
       content: 'We use PostgreSQL 15 for persistence.',
       tags: ['infra'],
@@ -76,8 +76,8 @@ describe('knowledge tools', () => {
     expect(note2.noteId).toBe('database-postgres');
   });
 
-  it('create_note: third note', async () => {
-    note3 = json<CreateNoteResult>(await call('create_note', {
+  it('notes_create: third note', async () => {
+    note3 = json<CreateNoteResult>(await call('notes_create', {
       title: 'Rate Limit API',
       content: 'API rate limited to 100 req/min.',
       tags: ['api'],
@@ -85,10 +85,10 @@ describe('knowledge tools', () => {
     expect(note3.noteId).toBe('rate-limit-api');
   });
 
-  // ── get_note ──
+  // ── notes_get ──
 
-  it('get_note: returns correct fields', async () => {
-    const gotNote = json<NoteResult>(await call('get_note', { noteId: note1.noteId }));
+  it('notes_get: returns correct fields', async () => {
+    const gotNote = json<NoteResult>(await call('notes_get', { noteId: note1.noteId }));
     expect(gotNote.id).toBe(note1.noteId);
     expect(gotNote.title).toBe('Auth JWT Knowledge');
     expect(gotNote.content).toContain('JWT');
@@ -97,66 +97,66 @@ describe('knowledge tools', () => {
     expect(gotNote).not.toHaveProperty('embedding');
   });
 
-  it('get_note: missing note returns isError', async () => {
-    const gotMissing = await call('get_note', { noteId: 'ghost' });
+  it('notes_get: missing note returns isError', async () => {
+    const gotMissing = await call('notes_get', { noteId: 'ghost' });
     expect(gotMissing.isError).toBe(true);
   });
 
-  // ── list_notes (before update) ──
+  // ── notes_list (before update) ──
 
-  it('list_notes: returns all 3 notes', async () => {
-    const allNotes = json<NoteListEntry[]>(await call('list_notes'));
+  it('notes_list: returns all 3 notes', async () => {
+    const allNotes = json<NoteListEntry[]>(await call('notes_list'));
     expect(allNotes).toHaveLength(3);
     expect(allNotes.every(n => n.id && n.title)).toBe(true);
   });
 
-  it('list_notes: filter "auth" matches 1 note', async () => {
-    const filteredNotes = json<NoteListEntry[]>(await call('list_notes', { filter: 'auth' }));
+  it('notes_list: filter "auth" matches 1 note', async () => {
+    const filteredNotes = json<NoteListEntry[]>(await call('notes_list', { filter: 'auth' }));
     expect(filteredNotes).toHaveLength(1);
     expect(filteredNotes[0].id).toBe(note1.noteId);
   });
 
-  it('list_notes: tag "infra" matches 1 note', async () => {
-    const taggedNotes = json<NoteListEntry[]>(await call('list_notes', { tag: 'infra' }));
+  it('notes_list: tag "infra" matches 1 note', async () => {
+    const taggedNotes = json<NoteListEntry[]>(await call('notes_list', { tag: 'infra' }));
     expect(taggedNotes).toHaveLength(1);
     expect(taggedNotes[0].id).toBe(note2.noteId);
   });
 
-  it('list_notes: limit=1 returns 1 note', async () => {
-    const limitedNotes = json<NoteListEntry[]>(await call('list_notes', { limit: 1 }));
+  it('notes_list: limit=1 returns 1 note', async () => {
+    const limitedNotes = json<NoteListEntry[]>(await call('notes_list', { limit: 1 }));
     expect(limitedNotes).toHaveLength(1);
   });
 
-  it('list_notes: filter no match returns empty', async () => {
-    const noNotes = json<NoteListEntry[]>(await call('list_notes', { filter: 'nonexistent' }));
+  it('notes_list: filter no match returns empty', async () => {
+    const noNotes = json<NoteListEntry[]>(await call('notes_list', { filter: 'nonexistent' }));
     expect(noNotes).toHaveLength(0);
   });
 
-  // ── update_note ──
+  // ── notes_update ──
 
-  it('update_note: updates content and tags, title unchanged', async () => {
-    const upd = json<UpdateResult>(await call('update_note', {
+  it('notes_update: updates content and tags, title unchanged', async () => {
+    const upd = json<UpdateResult>(await call('notes_update', {
       noteId: note1.noteId,
       content: 'Updated: JWT with refresh token support.',
       tags: ['auth', 'security', 'jwt'],
     }));
     expect(upd.updated).toBe(true);
 
-    const updatedNote = json<NoteResult>(await call('get_note', { noteId: note1.noteId }));
+    const updatedNote = json<NoteResult>(await call('notes_get', { noteId: note1.noteId }));
     expect(updatedNote.content).toContain('refresh token');
     expect(updatedNote.tags).toHaveLength(3);
     expect(updatedNote.title).toBe('Auth JWT Knowledge');
   });
 
-  it('update_note: missing note returns isError', async () => {
-    const updMissing = await call('update_note', { noteId: 'ghost', content: 'x' });
+  it('notes_update: missing note returns isError', async () => {
+    const updMissing = await call('notes_update', { noteId: 'ghost', content: 'x' });
     expect(updMissing.isError).toBe(true);
   });
 
-  // ── create_relation ──
+  // ── notes_create_link ──
 
-  it('create_relation: creates depends_on relation', async () => {
-    const rel1 = json<RelCreateResult>(await call('create_relation', {
+  it('notes_create_link: creates depends_on relation', async () => {
+    const rel1 = json<RelCreateResult>(await call('notes_create_link', {
       fromId: note1.noteId, toId: note2.noteId, kind: 'depends_on', projectId: 'test',
     }));
     expect(rel1.created).toBe(true);
@@ -164,44 +164,44 @@ describe('knowledge tools', () => {
     expect(rel1.kind).toBe('depends_on');
   });
 
-  it('create_relation: creates relates_to relation', async () => {
-    const rel2 = json<RelCreateResult>(await call('create_relation', {
+  it('notes_create_link: creates relates_to relation', async () => {
+    const rel2 = json<RelCreateResult>(await call('notes_create_link', {
       fromId: note2.noteId, toId: note3.noteId, kind: 'relates_to', projectId: 'test',
     }));
     expect(rel2.created).toBe(true);
   });
 
-  it('create_relation: duplicate returns isError', async () => {
-    const relDup = await call('create_relation', {
+  it('notes_create_link: duplicate returns isError', async () => {
+    const relDup = await call('notes_create_link', {
       fromId: note1.noteId, toId: note2.noteId, kind: 'depends_on', projectId: 'test',
     });
     expect(relDup.isError).toBe(true);
   });
 
-  it('create_relation: missing node returns isError', async () => {
-    const relGhost = await call('create_relation', {
+  it('notes_create_link: missing node returns isError', async () => {
+    const relGhost = await call('notes_create_link', {
       fromId: note1.noteId, toId: 'ghost', kind: 'x', projectId: 'test',
     });
     expect(relGhost.isError).toBe(true);
   });
 
-  // ── list_relations ──
+  // ── notes_list_links ──
 
-  it('list_relations: note1 has 1 relation', async () => {
-    const rels1 = json<RelEntry[]>(await call('list_relations', { noteId: note1.noteId }));
+  it('notes_list_links: note1 has 1 relation', async () => {
+    const rels1 = json<RelEntry[]>(await call('notes_list_links', { noteId: note1.noteId }));
     expect(rels1).toHaveLength(1);
     expect(rels1[0].kind).toBe('depends_on');
   });
 
-  it('list_relations: note2 has 2 relations (in + out)', async () => {
-    const rels2 = json<RelEntry[]>(await call('list_relations', { noteId: note2.noteId }));
+  it('notes_list_links: note2 has 2 relations (in + out)', async () => {
+    const rels2 = json<RelEntry[]>(await call('notes_list_links', { noteId: note2.noteId }));
     expect(rels2).toHaveLength(2);
   });
 
-  // ── search_notes ──
+  // ── notes_search ──
 
-  it('search_notes: exact match returns score 1.0', async () => {
-    const kHits1 = json<KnowledgeHit[]>(await call('search_notes', { query: 'auth jwt knowledge', topK: 1, bfsDepth: 0, searchMode: 'vector' }));
+  it('notes_search: exact match returns score 1.0', async () => {
+    const kHits1 = json<KnowledgeHit[]>(await call('notes_search', { query: 'auth jwt knowledge', topK: 1, bfsDepth: 0, searchMode: 'vector' }));
     expect(kHits1).toHaveLength(1);
     expect(kHits1[0].id).toBe(note1.noteId);
     expect(kHits1[0].score).toBe(1.0);
@@ -210,8 +210,8 @@ describe('knowledge tools', () => {
     expect(Array.isArray(kHits1[0].tags)).toBe(true);
   });
 
-  it('search_notes: BFS depth=1 includes seed and depends_on neighbor', async () => {
-    const kHits2 = json<KnowledgeHit[]>(await call('search_notes', { query: 'auth jwt knowledge', topK: 1, bfsDepth: 1, searchMode: 'vector' }));
+  it('notes_search: BFS depth=1 includes seed and depends_on neighbor', async () => {
+    const kHits2 = json<KnowledgeHit[]>(await call('notes_search', { query: 'auth jwt knowledge', topK: 1, bfsDepth: 1, searchMode: 'vector' }));
     const kIds2 = kHits2.map(h => h.id);
     expect(kIds2).toContain(note1.noteId);
     expect(kIds2).toContain(note2.noteId);
@@ -224,20 +224,20 @@ describe('knowledge tools', () => {
     expect(Math.abs(kBfs - kSeed * 0.8)).toBeLessThan(0.001);
   });
 
-  it('search_notes: BFS depth=2 reaches rate-limit', async () => {
-    const kHits3 = json<KnowledgeHit[]>(await call('search_notes', { query: 'auth jwt knowledge', topK: 1, bfsDepth: 2, minScore: 0 }));
+  it('notes_search: BFS depth=2 reaches rate-limit', async () => {
+    const kHits3 = json<KnowledgeHit[]>(await call('notes_search', { query: 'auth jwt knowledge', topK: 1, bfsDepth: 2, minScore: 0 }));
     const kIds3 = kHits3.map(h => h.id);
     expect(kIds3).toContain(note3.noteId);
   });
 
-  it('search_notes: minScore=0.9 returns only seed', async () => {
-    const kHitsMin = json<KnowledgeHit[]>(await call('search_notes', { query: 'auth jwt knowledge', topK: 1, bfsDepth: 1, minScore: 0.9, searchMode: 'vector' }));
+  it('notes_search: minScore=0.9 returns only seed', async () => {
+    const kHitsMin = json<KnowledgeHit[]>(await call('notes_search', { query: 'auth jwt knowledge', topK: 1, bfsDepth: 1, minScore: 0.9, searchMode: 'vector' }));
     expect(kHitsMin).toHaveLength(1);
     expect(kHitsMin[0].id).toBe(note1.noteId);
   });
 
-  it('search_notes: vector-only mode returns results', async () => {
-    const hits = json<KnowledgeHit[]>(await call('search_notes', {
+  it('notes_search: vector-only mode returns results', async () => {
+    const hits = json<KnowledgeHit[]>(await call('notes_search', {
       query: 'database postgres',
       topK: 3,
       bfsDepth: 0,
@@ -248,8 +248,8 @@ describe('knowledge tools', () => {
     expect(hits[0].score).toBeGreaterThan(0.5);
   });
 
-  it('search_notes: keyword-only mode returns results', async () => {
-    const hits = json<KnowledgeHit[]>(await call('search_notes', {
+  it('notes_search: keyword-only mode returns results', async () => {
+    const hits = json<KnowledgeHit[]>(await call('notes_search', {
       query: 'PostgreSQL persistence',
       topK: 3,
       bfsDepth: 0,
@@ -260,47 +260,47 @@ describe('knowledge tools', () => {
     expect(hits[0].id).toBe(note2.noteId);
   });
 
-  it('search_notes: unknown query returns empty', async () => {
-    const kHitsNone = json<KnowledgeHit[]>(await call('search_notes', { query: 'xyzzy completely unknown xyz', minScore: 0.1, searchMode: 'keyword' }));
+  it('notes_search: unknown query returns empty', async () => {
+    const kHitsNone = json<KnowledgeHit[]>(await call('notes_search', { query: 'xyzzy completely unknown xyz', minScore: 0.1, searchMode: 'keyword' }));
     expect(kHitsNone).toHaveLength(0);
   });
 
-  // ── delete_relation ──
+  // ── notes_delete_link ──
 
-  it('delete_relation: deletes existing relation', async () => {
-    const relDel = json<RelDelResult>(await call('delete_relation', { fromId: note1.noteId, toId: note2.noteId, projectId: 'test' }));
+  it('notes_delete_link: deletes existing relation', async () => {
+    const relDel = json<RelDelResult>(await call('notes_delete_link', { fromId: note1.noteId, toId: note2.noteId, projectId: 'test' }));
     expect(relDel.deleted).toBe(true);
   });
 
-  it('delete_relation: missing relation returns isError', async () => {
-    const relDelMissing = await call('delete_relation', { fromId: note1.noteId, toId: note2.noteId, projectId: 'test' });
+  it('notes_delete_link: missing relation returns isError', async () => {
+    const relDelMissing = await call('notes_delete_link', { fromId: note1.noteId, toId: note2.noteId, projectId: 'test' });
     expect(relDelMissing.isError).toBe(true);
   });
 
-  it('delete_relation: note1 has 0 relations after delete', async () => {
-    const relsAfterDel = json<RelEntry[]>(await call('list_relations', { noteId: note1.noteId }));
+  it('notes_delete_link: note1 has 0 relations after delete', async () => {
+    const relsAfterDel = json<RelEntry[]>(await call('notes_list_links', { noteId: note1.noteId }));
     expect(relsAfterDel).toHaveLength(0);
   });
 
-  // ── delete_note ──
+  // ── notes_delete ──
 
-  it('delete_note: deletes note and cleans up relations', async () => {
-    const del = json<DelResult>(await call('delete_note', { noteId: note3.noteId }));
+  it('notes_delete: deletes note and cleans up relations', async () => {
+    const del = json<DelResult>(await call('notes_delete', { noteId: note3.noteId }));
     expect(del.deleted).toBe(true);
   });
 
-  it('delete_note: missing note returns isError', async () => {
-    const delMissing = await call('delete_note', { noteId: 'ghost' });
+  it('notes_delete: missing note returns isError', async () => {
+    const delMissing = await call('notes_delete', { noteId: 'ghost' });
     expect(delMissing.isError).toBe(true);
   });
 
-  it('delete_note: 2 notes remain after delete', async () => {
-    const remainingNotes = json<NoteListEntry[]>(await call('list_notes'));
+  it('notes_delete: 2 notes remain after delete', async () => {
+    const remainingNotes = json<NoteListEntry[]>(await call('notes_list'));
     expect(remainingNotes).toHaveLength(2);
   });
 
-  it('delete_note: note2 relations cleaned up after note3 delete', async () => {
-    const relsNote2 = json<RelEntry[]>(await call('list_relations', { noteId: note2.noteId }));
+  it('notes_delete: note2 relations cleaned up after note3 delete', async () => {
+    const relsNote2 = json<RelEntry[]>(await call('notes_list_links', { noteId: note2.noteId }));
     expect(relsNote2).toHaveLength(0);
   });
 });
@@ -366,7 +366,7 @@ describe('cross-graph relation tools', () => {
   let noteId: string;
 
   it('create a note first', async () => {
-    const res = json<{ noteId: string }>(await xCall('create_note', {
+    const res = json<{ noteId: string }>(await xCall('notes_create', {
       title: 'My Note about setup',
       content: 'This note references docs and code.',
       tags: ['cross'],
@@ -375,8 +375,8 @@ describe('cross-graph relation tools', () => {
     expect(noteId).toBe('my-note-about-setup');
   });
 
-  it('create_relation to docs node', async () => {
-    const res = json<XRelCreateResult>(await xCall('create_relation', {
+  it('notes_create_link to docs node', async () => {
+    const res = json<XRelCreateResult>(await xCall('notes_create_link', {
       fromId: noteId,
       toId: 'guide.md::Setup',
       kind: 'references',
@@ -387,8 +387,8 @@ describe('cross-graph relation tools', () => {
     expect(res.targetGraph).toBe('docs');
   });
 
-  it('create_relation to code node', async () => {
-    const res = json<XRelCreateResult>(await xCall('create_relation', {
+  it('notes_create_link to code node', async () => {
+    const res = json<XRelCreateResult>(await xCall('notes_create_link', {
       fromId: noteId,
       toId: 'auth.ts::AuthService',
       kind: 'depends_on',
@@ -400,7 +400,7 @@ describe('cross-graph relation tools', () => {
   });
 
   it('duplicate cross relation returns error', async () => {
-    const res = await xCall('create_relation', {
+    const res = await xCall('notes_create_link', {
       fromId: noteId,
       toId: 'guide.md::Setup',
       kind: 'references',
@@ -411,7 +411,7 @@ describe('cross-graph relation tools', () => {
   });
 
   it('cross relation to nonexistent target returns error', async () => {
-    const res = await xCall('create_relation', {
+    const res = await xCall('notes_create_link', {
       fromId: noteId,
       toId: 'nonexistent::Node',
       kind: 'references',
@@ -421,8 +421,8 @@ describe('cross-graph relation tools', () => {
     expect(res.isError).toBe(true);
   });
 
-  it('list_relations shows cross-graph relations with targetGraph field', async () => {
-    const rels = json<RelEntry[]>(await xCall('list_relations', { noteId }));
+  it('notes_list_links shows cross-graph relations with targetGraph field', async () => {
+    const rels = json<RelEntry[]>(await xCall('notes_list_links', { noteId }));
     expect(rels).toHaveLength(2);
 
     const docsRel = rels.find(r => r.targetGraph === 'docs');
@@ -436,20 +436,20 @@ describe('cross-graph relation tools', () => {
     expect(codeRel!.kind).toBe('depends_on');
   });
 
-  it('list_notes does not include proxy nodes', async () => {
-    const notes = json<Array<{ id: string }>>(await xCall('list_notes'));
+  it('notes_list does not include proxy nodes', async () => {
+    const notes = json<Array<{ id: string }>>(await xCall('notes_list'));
     expect(notes).toHaveLength(1);
     expect(notes[0].id).toBe(noteId);
   });
 
-  it('get_note on proxy id returns error', async () => {
-    const res = await xCall('get_note', { noteId: '@docs::guide.md::Setup' });
+  it('notes_get on proxy id returns error', async () => {
+    const res = await xCall('notes_get', { noteId: '@docs::guide.md::Setup' });
     expect(res.isError).toBe(true);
   });
 
-  it('delete_relation with targetGraph removes cross-graph relation', async () => {
+  it('notes_delete_link with targetGraph removes cross-graph relation', async () => {
     const res = json<{ fromId: string; toId: string; deleted: boolean }>(
-      await xCall('delete_relation', {
+      await xCall('notes_delete_link', {
         fromId: noteId,
         toId: 'guide.md::Setup',
         targetGraph: 'docs',
@@ -460,13 +460,13 @@ describe('cross-graph relation tools', () => {
   });
 
   it('after delete, only code relation remains', async () => {
-    const rels = json<RelEntry[]>(await xCall('list_relations', { noteId }));
+    const rels = json<RelEntry[]>(await xCall('notes_list_links', { noteId }));
     expect(rels).toHaveLength(1);
     expect(rels[0].targetGraph).toBe('code');
   });
 
-  it('delete_note cleans up remaining cross-graph proxy', async () => {
-    const del = json<{ deleted: boolean }>(await xCall('delete_note', { noteId }));
+  it('notes_delete cleans up remaining cross-graph proxy', async () => {
+    const del = json<{ deleted: boolean }>(await xCall('notes_delete', { noteId }));
     expect(del.deleted).toBe(true);
     // Knowledge graph should have 0 nodes (note + proxy both cleaned up)
     expect(xKnowledgeGraph.order).toBe(0);
@@ -474,12 +474,12 @@ describe('cross-graph relation tools', () => {
 });
 
 // ---------------------------------------------------------------------------
-// find_linked_notes
+// notes_find_linked
 // ---------------------------------------------------------------------------
 
 type LinkedNoteResult = { noteId: string; title: string; kind: string; tags: string[] };
 
-describe('find_linked_notes', () => {
+describe('notes_find_linked', () => {
   const fDocGraph = createGraph();
   const fCodeGraph = createCodeGraph();
   const fKnowledgeGraph = createKnowledgeGraph();
@@ -525,13 +525,13 @@ describe('find_linked_notes', () => {
     fCall = fCtx.call;
 
     // Create two notes that link to the same doc node
-    await fCall('create_note', { title: 'Note A', content: 'First note', tags: ['a'] });
-    await fCall('create_note', { title: 'Note B', content: 'Second note', tags: ['b'] });
-    await fCall('create_note', { title: 'Note C', content: 'Third note', tags: ['c'] });
+    await fCall('notes_create', { title: 'Note A', content: 'First note', tags: ['a'] });
+    await fCall('notes_create', { title: 'Note B', content: 'Second note', tags: ['b'] });
+    await fCall('notes_create', { title: 'Note C', content: 'Third note', tags: ['c'] });
 
-    await fCall('create_relation', { fromId: 'note-a', toId: 'api.md::Auth', kind: 'references', targetGraph: 'docs', projectId: 'test' });
-    await fCall('create_relation', { fromId: 'note-b', toId: 'api.md::Auth', kind: 'documents', targetGraph: 'docs', projectId: 'test' });
-    await fCall('create_relation', { fromId: 'note-a', toId: 'src/auth.ts::login', kind: 'depends_on', targetGraph: 'code', projectId: 'test' });
+    await fCall('notes_create_link', { fromId: 'note-a', toId: 'api.md::Auth', kind: 'references', targetGraph: 'docs', projectId: 'test' });
+    await fCall('notes_create_link', { fromId: 'note-b', toId: 'api.md::Auth', kind: 'documents', targetGraph: 'docs', projectId: 'test' });
+    await fCall('notes_create_link', { fromId: 'note-a', toId: 'src/auth.ts::login', kind: 'depends_on', targetGraph: 'code', projectId: 'test' });
   });
 
   afterAll(async () => {
@@ -539,7 +539,7 @@ describe('find_linked_notes', () => {
   });
 
   it('finds all notes linked to a doc node', async () => {
-    const results = json<LinkedNoteResult[]>(await fCall('find_linked_notes', {
+    const results = json<LinkedNoteResult[]>(await fCall('notes_find_linked', {
       targetId: 'api.md::Auth',
       targetGraph: 'docs',
       projectId: 'test',
@@ -551,7 +551,7 @@ describe('find_linked_notes', () => {
   });
 
   it('finds note linked to a code node', async () => {
-    const results = json<LinkedNoteResult[]>(await fCall('find_linked_notes', {
+    const results = json<LinkedNoteResult[]>(await fCall('notes_find_linked', {
       targetId: 'src/auth.ts::login',
       targetGraph: 'code',
       projectId: 'test',
@@ -563,7 +563,7 @@ describe('find_linked_notes', () => {
   });
 
   it('filters by relation kind', async () => {
-    const results = json<LinkedNoteResult[]>(await fCall('find_linked_notes', {
+    const results = json<LinkedNoteResult[]>(await fCall('notes_find_linked', {
       targetId: 'api.md::Auth',
       targetGraph: 'docs',
       kind: 'references',
@@ -574,7 +574,7 @@ describe('find_linked_notes', () => {
   });
 
   it('returns message for unlinked target', async () => {
-    const res = await fCall('find_linked_notes', {
+    const res = await fCall('notes_find_linked', {
       targetId: 'nonexistent.md::Foo',
       targetGraph: 'docs',
       projectId: 'test',
@@ -585,7 +585,7 @@ describe('find_linked_notes', () => {
   });
 
   it('returns empty for target with no links in different graph', async () => {
-    const res = await fCall('find_linked_notes', {
+    const res = await fCall('notes_find_linked', {
       targetId: 'api.md::Auth',
       targetGraph: 'files', // this target is in docs, not files
       projectId: 'test',

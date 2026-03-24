@@ -2,13 +2,13 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { DocGraph, NodeAttributes } from '@/graphs/docs';
 import type { DocGraphManager } from '@/graphs/docs';
-import { MAX_SEARCH_QUERY_LEN } from '@/lib/defaults';
+import { MAX_SEARCH_QUERY_LEN, LIST_LIMIT_SMALL } from '@/lib/defaults';
 
 export function register(server: McpServer, mgr: DocGraphManager): void {
   const graph = mgr.graph;
 
   server.registerTool(
-    'explain_symbol',
+    'docs_explain_symbol',
     {
       description:
         'Find documentation that explains a specific symbol. ' +
@@ -20,7 +20,7 @@ export function register(server: McpServer, mgr: DocGraphManager): void {
         limit:  z.number().optional().describe('Max results to return (default 10)'),
       },
     },
-    async ({ symbol, limit = 10 }) => {
+    async ({ symbol, limit = LIST_LIMIT_SMALL }) => {
       const symbolLower = symbol.toLowerCase();
       const results: Array<{
         codeBlock: { id: string; language: string | undefined; symbols: string[]; content: string };

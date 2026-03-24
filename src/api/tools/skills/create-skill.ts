@@ -9,7 +9,7 @@ import {
 
 export function register(server: McpServer, mgr: SkillGraphManager): void {
   server.registerTool(
-    'create_skill',
+    'skills_create',
     {
       description:
         'Create a new skill (reusable recipe/procedure) in the skill graph. ' +

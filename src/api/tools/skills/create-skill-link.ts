@@ -5,7 +5,7 @@ import { MAX_TARGET_NODE_ID_LEN, MAX_LINK_KIND_LEN, MAX_PROJECT_ID_LEN } from '@
 
 export function register(server: McpServer, mgr: SkillGraphManager): void {
   server.registerTool(
-    'create_skill_link',
+    'skills_create_link',
     {
       description:
         'Link a skill to a node in the docs, code, files, knowledge, or tasks graph. ' +

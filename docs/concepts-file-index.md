@@ -101,7 +101,7 @@ This lets you answer questions like "how big is the src/ directory?" without sum
 File paths are **embedded** — the path string itself is converted into a vector. This enables semantic search:
 
 ```
-search_all_files({ query: "authentication configuration" })
+files_search({ query: "authentication configuration" })
 → finds src/lib/auth.ts, src/config/auth.yaml, etc.
 ```
 
@@ -116,7 +116,7 @@ Only file nodes have embeddings — directory nodes have empty embeddings and ar
 An LLM starting a new conversation can quickly understand the project layout:
 
 ```
-list_all_files({ directory: "src/", limit: 50 })
+files_list({ directory: "src/", limit: 50 })
 → complete listing of source files
 ```
 
@@ -125,9 +125,9 @@ list_all_files({ directory: "src/", limit: 50 })
 "What configuration files does this project have?"
 
 ```
-list_all_files({ extension: ".yaml" })
-list_all_files({ extension: ".json" })
-list_all_files({ language: "yaml" })
+files_list({ extension: ".yaml" })
+files_list({ extension: ".json" })
+files_list({ language: "yaml" })
 ```
 
 ### Semantic file search
@@ -135,7 +135,7 @@ list_all_files({ language: "yaml" })
 "Find files related to database migrations"
 
 ```
-search_all_files({ query: "database migration" })
+files_search({ query: "database migration" })
 → src/db/migrations/, src/scripts/migrate.ts, etc.
 ```
 
@@ -144,7 +144,7 @@ search_all_files({ query: "database migration" })
 "How big is this file? When was it last modified?"
 
 ```
-get_file_info({ filePath: "src/lib/embedder.ts" })
+files_get_info({ filePath: "src/lib/embedder.ts" })
 → { size: 4096, mtime: ..., language: "typescript", mimeType: "text/typescript" }
 ```
 
@@ -153,7 +153,7 @@ get_file_info({ filePath: "src/lib/embedder.ts" })
 Notes, tasks, and skills can link to specific files:
 
 ```
-create_relation({
+notes_create_link({
   fromId: "deployment-config-note",
   toId: "docker-compose.yaml",
   targetGraph: "files",

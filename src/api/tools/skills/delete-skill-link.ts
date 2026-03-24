@@ -5,7 +5,7 @@ import { MAX_TARGET_NODE_ID_LEN, MAX_PROJECT_ID_LEN } from '@/lib/defaults';
 
 export function register(server: McpServer, mgr: SkillGraphManager): void {
   server.registerTool(
-    'delete_skill_link',
+    'skills_delete_link',
     {
       description:
         'Remove a cross-graph link from a skill to a node in the docs, code, files, knowledge, or tasks graph. ' +

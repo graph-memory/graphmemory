@@ -102,6 +102,43 @@ export type EmbedFnMap = {
   skills: EmbedFns;
 };
 
+/** Module-level debug flag — set via setDebugMode() from CLI --debug */
+let _debugMode = false;
+export function setDebugMode(enabled: boolean): void { _debugMode = enabled; }
+
+/**
+ * Create an McpServer proxy that logs every tool call and response to stderr.
+ */
+function createDebugServer(server: McpServer, getSessionId: () => string | undefined): McpServer {
+  const proxy = Object.create(server) as McpServer;
+  const origRegister = server.registerTool.bind(server);
+  (proxy as any).registerTool = function(name: any, config: any, handler: any) {
+    if (typeof handler === 'function') {
+      const wrapped = async (...handlerArgs: any[]) => {
+        const args = handlerArgs[0];
+        const sid = getSessionId() ?? '?';
+        process.stderr.write(`[debug] [${sid}] → ${name}(${JSON.stringify(args)})\n`);
+        const start = Date.now();
+        try {
+          const result = await handler(...handlerArgs);
+          const ms = Date.now() - start;
+          const text = result?.content?.[0]?.text;
+          const preview = text != null ? (text.length > 500 ? text.slice(0, 500) + '…' : text) : JSON.stringify(result).slice(0, 500);
+          process.stderr.write(`[debug] [${sid}] ← ${name} (${ms}ms): ${preview}\n`);
+          return result;
+        } catch (err) {
+          const ms = Date.now() - start;
+          process.stderr.write(`[debug] [${sid}] ✗ ${name} (${ms}ms): ${err}\n`);
+          throw err;
+        }
+      };
+      return (origRegister as any)(name, config, wrapped);
+    }
+    return (origRegister as any)(name, config, handler);
+  };
+  return proxy;
+}
+
 /**
  * Create an McpServer proxy that wraps registerTool handlers in a PromiseQueue.
  * Used for mutation tools to prevent concurrent graph modifications.
@@ -161,6 +198,7 @@ export function createMcpServer(
   sessionContext?: McpSessionContext,
   readonlyGraphs?: Set<string>,
   userAccess?: Map<string, AccessLevel>,
+  getSessionId?: () => string | undefined,
 ): McpServer {
   // Backward-compat: single EmbedFn → use for both document and query
   const defaultPair: EmbedFns = { document: (q) => embed(q, ''), query: (q) => embed(q, '') };
@@ -188,8 +226,10 @@ export function createMcpServer(
     { name: 'graphmemory', version: '1.2.0' },
     instructions ? { instructions } : undefined,
   );
+  // Debug logging wraps all tool handlers when --debug is active
+  const debugServer = _debugMode && getSessionId ? createDebugServer(server, getSessionId) : server;
   // Mutation tools are registered through mutServer to serialize concurrent writes
-  const mutServer = mutationQueue ? createMutationServer(server, mutationQueue) : server;
+  const mutServer = mutationQueue ? createMutationServer(debugServer, mutationQueue) : debugServer;
 
   // Check if mutation tools should be registered for a graph:
   // - graph must not be readonly (global setting — tools hidden for all)
@@ -373,7 +413,6 @@ export async function startHttpServer(
       if (now - s.lastActivity > sessionTimeoutMs) {
         s.server.close().catch(() => {});
         sessions.delete(sid);
-        process.stderr.write(`[http] Session ${sid} timed out\n`);
       }
     }
   }, SESSION_SWEEP_INTERVAL_MS);
@@ -397,6 +436,14 @@ export async function startHttpServer(
         return;
       }
 
+      // Stale/unknown session ID — return 404 per MCP spec so client can re-initialize
+      if (sessionId) {
+        res.writeHead(404, { 'content-type': 'application/json' }).end(
+          JSON.stringify({ jsonrpc: '2.0', error: { code: -32001, message: 'Session not found' }, id: null }),
+        );
+        return;
+      }
+
       // New session — only POST (initialize) can create one
       if (req.method !== 'POST') {
         res.writeHead(400).end('No session');
@@ -415,7 +462,7 @@ export async function startHttpServer(
         const sid = transport.sessionId;
         if (sid) sessions.delete(sid);
       };
-      const mcpServer = createMcpServer(docGraph, codeGraph, knowledgeGraph, fileIndexGraph, taskGraph, embedFn, undefined, projectDir, skillGraph, sessionContext, readonlyGraphs);
+      const mcpServer = createMcpServer(docGraph, codeGraph, knowledgeGraph, fileIndexGraph, taskGraph, embedFn, undefined, projectDir, skillGraph, sessionContext, readonlyGraphs, undefined, () => transport.sessionId);
       await mcpServer.connect(transport);
       await transport.handleRequest(req, res, body);
     } catch (err) {
@@ -460,7 +507,6 @@ export async function startMultiProjectHttpServer(
       if (now - s.lastActivity > sessionTimeoutMs) {
         s.server.close().catch(() => {});
         sessions.delete(sid);
-        process.stderr.write(`[http] Session ${sid} (project: ${s.projectId}) timed out\n`);
       }
     }
   }, SESSION_SWEEP_INTERVAL_MS);
@@ -523,6 +569,14 @@ export async function startMultiProjectHttpServer(
       session.lastActivity = Date.now();
       const body = req.method === 'POST' ? await collectBody(req) : undefined;
       await session.transport.handleRequest(req, res, body);
+      return;
+    }
+
+    // Stale/unknown session ID — return 404 per MCP spec so client can re-initialize
+    if (sessionId) {
+      res.writeHead(404, { 'content-type': 'application/json' }).end(
+        JSON.stringify({ jsonrpc: '2.0', error: { code: -32001, message: 'Session not found' }, id: null }),
+      );
       return;
     }
 
@@ -619,6 +673,7 @@ export async function startMultiProjectHttpServer(
       sessionCtx,
       mcpReadonlyGraphs,
       mcpUserAccess,
+      () => transport.sessionId,
     );
     await mcpServer.connect(transport);
     await transport.handleRequest(req, res, body);

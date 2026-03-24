@@ -4,7 +4,7 @@ import type { TaskGraphManager } from '@/graphs/task';
 
 export function register(server: McpServer, mgr: TaskGraphManager): void {
   server.registerTool(
-    'delete_task',
+    'tasks_delete',
     {
       description:
         'Delete a task and all its edges (relations, cross-graph links). ' +

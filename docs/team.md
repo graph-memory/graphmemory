@@ -67,7 +67,7 @@ assignee: alice
 ```
 
 The assignee is displayed in:
-- **MCP tools**: `create_task`, `update_task`, `list_tasks`, `get_task`
+- **MCP tools**: `tasks_create`, `tasks_update`, `tasks_list`, `tasks_get`
 - **REST API**: all task endpoints
 - **Web UI**: kanban board cards, task detail, filter bar
 

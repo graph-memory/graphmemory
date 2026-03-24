@@ -121,11 +121,11 @@ The `mtime` check skips files that haven't changed — only modified files are r
 
 ### Symbol bridging
 
-`cross_references("loginUser")` → finds both the code definition (from CodeGraph) AND documentation examples (from DocGraph code blocks) that reference the symbol.
+`docs_cross_references("loginUser")` → finds both the code definition (from CodeGraph) AND documentation examples (from DocGraph code blocks) that reference the symbol.
 
 ### File-level search
 
-"Find docs about deployment" → `search_topic_files` uses file-level embeddings to quickly identify relevant documentation files before drilling into sections.
+"Find docs about deployment" → `docs_code_search_files` uses file-level embeddings to quickly identify relevant documentation files before drilling into sections.
 
 ## Configuration
 

@@ -1,11 +1,11 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { CodeGraphManager } from '@/graphs/code';
-import { MAX_SEARCH_QUERY_LEN } from '@/lib/defaults';
+import { MAX_SEARCH_QUERY_LEN, FILE_SEARCH_TOP_K, SEARCH_MIN_SCORE_FILES } from '@/lib/defaults';
 
 export function register(server: McpServer, mgr: CodeGraphManager): void {
   server.registerTool(
-    'search_files',
+    'code_search_files',
     {
       description:
         'Semantic search over indexed source code files. ' +
@@ -16,12 +16,12 @@ export function register(server: McpServer, mgr: CodeGraphManager): void {
         'Use this to discover which source files are relevant before diving into symbols with get_file_symbols or search_code.',
       inputSchema: {
         query:    z.string().max(MAX_SEARCH_QUERY_LEN).describe('Natural language or path search query, e.g. "graph persistence" or "search module"'),
-        topK:     z.number().min(1).max(500).optional().describe('Maximum number of results to return (default 10)'),
-        minScore: z.number().min(0).max(1).optional().describe('Minimum relevance score 0–1 (default 0.3)'),
+        limit:    z.number().min(1).max(500).optional().describe('Maximum number of results to return'),
+        minScore: z.number().min(0).max(1).optional().describe('Minimum relevance score 0–1'),
       },
     },
-    async ({ query, topK, minScore }) => {
-      const results = await mgr.searchFiles(query, { topK, minScore });
+    async ({ query, limit = FILE_SEARCH_TOP_K, minScore = SEARCH_MIN_SCORE_FILES }) => {
+      const results = await mgr.searchFiles(query, { topK: limit, minScore });
       return { content: [{ type: 'text', text: JSON.stringify(results, null, 2) }] };
     },
   );

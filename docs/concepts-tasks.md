@@ -24,11 +24,11 @@ backlog → todo → in_progress → review → done
 
 ### Automatic completedAt
 
-The `move_task` tool manages `completedAt` automatically:
+The `tasks_move` tool manages `completedAt` automatically:
 - Moving to `done` or `cancelled` → sets `completedAt` to current time
 - Moving from `done`/`cancelled` to any other status → clears `completedAt` (reopening)
 
-This is also enforced when changing status via `update_task` — the automation is consistent regardless of how the status changes.
+This is also enforced when changing status via `tasks_update` — the automation is consistent regardless of how the status changes.
 
 ## Priority model
 
@@ -43,7 +43,7 @@ Four priority levels with explicit sort ordering:
 
 ### Sorting
 
-`list_tasks` sorts by:
+`tasks_list` sorts by:
 1. **Priority** (critical first → low last)
 2. **Due date** (earliest first, null dates sort to the end)
 
@@ -59,7 +59,7 @@ Tasks connect to other tasks via three relationship types:
 "Write auth tests" → [subtask_of] → "Implement authentication"
 ```
 
-Creates a parent-child hierarchy. `get_task` enriches the parent with its subtasks list.
+Creates a parent-child hierarchy. `tasks_get` enriches the parent with its subtasks list.
 
 ### `blocks` — dependencies
 
@@ -67,7 +67,7 @@ Creates a parent-child hierarchy. `get_task` enriches the parent with its subtas
 "Fix database migration" → [blocks] → "Deploy v2.0"
 ```
 
-Indicates that one task must be completed before another can proceed. `get_task` enriches with both `blockedBy` (incoming) and `blocks` (outgoing) lists.
+Indicates that one task must be completed before another can proceed. `tasks_get` enriches with both `blockedBy` (incoming) and `blocks` (outgoing) lists.
 
 ### `related_to` — associations
 
@@ -79,7 +79,7 @@ Free-form association for tasks that are related but don't have a dependency.
 
 ## Enriched task view
 
-`get_task` returns more than just the task fields — it traverses the graph to include:
+`tasks_get` returns more than just the task fields — it traverses the graph to include:
 
 - **subtasks** — all tasks that have a `subtask_of` edge pointing to this task
 - **blockedBy** — all tasks with `blocks` edges pointing to this task (things blocking us)
@@ -94,7 +94,7 @@ This gives an LLM or UI a complete picture of a task's context in one call.
 Tasks can link to nodes in any other graph:
 
 ```
-create_task_link({
+tasks_create_link({
   taskId: "fix-auth-redirect-loop",
   targetId: "src/auth.ts::login",
   targetGraph: "code",

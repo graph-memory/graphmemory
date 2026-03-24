@@ -154,7 +154,7 @@ workspaces:
 | `codeModel` | object | (see below) | Default model config for code graph (overrides `model` for code) |
 | `embedding` | object | (see below) | Default embedding config for all graphs |
 | `embeddingApi` | object | — | Expose embedding model via `POST /api/embed` |
-| `rateLimit` | object | — | Rate limiting: `global` (default 600), `search` (default 120), `auth` (default 10) requests/min |
+| `rateLimit` | object | — | Rate limiting: `global` (default 600), `docs_search` (default 120), `auth` (default 10) requests/min |
 | `maxFileSize` | number | `1048576` | Max file size in bytes for indexing (1 MB default). Also settable at workspace/project level |
 | `exclude` | string | — | Additional glob to exclude (merged with default `**/node_modules/**`, `**/dist/**`) |
 

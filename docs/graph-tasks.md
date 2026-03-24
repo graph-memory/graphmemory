@@ -55,23 +55,23 @@ Slug from title: `"implement-auth"`. Duplicates get `"implement-auth::2"`.
 
 ### Cross-graph links
 
-`create_task_link` supports `targetGraph: "docs" | "code" | "files" | "knowledge" | "skills"`.
+`tasks_create_link` supports `targetGraph: "docs" | "code" | "files" | "knowledge" | "skills"`.
 
 ## Automatic completedAt management
 
-`move_task` automatically manages the `completedAt` field:
+`tasks_move` automatically manages the `completedAt` field:
 - Moving to `done` or `cancelled` → sets `completedAt` to current time
 - Moving to any other status → clears `completedAt` (reopening)
 
 ## Sorting
 
-`list_tasks` sorts by:
+`tasks_list` sorts by:
 1. Priority (critical first → low last)
 2. dueDate ascending (nulls last)
 
-## Enriched get_task
+## Enriched tasks_get
 
-`get_task` returns additional enrichment:
+`tasks_get` returns additional enrichment:
 - `subtasks` — tasks where this task is the parent
 - `blockedBy` — tasks that block this task
 - `blocks` — tasks that this task blocks

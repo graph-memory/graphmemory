@@ -10,7 +10,7 @@ import {
 
 export function register(server: McpServer, mgr: SkillGraphManager): void {
   server.registerTool(
-    'update_skill',
+    'skills_update',
     {
       description:
         'Update an existing skill. Only provided fields are changed. ' +

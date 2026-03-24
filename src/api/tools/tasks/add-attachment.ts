@@ -7,7 +7,7 @@ import { MAX_UPLOAD_SIZE } from '@/lib/defaults';
 
 export function register(server: McpServer, mgr: TaskGraphManager): void {
   server.registerTool(
-    'add_task_attachment',
+    'tasks_add_attachment',
     {
       description:
         'Attach a file to a task. Provide the absolute path to a local file. ' +

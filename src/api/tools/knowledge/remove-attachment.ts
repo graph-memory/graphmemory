@@ -4,7 +4,7 @@ import type { KnowledgeGraphManager } from '@/graphs/knowledge';
 
 export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
   server.registerTool(
-    'remove_note_attachment',
+    'notes_remove_attachment',
     {
       description:
         'Remove an attachment from a note. The file is deleted from disk.',

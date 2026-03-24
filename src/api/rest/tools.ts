@@ -8,34 +8,34 @@ import { GRAPH_NAMES, type GraphName } from '@/lib/multi-config';
 // Tool category detection based on tool name
 const TOOL_CATEGORIES: Record<string, string> = {
   get_context: 'context',
-  list_topics: 'docs', get_toc: 'docs', search: 'docs', get_node: 'docs',
-  search_topic_files: 'docs', find_examples: 'docs', search_snippets: 'docs',
-  list_snippets: 'docs', explain_symbol: 'docs', cross_references: 'cross-graph',
-  list_files: 'code', get_file_symbols: 'code', search_code: 'code',
-  get_symbol: 'code', search_files: 'code',
-  list_all_files: 'files', search_all_files: 'files', get_file_info: 'files',
-  create_note: 'knowledge', update_note: 'knowledge', delete_note: 'knowledge',
-  get_note: 'knowledge', list_notes: 'knowledge', search_notes: 'knowledge',
-  create_relation: 'knowledge', delete_relation: 'knowledge',
-  list_relations: 'knowledge', find_linked_notes: 'knowledge',
-  add_note_attachment: 'knowledge', remove_note_attachment: 'knowledge',
-  create_task: 'tasks', update_task: 'tasks', delete_task: 'tasks',
-  get_task: 'tasks', list_tasks: 'tasks', search_tasks: 'tasks',
-  move_task: 'tasks', link_task: 'tasks', create_task_link: 'tasks',
-  delete_task_link: 'tasks', find_linked_tasks: 'tasks',
-  add_task_attachment: 'tasks', remove_task_attachment: 'tasks',
-  create_skill: 'skills', update_skill: 'skills', delete_skill: 'skills',
-  get_skill: 'skills', list_skills: 'skills', search_skills: 'skills',
-  recall_skills: 'skills', bump_skill_usage: 'skills',
-  link_skill: 'skills', create_skill_link: 'skills', delete_skill_link: 'skills',
-  find_linked_skills: 'skills',
-  add_skill_attachment: 'skills', remove_skill_attachment: 'skills',
+  docs_list_files: 'docs', docs_get_toc: 'docs', docs_search: 'docs', docs_get_node: 'docs',
+  docs_search_files: 'docs', docs_find_examples: 'docs', docs_search_snippets: 'docs',
+  docs_list_snippets: 'docs', docs_explain_symbol: 'docs', docs_cross_references: 'cross-graph',
+  code_list_files: 'code', code_get_file_symbols: 'code', code_search: 'code',
+  code_get_symbol: 'code', code_search_files: 'code',
+  files_list: 'files', files_search: 'files', files_get_info: 'files',
+  notes_create: 'knowledge', notes_update: 'knowledge', notes_delete: 'knowledge',
+  notes_get: 'knowledge', notes_list: 'knowledge', notes_search: 'knowledge',
+  notes_create_link: 'knowledge', notes_delete_link: 'knowledge',
+  notes_list_links: 'knowledge', notes_find_linked: 'knowledge',
+  notes_add_attachment: 'knowledge', notes_remove_attachment: 'knowledge',
+  tasks_create: 'tasks', tasks_update: 'tasks', tasks_delete: 'tasks',
+  tasks_get: 'tasks', tasks_list: 'tasks', tasks_search: 'tasks',
+  tasks_move: 'tasks', tasks_link: 'tasks', tasks_create_link: 'tasks',
+  tasks_delete_link: 'tasks', tasks_find_linked: 'tasks',
+  tasks_add_attachment: 'tasks', tasks_remove_attachment: 'tasks',
+  skills_create: 'skills', skills_update: 'skills', skills_delete: 'skills',
+  skills_get: 'skills', skills_list: 'skills', skills_search: 'skills',
+  skills_recall: 'skills', skills_bump_usage: 'skills',
+  skills_link: 'skills', skills_create_link: 'skills', skills_delete_link: 'skills',
+  skills_find_linked: 'skills',
+  skills_add_attachment: 'skills', skills_remove_attachment: 'skills',
 };
 
-const MUTATION_PREFIXES = ['create_', 'update_', 'delete_', 'move_', 'link_', 'add_', 'remove_', 'bump_'];
+const MUTATION_SUFFIXES = ['_create', '_update', '_delete', '_move', '_link', '_create_link', '_delete_link', '_add_attachment', '_remove_attachment', '_bump_usage'];
 
 function isMutationTool(toolName: string): boolean {
-  return MUTATION_PREFIXES.some(p => toolName.startsWith(p));
+  return MUTATION_SUFFIXES.some(s => toolName.endsWith(s));
 }
 
 export type ToolAccessChecker = (req: any, graphName: GraphName, level: 'r' | 'rw') => boolean;

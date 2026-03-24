@@ -4,7 +4,7 @@ import type { KnowledgeGraphManager } from '@/graphs/knowledge';
 
 export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
   server.registerTool(
-    'list_relations',
+    'notes_list_links',
     {
       description:
         'List all relations (incoming and outgoing) for a note. ' +

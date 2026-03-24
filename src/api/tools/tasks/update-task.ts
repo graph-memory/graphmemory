@@ -6,7 +6,7 @@ import { MAX_TITLE_LEN, MAX_DESCRIPTION_LEN, MAX_TAG_LEN, MAX_TAGS_COUNT, MAX_AS
 
 export function register(server: McpServer, mgr: TaskGraphManager): void {
   server.registerTool(
-    'update_task',
+    'tasks_update',
     {
       description:
         'Update an existing task. Only provided fields are changed. ' +

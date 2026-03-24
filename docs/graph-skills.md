@@ -52,24 +52,24 @@ Slug from title: `"add-rest-endpoint"`. Duplicates get `"add-rest-endpoint::2"`.
 
 ### Cross-graph links
 
-`create_skill_link` supports `targetGraph: "docs" | "code" | "files" | "knowledge" | "tasks"`.
+`skills_create_link` supports `targetGraph: "docs" | "code" | "files" | "knowledge" | "tasks"`.
 
 ## Usage tracking
 
-- `bump_skill_usage(skillId)` — increments `usageCount` and sets `lastUsedAt`
+- `skills_bump_usage(skillId)` — increments `usageCount` and sets `lastUsedAt`
 - Usage data helps surface frequently used recipes
 
 ## Recall
 
-`recall_skills(query)` uses a lower `minScore` (0.3 vs default 0.5) for higher recall in task contexts. Designed for "what recipes might be relevant here?" queries.
+`skills_recall(query)` uses a lower `minScore` (0.3 vs default 0.5) for higher recall in task contexts. Designed for "what recipes might be relevant here?" queries.
 
 ## BM25 text extraction
 
 The BM25 keyword index includes **triggers** alongside title and description, so skills can be found by their trigger phrases.
 
-## Enriched get_skill
+## Enriched skills_get
 
-`get_skill` returns additional enrichment:
+`skills_get` returns additional enrichment:
 - `dependsOn` — skills this skill depends on
 - `dependedBy` — skills that depend on this skill
 - `related` — skills with `related_to` edges

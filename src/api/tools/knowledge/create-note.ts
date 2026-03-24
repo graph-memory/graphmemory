@@ -5,7 +5,7 @@ import { MAX_TITLE_LEN, MAX_NOTE_CONTENT_LEN, MAX_TAG_LEN, MAX_TAGS_COUNT } from
 
 export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
   server.registerTool(
-    'create_note',
+    'notes_create',
     {
       description:
         'Create a new note or fact in the knowledge graph. ' +

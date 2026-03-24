@@ -1,5 +1,5 @@
 // Jest integration test for MCP file index tools.
-// Exercises list_all_files, search_all_files, get_file_info + cross-graph links to files.
+// Exercises files_list, files_search, files_get_info + cross-graph links to files.
 
 import { createFileIndexGraph } from '@/graphs/file-index-types';
 import { updateFileEntry, rebuildDirectoryStats } from '@/graphs/file-index';
@@ -69,18 +69,18 @@ afterAll(async () => {
 });
 
 // ---------------------------------------------------------------------------
-// list_all_files
+// files_list
 // ---------------------------------------------------------------------------
 
-describe('list_all_files', () => {
+describe('files_list', () => {
   it('lists all files without params', async () => {
-    const results = json<FileListEntry[]>(await call('list_all_files'));
+    const results = json<FileListEntry[]>(await call('files_list'));
     expect(results.length).toBe(5);
     expect(results.every(r => r.kind === 'file')).toBe(true);
   });
 
   it('lists root directory children', async () => {
-    const results = json<FileListEntry[]>(await call('list_all_files', { directory: '.' }));
+    const results = json<FileListEntry[]>(await call('files_list', { directory: '.' }));
     const names = results.map(r => r.fileName);
     expect(names).toContain('src');
     expect(names).toContain('package.json');
@@ -88,42 +88,42 @@ describe('list_all_files', () => {
   });
 
   it('lists src directory children', async () => {
-    const results = json<FileListEntry[]>(await call('list_all_files', { directory: 'src' }));
+    const results = json<FileListEntry[]>(await call('files_list', { directory: 'src' }));
     const names = results.map(r => r.fileName);
     expect(names).toContain('lib');
     expect(names).toContain('index.ts');
   });
 
   it('filters by extension', async () => {
-    const results = json<FileListEntry[]>(await call('list_all_files', { extension: '.json' }));
+    const results = json<FileListEntry[]>(await call('files_list', { extension: '.json' }));
     expect(results).toHaveLength(1);
     expect(results[0].fileName).toBe('package.json');
   });
 
   it('filters by language', async () => {
-    const results = json<FileListEntry[]>(await call('list_all_files', { language: 'markdown' }));
+    const results = json<FileListEntry[]>(await call('files_list', { language: 'markdown' }));
     expect(results).toHaveLength(1);
     expect(results[0].fileName).toBe('README.md');
   });
 
   it('filters by substring', async () => {
-    const results = json<FileListEntry[]>(await call('list_all_files', { filter: 'config' }));
+    const results = json<FileListEntry[]>(await call('files_list', { filter: 'config' }));
     expect(results).toHaveLength(1);
     expect(results[0].filePath).toBe('src/lib/config.ts');
   });
 
   it('respects limit', async () => {
-    const results = json<FileListEntry[]>(await call('list_all_files', { limit: 2 }));
+    const results = json<FileListEntry[]>(await call('files_list', { limit: 2 }));
     expect(results).toHaveLength(2);
   });
 
   it('returns empty for nonexistent directory', async () => {
-    const results = json<FileListEntry[]>(await call('list_all_files', { directory: 'nonexistent' }));
+    const results = json<FileListEntry[]>(await call('files_list', { directory: 'nonexistent' }));
     expect(results).toHaveLength(0);
   });
 
   it('directory entries include kind and fileCount', async () => {
-    const results = json<FileListEntry[]>(await call('list_all_files', { directory: '.' }));
+    const results = json<FileListEntry[]>(await call('files_list', { directory: '.' }));
     const srcEntry = results.find(r => r.filePath === 'src');
     expect(srcEntry).toBeDefined();
     expect(srcEntry!.kind).toBe('directory');
@@ -131,25 +131,25 @@ describe('list_all_files', () => {
 });
 
 // ---------------------------------------------------------------------------
-// search_all_files
+// files_search
 // ---------------------------------------------------------------------------
 
-describe('search_all_files', () => {
+describe('files_search', () => {
   it('finds file by semantic query', async () => {
-    const results = json<FileSearchResult[]>(await call('search_all_files', { query: 'config' }));
+    const results = json<FileSearchResult[]>(await call('files_search', { query: 'config' }));
     expect(results.length).toBeGreaterThanOrEqual(1);
     expect(results[0].filePath).toBe('src/lib/config.ts');
     expect(results[0].score).toBeCloseTo(1.0);
   });
 
   it('finds readme by query', async () => {
-    const results = json<FileSearchResult[]>(await call('search_all_files', { query: 'readme' }));
+    const results = json<FileSearchResult[]>(await call('files_search', { query: 'readme' }));
     expect(results.length).toBeGreaterThanOrEqual(1);
     expect(results[0].filePath).toBe('README.md');
   });
 
   it('respects minScore', async () => {
-    const results = json<FileSearchResult[]>(await call('search_all_files', {
+    const results = json<FileSearchResult[]>(await call('files_search', {
       query: 'typescript',
       minScore: 0.9,
     }));
@@ -157,22 +157,22 @@ describe('search_all_files', () => {
     expect(results).toHaveLength(0);
   });
 
-  it('respects topK', async () => {
-    const results = json<FileSearchResult[]>(await call('search_all_files', {
+  it('respects limit', async () => {
+    const results = json<FileSearchResult[]>(await call('files_search', {
       query: 'config',
-      topK: 1,
+      limit: 1,
     }));
     expect(results).toHaveLength(1);
   });
 });
 
 // ---------------------------------------------------------------------------
-// get_file_info
+// files_get_info
 // ---------------------------------------------------------------------------
 
-describe('get_file_info', () => {
+describe('files_get_info', () => {
   it('returns file metadata', async () => {
-    const info = json<FileInfoResult>(await call('get_file_info', { filePath: 'src/lib/config.ts' }));
+    const info = json<FileInfoResult>(await call('files_get_info', { filePath: 'src/lib/config.ts' }));
     expect(info.kind).toBe('file');
     expect(info.fileName).toBe('config.ts');
     expect(info.extension).toBe('.ts');
@@ -183,18 +183,18 @@ describe('get_file_info', () => {
   });
 
   it('returns directory metadata', async () => {
-    const info = json<FileInfoResult>(await call('get_file_info', { filePath: 'src' }));
+    const info = json<FileInfoResult>(await call('files_get_info', { filePath: 'src' }));
     expect(info.kind).toBe('directory');
     expect(info.fileName).toBe('src');
   });
 
   it('returns root directory', async () => {
-    const info = json<FileInfoResult>(await call('get_file_info', { filePath: '.' }));
+    const info = json<FileInfoResult>(await call('files_get_info', { filePath: '.' }));
     expect(info.kind).toBe('directory');
   });
 
   it('returns error for nonexistent file', async () => {
-    const res = await call('get_file_info', { filePath: 'ghost.ts' });
+    const res = await call('files_get_info', { filePath: 'ghost.ts' });
     expect(res.isError).toBe(true);
   });
 });
@@ -233,7 +233,7 @@ describe('cross-graph relation to files', () => {
   let noteId: string;
 
   it('create a note', async () => {
-    const res = json<{ noteId: string }>(await xCall('create_note', {
+    const res = json<{ noteId: string }>(await xCall('notes_create', {
       title: 'Config note',
       content: 'About config file.',
       tags: ['config'],
@@ -242,8 +242,8 @@ describe('cross-graph relation to files', () => {
     expect(noteId).toBe('config-note');
   });
 
-  it('create_relation to file node', async () => {
-    const res = json<RelCreateResult>(await xCall('create_relation', {
+  it('notes_create_link to file node', async () => {
+    const res = json<RelCreateResult>(await xCall('notes_create_link', {
       fromId: noteId,
       toId: 'src/config.ts',
       kind: 'references',
@@ -254,8 +254,8 @@ describe('cross-graph relation to files', () => {
     expect(res.targetGraph).toBe('files');
   });
 
-  it('create_relation to directory node', async () => {
-    const res = json<RelCreateResult>(await xCall('create_relation', {
+  it('notes_create_link to directory node', async () => {
+    const res = json<RelCreateResult>(await xCall('notes_create_link', {
       fromId: noteId,
       toId: 'src',
       kind: 'part_of',
@@ -267,7 +267,7 @@ describe('cross-graph relation to files', () => {
   });
 
   it('duplicate cross relation returns error', async () => {
-    const res = await xCall('create_relation', {
+    const res = await xCall('notes_create_link', {
       fromId: noteId,
       toId: 'src/config.ts',
       kind: 'references',
@@ -278,7 +278,7 @@ describe('cross-graph relation to files', () => {
   });
 
   it('cross relation to nonexistent target returns error', async () => {
-    const res = await xCall('create_relation', {
+    const res = await xCall('notes_create_link', {
       fromId: noteId,
       toId: 'nonexistent.ts',
       kind: 'references',
@@ -288,8 +288,8 @@ describe('cross-graph relation to files', () => {
     expect(res.isError).toBe(true);
   });
 
-  it('list_relations shows files cross-graph relations', async () => {
-    const rels = json<RelEntry[]>(await xCall('list_relations', { noteId }));
+  it('notes_list_links shows files cross-graph relations', async () => {
+    const rels = json<RelEntry[]>(await xCall('notes_list_links', { noteId }));
     expect(rels).toHaveLength(2);
 
     const fileRel = rels.find(r => r.toId === 'src/config.ts');
@@ -303,9 +303,9 @@ describe('cross-graph relation to files', () => {
     expect(dirRel!.kind).toBe('part_of');
   });
 
-  it('delete_relation with targetGraph files', async () => {
+  it('notes_delete_link with targetGraph files', async () => {
     const res = json<{ fromId: string; toId: string; deleted: boolean }>(
-      await xCall('delete_relation', {
+      await xCall('notes_delete_link', {
         fromId: noteId,
         toId: 'src/config.ts',
         targetGraph: 'files',
@@ -316,14 +316,14 @@ describe('cross-graph relation to files', () => {
   });
 
   it('after delete, only directory relation remains', async () => {
-    const rels = json<RelEntry[]>(await xCall('list_relations', { noteId }));
+    const rels = json<RelEntry[]>(await xCall('notes_list_links', { noteId }));
     expect(rels).toHaveLength(1);
     expect(rels[0].toId).toBe('src');
     expect(rels[0].targetGraph).toBe('files');
   });
 
-  it('delete_note cleans up remaining files proxy', async () => {
-    const del = json<{ deleted: boolean }>(await xCall('delete_note', { noteId }));
+  it('notes_delete cleans up remaining files proxy', async () => {
+    const del = json<{ deleted: boolean }>(await xCall('notes_delete', { noteId }));
     expect(del.deleted).toBe(true);
     expect(xKnowledgeGraph.order).toBe(0);
   });

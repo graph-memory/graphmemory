@@ -10,7 +10,7 @@ export function register(server: McpServer, docMgr: DocGraphManager, codeMgr: Co
   const codeGraph = codeMgr.graph;
 
   server.registerTool(
-    'cross_references',
+    'docs_cross_references',
     {
       description:
         'Find all references to a symbol across both code and documentation graphs. ' +

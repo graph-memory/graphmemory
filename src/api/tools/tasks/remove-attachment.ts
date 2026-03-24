@@ -4,7 +4,7 @@ import type { TaskGraphManager } from '@/graphs/task';
 
 export function register(server: McpServer, mgr: TaskGraphManager): void {
   server.registerTool(
-    'remove_task_attachment',
+    'tasks_remove_attachment',
     {
       description:
         'Remove an attachment from a task. The file is deleted from disk.',

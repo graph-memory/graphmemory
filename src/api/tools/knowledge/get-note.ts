@@ -4,7 +4,7 @@ import type { KnowledgeGraphManager } from '@/graphs/knowledge';
 
 export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
   server.registerTool(
-    'get_note',
+    'notes_get',
     {
       description:
         'Return the full content of a note by its ID. ' +

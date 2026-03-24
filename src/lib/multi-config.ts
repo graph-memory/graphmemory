@@ -341,7 +341,7 @@ const RATE_LIMIT_DEFAULTS: RateLimitConfig = {
 const SERVER_DEFAULTS: Omit<ServerConfig, 'embedding'> & { embedding: EmbeddingConfig } = {
   host:            '127.0.0.1',
   port:            3000,
-  sessionTimeout:  1800,
+  sessionTimeout:  3600,
   modelsDir:       path.join(HOME, '.graph-memory/models'),
   model:           MODEL_DEFAULTS,
   codeModel:       CODE_MODEL_DEFAULTS,

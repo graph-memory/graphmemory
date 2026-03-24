@@ -1,6 +1,6 @@
 // Jest integration test for MCP code-block tools.
-// Split from mcp.test.ts — exercises find_examples, search_snippets,
-// list_snippets, explain_symbol, cross_references.
+// Split from mcp.test.ts — exercises docs_find_examples, docs_search_snippets,
+// docs_list_snippets, docs_explain_symbol, docs_cross_references.
 
 import path from 'path';
 import { readFileSync } from 'fs';
@@ -144,11 +144,11 @@ describe('code-block tools', () => {
     });
   });
 
-  // ── find_examples ──
+  // ── docs_find_examples ──
 
-  describe('find_examples', () => {
+  describe('docs_find_examples', () => {
     it('createToken: has results, is typescript, symbols include it, parentTitle = Authentication', async () => {
-      const exCreateToken = json<ExampleResult[]>(await call('find_examples', { symbol: 'createToken' }));
+      const exCreateToken = json<ExampleResult[]>(await call('docs_find_examples', { symbol: 'createToken' }));
       expect(exCreateToken.length).toBeGreaterThanOrEqual(1);
       expect(exCreateToken[0].language).toBe('typescript');
       expect(exCreateToken[0].symbols).toContain('createToken');
@@ -156,59 +156,59 @@ describe('code-block tools', () => {
     });
 
     it('ApiClient: has results, parent is API Client', async () => {
-      const exApiClient = json<ExampleResult[]>(await call('find_examples', { symbol: 'ApiClient' }));
+      const exApiClient = json<ExampleResult[]>(await call('docs_find_examples', { symbol: 'ApiClient' }));
       expect(exApiClient.length).toBeGreaterThanOrEqual(1);
       expect(exApiClient[0].parentTitle).toBe('API Client');
     });
 
     it('nonExistentSymbol999: returns "No code examples" message', async () => {
-      const exNoneRaw = await call('find_examples', { symbol: 'nonExistentSymbol999' });
+      const exNoneRaw = await call('docs_find_examples', { symbol: 'nonExistentSymbol999' });
       expect(text(exNoneRaw)).toContain('No code examples');
     });
   });
 
-  // ── list_snippets ──
+  // ── docs_list_snippets ──
 
-  describe('list_snippets', () => {
+  describe('docs_list_snippets', () => {
     it('returns all 5 snippets with language', async () => {
-      const allSnippets = json<SnippetEntry[]>(await call('list_snippets'));
+      const allSnippets = json<SnippetEntry[]>(await call('docs_list_snippets'));
       expect(allSnippets).toHaveLength(5);
       expect(allSnippets.some(s => s.language === 'typescript')).toBe(true);
       expect(allSnippets.some(s => s.symbols.length > 0)).toBe(true);
     });
 
     it('language=typescript: 3 results', async () => {
-      const tsSnippets = json<SnippetEntry[]>(await call('list_snippets', { language: 'typescript' }));
+      const tsSnippets = json<SnippetEntry[]>(await call('docs_list_snippets', { language: 'typescript' }));
       expect(tsSnippets).toHaveLength(3);
     });
 
     it('language=javascript: 1 result', async () => {
-      const jsSnippets = json<SnippetEntry[]>(await call('list_snippets', { language: 'javascript' }));
+      const jsSnippets = json<SnippetEntry[]>(await call('docs_list_snippets', { language: 'javascript' }));
       expect(jsSnippets).toHaveLength(1);
     });
 
     it('filter "pool" matches JS block', async () => {
-      const filteredSnippets = json<SnippetEntry[]>(await call('list_snippets', { filter: 'pool' }));
+      const filteredSnippets = json<SnippetEntry[]>(await call('docs_list_snippets', { filter: 'pool' }));
       expect(filteredSnippets.length).toBeGreaterThanOrEqual(1);
       expect(filteredSnippets[0].language).toBe('javascript');
     });
 
     it('limit=2', async () => {
-      const limitedSnippets = json<SnippetEntry[]>(await call('list_snippets', { limit: 2 }));
+      const limitedSnippets = json<SnippetEntry[]>(await call('docs_list_snippets', { limit: 2 }));
       expect(limitedSnippets).toHaveLength(2);
     });
 
     it('fileId filter', async () => {
-      const fileSnippets = json<SnippetEntry[]>(await call('list_snippets', { fileId: 'codeblocks.md' }));
+      const fileSnippets = json<SnippetEntry[]>(await call('docs_list_snippets', { fileId: 'codeblocks.md' }));
       expect(fileSnippets).toHaveLength(5);
     });
   });
 
-  // ── search_snippets ──
+  // ── docs_search_snippets ──
 
-  describe('search_snippets', () => {
+  describe('docs_search_snippets', () => {
     it('returns results with score, language, sorted by score', async () => {
-      const snippetHits = json<SnippetHit[]>(await call('search_snippets', { query: 'jwt example snippet', minScore: 0 }));
+      const snippetHits = json<SnippetHit[]>(await call('docs_search_snippets', { query: 'jwt example snippet', minScore: 0 }));
       expect(snippetHits.length).toBeGreaterThanOrEqual(1);
       expect(typeof snippetHits[0].score).toBe('number');
       expect(snippetHits[0].language).toBeDefined();
@@ -216,17 +216,17 @@ describe('code-block tools', () => {
     });
 
     it('language filter to javascript', async () => {
-      const snippetHitsLang = json<SnippetHit[]>(await call('search_snippets', { query: 'jwt example snippet', language: 'javascript', minScore: 0.0 }));
+      const snippetHitsLang = json<SnippetHit[]>(await call('docs_search_snippets', { query: 'jwt example snippet', language: 'javascript', minScore: 0.0 }));
       // The query embedding points to a TS code block axis, but we filter to JS — so the exact match is excluded
       expect(snippetHitsLang.every(h => h.language === 'javascript')).toBe(true);
     });
   });
 
-  // ── explain_symbol ──
+  // ── docs_explain_symbol ──
 
-  describe('explain_symbol', () => {
+  describe('docs_explain_symbol', () => {
     it('verifyToken: codeBlock has symbol, is typescript, explanation has title Authentication', async () => {
-      const explainVT = json<ExplainResult[]>(await call('explain_symbol', { symbol: 'verifyToken' }));
+      const explainVT = json<ExplainResult[]>(await call('docs_explain_symbol', { symbol: 'verifyToken' }));
       expect(explainVT.length).toBeGreaterThanOrEqual(1);
       expect(explainVT[0].codeBlock.symbols).toContain('verifyToken');
       expect(explainVT[0].codeBlock.language).toBe('typescript');
@@ -235,16 +235,16 @@ describe('code-block tools', () => {
     });
 
     it('noSuchSymbol: returns "No documentation" message', async () => {
-      const explainNoneRaw = await call('explain_symbol', { symbol: 'noSuchSymbol' });
+      const explainNoneRaw = await call('docs_explain_symbol', { symbol: 'noSuchSymbol' });
       expect(text(explainNoneRaw)).toContain('No documentation');
     });
   });
 
-  // ── cross_references ──
+  // ── docs_cross_references ──
 
-  describe('cross_references', () => {
+  describe('docs_cross_references', () => {
     it('verifyToken: definitions from code graph, examples from docs, documentation sections', async () => {
-      const xrefVT = json<CrossRefResult>(await call('cross_references', { symbol: 'verifyToken' }));
+      const xrefVT = json<CrossRefResult>(await call('docs_cross_references', { symbol: 'verifyToken' }));
       expect(xrefVT.definitions.length).toBeGreaterThanOrEqual(1);
       expect(xrefVT.definitions[0].fileId).toBe('src/auth.ts');
       expect(xrefVT.definitions[0].kind).toBe('function');
@@ -255,18 +255,18 @@ describe('code-block tools', () => {
     });
 
     it('createToken: defs from code, examples in docs', async () => {
-      const xrefCT = json<CrossRefResult>(await call('cross_references', { symbol: 'createToken' }));
+      const xrefCT = json<CrossRefResult>(await call('docs_cross_references', { symbol: 'createToken' }));
       expect(xrefCT.definitions.length).toBeGreaterThanOrEqual(1);
       expect(xrefCT.examples.length).toBeGreaterThanOrEqual(1);
     });
 
     it('completelyUnknownXyz: returns "No references" message', async () => {
-      const xrefNoneRaw = await call('cross_references', { symbol: 'completelyUnknownXyz' });
+      const xrefNoneRaw = await call('docs_cross_references', { symbol: 'completelyUnknownXyz' });
       expect(text(xrefNoneRaw)).toContain('No references');
     });
 
     it('auth.ts (file name): definition exists, no doc examples', async () => {
-      const xrefCodeOnly = json<CrossRefResult>(await call('cross_references', { symbol: 'auth.ts' }));
+      const xrefCodeOnly = json<CrossRefResult>(await call('docs_cross_references', { symbol: 'auth.ts' }));
       expect(xrefCodeOnly.definitions.length).toBeGreaterThanOrEqual(1);
       expect(xrefCodeOnly.examples).toHaveLength(0);
     });

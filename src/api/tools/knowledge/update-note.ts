@@ -6,7 +6,7 @@ import { MAX_TITLE_LEN, MAX_NOTE_CONTENT_LEN, MAX_TAG_LEN, MAX_TAGS_COUNT } from
 
 export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
   server.registerTool(
-    'update_note',
+    'notes_update',
     {
       description:
         'Update an existing note in the knowledge graph. ' +

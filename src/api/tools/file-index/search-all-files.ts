@@ -1,11 +1,11 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { FileIndexGraphManager } from '@/graphs/file-index';
-import { MAX_SEARCH_QUERY_LEN } from '@/lib/defaults';
+import { MAX_SEARCH_QUERY_LEN, FILE_SEARCH_TOP_K, SEARCH_MIN_SCORE_FILES } from '@/lib/defaults';
 
 export function register(server: McpServer, mgr: FileIndexGraphManager): void {
   server.registerTool(
-    'search_all_files',
+    'files_search',
     {
       description:
         'Semantic search over all indexed project files by file path. ' +
@@ -16,14 +16,14 @@ export function register(server: McpServer, mgr: FileIndexGraphManager): void {
         'Use this to discover which project files are relevant to a topic.',
       inputSchema: {
         query: z.string().max(MAX_SEARCH_QUERY_LEN).describe('Search query'),
-        topK: z.number().min(1).max(500).optional().default(10)
-          .describe('Max results (default 10)'),
-        minScore: z.number().optional().default(0.3)
-          .describe('Minimum cosine similarity score (default 0.3)'),
+        limit: z.number().min(1).max(500).optional()
+          .describe('Max results'),
+        minScore: z.number().optional()
+          .describe('Minimum cosine similarity score'),
       },
     },
-    async ({ query, topK, minScore }) => {
-      const results = await mgr.search(query, { topK, minScore });
+    async ({ query, limit = FILE_SEARCH_TOP_K, minScore = SEARCH_MIN_SCORE_FILES }) => {
+      const results = await mgr.search(query, { topK: limit, minScore });
       return { content: [{ type: 'text', text: JSON.stringify(results, null, 2) }] };
     },
   );

@@ -4,7 +4,7 @@ import type { SkillGraphManager } from '@/graphs/skill';
 
 export function register(server: McpServer, mgr: SkillGraphManager): void {
   server.registerTool(
-    'get_skill',
+    'skills_get',
     {
       description:
         'Get full details of a skill by ID, including steps, triggers, inputHints, filePatterns, ' +

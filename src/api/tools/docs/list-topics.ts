@@ -4,7 +4,7 @@ import type { DocGraphManager } from '@/graphs/docs';
 
 export function register(server: McpServer, mgr: DocGraphManager): void {
   server.registerTool(
-    'list_topics',
+    'docs_list_files',
     {
       description:
         'List indexed documentation files. ' +
@@ -16,7 +16,7 @@ export function register(server: McpServer, mgr: DocGraphManager): void {
           'Case-insensitive substring to match against file paths, e.g. "auth" or "api"',
         ),
         limit: z.number().max(1000).optional().describe(
-          'Maximum number of results to return (default 20)',
+          'Maximum number of results to return',
         ),
       },
     },

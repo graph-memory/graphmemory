@@ -14,7 +14,7 @@ export const RRF_K    = 60;
 
 export const SEARCH_TOP_K       = 5;
 export const SEARCH_BFS_DEPTH   = 1;
-export const SEARCH_MAX_RESULTS = 20;
+export const SEARCH_MAX_RESULTS = 5;
 export const SEARCH_BFS_DECAY   = 0.8;
 
 /** Edge-specific BFS decay for code graph — stronger edges propagate more score. */
@@ -40,7 +40,7 @@ export const MAX_BODY_SIZE      = 10 * 1024 * 1024;  // 10 MB
 export const MAX_UPLOAD_SIZE    = 50 * 1024 * 1024;   // 50 MB (multer)
 export const SIGNATURE_MAX_LEN  = 300;
 
-export const LIST_LIMIT_SMALL   = 20;
+export const LIST_LIMIT_SMALL   = 10;
 export const LIST_LIMIT_LARGE   = 50;
 
 export const CONTENT_PREVIEW_LEN = 500;

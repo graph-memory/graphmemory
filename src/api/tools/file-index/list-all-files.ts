@@ -4,7 +4,7 @@ import type { FileIndexGraphManager } from '@/graphs/file-index';
 
 export function register(server: McpServer, mgr: FileIndexGraphManager): void {
   server.registerTool(
-    'list_all_files',
+    'files_list',
     {
       description:
         'List all indexed project files and directories with optional filters. ' +

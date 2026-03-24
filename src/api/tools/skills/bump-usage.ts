@@ -4,7 +4,7 @@ import type { SkillGraphManager } from '@/graphs/skill';
 
 export function register(server: McpServer, mgr: SkillGraphManager): void {
   server.registerTool(
-    'bump_skill_usage',
+    'skills_bump_usage',
     {
       description:
         'Record that a skill was used. Increments usageCount and updates lastUsedAt timestamp. ' +

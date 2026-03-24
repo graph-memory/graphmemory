@@ -5,7 +5,7 @@ import { MAX_TARGET_NODE_ID_LEN, MAX_PROJECT_ID_LEN } from '@/lib/defaults';
 
 export function register(server: McpServer, mgr: TaskGraphManager): void {
   server.registerTool(
-    'delete_task_link',
+    'tasks_delete_link',
     {
       description:
         'Remove a cross-graph link from a task to a node in the docs, code, files, or knowledge graph. ' +

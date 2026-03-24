@@ -4,7 +4,7 @@ import type { CodeGraphManager } from '@/graphs/code';
 
 export function register(server: McpServer, mgr: CodeGraphManager): void {
   server.registerTool(
-    'get_file_symbols',
+    'code_get_file_symbols',
     {
       description:
         'Return all symbols (functions, classes, types, etc.) declared in a specific file. ' +

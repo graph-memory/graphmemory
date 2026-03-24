@@ -4,7 +4,7 @@ import type { DocGraphManager } from '@/graphs/docs';
 
 export function register(server: McpServer, mgr: DocGraphManager): void {
   server.registerTool(
-    'get_node',
+    'docs_get_node',
     {
       description:
         'Return the full content of a specific node (file root or section). ' +

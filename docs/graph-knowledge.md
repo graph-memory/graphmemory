@@ -37,7 +37,7 @@ Slug from title: `"auth-uses-jwt"`. Duplicates get `"auth-uses-jwt::2"`, `"auth-
 
 ## Cross-graph links
 
-`create_relation` supports `targetGraph` parameter to link a note to external nodes:
+`notes_create_link` supports `targetGraph` parameter to link a note to external nodes:
 
 | targetGraph | Proxy ID example |
 |-------------|-----------------|

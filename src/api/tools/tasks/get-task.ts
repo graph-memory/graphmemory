@@ -4,7 +4,7 @@ import type { TaskGraphManager } from '@/graphs/task';
 
 export function register(server: McpServer, mgr: TaskGraphManager): void {
   server.registerTool(
-    'get_task',
+    'tasks_get',
     {
       description:
         'Get full details of a task by ID, including subtasks, blockers, related tasks, and cross-graph links. ' +

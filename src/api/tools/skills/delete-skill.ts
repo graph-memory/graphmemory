@@ -4,7 +4,7 @@ import type { SkillGraphManager } from '@/graphs/skill';
 
 export function register(server: McpServer, mgr: SkillGraphManager): void {
   server.registerTool(
-    'delete_skill',
+    'skills_delete',
     {
       description:
         'Delete a skill and all its edges (relations, cross-graph links). ' +

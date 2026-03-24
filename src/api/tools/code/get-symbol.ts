@@ -4,7 +4,7 @@ import type { CodeGraphManager } from '@/graphs/code';
 
 export function register(server: McpServer, mgr: CodeGraphManager): void {
   server.registerTool(
-    'get_symbol',
+    'code_get_symbol',
     {
       description:
         'Return the full content of a specific code symbol. ' +

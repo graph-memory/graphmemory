@@ -66,7 +66,7 @@ The `searchMode` parameter controls which scoring methods are used:
 | `minScore` | 0.5 | 0.3 |
 | `bfsDecay` | 0.8 | — |
 
-`recall_skills` uses `minScore: 0.3` for higher recall in task contexts.
+`skills_recall` uses `minScore: 0.3` for higher recall in task contexts.
 
 ## BM25 index
 
@@ -103,26 +103,26 @@ Each graph defines what text to extract for BM25 indexing:
 
 ## File-level search
 
-`search_files`, `search_topic_files`, and `search_all_files` use **file-level embeddings** stored on root nodes:
+`code_code_search_files`, `docs_code_search_files`, and `files_search` use **file-level embeddings** stored on root nodes:
 - Code: file path + exported symbol names + import summary
 - Docs: file path + h1 title
 - FileIndex: file path
 
 File searches use the same **hybrid approach** (BM25 + vector, fused via RRF) as node-level search. This means exact filename queries (e.g. "embedder.ts") find files by keyword match, while semantic queries (e.g. "authentication helpers") work via vector similarity. No BFS expansion. Default `minScore: 0.3`, `topK: 10`.
 
-File paths are normalized for embedding (slashes/dots → spaces) so that path segments like `src`, `lib`, `search` are treated as separate tokens by the embedding model.
+File paths are normalized for embedding (slashes/dots → spaces) so that path segments like `src`, `lib`, `docs_search` are treated as separate tokens by the embedding model.
 
 ## Search modules
 
 | Module | File | Used by |
 |--------|------|---------|
-| Docs search | `src/lib/search/docs.ts` | `search` MCP tool |
-| Code search | `src/lib/search/code.ts` | `search_code` MCP tool |
-| Knowledge search | `src/lib/search/knowledge.ts` | `search_notes` MCP tool |
-| Task search | `src/lib/search/tasks.ts` | `search_tasks` MCP tool |
-| Skill search | `src/lib/search/skills.ts` | `search_skills`, `recall_skills` MCP tools |
-| File-level search | `src/lib/search/files.ts` | `search_files`, `search_topic_files` MCP tools |
-| File index search | `src/lib/search/file-index.ts` | `search_all_files` MCP tool |
+| Docs search | `src/lib/search/docs.ts` | `docs_search` MCP tool |
+| Code search | `src/lib/search/code.ts` | `code_search` MCP tool |
+| Knowledge search | `src/lib/search/knowledge.ts` | `notes_search` MCP tool |
+| Task search | `src/lib/search/tasks.ts` | `tasks_search` MCP tool |
+| Skill search | `src/lib/search/skills.ts` | `skills_search`, `skills_recall` MCP tools |
+| File-level search | `src/lib/search/files.ts` | `code_code_search_files`, `docs_code_search_files` MCP tools |
+| File index search | `src/lib/search/file-index.ts` | `files_search` MCP tool |
 
 ## Proxy node exclusion
 

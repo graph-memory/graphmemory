@@ -8,7 +8,7 @@ import { loadMultiConfig, defaultConfig, type MultiConfig } from '@/lib/multi-co
 import { hashPassword } from '@/lib/jwt';
 import { ProjectManager } from '@/lib/project-manager';
 import { loadModel } from '@/lib/embedder';
-import { startMultiProjectHttpServer } from '@/api/index';
+import { startMultiProjectHttpServer, setDebugMode } from '@/api/index';
 import { GRACEFUL_SHUTDOWN_TIMEOUT_MS, MAX_PASSWORD_LEN } from '@/lib/defaults';
 
 const program = new Command();
@@ -149,7 +149,8 @@ program
   .option('--host <addr>', 'HTTP server bind address')
   .option('--port <n>', 'HTTP server port', parseIntArg)
   .option('--reindex', 'Discard persisted graphs and re-index from scratch')
-  .action(async (opts: { config: string; host?: string; port?: number; reindex?: boolean }) => {
+  .option('--debug', 'Log MCP tool calls and responses to stderr')
+  .action(async (opts: { config: string; host?: string; port?: number; reindex?: boolean; debug?: boolean }) => {
     const mc = loadConfigOrDefault(opts.config);
     const host = opts.host ?? mc.server.host;
     const port = opts.port ?? mc.server.port;
@@ -163,6 +164,8 @@ program
 
     const reindex = !!opts.reindex;
     if (reindex) process.stderr.write('[serve] Re-indexing all projects from scratch\n');
+
+    if (opts.debug) setDebugMode(true);
 
     const manager = new ProjectManager(mc.server);
 

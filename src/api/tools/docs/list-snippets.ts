@@ -2,12 +2,13 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { NodeAttributes } from '@/graphs/docs';
 import type { DocGraphManager } from '@/graphs/docs';
+import { LIST_LIMIT_SMALL } from '@/lib/defaults';
 
 export function register(server: McpServer, mgr: DocGraphManager): void {
   const graph = mgr.graph;
 
   server.registerTool(
-    'list_snippets',
+    'docs_list_snippets',
     {
       description:
         'List code snippets extracted from documentation files. ' +
@@ -18,10 +19,10 @@ export function register(server: McpServer, mgr: DocGraphManager): void {
         fileId:   z.string().max(500).optional().describe('Filter by file, e.g. "docs/auth.md"'),
         filter:   z.string().max(500).optional().describe('Case-insensitive substring match on content'),
         language: z.string().max(100).optional().describe('Filter by language, e.g. "typescript"'),
-        limit:    z.number().max(1000).optional().describe('Max results to return (default 20)'),
+        limit:    z.number().max(1000).optional().describe('Max results to return'),
       },
     },
-    async ({ fileId, filter, language, limit = 20 }) => {
+    async ({ fileId, filter, language, limit = LIST_LIMIT_SMALL }) => {
       const lowerFilter = filter?.toLowerCase();
       const lowerLang = language?.toLowerCase();
       const results: Array<{

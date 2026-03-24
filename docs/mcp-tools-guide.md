@@ -56,7 +56,7 @@ Returns the current project and workspace context. Use this first to understand 
 
 ## Docs tools
 
-### `list_topics`
+### `docs_list_files`
 
 List all indexed markdown files.
 
@@ -65,7 +65,7 @@ List all indexed markdown files.
 
 **When to use**: To get an overview of available documentation.
 
-### `get_toc`
+### `docs_docs_get_toc`
 
 Table of contents for a specific documentation file.
 
@@ -74,7 +74,7 @@ Table of contents for a specific documentation file.
 
 **When to use**: Before diving into a doc file — see its structure first.
 
-### `search`
+### `docs_search`
 
 Semantic search over documentation with BFS expansion.
 
@@ -93,7 +93,7 @@ Semantic search over documentation with BFS expansion.
 
 **When to use**: Finding relevant documentation sections by meaning. Always prefer this over reading files directly.
 
-### `get_node`
+### `docs_docs_get_node`
 
 Full content of a specific doc chunk.
 
@@ -102,7 +102,7 @@ Full content of a specific doc chunk.
 
 **When to use**: After search finds a relevant chunk — get the full text.
 
-### `search_topic_files`
+### `docs_code_search_files`
 
 File-level semantic search (by path + title).
 
@@ -115,7 +115,7 @@ File-level semantic search (by path + title).
 
 ## Code block tools
 
-### `find_examples`
+### `docs_docs_find_examples`
 
 Find code blocks in documentation that contain a specific symbol.
 
@@ -124,7 +124,7 @@ Find code blocks in documentation that contain a specific symbol.
 
 **When to use**: "Show me examples of how `UserService` is used in the docs."
 
-### `search_snippets`
+### `docs_docs_search_snippets`
 
 Semantic search over code blocks extracted from documentation.
 
@@ -133,7 +133,7 @@ Semantic search over code blocks extracted from documentation.
 
 **When to use**: Finding code examples by what they do, not just what symbols they contain.
 
-### `list_snippets`
+### `docs_docs_list_snippets`
 
 List code blocks with optional filters.
 
@@ -142,7 +142,7 @@ List code blocks with optional filters.
 
 **When to use**: Browsing all code examples in docs, optionally filtered by language.
 
-### `explain_symbol`
+### `docs_docs_explain_symbol`
 
 Find a code example and its surrounding text explanation.
 
@@ -155,7 +155,7 @@ Find a code example and its surrounding text explanation.
 
 ## Cross-graph tools
 
-### `cross_references`
+### `docs_docs_cross_references`
 
 Full picture: code definitions + documentation examples + explanations for a symbol.
 
@@ -168,14 +168,14 @@ Full picture: code definitions + documentation examples + explanations for a sym
 
 ## Code tools
 
-### `list_files`
+### `code_list_files`
 
 List all indexed source files.
 
 **Input**: none
 **Output**: `[{ fileId, symbolCount }]`
 
-### `get_file_symbols`
+### `code_code_get_file_symbols`
 
 List all symbols in a source file, sorted by line number.
 
@@ -184,16 +184,16 @@ List all symbols in a source file, sorted by line number.
 
 **When to use**: Getting an overview of a file's structure — like an IDE outline.
 
-### `search_code`
+### `code_search`
 
 Semantic search over code symbols with BFS expansion.
 
-**Input**: `query` + optional search params (same as `search`)
+**Input**: `query` + optional search params (same as `docs_search`)
 **Output**: `[{ id, fileId, kind, name, signature, docComment, startLine, endLine, score }]`
 
 **When to use**: Finding code by what it does. "Find the function that handles password hashing."
 
-### `get_symbol`
+### `code_code_get_symbol`
 
 Full source body of a specific symbol.
 
@@ -202,7 +202,7 @@ Full source body of a specific symbol.
 
 **When to use**: Reading the full implementation of a specific function, class, or method.
 
-### `search_files`
+### `code_code_search_files`
 
 File-level semantic search over source files (by path).
 
@@ -215,7 +215,7 @@ File-level semantic search over source files (by path).
 
 ## File index tools
 
-### `list_all_files`
+### `files_list`
 
 List all project files and directories with filters.
 
@@ -230,7 +230,7 @@ List all project files and directories with filters.
 
 **Output**: `[{ filePath, kind, fileName, extension, language, mimeType, size, fileCount }]`
 
-### `search_all_files`
+### `files_search`
 
 Semantic search over files by path.
 
@@ -239,7 +239,7 @@ Semantic search over files by path.
 
 **When to use**: "Find files related to database configuration."
 
-### `get_file_info`
+### `files_get_info`
 
 Full metadata for a file or directory.
 
@@ -250,49 +250,49 @@ Full metadata for a file or directory.
 
 ## Knowledge tools
 
-### `create_note`
+### `notes_create`
 
 Create a note with title, content, and tags. Auto-generates slug ID, embeds content, writes mirror file.
 
 **Input**: `title` (required), `content` (required), optional `tags`
 **Output**: `{ noteId }`
 
-### `update_note`
+### `notes_update`
 
 Partial update — only send fields to change. Re-embeds if title or content changes.
 
 **Input**: `noteId` + optional `title`, `content`, `tags`
 **Output**: `{ noteId, updated }`
 
-### `delete_note`
+### `notes_delete`
 
 Deletes the note, all relations, orphaned proxy nodes, and mirror directory.
 
 **Input**: `noteId`
 **Output**: `{ noteId, deleted }`
 
-### `get_note`
+### `notes_get`
 
 Fetch a note by ID. Returns null for proxy nodes.
 
 **Input**: `noteId`
 **Output**: `{ id, title, content, tags, createdAt, updatedAt }`
 
-### `list_notes`
+### `notes_list`
 
 List notes with optional filters. Excludes proxy nodes.
 
 **Input**: optional `filter` (substring), `tag`, `limit`
 **Output**: `[{ id, title, tags, updatedAt }]`
 
-### `search_notes`
+### `notes_search`
 
 Hybrid search with BFS expansion. Excludes proxy nodes.
 
 **Input**: `query` + optional search params
 **Output**: `[{ id, title, content, tags, score }]`
 
-### `create_relation`
+### `notes_create_link`
 
 Create a relation between notes, or from a note to an external node.
 
@@ -301,21 +301,21 @@ Create a relation between notes, or from a note to an external node.
 
 When `targetGraph` is set, validates the target exists in the external graph and creates a phantom proxy node.
 
-### `delete_relation`
+### `notes_delete_link`
 
 Delete a relation. Cleans up orphaned proxy nodes.
 
 **Input**: `fromId`, `toId`, optional `targetGraph`
 **Output**: `{ fromId, toId, deleted }`
 
-### `list_relations`
+### `notes_list_links`
 
 List all relations for a note (incoming + outgoing). Resolves proxy IDs to original node IDs transparently.
 
 **Input**: `noteId`
 **Output**: `[{ fromId, toId, kind, targetGraph? }]`
 
-### `find_linked_notes`
+### `notes_find_linked`
 
 Reverse lookup: find all notes that link to a specific external node.
 
@@ -324,7 +324,7 @@ Reverse lookup: find all notes that link to a specific external node.
 
 **When to use**: Before modifying code — check if any notes document it. "What notes reference `src/auth.ts::login`?"
 
-### `add_note_attachment` / `remove_note_attachment`
+### `notes_add_attachment` / `notes_remove_attachment`
 
 Add or remove file attachments.
 
@@ -335,34 +335,34 @@ Add or remove file attachments.
 
 ## Task tools
 
-### `create_task`
+### `tasks_create`
 
 **Input**: `title` (required) + optional `description`, `status`, `priority`, `tags`, `dueDate`, `estimate`, `assignee`
 **Output**: `{ taskId }`
 
-### `update_task`
+### `tasks_update`
 
 Partial update. Also handles `completedAt` automation if status changes.
 
-### `delete_task`
+### `tasks_delete`
 
 Deletes task, all relations, proxies, and mirror directory.
 
-### `get_task`
+### `tasks_get`
 
 Returns enriched data: subtasks, blockedBy, blocks, related, crossLinks.
 
-### `list_tasks`
+### `tasks_list`
 
 Filtered list sorted by priority (critical→low) then dueDate (earliest first, nulls last).
 
 **Input**: optional `status`, `priority`, `tag`, `filter`, `assignee`, `limit`
 
-### `search_tasks`
+### `tasks_search`
 
 Hybrid search over tasks.
 
-### `move_task`
+### `tasks_move`
 
 Change status with automatic `completedAt` management.
 
@@ -370,23 +370,23 @@ Change status with automatic `completedAt` management.
 - → `done`/`cancelled`: sets `completedAt`
 - → any other: clears `completedAt`
 
-**When to use**: Always use `move_task` instead of `update_task` for status changes.
+**When to use**: Always use `tasks_move` instead of `tasks_update` for status changes.
 
-### `link_task`
+### `tasks_link`
 
 Create task↔task relation: `subtask_of`, `blocks`, `related_to`.
 
-### `create_task_link` / `delete_task_link`
+### `tasks_create_link` / `tasks_delete_link`
 
 Cross-graph links to docs/code/files/knowledge/skills nodes.
 
-### `find_linked_tasks`
+### `tasks_find_linked`
 
 Reverse lookup: find tasks linking to a specific node.
 
 **When to use**: Before modifying a file — "are there open tasks related to this code?"
 
-### `add_task_attachment` / `remove_task_attachment`
+### `tasks_add_attachment` / `tasks_remove_attachment`
 
 File attachments on tasks.
 
@@ -394,32 +394,32 @@ File attachments on tasks.
 
 ## Skill tools
 
-### `create_skill`
+### `skills_create`
 
 **Input**: `title` (required) + optional `description`, `steps`, `triggers`, `inputHints`, `filePatterns`, `source`, `confidence`, `tags`
 **Output**: `{ skillId }`
 
-### `update_skill` / `delete_skill` / `get_skill` / `list_skills` / `search_skills`
+### `skills_update` / `skills_delete` / `skills_get` / `skills_list` / `skills_search`
 
 Standard CRUD + search (same patterns as knowledge/tasks).
 
-### `recall_skills`
+### `skills_recall`
 
 Search with lower `minScore` (0.3 vs 0.5) for higher recall.
 
-**When to use**: At the start of a complex task — "what recipes might be relevant?" Cast a wider net than `search_skills`.
+**When to use**: At the start of a complex task — "what recipes might be relevant?" Cast a wider net than `skills_search`.
 
-### `bump_skill_usage`
+### `skills_bump_usage`
 
 Increment `usageCount` + set `lastUsedAt`.
 
 **When to use**: After successfully applying a skill's recipe.
 
-### `link_skill` / `create_skill_link` / `delete_skill_link` / `find_linked_skills`
+### `skills_link` / `skills_create_link` / `skills_delete_link` / `skills_find_linked`
 
 Same relation patterns as knowledge/tasks.
 
-### `add_skill_attachment` / `remove_skill_attachment`
+### `skills_add_attachment` / `skills_remove_attachment`
 
 File attachments on skills.
 
@@ -427,12 +427,12 @@ File attachments on skills.
 
 ## Best practices
 
-1. **Search before reading files** — `search_code` and `search` are faster and more targeted
+1. **Search before reading files** — `code_search` and `docs_search` are faster and more targeted
 2. **Use `get_context` first** — know what graphs are available
 3. **Create notes for decisions** — persist architectural choices and non-obvious context
-4. **Use `recall_skills` before complex tasks** — there might be a saved recipe
-5. **Use `move_task`** for status changes, not `update_task` — manages `completedAt` automatically
-6. **Use `cross_references`** for complete symbol context — bridges code and docs
-7. **Use `find_linked_tasks`** before changing code — see related tasks
+4. **Use `skills_recall` before complex tasks** — there might be a saved recipe
+5. **Use `tasks_move`** for status changes, not `tasks_update` — manages `completedAt` automatically
+6. **Use `docs_docs_cross_references`** for complete symbol context — bridges code and docs
+7. **Use `tasks_find_linked`** before changing code — see related tasks
 8. **Bump skill usage** after applying a recipe — surfaces frequently used skills
 9. **Link everything** — connect notes to code, tasks to files, skills to docs

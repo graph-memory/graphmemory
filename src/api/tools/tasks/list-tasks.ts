@@ -5,7 +5,7 @@ import { MAX_TAG_LEN, MAX_ASSIGNEE_LEN } from '@/lib/defaults';
 
 export function register(server: McpServer, mgr: TaskGraphManager): void {
   server.registerTool(
-    'list_tasks',
+    'tasks_list',
     {
       description:
         'List tasks with optional filters. ' +

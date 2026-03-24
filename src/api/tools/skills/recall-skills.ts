@@ -5,7 +5,7 @@ import { MAX_SEARCH_QUERY_LEN } from '@/lib/defaults';
 
 export function register(server: McpServer, mgr: SkillGraphManager): void {
   server.registerTool(
-    'recall_skills',
+    'skills_recall',
     {
       description:
         'Recall relevant skills for a given task context. Like search_skills but with lower ' +

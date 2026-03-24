@@ -100,10 +100,10 @@ describe('MCP Skill Tools', () => {
       await ctx.close();
     });
 
-    // -- create_skill --
+    // -- skills_create --
 
-    it('create_skill returns skillId', async () => {
-      const res = json<CreateResult>(await call('create_skill', {
+    it('skills_create returns skillId', async () => {
+      const res = json<CreateResult>(await call('skills_create', {
         title: 'Add REST Endpoint',
         description: 'How to add a new REST endpoint to the API.',
         steps: ['Create route file', 'Add handler', 'Register in router'],
@@ -114,8 +114,8 @@ describe('MCP Skill Tools', () => {
       expect(res.skillId).toBe('add-rest-endpoint');
     });
 
-    it('create_skill with all optional fields', async () => {
-      const res = json<CreateResult>(await call('create_skill', {
+    it('skills_create with all optional fields', async () => {
+      const res = json<CreateResult>(await call('skills_create', {
         title: 'Debug Auth Issues',
         description: 'Steps to debug authentication failures.',
         steps: ['Check tokens', 'Inspect headers', 'Verify middleware'],
@@ -129,23 +129,23 @@ describe('MCP Skill Tools', () => {
       expect(res.skillId).toBe('debug-auth-issues');
     });
 
-    it('create_skill defaults to user source', async () => {
-      const res = json<CreateResult>(await call('create_skill', {
+    it('skills_create defaults to user source', async () => {
+      const res = json<CreateResult>(await call('skills_create', {
         title: 'Run Test Suite',
         description: 'How to run the test suite end to end.',
         steps: ['npm test', 'Check coverage'],
         tags: ['test', 'ci'],
       }));
       expect(res.skillId).toBe('run-test-suite');
-      const skill = json<SkillResult>(await call('get_skill', { skillId: 'run-test-suite' }));
+      const skill = json<SkillResult>(await call('skills_get', { skillId: 'run-test-suite' }));
       expect(skill.source).toBe('user');
       expect(skill.confidence).toBe(1);
     });
 
-    // -- get_skill --
+    // -- skills_get --
 
-    it('get_skill returns full skill', async () => {
-      const skill = json<SkillResult>(await call('get_skill', { skillId: 'add-rest-endpoint' }));
+    it('skills_get returns full skill', async () => {
+      const skill = json<SkillResult>(await call('skills_get', { skillId: 'add-rest-endpoint' }));
       expect(skill.title).toBe('Add REST Endpoint');
       expect(skill.description).toContain('REST endpoint');
       expect(skill.steps).toHaveLength(3);
@@ -158,15 +158,15 @@ describe('MCP Skill Tools', () => {
       expect(skill.dependsOn).toHaveLength(0);
     });
 
-    it('get_skill returns error for missing', async () => {
-      const res = await call('get_skill', { skillId: 'nonexistent' });
+    it('skills_get returns error for missing', async () => {
+      const res = await call('skills_get', { skillId: 'nonexistent' });
       expect(res.isError).toBe(true);
     });
 
-    // -- update_skill --
+    // -- skills_update --
 
-    it('update_skill changes description and steps', async () => {
-      const res = json<UpdateResult>(await call('update_skill', {
+    it('skills_update changes description and steps', async () => {
+      const res = json<UpdateResult>(await call('skills_update', {
         skillId: 'add-rest-endpoint',
         description: 'Updated: Create a REST endpoint with validation.',
         steps: ['Create route file', 'Add Zod schema', 'Add handler', 'Register in router'],
@@ -174,51 +174,51 @@ describe('MCP Skill Tools', () => {
       expect(res.updated).toBe(true);
     });
 
-    it('update_skill verifies change', async () => {
-      const skill = json<SkillResult>(await call('get_skill', { skillId: 'add-rest-endpoint' }));
+    it('skills_update verifies change', async () => {
+      const skill = json<SkillResult>(await call('skills_get', { skillId: 'add-rest-endpoint' }));
       expect(skill.description).toContain('validation');
       expect(skill.steps).toHaveLength(4);
     });
 
-    it('update_skill returns error for missing', async () => {
-      const res = await call('update_skill', { skillId: 'nonexistent', description: 'x' });
+    it('skills_update returns error for missing', async () => {
+      const res = await call('skills_update', { skillId: 'nonexistent', description: 'x' });
       expect(res.isError).toBe(true);
     });
 
-    // -- list_skills --
+    // -- skills_list --
 
-    it('list_skills returns all 3', async () => {
-      const skills = json<SkillListEntry[]>(await call('list_skills'));
+    it('skills_list returns all 3', async () => {
+      const skills = json<SkillListEntry[]>(await call('skills_list'));
       expect(skills).toHaveLength(3);
     });
 
-    it('list_skills filter by source', async () => {
-      const skills = json<SkillListEntry[]>(await call('list_skills', { source: 'learned' }));
+    it('skills_list filter by source', async () => {
+      const skills = json<SkillListEntry[]>(await call('skills_list', { source: 'learned' }));
       expect(skills).toHaveLength(1);
       expect(skills[0].id).toBe('debug-auth-issues');
     });
 
-    it('list_skills filter by tag', async () => {
-      const skills = json<SkillListEntry[]>(await call('list_skills', { tag: 'auth' }));
+    it('skills_list filter by tag', async () => {
+      const skills = json<SkillListEntry[]>(await call('skills_list', { tag: 'auth' }));
       expect(skills).toHaveLength(1);
       expect(skills[0].id).toBe('debug-auth-issues');
     });
 
-    it('list_skills substring filter', async () => {
-      const skills = json<SkillListEntry[]>(await call('list_skills', { filter: 'rest' }));
+    it('skills_list substring filter', async () => {
+      const skills = json<SkillListEntry[]>(await call('skills_list', { filter: 'rest' }));
       expect(skills).toHaveLength(1);
       expect(skills[0].id).toBe('add-rest-endpoint');
     });
 
-    it('list_skills limit', async () => {
-      const skills = json<SkillListEntry[]>(await call('list_skills', { limit: 1 }));
+    it('skills_list limit', async () => {
+      const skills = json<SkillListEntry[]>(await call('skills_list', { limit: 1 }));
       expect(skills).toHaveLength(1);
     });
 
-    // -- search_skills --
+    // -- skills_search --
 
-    it('search_skills finds by query (vector mode)', async () => {
-      const hits = json<SkillSearchHit[]>(await call('search_skills', {
+    it('skills_search finds by query (vector mode)', async () => {
+      const hits = json<SkillSearchHit[]>(await call('skills_search', {
         query: 'endpoint',
         minScore: 0.5,
         searchMode: 'vector',
@@ -228,8 +228,8 @@ describe('MCP Skill Tools', () => {
       expect(hits[0].score).toBeGreaterThan(0.5);
     });
 
-    it('search_skills finds by query (keyword mode)', async () => {
-      const hits = json<SkillSearchHit[]>(await call('search_skills', {
+    it('skills_search finds by query (keyword mode)', async () => {
+      const hits = json<SkillSearchHit[]>(await call('skills_search', {
         query: 'REST endpoint validation',
         minScore: 0,
         searchMode: 'keyword',
@@ -238,10 +238,10 @@ describe('MCP Skill Tools', () => {
       expect(hits[0].id).toBe('add-rest-endpoint');
     });
 
-    // -- link_skill --
+    // -- skills_link --
 
-    it('link_skill creates depends_on between skills', async () => {
-      const res = json<LinkResult>(await call('link_skill', {
+    it('skills_link creates depends_on between skills', async () => {
+      const res = json<LinkResult>(await call('skills_link', {
         fromId: 'run-test-suite',
         toId: 'add-rest-endpoint',
         kind: 'depends_on',
@@ -249,18 +249,18 @@ describe('MCP Skill Tools', () => {
       expect(res.created).toBe(true);
     });
 
-    it('get_skill shows dependsOn and dependedBy', async () => {
-      const skill = json<SkillResult>(await call('get_skill', { skillId: 'run-test-suite' }));
+    it('skills_get shows dependsOn and dependedBy', async () => {
+      const skill = json<SkillResult>(await call('skills_get', { skillId: 'run-test-suite' }));
       expect(skill.dependsOn).toHaveLength(1);
       expect(skill.dependsOn[0].id).toBe('add-rest-endpoint');
 
-      const target = json<SkillResult>(await call('get_skill', { skillId: 'add-rest-endpoint' }));
+      const target = json<SkillResult>(await call('skills_get', { skillId: 'add-rest-endpoint' }));
       expect(target.dependedBy).toHaveLength(1);
       expect(target.dependedBy[0].id).toBe('run-test-suite');
     });
 
-    it('link_skill duplicate returns error', async () => {
-      const res = await call('link_skill', {
+    it('skills_link duplicate returns error', async () => {
+      const res = await call('skills_link', {
         fromId: 'run-test-suite',
         toId: 'add-rest-endpoint',
         kind: 'depends_on',
@@ -268,34 +268,34 @@ describe('MCP Skill Tools', () => {
       expect(res.isError).toBe(true);
     });
 
-    // -- bump_skill_usage --
+    // -- skills_bump_usage --
 
-    it('bump_skill_usage increments usageCount', async () => {
-      const res = json<BumpResult>(await call('bump_skill_usage', { skillId: 'add-rest-endpoint' }));
+    it('skills_bump_usage increments usageCount', async () => {
+      const res = json<BumpResult>(await call('skills_bump_usage', { skillId: 'add-rest-endpoint' }));
       expect(res.bumped).toBe(true);
 
-      const skill = json<SkillResult>(await call('get_skill', { skillId: 'add-rest-endpoint' }));
+      const skill = json<SkillResult>(await call('skills_get', { skillId: 'add-rest-endpoint' }));
       expect(skill.usageCount).toBe(1);
       expect(skill.lastUsedAt).toBeGreaterThan(0);
     });
 
-    it('bump_skill_usage increments again', async () => {
-      await call('bump_skill_usage', { skillId: 'add-rest-endpoint' });
-      const skill = json<SkillResult>(await call('get_skill', { skillId: 'add-rest-endpoint' }));
+    it('skills_bump_usage increments again', async () => {
+      await call('skills_bump_usage', { skillId: 'add-rest-endpoint' });
+      const skill = json<SkillResult>(await call('skills_get', { skillId: 'add-rest-endpoint' }));
       expect(skill.usageCount).toBe(2);
     });
 
-    it('bump_skill_usage returns error for missing', async () => {
-      const res = await call('bump_skill_usage', { skillId: 'nonexistent' });
+    it('skills_bump_usage returns error for missing', async () => {
+      const res = await call('skills_bump_usage', { skillId: 'nonexistent' });
       expect(res.isError).toBe(true);
     });
 
-    // -- recall_skills --
+    // -- skills_recall --
 
-    it('recall_skills finds relevant skills', async () => {
-      // recall_skills defaults to hybrid searchMode; with fakeEmbed the BM25 component
+    it('skills_recall finds relevant skills', async () => {
+      // skills_recall defaults to hybrid searchMode; with fakeEmbed the BM25 component
       // may push the fused score below minScore, so we set minScore low enough
-      const hits = json<SkillSearchHit[]>(await call('recall_skills', {
+      const hits = json<SkillSearchHit[]>(await call('skills_recall', {
         context: 'auth',
         minScore: 0.01,
       }));
@@ -303,13 +303,13 @@ describe('MCP Skill Tools', () => {
       expect(hits[0].id).toBe('debug-auth-issues');
     });
 
-    // -- create_skill_link (cross-graph to knowledge) --
+    // -- skills_create_link (cross-graph to knowledge) --
 
-    it('create_skill_link to knowledge note', async () => {
+    it('skills_create_link to knowledge note', async () => {
       // First create a knowledge note
-      await call('create_note', { title: 'Auth Guide', content: 'How auth works.' });
+      await call('notes_create', { title: 'Auth Guide', content: 'How auth works.' });
 
-      const res = json<CrossLinkResult>(await call('create_skill_link', {
+      const res = json<CrossLinkResult>(await call('skills_create_link', {
         skillId: 'debug-auth-issues',
         targetId: 'auth-guide',
         targetGraph: 'knowledge',
@@ -319,8 +319,8 @@ describe('MCP Skill Tools', () => {
       expect(res.created).toBe(true);
     });
 
-    it('create_skill_link duplicate returns error', async () => {
-      const res = await call('create_skill_link', {
+    it('skills_create_link duplicate returns error', async () => {
+      const res = await call('skills_create_link', {
         skillId: 'debug-auth-issues',
         targetId: 'auth-guide',
         targetGraph: 'knowledge',
@@ -330,8 +330,8 @@ describe('MCP Skill Tools', () => {
       expect(res.isError).toBe(true);
     });
 
-    it('create_skill_link invalid target returns error', async () => {
-      const res = await call('create_skill_link', {
+    it('skills_create_link invalid target returns error', async () => {
+      const res = await call('skills_create_link', {
         skillId: 'debug-auth-issues',
         targetId: 'nonexistent-note',
         targetGraph: 'knowledge',
@@ -341,12 +341,12 @@ describe('MCP Skill Tools', () => {
       expect(res.isError).toBe(true);
     });
 
-    // -- find_linked_skills --
+    // -- skills_find_linked --
 
-    it('find_linked_skills finds skill linked to knowledge note', async () => {
-      const results = json<LinkedSkillResult[]>(await call('find_linked_skills', {
+    it('skills_find_linked finds skill linked to knowledge note', async () => {
+      const results = json<LinkedSkillResult[]>(await call('skills_find_linked', {
         targetGraph: 'knowledge',
-        targetNodeId: 'auth-guide',
+        targetId: 'auth-guide',
         projectId: 'test',
       }));
       expect(results).toHaveLength(1);
@@ -354,10 +354,10 @@ describe('MCP Skill Tools', () => {
       expect(results[0].kind).toBe('references');
     });
 
-    it('find_linked_skills returns message for unlinked', async () => {
-      const res = await call('find_linked_skills', {
+    it('skills_find_linked returns message for unlinked', async () => {
+      const res = await call('skills_find_linked', {
         targetGraph: 'knowledge',
-        targetNodeId: 'nonexistent',
+        targetId: 'nonexistent',
         projectId: 'test',
       });
       expect(res.isError).toBeUndefined();
@@ -365,10 +365,10 @@ describe('MCP Skill Tools', () => {
       expect(text).toContain('No skills linked');
     });
 
-    it('find_linked_skills filters by kind', async () => {
-      const res = await call('find_linked_skills', {
+    it('skills_find_linked filters by kind', async () => {
+      const res = await call('skills_find_linked', {
         targetGraph: 'knowledge',
-        targetNodeId: 'auth-guide',
+        targetId: 'auth-guide',
         kind: 'implements', // linked with 'references', not 'implements'
         projectId: 'test',
       });
@@ -376,10 +376,10 @@ describe('MCP Skill Tools', () => {
       expect(text).toContain('No skills linked');
     });
 
-    // -- delete_skill_link --
+    // -- skills_delete_link --
 
-    it('delete_skill_link removes cross-graph link', async () => {
-      const res = json<CrossDeleteResult>(await call('delete_skill_link', {
+    it('skills_delete_link removes cross-graph link', async () => {
+      const res = json<CrossDeleteResult>(await call('skills_delete_link', {
         skillId: 'debug-auth-issues',
         targetId: 'auth-guide',
         targetGraph: 'knowledge',
@@ -388,47 +388,47 @@ describe('MCP Skill Tools', () => {
       expect(res.deleted).toBe(true);
     });
 
-    it('after delete_skill_link, find_linked_skills returns empty', async () => {
-      const res = await call('find_linked_skills', {
+    it('after skills_delete_link, skills_find_linked returns empty', async () => {
+      const res = await call('skills_find_linked', {
         targetGraph: 'knowledge',
-        targetNodeId: 'auth-guide',
+        targetId: 'auth-guide',
         projectId: 'test',
       });
       const text = res.content[0].text!;
       expect(text).toContain('No skills linked');
     });
 
-    it('proxy cleaned up after delete_skill_link', async () => {
+    it('proxy cleaned up after skills_delete_link', async () => {
       expect(skillGraph.hasNode('@knowledge::auth-guide')).toBe(false);
     });
 
-    // -- delete_skill --
+    // -- skills_delete --
 
-    it('delete_skill removes skill', async () => {
-      const res = json<DeleteResult>(await call('delete_skill', { skillId: 'run-test-suite' }));
+    it('skills_delete removes skill', async () => {
+      const res = json<DeleteResult>(await call('skills_delete', { skillId: 'run-test-suite' }));
       expect(res.deleted).toBe(true);
     });
 
     it('deleted skill no longer returned', async () => {
-      const res = await call('get_skill', { skillId: 'run-test-suite' });
+      const res = await call('skills_get', { skillId: 'run-test-suite' });
       expect(res.isError).toBe(true);
     });
 
-    it('list_skills after delete returns 2', async () => {
-      const skills = json<SkillListEntry[]>(await call('list_skills'));
+    it('skills_list after delete returns 2', async () => {
+      const skills = json<SkillListEntry[]>(await call('skills_list'));
       expect(skills).toHaveLength(2);
     });
 
-    it('delete_skill returns error for missing', async () => {
-      const res = await call('delete_skill', { skillId: 'nonexistent' });
+    it('skills_delete returns error for missing', async () => {
+      const res = await call('skills_delete', { skillId: 'nonexistent' });
       expect(res.isError).toBe(true);
     });
 
-    // -- delete_skill cleans up cross-graph proxy --
+    // -- skills_delete cleans up cross-graph proxy --
 
-    it('delete_skill cleans up remaining cross-graph proxy', async () => {
+    it('skills_delete cleans up remaining cross-graph proxy', async () => {
       // Create a cross-graph link first
-      await call('create_skill_link', {
+      await call('skills_create_link', {
         skillId: 'debug-auth-issues',
         targetId: 'auth-guide',
         targetGraph: 'knowledge',
@@ -438,7 +438,7 @@ describe('MCP Skill Tools', () => {
       expect(skillGraph.hasNode('@knowledge::test::auth-guide')).toBe(true);
 
       // Delete the skill
-      const del = json<DeleteResult>(await call('delete_skill', { skillId: 'debug-auth-issues' }));
+      const del = json<DeleteResult>(await call('skills_delete', { skillId: 'debug-auth-issues' }));
       expect(del.deleted).toBe(true);
 
       // Proxy should be cleaned up

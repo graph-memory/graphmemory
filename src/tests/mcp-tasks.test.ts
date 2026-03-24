@@ -81,10 +81,10 @@ describe('Task CRUD tools', () => {
     await ctx.close();
   });
 
-  // -- create_task --
+  // -- tasks_create --
 
   it('create_task returns taskId', async () => {
-    const res = json<CreateResult>(await call('create_task', {
+    const res = json<CreateResult>(await call('tasks_create', {
       title: 'Fix Auth Redirect',
       description: 'The login redirect is broken.',
       priority: 'high',
@@ -94,7 +94,7 @@ describe('Task CRUD tools', () => {
   });
 
   it('create_task with all optional fields', async () => {
-    const res = json<CreateResult>(await call('create_task', {
+    const res = json<CreateResult>(await call('tasks_create', {
       title: 'Add Search Feature',
       description: 'Implement full-text search.',
       priority: 'medium',
@@ -107,20 +107,20 @@ describe('Task CRUD tools', () => {
   });
 
   it('create_task defaults to backlog', async () => {
-    const res = json<CreateResult>(await call('create_task', {
+    const res = json<CreateResult>(await call('tasks_create', {
       title: 'Refactor Config',
       description: 'Clean up config loading.',
       priority: 'low',
     }));
     expect(res.taskId).toBe('refactor-config');
-    const task = json<TaskResult>(await call('get_task', { taskId: 'refactor-config' }));
+    const task = json<TaskResult>(await call('tasks_get', { taskId: 'refactor-config' }));
     expect(task.status).toBe('backlog');
   });
 
-  // -- get_task --
+  // -- tasks_get --
 
   it('get_task returns full task', async () => {
-    const task = json<TaskResult>(await call('get_task', { taskId: 'fix-auth-redirect' }));
+    const task = json<TaskResult>(await call('tasks_get', { taskId: 'fix-auth-redirect' }));
     expect(task.title).toBe('Fix Auth Redirect');
     expect(task.status).toBe('backlog');
     expect(task.priority).toBe('high');
@@ -129,14 +129,14 @@ describe('Task CRUD tools', () => {
   });
 
   it('get_task returns error for missing', async () => {
-    const res = await call('get_task', { taskId: 'nonexistent' });
+    const res = await call('tasks_get', { taskId: 'nonexistent' });
     expect(res.isError).toBe(true);
   });
 
-  // -- update_task --
+  // -- tasks_update --
 
   it('update_task changes description', async () => {
-    const res = json<UpdateResult>(await call('update_task', {
+    const res = json<UpdateResult>(await call('tasks_update', {
       taskId: 'fix-auth-redirect',
       description: 'Updated: redirect loop on OAuth callback.',
     }));
@@ -144,28 +144,28 @@ describe('Task CRUD tools', () => {
   });
 
   it('update_task verifies change', async () => {
-    const task = json<TaskResult>(await call('get_task', { taskId: 'fix-auth-redirect' }));
+    const task = json<TaskResult>(await call('tasks_get', { taskId: 'fix-auth-redirect' }));
     expect(task.description).toContain('OAuth callback');
   });
 
   it('update_task status to done sets completedAt', async () => {
-    await call('update_task', { taskId: 'fix-auth-redirect', status: 'done' });
-    const task = json<TaskResult>(await call('get_task', { taskId: 'fix-auth-redirect' }));
+    await call('tasks_update', { taskId: 'fix-auth-redirect', status: 'done' });
+    const task = json<TaskResult>(await call('tasks_get', { taskId: 'fix-auth-redirect' }));
     expect(task.status).toBe('done');
     expect(task.completedAt).toBeGreaterThan(0);
   });
 
   it('update_task reopen clears completedAt', async () => {
-    await call('update_task', { taskId: 'fix-auth-redirect', status: 'todo' });
-    const task = json<TaskResult>(await call('get_task', { taskId: 'fix-auth-redirect' }));
+    await call('tasks_update', { taskId: 'fix-auth-redirect', status: 'todo' });
+    const task = json<TaskResult>(await call('tasks_get', { taskId: 'fix-auth-redirect' }));
     expect(task.status).toBe('todo');
     expect(task.completedAt).toBeNull();
   });
 
-  // -- move_task --
+  // -- tasks_move --
 
   it('move_task changes status', async () => {
-    const res = json<MoveResult>(await call('move_task', {
+    const res = json<MoveResult>(await call('tasks_move', {
       taskId: 'add-search-feature',
       status: 'in_progress',
     }));
@@ -174,7 +174,7 @@ describe('Task CRUD tools', () => {
   });
 
   it('move_task to done sets completedAt', async () => {
-    const res = json<MoveResult>(await call('move_task', {
+    const res = json<MoveResult>(await call('tasks_move', {
       taskId: 'add-search-feature',
       status: 'done',
     }));
@@ -183,54 +183,54 @@ describe('Task CRUD tools', () => {
   });
 
   it('move_task reopen clears completedAt', async () => {
-    const res = json<MoveResult>(await call('move_task', {
+    const res = json<MoveResult>(await call('tasks_move', {
       taskId: 'add-search-feature',
       status: 'todo',
     }));
     expect(res.completedAt).toBeNull();
   });
 
-  // -- list_tasks --
+  // -- tasks_list --
 
   it('list_tasks returns all 3', async () => {
-    const tasks = json<TaskListEntry[]>(await call('list_tasks'));
+    const tasks = json<TaskListEntry[]>(await call('tasks_list'));
     expect(tasks).toHaveLength(3);
   });
 
   it('list_tasks sorted by priority', async () => {
-    const tasks = json<TaskListEntry[]>(await call('list_tasks'));
+    const tasks = json<TaskListEntry[]>(await call('tasks_list'));
     expect(tasks[0].priority).toBe('high');
   });
 
   it('list_tasks filter by status', async () => {
-    const tasks = json<TaskListEntry[]>(await call('list_tasks', { status: 'todo' }));
+    const tasks = json<TaskListEntry[]>(await call('tasks_list', { status: 'todo' }));
     expect(tasks).toHaveLength(2);
   });
 
   it('list_tasks filter by priority', async () => {
-    const tasks = json<TaskListEntry[]>(await call('list_tasks', { priority: 'high' }));
+    const tasks = json<TaskListEntry[]>(await call('tasks_list', { priority: 'high' }));
     expect(tasks).toHaveLength(1);
   });
 
   it('list_tasks filter by tag', async () => {
-    const tasks = json<TaskListEntry[]>(await call('list_tasks', { tag: 'bug' }));
+    const tasks = json<TaskListEntry[]>(await call('tasks_list', { tag: 'bug' }));
     expect(tasks).toHaveLength(1);
   });
 
   it('list_tasks substring filter', async () => {
-    const tasks = json<TaskListEntry[]>(await call('list_tasks', { filter: 'auth' }));
+    const tasks = json<TaskListEntry[]>(await call('tasks_list', { filter: 'auth' }));
     expect(tasks).toHaveLength(1);
   });
 
   it('list_tasks limit', async () => {
-    const tasks = json<TaskListEntry[]>(await call('list_tasks', { limit: 1 }));
+    const tasks = json<TaskListEntry[]>(await call('tasks_list', { limit: 1 }));
     expect(tasks).toHaveLength(1);
   });
 
-  // -- search_tasks --
+  // -- tasks_search --
 
   it('search_tasks finds by query (vector mode)', async () => {
-    const hits = json<TaskSearchHit[]>(await call('search_tasks', {
+    const hits = json<TaskSearchHit[]>(await call('tasks_search', {
       query: 'fix auth redirect',
       minScore: 0.5,
       searchMode: 'vector',
@@ -241,7 +241,7 @@ describe('Task CRUD tools', () => {
   });
 
   it('search_tasks finds by query (keyword mode)', async () => {
-    const hits = json<TaskSearchHit[]>(await call('search_tasks', {
+    const hits = json<TaskSearchHit[]>(await call('tasks_search', {
       query: 'OAuth callback redirect',
       minScore: 0,
       searchMode: 'keyword',
@@ -250,10 +250,10 @@ describe('Task CRUD tools', () => {
     expect(hits[0].id).toBe('fix-auth-redirect');
   });
 
-  // -- link_task --
+  // -- tasks_link --
 
   it('link_task creates subtask_of', async () => {
-    const res = json<LinkResult>(await call('link_task', {
+    const res = json<LinkResult>(await call('tasks_link', {
       fromId: 'refactor-config',
       toId: 'fix-auth-redirect',
       kind: 'subtask_of',
@@ -262,7 +262,7 @@ describe('Task CRUD tools', () => {
   });
 
   it('link_task creates blocks', async () => {
-    const res = json<LinkResult>(await call('link_task', {
+    const res = json<LinkResult>(await call('tasks_link', {
       fromId: 'fix-auth-redirect',
       toId: 'add-search-feature',
       kind: 'blocks',
@@ -271,7 +271,7 @@ describe('Task CRUD tools', () => {
   });
 
   it('get_task shows subtasks and blocks', async () => {
-    const task = json<TaskResult>(await call('get_task', { taskId: 'fix-auth-redirect' }));
+    const task = json<TaskResult>(await call('tasks_get', { taskId: 'fix-auth-redirect' }));
     expect(task.subtasks).toHaveLength(1);
     expect(task.subtasks[0].id).toBe('refactor-config');
     expect(task.blocks).toHaveLength(1);
@@ -279,13 +279,13 @@ describe('Task CRUD tools', () => {
   });
 
   it('get_task shows blockedBy', async () => {
-    const task = json<TaskResult>(await call('get_task', { taskId: 'add-search-feature' }));
+    const task = json<TaskResult>(await call('tasks_get', { taskId: 'add-search-feature' }));
     expect(task.blockedBy).toHaveLength(1);
     expect(task.blockedBy[0].id).toBe('fix-auth-redirect');
   });
 
   it('link_task duplicate returns error', async () => {
-    const res = await call('link_task', {
+    const res = await call('tasks_link', {
       fromId: 'refactor-config',
       toId: 'fix-auth-redirect',
       kind: 'subtask_of',
@@ -293,20 +293,20 @@ describe('Task CRUD tools', () => {
     expect(res.isError).toBe(true);
   });
 
-  // -- delete_task --
+  // -- tasks_delete --
 
   it('delete_task removes task', async () => {
-    const res = json<DeleteResult>(await call('delete_task', { taskId: 'refactor-config' }));
+    const res = json<DeleteResult>(await call('tasks_delete', { taskId: 'refactor-config' }));
     expect(res.deleted).toBe(true);
   });
 
   it('deleted task no longer returned', async () => {
-    const res = await call('get_task', { taskId: 'refactor-config' });
+    const res = await call('tasks_get', { taskId: 'refactor-config' });
     expect(res.isError).toBe(true);
   });
 
   it('list_tasks after delete returns 2', async () => {
-    const tasks = json<TaskListEntry[]>(await call('list_tasks'));
+    const tasks = json<TaskListEntry[]>(await call('tasks_list'));
     expect(tasks).toHaveLength(2);
   });
 });
@@ -363,8 +363,8 @@ describe('Task cross-graph links', () => {
     tCall = tCtx.call;
 
     // Create tasks
-    await tCall('create_task', { title: 'Task A', description: 'First task', priority: 'high', tags: ['a'] });
-    await tCall('create_task', { title: 'Task B', description: 'Second task', priority: 'medium', tags: ['b'] });
+    await tCall('tasks_create', { title: 'Task A', description: 'First task', priority: 'high', tags: ['a'] });
+    await tCall('tasks_create', { title: 'Task B', description: 'Second task', priority: 'medium', tags: ['b'] });
   });
 
   afterAll(async () => {
@@ -372,7 +372,7 @@ describe('Task cross-graph links', () => {
   });
 
   it('create_task_link to docs', async () => {
-    const res = json<CrossLinkResult>(await tCall('create_task_link', {
+    const res = json<CrossLinkResult>(await tCall('tasks_create_link', {
       taskId: 'task-a',
       targetId: 'api.md::Auth',
       targetGraph: 'docs',
@@ -383,7 +383,7 @@ describe('Task cross-graph links', () => {
   });
 
   it('create_task_link to code', async () => {
-    const res = json<CrossLinkResult>(await tCall('create_task_link', {
+    const res = json<CrossLinkResult>(await tCall('tasks_create_link', {
       taskId: 'task-a',
       targetId: 'src/auth.ts::login',
       targetGraph: 'code',
@@ -394,7 +394,7 @@ describe('Task cross-graph links', () => {
   });
 
   it('create_task_link duplicate returns error', async () => {
-    const res = await tCall('create_task_link', {
+    const res = await tCall('tasks_create_link', {
       taskId: 'task-a',
       targetId: 'api.md::Auth',
       targetGraph: 'docs',
@@ -405,7 +405,7 @@ describe('Task cross-graph links', () => {
   });
 
   it('create_task_link invalid target returns error', async () => {
-    const res = await tCall('create_task_link', {
+    const res = await tCall('tasks_create_link', {
       taskId: 'task-a',
       targetId: 'nonexistent.md::Foo',
       targetGraph: 'docs',
@@ -416,7 +416,7 @@ describe('Task cross-graph links', () => {
   });
 
   it('find_linked_tasks finds task linked to doc', async () => {
-    const results = json<LinkedTaskResult[]>(await tCall('find_linked_tasks', {
+    const results = json<LinkedTaskResult[]>(await tCall('tasks_find_linked', {
       targetId: 'api.md::Auth',
       targetGraph: 'docs',
       projectId: 'test',
@@ -427,7 +427,7 @@ describe('Task cross-graph links', () => {
   });
 
   it('find_linked_tasks finds task linked to code', async () => {
-    const results = json<LinkedTaskResult[]>(await tCall('find_linked_tasks', {
+    const results = json<LinkedTaskResult[]>(await tCall('tasks_find_linked', {
       targetId: 'src/auth.ts::login',
       targetGraph: 'code',
       projectId: 'test',
@@ -438,7 +438,7 @@ describe('Task cross-graph links', () => {
   });
 
   it('find_linked_tasks returns message for unlinked', async () => {
-    const res = await tCall('find_linked_tasks', {
+    const res = await tCall('tasks_find_linked', {
       targetId: 'nonexistent.md::Foo',
       targetGraph: 'docs',
       projectId: 'test',
@@ -450,7 +450,7 @@ describe('Task cross-graph links', () => {
 
   it('find_linked_tasks filters by kind', async () => {
     // task-a has a 'fixes' link to code, check that filtering by 'references' returns no results
-    const res = await tCall('find_linked_tasks', {
+    const res = await tCall('tasks_find_linked', {
       targetId: 'src/auth.ts::login',
       targetGraph: 'code',
       kind: 'references', // task-a linked with 'fixes', not 'references'
@@ -461,7 +461,7 @@ describe('Task cross-graph links', () => {
   });
 
   it('delete_task_link removes cross-graph link', async () => {
-    const res = json<CrossDeleteResult>(await tCall('delete_task_link', {
+    const res = json<CrossDeleteResult>(await tCall('tasks_delete_link', {
       taskId: 'task-a',
       targetId: 'api.md::Auth',
       targetGraph: 'docs',
@@ -471,7 +471,7 @@ describe('Task cross-graph links', () => {
   });
 
   it('after delete_task_link, find_linked_tasks returns empty', async () => {
-    const res = await tCall('find_linked_tasks', {
+    const res = await tCall('tasks_find_linked', {
       targetId: 'api.md::Auth',
       targetGraph: 'docs',
       projectId: 'test',
@@ -482,7 +482,7 @@ describe('Task cross-graph links', () => {
 
   it('delete_task cleans up remaining cross-graph proxy', async () => {
     // task-a still has a link to code node
-    const del = json<{ taskId: string; deleted: boolean }>(await tCall('delete_task', { taskId: 'task-a' }));
+    const del = json<{ taskId: string; deleted: boolean }>(await tCall('tasks_delete', { taskId: 'task-a' }));
     expect(del.deleted).toBe(true);
     // Proxy for code link should be cleaned up
     expect(tTaskGraph.hasNode('@code::src/auth.ts::login')).toBe(false);
@@ -509,8 +509,8 @@ describe('Knowledge to Task cross-graph links', () => {
     kCall = kCtx.call;
 
     // Create a task and a note
-    await kCall('create_task', { title: 'My Task', description: 'A task', priority: 'high' });
-    await kCall('create_note', { title: 'My Note', content: 'A note about the task' });
+    await kCall('tasks_create', { title: 'My Task', description: 'A task', priority: 'high' });
+    await kCall('notes_create', { title: 'My Note', content: 'A note about the task' });
   });
 
   afterAll(async () => {
@@ -518,7 +518,7 @@ describe('Knowledge to Task cross-graph links', () => {
   });
 
   it('note can link to task via create_relation with targetGraph=tasks', async () => {
-    const res = await kCall('create_relation', {
+    const res = await kCall('notes_create_link', {
       fromId: 'my-note',
       toId: 'my-task',
       kind: 'tracks',
@@ -531,7 +531,7 @@ describe('Knowledge to Task cross-graph links', () => {
   });
 
   it('find_linked_notes with targetGraph=tasks finds the note', async () => {
-    const results = json<Array<{ noteId: string; kind: string }>>(await kCall('find_linked_notes', {
+    const results = json<Array<{ noteId: string; kind: string }>>(await kCall('notes_find_linked', {
       targetId: 'my-task',
       targetGraph: 'tasks',
       projectId: 'test',
@@ -542,7 +542,7 @@ describe('Knowledge to Task cross-graph links', () => {
   });
 
   it('delete_relation with targetGraph=tasks removes link', async () => {
-    const res = await kCall('delete_relation', {
+    const res = await kCall('notes_delete_link', {
       fromId: 'my-note',
       toId: 'my-task',
       targetGraph: 'tasks',
@@ -584,9 +584,9 @@ describe('Cross-graph proxy cleanup on entity deletion', () => {
 
   it('delete_note cleans up proxy in TaskGraph', async () => {
     // Create note and task, link task → knowledge note
-    await cgCall('create_note', { title: 'Linked Note', content: 'A note', tags: [] });
-    await cgCall('create_task', { title: 'Linked Task', description: 'A task', priority: 'high' });
-    await cgCall('create_task_link', {
+    await cgCall('notes_create', { title: 'Linked Note', content: 'A note', tags: [] });
+    await cgCall('tasks_create', { title: 'Linked Task', description: 'A task', priority: 'high' });
+    await cgCall('tasks_create_link', {
       taskId: 'linked-task',
       targetId: 'linked-note',
       targetGraph: 'knowledge',
@@ -598,7 +598,7 @@ describe('Cross-graph proxy cleanup on entity deletion', () => {
     expect(cgTaskGraph.hasNode('@knowledge::test::linked-note')).toBe(true);
 
     // Delete the note
-    await cgCall('delete_note', { noteId: 'linked-note' });
+    await cgCall('notes_delete', { noteId: 'linked-note' });
 
     // Proxy in TaskGraph should be cleaned up
     expect(cgTaskGraph.hasNode('@knowledge::test::linked-note')).toBe(false);
@@ -606,9 +606,9 @@ describe('Cross-graph proxy cleanup on entity deletion', () => {
 
   it('delete_task cleans up proxy in KnowledgeGraph', async () => {
     // Create note and task, link note → task
-    await cgCall('create_note', { title: 'Another Note', content: 'A note', tags: [] });
-    await cgCall('create_task', { title: 'Another Task', description: 'A task', priority: 'high' });
-    await cgCall('create_relation', {
+    await cgCall('notes_create', { title: 'Another Note', content: 'A note', tags: [] });
+    await cgCall('tasks_create', { title: 'Another Task', description: 'A task', priority: 'high' });
+    await cgCall('notes_create_link', {
       fromId: 'another-note',
       toId: 'another-task',
       kind: 'tracks',
@@ -620,7 +620,7 @@ describe('Cross-graph proxy cleanup on entity deletion', () => {
     expect(cgKnowledgeGraph.hasNode('@tasks::test::another-task')).toBe(true);
 
     // Delete the task
-    await cgCall('delete_task', { taskId: 'another-task' });
+    await cgCall('tasks_delete', { taskId: 'another-task' });
 
     // Proxy in KnowledgeGraph should be cleaned up
     expect(cgKnowledgeGraph.hasNode('@tasks::test::another-task')).toBe(false);

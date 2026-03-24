@@ -18,8 +18,9 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
       if (!note) {
         return { content: [{ type: 'text', text: 'Note not found' }], isError: true };
       }
-      const { embedding: _embedding, ...rest } = note;
-      return { content: [{ type: 'text', text: JSON.stringify(rest, null, 2) }] };
+      const { embedding: _embedding, version: _version, ...rest } = note;
+      const clean = (_k: string, v: any) => (v === null || (Array.isArray(v) && v.length === 0) ? undefined : v);
+      return { content: [{ type: 'text', text: JSON.stringify(rest, clean, 2) }] };
     },
   );
 }

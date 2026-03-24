@@ -20,7 +20,7 @@ export function register(server: McpServer, mgr: CodeGraphManager): void {
       if (!symbol) {
         return { content: [{ type: 'text', text: 'Symbol not found' }], isError: true };
       }
-      const { embedding: _embedding, mtime: _mtime, ...rest } = symbol;
+      const { embedding: _embedding, mtime: _mtime, fileEmbedding: _fe, pendingImports: _pi, pendingEdges: _pe, ...rest } = symbol;
       return { content: [{ type: 'text', text: JSON.stringify(rest, null, 2) }] };
     },
   );

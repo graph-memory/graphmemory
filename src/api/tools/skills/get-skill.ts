@@ -20,7 +20,9 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
       if (!skill) {
         return { content: [{ type: 'text', text: 'Skill not found' }], isError: true };
       }
-      return { content: [{ type: 'text', text: JSON.stringify(skill, null, 2) }] };
+      const { version: _version, ...rest } = skill;
+      const clean = (_k: string, v: any) => (v === null || (Array.isArray(v) && v.length === 0) ? undefined : v);
+      return { content: [{ type: 'text', text: JSON.stringify(rest, clean, 2) }] };
     },
   );
 }

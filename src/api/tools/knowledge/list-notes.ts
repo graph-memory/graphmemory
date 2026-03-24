@@ -17,8 +17,10 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
         limit:  z.number().int().min(1).max(1000).optional().describe('Maximum number of results'),
       },
     },
-    async ({ filter, tag, limit }) => ({
-      content: [{ type: 'text', text: JSON.stringify(mgr.listNotes(filter, tag, limit), null, 2) }],
-    }),
+    async ({ filter, tag, limit }) => {
+      const notes = mgr.listNotes(filter, tag, limit);
+      const output = notes.map(({ content: _, ...n }) => n);
+      return { content: [{ type: 'text', text: JSON.stringify(output, null, 2) }] };
+    },
   );
 }

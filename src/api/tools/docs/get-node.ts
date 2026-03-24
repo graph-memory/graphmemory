@@ -22,7 +22,7 @@ export function register(server: McpServer, mgr: DocGraphManager): void {
       if (!node) {
         return { content: [{ type: 'text', text: 'Node not found' }], isError: true };
       }
-      const { embedding: _embedding, ...rest } = node;
+      const { embedding: _embedding, fileEmbedding: _fe, pendingLinks: _pl, mtime: _mtime, ...rest } = node;
       return { content: [{ type: 'text', text: JSON.stringify(rest, null, 2) }] };
     },
   );

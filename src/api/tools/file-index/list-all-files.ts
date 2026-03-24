@@ -27,7 +27,8 @@ export function register(server: McpServer, mgr: FileIndexGraphManager): void {
     },
     async ({ directory, extension, language, filter, limit }) => {
       const results = mgr.listAllFiles({ directory, extension, language, filter, limit });
-      return { content: [{ type: 'text', text: JSON.stringify(results, null, 2) }] };
+      const output = results.map(({ mimeType: _, ...r }) => r);
+      return { content: [{ type: 'text', text: JSON.stringify(output, null, 2) }] };
     },
   );
 }

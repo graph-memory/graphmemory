@@ -74,8 +74,16 @@ jobs:
 
       - name: Deploy
         run: |
-          docker compose -f site/docker-compose.yml pull
-          docker compose -f site/docker-compose.yml up -d
+          docker compose -p graphmemory-site -f site/docker-compose.yml pull
+          docker compose -p graphmemory-site -f site/docker-compose.yml up -d
         env:
           SITE_IMAGE: ${{ needs.build-and-push.outputs.image }}
           SITE_LISTEN: ${{ vars.SITE_LISTEN }}
+
+      - name: Cleanup old images
+        run: |
+          docker images ghcr.io/graph-memory/graphmemory-site \
+            --format "{{.ID}} {{.Tag}}" \
+            | grep -v 'latest' \
+            | awk '{print $1}' \
+            | xargs -r docker rmi || true

@@ -9,6 +9,8 @@ An MCP server that builds a **semantic graph memory** from a project directory.
 Indexes markdown docs, TypeScript/JavaScript source code, and all project files into six graph structures,
 then exposes them as **58 MCP tools** + **REST API** + **Web UI**.
 
+![graphmemory dashboard](docs/img/dashboard-dark.png)
+
 ## Quick start
 
 ```bash

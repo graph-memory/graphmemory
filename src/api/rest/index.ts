@@ -21,6 +21,7 @@ import { createCodeRouter } from '@/api/rest/code';
 import { createFilesRouter } from '@/api/rest/files';
 import { createToolsRouter } from '@/api/rest/tools';
 import { createEmbedRouter } from '@/api/rest/embed';
+import { createOAuthRouter } from '@/api/rest/oauth';
 import { scanTeamDir } from '@/lib/team';
 import { RATE_LIMIT_WINDOW_MS } from '@/lib/defaults';
 
@@ -197,6 +198,9 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
     clearAuthCookies(res);
     res.json({ ok: true });
   });
+
+  // --- OAuth 2.0 endpoints (before auth middleware — unauthenticated) ---
+  app.use('/', createOAuthRouter(users, serverConfig));
 
   // --- Auth middleware: cookie JWT → Bearer apiKey → anonymous ---
   if (hasUsers) {

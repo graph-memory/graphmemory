@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import type { AccessLevel, GraphName, ProjectConfig, WorkspaceConfig, ServerConfig, UserConfig } from '@/lib/multi-config';
+import { verifyToken } from '@/lib/jwt';
 
 /**
  * Resolve access level for a user on a specific graph.
@@ -55,6 +56,25 @@ export function resolveUserFromApiKey(
     }
   }
   return undefined;
+}
+
+/**
+ * Resolve a user from a Bearer token — tries OAuth JWT first, then falls back to API key.
+ * Used by MCP HTTP handler to accept both OAuth tokens and legacy API keys.
+ */
+export function resolveUserFromBearer(
+  token: string,
+  users: Record<string, UserConfig>,
+  jwtSecret?: string,
+): { userId: string; user: UserConfig } | undefined {
+  if (jwtSecret) {
+    const payload = verifyToken(token, jwtSecret);
+    if (payload?.type === 'oauth_access') {
+      const user = users[payload.userId];
+      if (user) return { userId: payload.userId, user };
+    }
+  }
+  return resolveUserFromApiKey(token, users);
 }
 
 /**

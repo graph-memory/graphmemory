@@ -7,7 +7,7 @@ import type { ProjectManager } from '@/lib/project-manager';
 import type { PromiseQueue } from '@/lib/promise-queue';
 import { createRestApp } from '@/api/rest/index';
 import { attachWebSocket } from '@/api/rest/websocket';
-import { resolveUserFromApiKey, resolveAccess, canWrite, canRead } from '@/lib/access';
+import { resolveUserFromBearer, resolveAccess, canWrite, canRead } from '@/lib/access';
 import { MAX_BODY_SIZE, SESSION_SWEEP_INTERVAL_MS } from '@/lib/defaults';
 import { GRAPH_NAMES, type GraphName, type AccessLevel } from '@/lib/multi-config';
 import type { DocGraph } from '@/graphs/docs';
@@ -586,14 +586,8 @@ export async function startMultiProjectHttpServer(
       return;
     }
 
-    // Validate project exists
-    const project = projectManager.getProject(projectId);
-    if (!project) {
-      res.writeHead(404).end(JSON.stringify({ error: `Project "${projectId}" not found` }));
-      return;
-    }
-
-    // Auth: if users configured, require valid API key
+    // Auth: if users configured, require valid Bearer token (OAuth JWT or API key).
+    // Done before project lookup to avoid revealing which projects exist to unauthenticated callers.
     const users = restOptions?.users ?? {};
     const hasUsers = Object.keys(users).length > 0;
     let userId: string | undefined;
@@ -601,15 +595,23 @@ export async function startMultiProjectHttpServer(
     if (hasUsers) {
       const auth = req.headers.authorization;
       if (!auth?.startsWith('Bearer ') || auth.length <= 7) {
-        res.writeHead(401).end(JSON.stringify({ error: 'API key required' }));
+        res.writeHead(401, { 'WWW-Authenticate': 'Bearer', 'content-type': 'application/json' }).end(JSON.stringify({ error: 'Authentication required' }));
         return;
       }
-      const result = resolveUserFromApiKey(auth.slice(7), users);
+      const jwtSecret = restOptions?.serverConfig?.jwtSecret;
+      const result = resolveUserFromBearer(auth.slice(7), users, jwtSecret);
       if (!result) {
-        res.writeHead(401).end(JSON.stringify({ error: 'Invalid API key' }));
+        res.writeHead(401, { 'WWW-Authenticate': 'Bearer', 'content-type': 'application/json' }).end(JSON.stringify({ error: 'Invalid credentials' }));
         return;
       }
       userId = result.userId;
+    }
+
+    // Validate project exists
+    const project = projectManager.getProject(projectId);
+    if (!project) {
+      res.writeHead(404).end(JSON.stringify({ error: `Project "${projectId}" not found` }));
+      return;
     }
 
     // Build session context (auto-detect workspace if not in URL)

@@ -57,7 +57,7 @@ export async function verifyPassword(password: string, storedHash: string): Prom
 
 export interface JwtPayload {
   userId: string;
-  type: 'access' | 'refresh';
+  type: 'access' | 'refresh' | 'oauth_access';
 }
 
 /**
@@ -84,6 +84,11 @@ export function signAccessToken(userId: string, secret: string, ttl: string): st
 
 export function signRefreshToken(userId: string, secret: string, ttl: string): string {
   const payload: JwtPayload = { userId, type: 'refresh' };
+  return jwt.sign(payload, secret, { algorithm: 'HS256', expiresIn: parseTtl(ttl) });
+}
+
+export function signOAuthToken(userId: string, secret: string, ttl: string): string {
+  const payload: JwtPayload = { userId, type: 'oauth_access' };
   return jwt.sign(payload, secret, { algorithm: 'HS256', expiresIn: parseTtl(ttl) });
 }
 

@@ -2,8 +2,8 @@
 title: "Connect MCP Clients"
 sidebar_label: "Connect MCP Clients"
 sidebar_position: 1
-description: "Connect Claude Code, Claude Desktop, Cursor, Windsurf, or any MCP client to Graph Memory via Streamable HTTP."
-keywords: [MCP, Claude Code, Claude Desktop, Cursor, Windsurf, connect, client, HTTP, transport]
+description: "Connect Claude.ai, Claude Code, Claude Desktop, Cursor, Windsurf, or any MCP client to Graph Memory via Streamable HTTP."
+keywords: [MCP, Claude.ai, Claude Code, Claude Desktop, Cursor, Windsurf, connect, client, HTTP, transport, OAuth]
 ---
 
 # Connect MCP Clients
@@ -15,6 +15,24 @@ http://localhost:3000/mcp/{projectId}
 ```
 
 Any MCP-compatible client can connect to this URL using the Streamable HTTP transport. Multiple clients can connect to the same server simultaneously — each session gets its own MCP instance but shares graph data.
+
+## Claude.ai
+
+Claude.ai connects via its "Add custom connector" dialog, which uses OAuth 2.0. This requires the server to be reachable at a public HTTPS URL and `jwtSecret` to be configured in `graph-memory.yaml`.
+
+1. In Claude.ai, open **Settings > Connectors** and click **Add custom connector**
+2. Fill in the fields:
+
+   | Field | Value |
+   |-------|-------|
+   | Name | Any label, e.g., `Graph Memory` |
+   | Remote MCP server URL | `https://yourserver.com/mcp/your-project` |
+   | OAuth Client ID | your `userId` from `graph-memory.yaml` (e.g., `alice`) |
+   | OAuth Client Secret | your `apiKey` from `graph-memory.yaml` (e.g., `mgm-abc123...`) |
+
+3. Save the connector. Claude.ai performs the OAuth exchange automatically and connects.
+
+See [Authentication → Connecting Claude.ai](../security/authentication.md#connecting-claudeai) for configuration details.
 
 ## Claude Code
 
@@ -94,7 +112,11 @@ The Graph Memory Web UI includes a **Connect** dialog that shows the MCP URL for
 
 ## With Authentication
 
-If your server has users configured, MCP clients need an API key for access. Add the key as a header:
+If your server has users configured, MCP clients need credentials to connect. Two methods are supported.
+
+**OAuth 2.0** (recommended for Claude.ai and other chat clients that support the OAuth connector flow) -- see the [Claude.ai section](#claudeai) above and [Authentication → MCP authentication](../security/authentication.md#mcp-authentication) for details.
+
+**API key header** (for Claude Code, Cursor, Windsurf, and any client that supports custom headers) -- add the key as a header:
 
 ```json
 {

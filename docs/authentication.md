@@ -4,12 +4,13 @@
 
 ## Overview
 
-The system supports two authentication methods:
+The system supports three authentication methods:
 
 | Method | Use case | Transport |
 |--------|----------|-----------|
 | **Password + JWT cookies** | Web UI login | Browser (REST API) |
 | **API key (Bearer token)** | Programmatic access | MCP HTTP, REST API, scripts |
+| **OAuth 2.0 client_credentials** | AI chat clients (Claude.ai, etc.) | MCP HTTP Bearer JWT |
 
 ## Password-based login (UI)
 
@@ -167,13 +168,65 @@ projects:
 
 ## MCP authentication
 
-MCP endpoints (`/mcp/{projectId}`) now support authentication via API key.
+MCP endpoints (`/mcp/{projectId}`) support two Bearer authentication methods: legacy API keys and OAuth 2.0 client credentials. Auth is checked **before** project lookup, so unauthenticated callers cannot probe which projects exist.
 
-### How it works
+When users are configured in `graph-memory.yaml`, MCP endpoints require a valid Bearer credential. When no users are configured, MCP remains open (backward-compatible).
 
-- When users are configured in `graph-memory.yaml`, MCP endpoints require an `Authorization: Bearer <apiKey>` header
-- When no users are configured, MCP remains open (backward-compatible)
-- The API key is matched against `users.<id>.apiKey` in the config
+On 401, the server returns a `WWW-Authenticate: Bearer` header (RFC 6750).
+
+### Option 1 — Legacy API key
+
+Pass the raw API key directly as a Bearer token:
+
+```
+Authorization: Bearer mgm-key-abc123
+```
+
+### Option 2 — OAuth 2.0 client credentials
+
+Clients that require standard OAuth 2.0 (e.g. Claude.ai) can use the client credentials flow. `jwtSecret` must be set in the config for this flow to work.
+
+**Discovery** — RFC 8414 metadata endpoint:
+
+```
+GET /.well-known/oauth-authorization-server
+```
+
+```json
+{
+  "issuer": "https://your-server",
+  "token_endpoint": "https://your-server/oauth/token",
+  "grant_types_supported": ["client_credentials"],
+  "token_endpoint_auth_methods_supported": ["client_secret_post"]
+}
+```
+
+**Token request:**
+
+```
+POST /oauth/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials&client_id=<userId>&client_secret=<apiKey>
+```
+
+**Token response:**
+
+```json
+{
+  "access_token": "<JWT>",
+  "token_type": "bearer",
+  "expires_in": 3600
+}
+```
+
+The `access_token` is a short-lived JWT (1 hour) signed with `jwtSecret`, with payload type `oauth_access`. Pass it as a Bearer token on subsequent requests:
+
+```
+Authorization: Bearer <access_token>
+```
+
+The Bearer check accepts both OAuth JWTs and legacy API keys.
 
 ### Per-user tool visibility
 

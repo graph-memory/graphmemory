@@ -3,12 +3,12 @@ title: "Authentication"
 sidebar_label: "Authentication"
 sidebar_position: 1
 description: "Set up password-based login and API key authentication for Graph Memory, including user management, JWT tokens, and MCP client authentication."
-keywords: [authentication, login, API key, JWT, password, scrypt, MCP authentication]
+keywords: [authentication, login, API key, JWT, password, scrypt, MCP authentication, OAuth]
 ---
 
 # Authentication
 
-Graph Memory supports two authentication methods: password-based login for the web UI and API key tokens for programmatic access.
+Graph Memory supports three authentication methods: password-based login for the web UI, API keys for programmatic access, and OAuth 2.0 client_credentials for AI chat clients such as Claude.ai.
 
 ## When is authentication needed?
 
@@ -132,7 +132,11 @@ Each user has a unique API key generated when the user is created. The key is st
 
 ## MCP authentication
 
-MCP endpoints at `/mcp/{projectId}` use the same API key mechanism. When configuring your MCP client, include the API key:
+MCP endpoints at `/mcp/{projectId}` support two authentication methods.
+
+### API key
+
+For clients that support custom request headers -- Claude Code, Cursor, Windsurf -- include your API key directly:
 
 ```json
 {
@@ -147,7 +151,58 @@ MCP endpoints at `/mcp/{projectId}` use the same API key mechanism. When configu
 }
 ```
 
-When no users are configured, MCP endpoints remain open -- no API key needed.
+### OAuth 2.0 client_credentials
+
+For AI chat clients such as Claude.ai that support the OAuth connector flow, Graph Memory implements the OAuth 2.0 `client_credentials` grant. This is the recommended method for those clients -- no login page is required and the entire flow is automated.
+
+Requirements:
+
+- `jwtSecret` must be set in your `graph-memory.yaml` (see [JWT secret](#jwt-secret))
+- The server must be reachable at a public HTTPS URL
+
+The client credentials map to your user config:
+
+| OAuth field | Value |
+|-------------|-------|
+| Client ID | your `userId` (e.g., `alice`) |
+| Client Secret | your `apiKey` (e.g., `mgm-abc123...`) |
+
+The exchange flow:
+
+1. The client posts to `POST /oauth/token` with `grant_type=client_credentials`, client ID, and client secret
+2. The server validates the credentials and returns a short-lived access token (1-hour JWT)
+3. The client uses the token as a `Bearer` value in the `Authorization` header for all MCP requests
+4. When the token expires, the server responds with `WWW-Authenticate: Bearer` on a `401` response; the client fetches a new token automatically and retries
+
+When no users are configured, MCP endpoints remain open -- no credentials needed.
+
+## Connecting Claude.ai
+
+Claude.ai can connect to Graph Memory using its "Add custom connector" dialog, which uses the OAuth 2.0 flow described above.
+
+1. In Claude.ai, open **Settings > Connectors** and click **Add custom connector**
+2. Fill in the fields:
+
+   | Field | Value |
+   |-------|-------|
+   | Name | Any label, e.g., `Graph Memory` |
+   | Remote MCP server URL | `https://yourserver.com/mcp/your-project` |
+   | OAuth Client ID | your `userId` from `graph-memory.yaml` |
+   | OAuth Client Secret | your `apiKey` from `graph-memory.yaml` |
+
+3. Save the connector. Claude.ai will perform the OAuth exchange automatically and connect to the MCP endpoint.
+
+Two requirements must be met before connecting:
+
+- The server must be accessible at a **public HTTPS URL** (localhost will not work)
+- `jwtSecret` must be configured in `graph-memory.yaml`:
+
+  ```yaml
+  server:
+    jwtSecret: "your-secret-key-here"
+  ```
+
+  Generate a strong secret with: `openssl rand -base64 32`
 
 ## Auth middleware priority
 

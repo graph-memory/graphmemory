@@ -15,6 +15,8 @@ const config: Config = {
     '^mime$': '<rootDir>/src/tests/__mocks__/mime.ts',
   },
   watchman: false,
+  coverageDirectory: 'coverage',
+  coverageReporters: ['lcov', 'text-summary'],
 };
 
 export default config;

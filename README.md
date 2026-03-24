@@ -1,5 +1,10 @@
 # graphmemory
 
+[![npm](https://img.shields.io/npm/v/@graphmemory/server)](https://www.npmjs.com/package/@graphmemory/server)
+[![CI](https://github.com/graph-memory/graphmemory/actions/workflows/ci.yml/badge.svg)](https://github.com/graph-memory/graphmemory/actions/workflows/ci.yml)
+[![License: ELv2](https://img.shields.io/badge/license-ELv2-blue)](LICENSE)
+[![codecov](https://codecov.io/gh/graph-memory/graphmemory/graph/badge.svg)](https://codecov.io/gh/graph-memory/graphmemory)
+
 An MCP server that builds a **semantic graph memory** from a project directory.
 Indexes markdown docs, TypeScript/JavaScript source code, and all project files into six graph structures,
 then exposes them as **58 MCP tools** + **REST API** + **Web UI**.
@@ -155,7 +160,7 @@ See [docs/authentication.md](docs/authentication.md).
 ```bash
 npm run dev              # tsc --watch (backend)
 cd ui && npm run dev     # Vite on :5173, proxies /api → :3000
-npm test                 # 1240 tests across 28 suites
+npm test                 # 1619 tests across 42 suites
 ```
 
 ## Documentation

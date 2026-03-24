@@ -5,6 +5,16 @@ description: Graph Memory release history and version changes.
 
 # Changelog
 
+## v1.6.1
+
+**Released: March 2026**
+
+### Fixes
+
+- **Express `trust proxy`** — enabled `trust proxy` so that `X-Forwarded-For` and `X-Forwarded-Proto` headers from reverse proxies (nginx, etc.) are correctly trusted. Fixes real IP detection for rate limiting and `Secure` cookie behavior behind HTTPS proxies.
+
+---
+
 ## v1.6.0
 
 **Released: March 2026**

@@ -1,0 +1,15 @@
+services:
+  graphmemory:
+    image: ghcr.io/graph-memory/graphmemory-server:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - "${GRAPHMEMORY_LISTEN:-127.0.0.1:3000}:3000"
+    volumes:
+      - ./graph-memory.yaml:/data/config/graph-memory.yaml:ro
+      - ${PROJECTS_DIR:-/srv/projects}:/data/projects
+      - models:/data/models
+    environment:
+      - NODE_ENV=production
+
+volumes:
+  models:

@@ -41,6 +41,9 @@ const accessMapSchema = z.record(z.string(), accessLevelSchema).optional();
 // Exclude accepts string ("a,b") or array (["a", "b"]) in YAML
 const excludeSchema = z.union([z.string(), z.array(z.string())]).optional();
 
+// Include accepts string ("a/**/*.md") or array (["a/**/*.md", "CLAUDE.md"]) in YAML
+const includeSchema = z.union([z.string(), z.array(z.string())]).optional();
+
 const userSchema = z.object({
   name:         z.string(),
   email:        z.string(),
@@ -51,7 +54,7 @@ const userSchema = z.object({
 const graphConfigSchema = z.object({
   enabled:        z.boolean().optional(),
   readonly:       z.boolean().optional(),
-  include:        z.string().optional(),
+  include:        includeSchema,
   exclude:        excludeSchema,
   model:          modelConfigSchema.optional(),
   embedding:      embeddingConfigSchema.optional(),
@@ -244,7 +247,7 @@ export interface ServerConfig {
 export interface GraphConfig {
   enabled: boolean;
   readonly: boolean;
-  include?: string;
+  include?: string | string[];
   exclude: string[];   // accumulated: server + workspace + project + graph
   model: ModelConfig;
   embedding: EmbeddingConfig;
@@ -365,6 +368,13 @@ function parseExclude(raw?: string | string[]): string[] {
   if (!raw) return [];
   if (Array.isArray(raw)) return raw.map(p => p.trim()).filter(Boolean);
   return raw.split(',').map(p => p.trim()).filter(Boolean);
+}
+
+/** Normalize include: array stays as array, string stays as string, undefined stays undefined. */
+function parseInclude(raw?: string | string[]): string | string[] | undefined {
+  if (!raw) return undefined;
+  if (Array.isArray(raw)) return raw.map(p => p.trim()).filter(Boolean);
+  return raw;
 }
 
 // ---------------------------------------------------------------------------
@@ -493,7 +503,7 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
       graphConfigs[gn] = {
         enabled: gc?.enabled ?? true,
         readonly: gc?.readonly ?? false,
-        include: gc?.include ?? (gn === 'docs' ? PROJECT_DEFAULTS.docsInclude : gn === 'code' ? PROJECT_DEFAULTS.codeInclude : undefined),
+        include: parseInclude(gc?.include) ?? (gn === 'docs' ? PROJECT_DEFAULTS.docsInclude : gn === 'code' ? PROJECT_DEFAULTS.codeInclude : undefined),
         exclude: graphExclude,
         model: resolveModel(gc?.model, gn === 'code' ? projectCodeModel : projectModel),
         embedding: graphEmbedding,

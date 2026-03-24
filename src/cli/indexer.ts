@@ -24,9 +24,9 @@ export interface ProjectIndexerConfig {
   projectId?: string;
   projectDir: string;
   maxFileSize?: number;
-  docsInclude?: string;
+  docsInclude?: string | string[];
   docsExclude: string[];
-  codeInclude?: string;
+  codeInclude?: string | string[];
   codeExclude: string[];
   filesExclude: string[];
   chunkDepth: number;

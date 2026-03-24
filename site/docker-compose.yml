@@ -1,0 +1,6 @@
+services:
+  site:
+    image: ${SITE_IMAGE:-ghcr.io/graph-memory/graphmemory-site:latest}
+    restart: unless-stopped
+    ports:
+      - "${SITE_LISTEN:-127.0.0.1:80}:80"

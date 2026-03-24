@@ -3,7 +3,7 @@
 [![npm](https://img.shields.io/npm/v/@graphmemory/server)](https://www.npmjs.com/package/@graphmemory/server)
 [![CI](https://github.com/graph-memory/graphmemory/actions/workflows/ci.yml/badge.svg)](https://github.com/graph-memory/graphmemory/actions/workflows/ci.yml)
 [![License: ELv2](https://img.shields.io/badge/license-ELv2-blue)](LICENSE)
-[![codecov](https://codecov.io/gh/graph-memory/graphmemory/graph/badge.svg)](https://codecov.io/gh/graph-memory/graphmemory)
+[![codecov](https://codecov.io/github/graph-memory/graphmemory/graph/badge.svg?token=TNDGO6Q62V)](https://codecov.io/github/graph-memory/graphmemory)
 
 An MCP server that builds a **semantic graph memory** from a project directory.
 Indexes markdown docs, TypeScript/JavaScript source code, and all project files into six graph structures,

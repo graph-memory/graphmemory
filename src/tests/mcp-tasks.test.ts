@@ -125,7 +125,7 @@ describe('Task CRUD tools', () => {
     expect(task.status).toBe('backlog');
     expect(task.priority).toBe('high');
     expect(task.tags).toEqual(['bug', 'auth']);
-    expect(task.subtasks).toHaveLength(0);
+    expect(task.subtasks).toBeUndefined();
   });
 
   it('get_task returns error for missing', async () => {
@@ -159,7 +159,7 @@ describe('Task CRUD tools', () => {
     await call('tasks_update', { taskId: 'fix-auth-redirect', status: 'todo' });
     const task = json<TaskResult>(await call('tasks_get', { taskId: 'fix-auth-redirect' }));
     expect(task.status).toBe('todo');
-    expect(task.completedAt).toBeNull();
+    expect(task.completedAt).toBeUndefined();
   });
 
   // -- tasks_move --
@@ -170,7 +170,7 @@ describe('Task CRUD tools', () => {
       status: 'in_progress',
     }));
     expect(res.status).toBe('in_progress');
-    expect(res.completedAt).toBeNull();
+    expect(res.completedAt).toBeUndefined();
   });
 
   it('move_task to done sets completedAt', async () => {
@@ -187,7 +187,7 @@ describe('Task CRUD tools', () => {
       taskId: 'add-search-feature',
       status: 'todo',
     }));
-    expect(res.completedAt).toBeNull();
+    expect(res.completedAt).toBeUndefined();
   });
 
   // -- tasks_list --

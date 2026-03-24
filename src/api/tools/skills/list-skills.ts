@@ -20,7 +20,7 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
     },
     async ({ source, tag, filter, limit }) => {
       const results = mgr.listSkills({ source, tag, filter, limit });
-      const clean = (_k: string, v: any) => (v === null || (Array.isArray(v) && v.length === 0) ? undefined : v);
+      const clean = (k: string, v: any) => (k !== '' && (v === null || (Array.isArray(v) && v.length === 0)) ? undefined : v);
       const output = results.map(({ version: _, ...r }) => r);
       return { content: [{ type: 'text', text: JSON.stringify(output, clean, 2) }] };
     },

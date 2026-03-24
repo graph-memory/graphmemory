@@ -177,7 +177,7 @@ describe('files_get_info', () => {
     expect(info.fileName).toBe('config.ts');
     expect(info.extension).toBe('.ts');
     expect(info.language).toBe('typescript');
-    expect(info.mimeType).toBe('text/typescript');
+    expect('mimeType' in info).toBe(false);
     expect(info.size).toBe(1024);
     expect(info.directory).toBe('src/lib');
   });

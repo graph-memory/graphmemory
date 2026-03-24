@@ -154,8 +154,8 @@ describe('MCP Skill Tools', () => {
       expect(skill.source).toBe('user');
       expect(skill.confidence).toBe(1);
       expect(skill.usageCount).toBe(0);
-      expect(skill.lastUsedAt).toBeNull();
-      expect(skill.dependsOn).toHaveLength(0);
+      expect(skill.lastUsedAt).toBeUndefined();
+      expect(skill.dependsOn).toBeUndefined();
     });
 
     it('skills_get returns error for missing', async () => {

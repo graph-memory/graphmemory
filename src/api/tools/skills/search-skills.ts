@@ -26,7 +26,7 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
     },
     async ({ query, topK, bfsDepth, maxResults, minScore, bfsDecay, searchMode }) => {
       const results = await mgr.searchSkills(query, { topK, bfsDepth, maxResults, minScore, bfsDecay, searchMode });
-      const clean = (_k: string, v: any) => (Array.isArray(v) && v.length === 0 ? undefined : v);
+      const clean = (k: string, v: any) => (k !== '' && Array.isArray(v) && v.length === 0 ? undefined : v);
       return { content: [{ type: 'text', text: JSON.stringify(results, clean, 2) }] };
     },
   );

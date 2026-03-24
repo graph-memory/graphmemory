@@ -348,7 +348,7 @@ describe('MCP docs tools', () => {
       expect(typeof node.content).toBe('string');
       expect(node.content.length).toBeGreaterThan(0);
       expect(node.level).toBe(1);
-      expect(node.mtime).toBe(DOC_MTIME);
+      expect('mtime' in node).toBe(false);
       expect('embedding' in node).toBe(false);
     });
 

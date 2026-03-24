@@ -17,7 +17,7 @@ Cross-graph links let you **connect any node to any other node, across graph bou
 When you create a link between nodes in different graphs, Graph Memory creates a **proxy node** in the source graph. This proxy is a lightweight placeholder that represents the target node. An edge connects your source node to the proxy, and the proxy's ID encodes where the real node lives.
 
 ```
-create_relation({
+notes_create_link({
   fromId: "auth-security-notes",
   toId: "src/lib/auth.ts::loginUser",
   targetGraph: "code",
@@ -62,7 +62,7 @@ Proxy nodes are invisible in normal operations. They have empty embeddings and a
 Document why a particular function exists and link the note directly to it:
 
 ```
-create_relation({
+notes_create_link({
   fromId: "why-we-use-scrypt",
   toId: "src/lib/auth.ts::hashPassword",
   targetGraph: "code",
@@ -75,7 +75,7 @@ create_relation({
 Track which documentation section a task should update:
 
 ```
-create_task_link({
+tasks_create_link({
   taskId: "update-api-docs",
   targetId: "docs/api.md::Authentication",
   targetGraph: "docs",
@@ -88,7 +88,7 @@ create_task_link({
 Connect a skill to the actual code it modifies:
 
 ```
-create_skill_link({
+skills_create_link({
   skillId: "add-rest-endpoint",
   targetId: "src/api/rest/index.ts",
   targetGraph: "code",
@@ -103,7 +103,7 @@ An AI can follow that link to read current code before applying the skill's step
 Reference a config file from your notes:
 
 ```
-create_relation({
+notes_create_link({
   fromId: "deployment-notes",
   toId: "docker-compose.yaml",
   targetGraph: "files",
@@ -113,10 +113,10 @@ create_relation({
 
 ## Viewing cross-references
 
-Use the `cross_references` tool to see all cross-graph links for a node:
+Use the `docs_cross_references` tool to see all cross-graph links for a node:
 
 ```
-cross_references({ nodeId: "auth-security-notes" })
+docs_cross_references({ symbol: "loginUser" })
 ```
 
 This returns all proxy connections, resolved to their actual target node IDs and graphs.

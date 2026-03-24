@@ -17,7 +17,7 @@ Think of them as runbooks: instead of re-explaining how to add a new API endpoin
 A skill has a title, description, ordered steps, and optional triggers:
 
 ```
-create_skill({
+skills_create({
   title: "Add REST endpoint",
   description: "Steps to add a new REST endpoint to this project",
   steps: [
@@ -52,11 +52,11 @@ Two tools let you find skills:
 
 | Tool | Best for | Default threshold |
 |------|----------|-------------------|
-| `search_skills` | "Do we have a skill for X?" | 0.5 (precise) |
-| `recall_skills` | "What skills might help with this task?" | 0.3 (broad) |
+| `skills_search` | "Do we have a skill for X?" | 0.5 (precise) |
+| `skills_recall` | "What skills might help with this task?" | 0.3 (broad) |
 
 :::tip
-Use `recall_skills` at the start of a complex task. The lower threshold casts a wider net, surfacing loosely related skills that might contain useful context.
+Use `skills_recall` at the start of a complex task. The lower threshold casts a wider net, surfacing loosely related skills that might contain useful context.
 :::
 
 ## Usage tracking
@@ -64,7 +64,7 @@ Use `recall_skills` at the start of a complex task. The lower threshold casts a 
 After successfully applying a skill, bump its usage counter:
 
 ```
-bump_skill_usage({ skillId: "add-rest-endpoint" })
+skills_bump_usage({ skillId: "add-rest-endpoint" })
 ```
 
 This increments `usageCount` and sets `lastUsedAt`. Over time, usage data helps you identify:
@@ -97,7 +97,7 @@ Skills can connect to other skills:
 Skills can link to nodes in any other graph. For example, connecting a skill to the code it operates on:
 
 ```
-create_skill_link({
+skills_create_link({
   skillId: "add-rest-endpoint",
   targetId: "src/api/rest/index.ts",
   targetGraph: "code",

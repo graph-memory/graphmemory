@@ -18,6 +18,8 @@ User/LLM-created notes and facts with typed relations, cross-graph links, and fi
 | `updatedAt` | number | Epoch ms |
 | `createdBy` | string | Author (from config) |
 | `updatedBy` | string | Author (from config) |
+| `version` | number | Incremented on every mutation (starts at 1) |
+| `attachments` | AttachmentMeta[] | File attachment metadata list |
 | `proxyFor` | object | Present only on phantom proxy nodes |
 
 ### Node ID format

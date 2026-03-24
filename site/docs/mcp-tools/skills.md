@@ -3,7 +3,7 @@ title: "Skill Tools"
 sidebar_label: "Skills"
 sidebar_position: 10
 description: "14 MCP tools for managing reusable skills — create, recall, track usage, and link procedural knowledge with steps, triggers, and patterns."
-keywords: [skill tools, create_skill, recall_skills, bump_skill_usage, procedures, recipes, reusable knowledge]
+keywords: [skill tools, skills_create, skills_recall, skills_bump_usage, procedures, recipes, reusable knowledge]
 ---
 
 # Skill Tools
@@ -14,7 +14,7 @@ These 14 tools manage the **skill graph** — a store of reusable procedures, re
 These tools are **always available**. Mutation tools (marked below) are hidden when the skill graph is set to `readonly`.
 :::
 
-## create_skill {#create_skill}
+## skills_create {#skills_create}
 
 > **Mutation** — hidden in readonly mode
 
@@ -44,7 +44,7 @@ Save a procedure you want to reuse. For instance, after successfully deploying a
 
 ---
 
-## update_skill {#update_skill}
+## skills_update {#skills_update}
 
 > **Mutation** — hidden in readonly mode
 
@@ -55,7 +55,7 @@ Partially updates a skill. Only send fields you want to change.
 | Parameter | Required | Description |
 |-----------|----------|-------------|
 | `skillId` | Yes | Skill ID to update |
-| All create_skill fields | No | Any field from create_skill can be updated |
+| All skills_create fields | No | Any field from skills_create can be updated |
 
 ### Returns
 
@@ -63,7 +63,7 @@ Partially updates a skill. Only send fields you want to change.
 
 ---
 
-## delete_skill {#delete_skill}
+## skills_delete {#skills_delete}
 
 > **Mutation** — hidden in readonly mode
 
@@ -81,7 +81,7 @@ Deletes the skill, all its relations, proxy nodes, and mirror directory.
 
 ---
 
-## get_skill
+## skills_get
 
 Fetches a skill with all its relations and metadata.
 
@@ -97,7 +97,7 @@ Fetches a skill with all its relations and metadata.
 
 ---
 
-## list_skills
+## skills_list
 
 Lists skills with optional filters.
 
@@ -116,7 +116,7 @@ Array of `{ id, title, source, tags, usageCount, lastUsedAt }`.
 
 ---
 
-## search_skills
+## skills_search
 
 Hybrid semantic search over skills.
 
@@ -138,9 +138,9 @@ Array of `{ id, title, description, source, confidence, usageCount, tags, score 
 
 ---
 
-## recall_skills
+## skills_recall
 
-Broad skill recall with a lower relevance threshold than `search_skills`.
+Broad skill recall with a lower relevance threshold than `skills_search`.
 
 ### Parameters
 
@@ -148,7 +148,7 @@ Broad skill recall with a lower relevance threshold than `search_skills`.
 |-----------|----------|---------|-------------|
 | `context` | Yes | — | Description of the current task or situation |
 | `topK` | No | 5 | Maximum results |
-| `minScore` | No | 0.3 | Minimum relevance score (lower than search_skills) |
+| `minScore` | No | 0.3 | Minimum relevance score (lower than skills_search) |
 
 ### Returns
 
@@ -156,11 +156,11 @@ Array of `{ id, title, description, steps, triggers, source, tags, score, usageC
 
 ### When to use
 
-At the start of a complex task, cast a wide net to find potentially relevant procedures. `recall_skills` uses a lower `minScore` (0.3 vs 0.5) than `search_skills`, so it returns more results including less obvious matches. For instance: "What skills might help with setting up a new microservice?"
+At the start of a complex task, cast a wide net to find potentially relevant procedures. `skills_recall` uses a lower `minScore` (0.3 vs 0.5) than `skills_search`, so it returns more results including less obvious matches. For instance: "What skills might help with setting up a new microservice?"
 
 ---
 
-## bump_skill_usage {#bump_skill_usage}
+## skills_bump_usage {#skills_bump_usage}
 
 > **Mutation** — hidden in readonly mode
 
@@ -182,7 +182,7 @@ After successfully applying a skill's recipe, bump its usage. This helps surface
 
 ---
 
-## link_skill {#link_skill}
+## skills_link {#skills_link}
 
 > **Mutation** — hidden in readonly mode
 
@@ -202,7 +202,7 @@ Creates a relation between two skills.
 
 ---
 
-## create_skill_link {#create_skill_link}
+## skills_create_link {#skills_create_link}
 
 > **Mutation** — hidden in readonly mode
 
@@ -228,7 +228,7 @@ Connect a skill to the code or docs it relates to. For instance, link a deployme
 
 ---
 
-## delete_skill_link {#delete_skill_link}
+## skills_delete_link {#skills_delete_link}
 
 > **Mutation** — hidden in readonly mode
 
@@ -249,7 +249,7 @@ Deletes a cross-graph link from a skill.
 
 ---
 
-## find_linked_skills
+## skills_find_linked
 
 Reverse lookup: finds all skills that link to a specific node in another graph.
 
@@ -272,7 +272,7 @@ Check if any skills are associated with a piece of code or documentation before 
 
 ---
 
-## add_skill_attachment {#add_skill_attachment}
+## skills_add_attachment {#skills_add_attachment}
 
 > **Mutation** — hidden in readonly mode
 
@@ -295,7 +295,7 @@ Max 10 MB per file. Max 20 attachments per entity.
 
 ---
 
-## remove_skill_attachment {#remove_skill_attachment}
+## skills_remove_attachment {#skills_remove_attachment}
 
 > **Mutation** — hidden in readonly mode
 

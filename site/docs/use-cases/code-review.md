@@ -21,8 +21,8 @@ Code reviews often lack context. You see the diff but not the bigger picture —
 When reviewing changes to a function, find all related code:
 
 ```
-search_code({ query: "validateUserToken" })
-get_symbol({ nodeId: "src/auth/token.ts::validateUserToken" })
+code_docs_search({ query: "validateUserToken" })
+code_get_symbol({ nodeId: "src/auth/token.ts::validateUserToken" })
 ```
 
 See the full definition, including the function body, to understand what it does today.
@@ -32,7 +32,7 @@ See the full definition, including the function body, to understand what it does
 Bridge the gap between code and documentation:
 
 ```
-cross_references({ symbol: "validateUserToken" })
+docs_cross_references({ symbol: "validateUserToken" })
 ```
 
 This returns the code definition, any documentation examples that mention the symbol, and surrounding explanations. If the docs describe a contract that the PR violates, you will see it here.
@@ -42,8 +42,8 @@ This returns the code definition, any documentation examples that mention the sy
 Check if there are notes about design decisions related to the changed code:
 
 ```
-search_notes({ query: "token validation" })
-search_notes({ query: "authentication" })
+notes_docs_search({ query: "token validation" })
+notes_docs_search({ query: "authentication" })
 ```
 
 Past decisions often explain constraints that are not obvious from the code alone.
@@ -53,7 +53,7 @@ Past decisions often explain constraints that are not obvious from the code alon
 See if there are tasks connected to the modified code:
 
 ```
-find_linked_tasks({ targetId: "src/auth/token.ts", targetGraph: "code" })
+tasks_find_linked({ targetId: "src/auth/token.ts", targetGraph: "code" })
 ```
 
 This reveals whether the change is part of a tracked effort, or whether it touches code with open issues.
@@ -63,8 +63,8 @@ This reveals whether the change is part of a tracked effort, or whether it touch
 Check what the docs say about the feature area:
 
 ```
-search({ query: "token validation flow" })
-search({ query: "authentication error handling" })
+docs_search({ query: "token validation flow" })
+docs_search({ query: "authentication error handling" })
 ```
 
 ### 6. Explore Examples
@@ -72,8 +72,8 @@ search({ query: "authentication error handling" })
 Find code examples in the documentation that demonstrate the expected usage:
 
 ```
-find_examples({ symbol: "validateUserToken" })
-explain_symbol({ symbol: "validateUserToken" })
+docs_find_examples({ symbol: "validateUserToken" })
+docs_explain_symbol({ symbol: "validateUserToken" })
 ```
 
 If the PR changes the function signature, examples may need updating too.
@@ -82,16 +82,16 @@ If the PR changes the function signature, examples may need updating too.
 
 | Tool | Purpose in code review |
 |------|----------------------|
-| `search_code` | Find code related to the PR changes |
-| `get_symbol` | Read the full source of a specific symbol |
-| `cross_references` | Get code + docs + explanations in one call |
-| `search_notes` | Find past decisions about the changed area |
-| `find_linked_tasks` | See tasks connected to the modified files |
-| `search` | Find relevant documentation sections |
-| `find_examples` | Find doc code examples using the changed symbols |
+| `code_search` | Find code related to the PR changes |
+| `code_get_symbol` | Read the full source of a specific symbol |
+| `docs_cross_references` | Get code + docs + explanations in one call |
+| `notes_search` | Find past decisions about the changed area |
+| `tasks_find_linked` | See tasks connected to the modified files |
+| `docs_search` | Find relevant documentation sections |
+| `docs_find_examples` | Find doc code examples using the changed symbols |
 
 ## Tips
 
-- Start with `cross_references` to get the full picture before diving into specifics.
-- Check `search_notes` for architecture decisions — they often explain non-obvious constraints.
-- Use `find_linked_tasks` to see if the change relates to tracked work items or known issues.
+- Start with `docs_cross_references` to get the full picture before diving into specifics.
+- Check `notes_search` for architecture decisions — they often explain non-obvious constraints.
+- Use `tasks_find_linked` to see if the change relates to tracked work items or known issues.

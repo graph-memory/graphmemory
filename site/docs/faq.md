@@ -16,7 +16,7 @@ No. Graph Memory runs entirely locally. The embedding model is downloaded once a
 
 **Code indexing** (full AST parsing with symbol extraction) supports TypeScript, JavaScript, TSX, and JSX. The parser is built on tree-sitter and is extensible to other languages.
 
-**File indexing** covers all files in your project regardless of language. Every file and directory is indexed by path and metadata, making them searchable via `search_all_files` and `list_all_files`.
+**File indexing** covers all files in your project regardless of language. Every file and directory is indexed by path and metadata, making them searchable via `files_search` and `files_list`.
 
 **Documentation indexing** processes all Markdown files (`**/*.md`).
 

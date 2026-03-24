@@ -58,7 +58,7 @@ description: Graph Memory release history and version changes.
 - **Code-Optimized Embedding Model** — code graph now defaults to `jinaai/jina-embeddings-v2-base-code` via new `codeModel` config field. Separate inheritance chain: `graphs.code.model → project.codeModel → server.codeModel → code defaults`.
 - **Full Body in Code Embeddings** — code symbols now embed `signature + docComment + body` (was signature + docComment only). Functions without JSDoc are now visible to semantic search.
 - **Edge-Specific BFS Decay** — code graph BFS uses per-edge-type decay: `contains` (0.95), `extends/implements` (0.85), `imports` (0.70). Reflects that class→method is a tighter relationship than a cross-file import.
-- **Hybrid File Search** — file-level searches (`search_files`, `search_topic_files`, `search_all_files`) now use BM25 + vector hybrid (was vector-only). Exact filename queries like "embedder.ts" now work reliably.
+- **Hybrid File Search** — file-level searches (`code_search_files`, `docs_search_files`, `files_search`) now use BM25 + vector hybrid (was vector-only). Exact filename queries like "embedder.ts" now work reliably.
 - **Embedding API Model Selection** — `POST /api/embed` accepts `model: "default" | "code"` to select which embedding model to use. Both models loaded at startup when `embeddingApi` is enabled.
 - **Graph Data Versioning** — persisted graphs now store `GRAPH_DATA_VERSION`. Version mismatch triggers automatic re-index (alongside existing embedding fingerprint check).
 

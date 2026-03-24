@@ -15,7 +15,7 @@ export function register(server: McpServer, mgr: DocGraphManager): void {
         filter: z.string().max(500).optional().describe(
           'Case-insensitive substring to match against file paths, e.g. "auth" or "api"',
         ),
-        limit: z.number().max(1000).optional().describe(
+        limit: z.number().int().min(1).max(1000).optional().describe(
           'Maximum number of results to return',
         ),
       },

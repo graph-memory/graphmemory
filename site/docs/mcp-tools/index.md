@@ -61,13 +61,13 @@ Write operations (create, update, delete) are automatically serialized through a
 | Group | Tools | Count | Requires |
 |-------|-------|-------|----------|
 | **[Context](context.md)** | `get_context` | 1 | Always available |
-| **[Docs](docs.md)** | `list_topics`, `get_toc`, `search`, `get_node`, `search_topic_files` | 5 | Docs graph enabled |
-| **[Code Blocks](code-blocks.md)** | `find_examples`, `search_snippets`, `list_snippets`, `explain_symbol` | 4 | Docs graph enabled |
-| **[Cross-Graph](cross-graph.md)** | `cross_references` | 1 | Docs + Code graphs enabled |
-| **[Code](code.md)** | `list_files`, `get_file_symbols`, `search_code`, `get_symbol`, `search_files` | 5 | Code graph enabled |
-| **[File Index](file-index.md)** | `list_all_files`, `search_all_files`, `get_file_info` | 3 | Always available |
-| **[Knowledge](knowledge.md)** | `create_note`, `update_note`, `delete_note`, `get_note`, `list_notes`, `search_notes`, `create_relation`, `delete_relation`, `list_relations`, `find_linked_notes`, `add_note_attachment`, `remove_note_attachment` | 12 | Always available |
-| **[Tasks](tasks.md)** | `create_task`, `update_task`, `delete_task`, `get_task`, `list_tasks`, `search_tasks`, `move_task`, `link_task`, `create_task_link`, `delete_task_link`, `find_linked_tasks`, `add_task_attachment`, `remove_task_attachment` | 13 | Always available |
-| **[Skills](skills.md)** | `create_skill`, `update_skill`, `delete_skill`, `get_skill`, `list_skills`, `search_skills`, `recall_skills`, `bump_skill_usage`, `link_skill`, `create_skill_link`, `delete_skill_link`, `find_linked_skills`, `add_skill_attachment`, `remove_skill_attachment` | 14 | Always available |
+| **[Docs](docs.md)** | `docs_list_files`, `docs_get_toc`, `docs_search`, `docs_get_node`, `docs_search_files` | 5 | Docs graph enabled |
+| **[Code Blocks](code-blocks.md)** | `docs_find_examples`, `docs_search_snippets`, `docs_list_snippets`, `docs_explain_symbol` | 4 | Docs graph enabled |
+| **[Cross-Graph](cross-graph.md)** | `docs_cross_references` | 1 | Docs + Code graphs enabled |
+| **[Code](code.md)** | `code_list_files`, `code_get_file_symbols`, `code_search`, `code_get_symbol`, `code_search_files` | 5 | Code graph enabled |
+| **[File Index](file-index.md)** | `files_list`, `files_search`, `files_get_info` | 3 | Always available |
+| **[Knowledge](knowledge.md)** | `notes_create`, `notes_update`, `notes_delete`, `notes_get`, `notes_list`, `notes_search`, `notes_create_link`, `notes_delete_link`, `notes_list_links`, `notes_find_linked`, `notes_add_attachment`, `notes_remove_attachment` | 12 | Always available |
+| **[Tasks](tasks.md)** | `tasks_create`, `tasks_update`, `tasks_delete`, `tasks_get`, `tasks_list`, `tasks_search`, `tasks_move`, `tasks_link`, `tasks_create_link`, `tasks_delete_link`, `tasks_find_linked`, `tasks_add_attachment`, `tasks_remove_attachment` | 13 | Always available |
+| **[Skills](skills.md)** | `skills_create`, `skills_update`, `skills_delete`, `skills_get`, `skills_list`, `skills_search`, `skills_recall`, `skills_bump_usage`, `skills_link`, `skills_create_link`, `skills_delete_link`, `skills_find_linked`, `skills_add_attachment`, `skills_remove_attachment` | 14 | Always available |
 
 **Total: 58 tools**

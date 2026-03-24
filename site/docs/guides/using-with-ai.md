@@ -16,9 +16,9 @@ The most important habit: **search the graph before reading files directly**. Gr
 
 | Instead of... | Use... |
 |--------------|--------|
-| Reading source files to find a function | `search_code` — finds symbols by meaning |
-| Grepping docs for a topic | `search` — finds relevant sections even with different wording |
-| Browsing the file tree | `search_all_files` — finds files by semantic path matching |
+| Reading source files to find a function | `code_search` — finds symbols by meaning |
+| Grepping docs for a topic | `docs_search` — finds relevant sections even with different wording |
+| Browsing the file tree | `files_search` — finds files by semantic path matching |
 
 ## Building Context
 
@@ -29,8 +29,8 @@ When your AI assistant needs to understand something about the project, follow t
 Use search tools to find relevant content:
 
 ```
-search({ query: "authentication flow" })
-search_code({ query: "JWT token validation" })
+docs_search({ query: "authentication flow" })
+code_search({ query: "JWT token validation" })
 ```
 
 ### 2. Get Specific
@@ -39,7 +39,7 @@ Once you find relevant results, drill into details:
 
 ```
 get_node({ nodeId: "docs/auth.md::Token Validation" })
-get_symbol({ nodeId: "src/auth.ts::validateToken" })
+code_get_symbol({ nodeId: "src/auth.ts::validateToken" })
 ```
 
 ### 3. Cross-Reference
@@ -47,7 +47,7 @@ get_symbol({ nodeId: "src/auth.ts::validateToken" })
 Bridge documentation and code:
 
 ```
-cross_references({ symbol: "validateToken" })
+docs_cross_references({ symbol: "validateToken" })
 ```
 
 This returns the code definition, documentation examples, and explanations in one call.
@@ -57,7 +57,7 @@ This returns the code definition, documentation examples, and explanations in on
 See if there are existing notes about the topic:
 
 ```
-search_notes({ query: "authentication decisions" })
+notes_search({ query: "authentication decisions" })
 ```
 
 ## Knowledge Capture
@@ -69,7 +69,7 @@ Graph Memory is most valuable when it accumulates knowledge over time. Capture d
 When you make an architectural choice or discover something non-obvious:
 
 ```
-create_note({
+notes_create({
   title: "Why we use JWTs instead of sessions",
   content: "Sessions require sticky load balancing...",
   tags: ["architecture", "auth"]
@@ -81,7 +81,7 @@ create_note({
 Connect knowledge to the relevant code:
 
 ```
-create_relation({
+notes_create_link({
   fromId: "why-we-use-jwts-instead-of-sessions",
   toId: "src/auth/jwt.ts::createToken",
   targetGraph: "code",
@@ -94,7 +94,7 @@ create_relation({
 Save reusable procedures so they can be recalled later:
 
 ```
-create_skill({
+skills_create({
   title: "Add a new API endpoint",
   description: "Step-by-step guide for adding a REST endpoint",
   steps: [
@@ -112,7 +112,7 @@ create_skill({
 Before starting a complex task, check for existing skills:
 
 ```
-recall_skills({ context: "add a new API endpoint" })
+skills_recall({ context: "add a new API endpoint" })
 ```
 
 ## Task Tracking
@@ -120,7 +120,7 @@ recall_skills({ context: "add a new API endpoint" })
 Create tasks directly from AI conversations:
 
 ```
-create_task({
+tasks_create({
   title: "Fix auth redirect loop on expired tokens",
   description: "When a JWT expires during a request...",
   priority: "high",
@@ -132,7 +132,7 @@ create_task({
 Link tasks to the relevant code:
 
 ```
-create_task_link({
+tasks_create_link({
   taskId: "fix-auth-redirect-loop-on-expired-tokens",
   targetId: "src/auth/middleware.ts::checkAuth",
   targetGraph: "code",
@@ -143,7 +143,7 @@ create_task_link({
 Before working on a file, check for related tasks:
 
 ```
-find_linked_tasks({ targetId: "src/auth/middleware.ts", targetGraph: "code" })
+tasks_find_linked({ targetId: "src/auth/middleware.ts", targetGraph: "code" })
 ```
 
 ## Cross-Graph Linking

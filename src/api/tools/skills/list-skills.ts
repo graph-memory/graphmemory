@@ -15,7 +15,7 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
         source: z.enum(['user', 'learned']).optional().describe('Filter by source'),
         tag:    z.string().max(MAX_TAG_LEN).optional().describe('Filter by tag (exact match, case-insensitive)'),
         filter: z.string().max(500).optional().describe('Substring match on title or ID'),
-        limit:  z.number().max(1000).optional().describe('Max results (default 50)'),
+        limit:  z.number().int().min(1).max(1000).optional().describe('Max results (default 50)'),
       },
     },
     async ({ source, tag, filter, limit }) => {

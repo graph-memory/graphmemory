@@ -36,6 +36,9 @@ export function createSkillsRouter(): Router {
         topK: q.topK,
         minScore: q.minScore,
         searchMode: q.searchMode,
+        bfsDepth: q.bfsDepth,
+        maxResults: q.maxResults,
+        bfsDecay: q.bfsDecay,
       });
       res.json({ results });
     } catch (err) { next(err); }
@@ -50,6 +53,9 @@ export function createSkillsRouter(): Router {
         topK: q.topK,
         minScore: q.minScore ?? 0.3,
         searchMode: q.searchMode,
+        bfsDepth: q.bfsDepth,
+        maxResults: q.maxResults,
+        bfsDecay: q.bfsDecay,
       });
       res.json({ results });
     } catch (err) { next(err); }

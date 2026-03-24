@@ -21,7 +21,7 @@ Team knowledge lives in scattered places: Slack threads, meeting notes, individu
 When the team makes an architectural choice, record it:
 
 ```
-create_note({
+notes_create({
   title: "Database: PostgreSQL over MongoDB",
   content: "We chose PostgreSQL because:\n- Strong consistency for financial transactions\n- JSON columns cover our semi-structured needs\n- Team has deep SQL experience",
   tags: ["architecture", "database"]
@@ -33,7 +33,7 @@ create_note({
 Build a knowledge web by creating relations between notes:
 
 ```
-create_relation({
+notes_create_link({
   fromId: "database-postgresql-over-mongodb",
   toId: "src/db/connection.ts::createPool",
   targetGraph: "code",
@@ -44,7 +44,7 @@ create_relation({
 Link notes to each other:
 
 ```
-create_relation({
+notes_create_link({
   fromId: "database-postgresql-over-mongodb",
   toId: "migration-strategy",
   targetGraph: "knowledge",
@@ -57,7 +57,7 @@ create_relation({
 Capture reusable procedures so they are discoverable:
 
 ```
-create_skill({
+skills_create({
   title: "Run database migrations",
   description: "How to create and apply database migrations",
   steps: [
@@ -95,8 +95,8 @@ Team members can edit these files directly in their IDE or text editor. Changes 
 The knowledge base is fully searchable:
 
 ```
-search_notes({ query: "why did we choose PostgreSQL" })
-recall_skills({ context: "how to deploy" })
+notes_search({ query: "why did we choose PostgreSQL" })
+skills_recall({ context: "how to deploy" })
 ```
 
 Semantic search means you do not need to remember exact titles — searching by concept works.
@@ -105,15 +105,15 @@ Semantic search means you do not need to remember exact titles — searching by 
 
 | Tool | Purpose |
 |------|---------|
-| `create_note` | Capture a decision, fact, or observation |
-| `create_relation` | Connect notes to each other or to code/docs/tasks |
-| `list_relations` | See all connections for a note |
-| `search_notes` | Find notes by concept |
-| `create_skill` | Save a reusable procedure |
-| `recall_skills` | Find relevant skills for a task |
-| `bump_skill_usage` | Track which skills get used |
-| `link_skill` | Connect skills to each other |
-| `create_skill_link` | Link a skill to code, docs, or tasks |
+| `notes_create` | Capture a decision, fact, or observation |
+| `notes_create_link` | Connect notes to each other or to code/docs/tasks |
+| `notes_list_links` | See all connections for a note |
+| `notes_search` | Find notes by concept |
+| `skills_create` | Save a reusable procedure |
+| `skills_recall` | Find relevant skills for a task |
+| `skills_bump_usage` | Track which skills get used |
+| `skills_link` | Connect skills to each other |
+| `skills_create_link` | Link a skill to code, docs, or tasks |
 
 ## Tips
 

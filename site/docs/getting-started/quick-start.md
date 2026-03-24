@@ -63,10 +63,10 @@ Add to your `.mcp.json`:
 
 Once connected, your AI assistant has access to 58 tools. Try asking:
 
-- *"What does this project do?"* — uses `search` and `list_topics` to find docs
-- *"Show me all exported functions in auth.ts"* — uses `get_file_symbols`
-- *"Create a note about the database schema"* — uses `create_note`
-- *"What tasks are in progress?"* — uses `list_tasks`
+- *"What does this project do?"* — uses `docs_search` and `docs_list_files` to find docs
+- *"Show me all exported functions in auth.ts"* — uses `code_get_file_symbols`
+- *"Create a note about the database schema"* — uses `notes_create`
+- *"What tasks are in progress?"* — uses `tasks_list`
 
 ## What happens during indexing?
 

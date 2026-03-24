@@ -3,7 +3,7 @@ title: "Knowledge Tools"
 sidebar_label: "Knowledge"
 sidebar_position: 8
 description: "12 MCP tools for managing notes, relations, and attachments in the knowledge graph — create, update, search, and link notes to other graphs."
-keywords: [knowledge graph, notes, relations, create_note, search_notes, cross-graph links, attachments]
+keywords: [knowledge graph, notes, relations, notes_create, notes_search, cross-graph links, attachments]
 ---
 
 # Knowledge Tools
@@ -14,7 +14,7 @@ These 12 tools manage the **knowledge graph** — a persistent store of notes, f
 These tools are **always available**. Mutation tools (marked below) are hidden when the knowledge graph is set to `readonly`.
 :::
 
-## create_note {#create_note}
+## notes_create {#notes_create}
 
 > **Mutation** — hidden in readonly mode
 
@@ -38,7 +38,7 @@ Persist architectural decisions, non-obvious context, or facts that should survi
 
 ---
 
-## update_note {#update_note}
+## notes_update {#notes_update}
 
 > **Mutation** — hidden in readonly mode
 
@@ -59,7 +59,7 @@ Partially updates a note. Only send the fields you want to change. Re-embeds aut
 
 ---
 
-## delete_note {#delete_note}
+## notes_delete {#notes_delete}
 
 > **Mutation** — hidden in readonly mode
 
@@ -77,7 +77,7 @@ Deletes the note, all its relations, orphaned proxy nodes, and the mirror direct
 
 ---
 
-## get_note
+## notes_get
 
 Fetches a note by ID.
 
@@ -93,7 +93,7 @@ Fetches a note by ID.
 
 ---
 
-## list_notes
+## notes_list
 
 Lists notes with optional filters. Excludes internal proxy nodes.
 
@@ -111,7 +111,7 @@ Array of `{ id, title, tags, updatedAt }`.
 
 ---
 
-## search_notes
+## notes_search
 
 Hybrid semantic search over notes with BFS graph expansion.
 
@@ -137,7 +137,7 @@ Finding notes by meaning. For instance: "What did we decide about the authentica
 
 ---
 
-## create_relation {#create_relation}
+## notes_create_link {#notes_create_link}
 
 > **Mutation** — hidden in readonly mode
 
@@ -163,7 +163,7 @@ Connect notes to each other or to nodes in other graphs. When `targetGraph` is s
 
 ---
 
-## delete_relation {#delete_relation}
+## notes_delete_link {#notes_delete_link}
 
 > **Mutation** — hidden in readonly mode
 
@@ -184,7 +184,7 @@ Deletes a relation and cleans up orphaned proxy nodes.
 
 ---
 
-## list_relations
+## notes_list_links
 
 Lists all relations for a note (both incoming and outgoing). Resolves proxy IDs to original node IDs transparently.
 
@@ -200,7 +200,7 @@ Array of `{ fromId, toId, kind, targetGraph? }`.
 
 ---
 
-## find_linked_notes
+## notes_find_linked
 
 Reverse lookup: finds all notes that link to a specific node in another graph.
 
@@ -223,7 +223,7 @@ Before modifying code, check if any notes document it. For instance: "What notes
 
 ---
 
-## add_note_attachment {#add_note_attachment}
+## notes_add_attachment {#notes_add_attachment}
 
 > **Mutation** — hidden in readonly mode
 
@@ -246,7 +246,7 @@ Max 10 MB per file. Max 20 attachments per entity.
 
 ---
 
-## remove_note_attachment {#remove_note_attachment}
+## notes_remove_attachment {#notes_remove_attachment}
 
 > **Mutation** — hidden in readonly mode
 

@@ -1,7 +1,7 @@
 import path from 'path';
 import { Router } from 'express';
 import type { ProjectInstance } from '@/lib/project-manager';
-import { validateQuery, fileListSchema, searchQuerySchema } from '@/api/rest/validation';
+import { validateQuery, fileListSchema, fileSearchSchema } from '@/api/rest/validation';
 
 export function createFilesRouter(): Router {
   const router = Router({ mergeParams: true });
@@ -21,7 +21,7 @@ export function createFilesRouter(): Router {
   });
 
   // Search files
-  router.get('/search', validateQuery(searchQuerySchema), async (req, res, next) => {
+  router.get('/search', validateQuery(fileSearchSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
       const q = (req as any).validatedQuery;

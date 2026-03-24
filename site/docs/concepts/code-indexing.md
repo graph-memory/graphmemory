@@ -95,7 +95,7 @@ If you use path aliases (like `@/` or `~/`), make sure you have a `tsconfig.json
 ### Semantic search
 
 ```
-search_code({ query: "function that hashes passwords" })
+code_search({ query: "function that hashes passwords" })
 ```
 
 Finds symbols by meaning. Even if no function is literally named `hashPassword`, Graph Memory can find the relevant function based on its signature, JSDoc comments, body, and semantic similarity. Each symbol is embedded from its full content (signature + docComment + body), so even functions without JSDoc are visible to semantic search.
@@ -103,7 +103,7 @@ Finds symbols by meaning. Even if no function is literally named `hashPassword`,
 ### Symbol lookup
 
 ```
-get_symbol({ nodeId: "src/auth.ts::UserService::login" })
+code_get_symbol({ nodeId: "src/auth.ts::UserService::login" })
 ```
 
 Returns the full source body, signature, JSDoc, and line numbers for a specific symbol. Use this after searching to read the actual implementation.
@@ -111,7 +111,7 @@ Returns the full source body, signature, JSDoc, and line numbers for a specific 
 ### File exploration
 
 ```
-get_file_symbols({ fileId: "src/auth.ts" })
+code_get_file_symbols({ fileId: "src/auth.ts" })
 ```
 
 Lists all symbols in a file sorted by line number, like an IDE's outline view. Great for understanding what a file contains without reading it entirely.
@@ -119,7 +119,7 @@ Lists all symbols in a file sorted by line number, like an IDE's outline view. G
 ### Cross-references
 
 ```
-cross_references({ symbol: "loginUser" })
+docs_cross_references({ symbol: "loginUser" })
 ```
 
 Finds both the code definition and any documentation examples that reference the same symbol. This bridges the Code and Docs graphs.

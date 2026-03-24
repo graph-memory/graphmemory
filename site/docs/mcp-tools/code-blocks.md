@@ -3,7 +3,7 @@ title: "Code Block Tools"
 sidebar_label: "Code Blocks"
 sidebar_position: 4
 description: "4 MCP tools for finding and searching code examples embedded inside markdown documentation files."
-keywords: [code blocks, code examples, find_examples, search_snippets, explain_symbol, documentation snippets]
+keywords: [code blocks, code examples, docs_find_examples, docs_search_snippets, docs_explain_symbol, documentation snippets]
 ---
 
 # Code Block Tools
@@ -14,7 +14,7 @@ These 4 tools work with **code blocks inside markdown documentation** — fenced
 These tools require the **docs graph** to be enabled.
 :::
 
-## find_examples
+## docs_find_examples
 
 Finds code blocks in documentation that mention a specific symbol.
 
@@ -35,7 +35,7 @@ When you want to see how a symbol is used in documentation examples. For instanc
 
 ---
 
-## search_snippets
+## docs_search_snippets
 
 Semantic search over code blocks extracted from documentation.
 
@@ -58,7 +58,7 @@ When you want to find code examples by what they do, not just which symbols they
 
 ---
 
-## list_snippets
+## docs_list_snippets
 
 Lists code blocks with optional filters.
 
@@ -81,7 +81,7 @@ Browsing all code examples in documentation, optionally narrowed by language or 
 
 ---
 
-## explain_symbol
+## docs_explain_symbol
 
 Finds a code example for a symbol along with its surrounding prose explanation.
 
@@ -98,4 +98,4 @@ Array of `{ codeBlock, explanation, fileId }` — each entry contains a code blo
 
 ### When to use
 
-When you want to understand how a symbol works with both its code example and the documentation that explains it. This is more informative than `find_examples` because it includes the prose context.
+When you want to understand how a symbol works with both its code example and the documentation that explains it. This is more informative than `docs_find_examples` because it includes the prose context.

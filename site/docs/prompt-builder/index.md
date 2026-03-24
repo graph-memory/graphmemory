@@ -66,7 +66,7 @@ Open the graphmemory Web UI and navigate to the **Prompts** page. You'll see the
 Once you've built your prompt, you can:
 
 - **Copy to clipboard** and paste it into your AI assistant's system prompt
-- **Export as a Skill** to store it in your project's skill graph, making it available through the `recall_skills` tool
+- **Export as a Skill** to store it in your project's skill graph, making it available through the `skills_recall` tool
 
 The Advanced Builder adds two more export options:
 

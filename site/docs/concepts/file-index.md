@@ -51,7 +51,7 @@ Directories also get nodes in the graph, with aggregated stats:
 When a file is indexed, nodes are automatically created for every parent directory up to the project root. Each directory-to-child relationship gets a `contains` edge, building a full tree you can traverse.
 
 ```
-list_all_files({ directory: "src/lib/", limit: 20 })
+files_list({ directory: "src/lib/", limit: 20 })
 ```
 
 ## Searching files
@@ -59,13 +59,13 @@ list_all_files({ directory: "src/lib/", limit: 20 })
 File paths are embedded as vectors, enabling semantic search:
 
 ```
-search_all_files({ query: "authentication configuration" })
+files_search({ query: "authentication configuration" })
 ```
 
 This finds files like `src/lib/auth.ts` and `src/config/auth.yaml` — even though the query words do not appear literally in the path. The embeddings capture semantic meaning in file names and directory structure.
 
 :::tip
-Use `list_all_files` to browse directory contents and `search_all_files` for semantic discovery. Combine both to quickly orient in an unfamiliar project.
+Use `files_list` to browse directory contents and `files_search` for semantic discovery. Combine both to quickly orient in an unfamiliar project.
 :::
 
 ## Exclusion patterns
@@ -105,26 +105,26 @@ projects:
 **Project structure discovery** — an AI starting a new conversation can understand the project layout:
 
 ```
-list_all_files({ directory: "src/", limit: 50 })
+files_list({ directory: "src/", limit: 50 })
 ```
 
 **File type analysis** — find all configuration files:
 
 ```
-list_all_files({ extension: ".yaml" })
-list_all_files({ language: "typescript" })
+files_list({ extension: ".yaml" })
+files_list({ language: "typescript" })
 ```
 
 **File metadata lookup** — check size and modification time:
 
 ```
-get_file_info({ filePath: "src/lib/embedder.ts" })
+files_get_info({ filePath: "src/lib/embedder.ts" })
 ```
 
 **Cross-graph context** — link a note or task to a specific file:
 
 ```
-create_relation({
+notes_create_link({
   fromId: "deployment-config-note",
   toId: "docker-compose.yaml",
   targetGraph: "files",

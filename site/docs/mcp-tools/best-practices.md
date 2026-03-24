@@ -19,19 +19,19 @@ Always call `get_context` at the beginning of a session. It tells you which proj
 Before creating a note, task, or skill, search for existing ones first. This prevents duplicates that fragment your knowledge base.
 
 ```
-1. search_notes("authentication approach")    -- check if it exists
-2. create_note(title: "Auth approach", ...)   -- only if no match
+1. notes_search("authentication approach")    -- check if it exists
+2. notes_create(title: "Auth approach", ...)   -- only if no match
 ```
 
-The same applies to tasks and skills. A quick `search_tasks` or `search_skills` call costs very little and can save you from maintaining duplicate entries.
+The same applies to tasks and skills. A quick `tasks_search` or `skills_search` call costs very little and can save you from maintaining duplicate entries.
 
 ## Use search tools instead of browsing
 
-The `search`, `search_code`, and `search_notes` tools use hybrid search (keyword + semantic + graph expansion) and are far more effective than manually browsing with `list_*` tools. Use list tools for broad overviews; use search tools when you know what you are looking for.
+The `docs_search`, `code_search`, and `notes_search` tools use hybrid search (keyword + semantic + graph expansion) and are far more effective than manually browsing with `list_*` tools. Use list tools for broad overviews; use search tools when you know what you are looking for.
 
 ## Recall skills for complex tasks
 
-At the start of any non-trivial task, call `recall_skills` with a description of what you are about to do. It uses a lower relevance threshold than `search_skills`, so it catches procedures that might be tangentially relevant. If a skill helps, call `bump_skill_usage` afterward so it surfaces more easily next time.
+At the start of any non-trivial task, call `skills_recall` with a description of what you are about to do. It uses a lower relevance threshold than `skills_search`, so it catches procedures that might be tangentially relevant. If a skill helps, call `skills_bump_usage` afterward so it surfaces more easily next time.
 
 ## Use cross-graph links
 
@@ -41,15 +41,15 @@ Connect related items across graphs:
 - **Tasks to files** — link bug fix tasks to the affected source files
 - **Skills to docs** — link deployment procedures to the relevant configuration docs
 
-Use `create_relation`, `create_task_link`, or `create_skill_link` to build these connections. They enable powerful reverse lookups later (e.g., "What tasks are related to this file?").
+Use `notes_create_link`, `tasks_create_link`, or `skills_create_link` to build these connections. They enable powerful reverse lookups later (e.g., "What tasks are related to this file?").
 
-## Use cross_references for symbols
+## Use docs_cross_references for symbols
 
-When you need to understand a code symbol, use `cross_references` instead of making separate calls to `search_code`, `search`, and `find_examples`. It returns the source definition, documentation, and usage examples in one call.
+When you need to understand a code symbol, use `docs_cross_references` instead of making separate calls to `code_search`, `docs_search`, and `docs_find_examples`. It returns the source definition, documentation, and usage examples in one call.
 
-## Use move_task for status changes
+## Use tasks_move for status changes
 
-Always use `move_task` instead of `update_task` when changing a task's status. `move_task` automatically manages the `completedAt` timestamp — setting it when a task moves to `done` or `cancelled`, and clearing it when moving back to an active status.
+Always use `tasks_move` instead of `tasks_update` when changing a task's status. `tasks_move` automatically manages the `completedAt` timestamp — setting it when a task moves to `done` or `cancelled`, and clearing it when moving back to an active status.
 
 ## Manage context budget
 
@@ -57,9 +57,9 @@ MCP responses can be large, especially for search results. To keep context manag
 
 - **Lower `maxResults`** when you only need a few matches (default is 20)
 - **Raise `minScore`** to filter out low-relevance results (default is 0.5 for most tools)
-- **Use `get_toc` before `get_node`** — scan a document's structure before fetching full sections
-- **Use `search_files` / `search_topic_files` first** — find the right file before searching within it
-- **Set `includeBody: false`** on `search_code` (the default) — fetch full bodies with `get_symbol` only for the results you need
+- **Use `docs_get_toc` before `docs_get_node`** — scan a document's structure before fetching full sections
+- **Use `code_search_files` / `docs_search_files` first** — find the right file before searching within it
+- **Set `includeBody: false`** on `code_search` (the default) — fetch full bodies with `code_get_symbol` only for the results you need
 
 ## Handle errors gracefully
 

@@ -62,7 +62,7 @@ The `searchMode` parameter controls which scoring methods are used:
 |-----------|----------------------------------|-------------------|
 | `topK` | 5 | 10 |
 | `bfsDepth` | 1 | — (no BFS) |
-| `maxResults` | 20 | 10 |
+| `maxResults` | 5 | 10 |
 | `minScore` | 0.5 | 0.3 |
 | `bfsDecay` | 0.8 | — |
 
@@ -99,7 +99,7 @@ Each graph defines what text to extract for BM25 indexing:
 | KnowledgeGraph | `title + content` |
 | TaskGraph | `title + description` |
 | SkillGraph | `title + description + triggers` (triggers included!) |
-| FileIndexGraph | N/A (cosine only, no BM25) |
+| FileIndexGraph | `filePath` (file path string) |
 
 ## File-level search
 

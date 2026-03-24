@@ -1,6 +1,6 @@
 # MCP Tools — Detailed Guide
 
-58 tools organized into 8 groups. Each tool is a separate module in `src/api/tools/`.
+58 tools organized into 9 groups. Each tool is a separate module in `src/api/tools/`.
 
 ## How tools work
 
@@ -15,10 +15,10 @@ Tools are conditionally registered based on which graphs are enabled:
 | Code blocks | 4 | docs graph enabled | no |
 | Cross-graph | 1 | docs + code both enabled | no |
 | Code | 5 | code graph enabled | no |
-| File index | 3 | always | no |
-| Knowledge | 12 | always | yes (mutations) |
-| Tasks | 13 | always | yes (mutations) |
-| Skills | 14 | always | yes (mutations) |
+| File index | 3 | file index enabled | no |
+| Knowledge | 12 | knowledge graph enabled | yes (mutations) |
+| Tasks | 13 | task graph enabled | yes (mutations) |
+| Skills | 14 | skill graph enabled | yes (mutations) |
 
 ### Read vs mutation tools
 
@@ -46,7 +46,7 @@ Returns the current project and workspace context. Use this first to understand 
   "projectId": "my-app",
   "workspaceId": "backend",
   "workspaceProjects": ["api-gateway", "catalog-service"],
-  "availableGraphs": ["docs", "code", "knowledge", "tasks", "files", "skills"]
+  "hasWorkspace": true
 }
 ```
 
@@ -60,7 +60,7 @@ Returns the current project and workspace context. Use this first to understand 
 
 List all indexed markdown files.
 
-**Input**: none
+**Input**: optional `filter`, `limit`
 **Output**: `[{ fileId, title, chunks }]`
 
 **When to use**: To get an overview of available documentation.
@@ -84,7 +84,7 @@ Semantic search over documentation with BFS expansion.
 | `query` | (required) | Search query |
 | `topK` | 5 | Seed results for BFS |
 | `bfsDepth` | 1 | BFS expansion hops |
-| `maxResults` | 20 | Max results |
+| `maxResults` | 5 | Max results |
 | `minScore` | 0.5 | Minimum relevance |
 | `bfsDecay` | 0.8 | Score decay per hop |
 | `searchMode` | `hybrid` | `hybrid`, `vector`, `keyword` |
@@ -107,7 +107,7 @@ Full content of a specific doc chunk.
 File-level semantic search (by path + title).
 
 **Input**: `query`, optional `limit` (default 10), `minScore` (default 0.3)
-**Output**: `[{ fileId, title, score }]`
+**Output**: `[{ fileId, title, chunks, score }]`
 
 **When to use**: Finding which documentation files are relevant before drilling into sections.
 
@@ -119,7 +119,7 @@ File-level semantic search (by path + title).
 
 Find code blocks in documentation that contain a specific symbol.
 
-**Input**: `symbol` (required), optional `language`, `fileId`
+**Input**: `symbol` (required), optional `limit`
 **Output**: `[{ id, fileId, language, symbols, content, parentId, parentTitle }]`
 
 **When to use**: "Show me examples of how `UserService` is used in the docs."

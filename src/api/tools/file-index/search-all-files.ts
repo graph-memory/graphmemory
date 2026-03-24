@@ -18,7 +18,7 @@ export function register(server: McpServer, mgr: FileIndexGraphManager): void {
         query: z.string().max(MAX_SEARCH_QUERY_LEN).describe('Search query'),
         limit: z.number().min(1).max(500).optional()
           .describe('Max results'),
-        minScore: z.number().optional()
+        minScore: z.number().min(0).max(1).optional()
           .describe('Minimum cosine similarity score'),
       },
     },

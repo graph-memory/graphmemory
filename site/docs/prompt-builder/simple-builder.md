@@ -65,7 +65,7 @@ As you change settings, the right-side panel updates in real time to show the as
 The Simple Builder offers two export options:
 
 - **Copy to clipboard**: Click the copy button to copy the full prompt as plain text. Paste it into your AI assistant's system prompt configuration.
-- **Export as Skill**: Click the save button to store the prompt as a skill in your project's Skill Graph. This makes it searchable through `recall_skills` and available to other team members.
+- **Export as Skill**: Click the save button to store the prompt as a skill in your project's Skill Graph. This makes it searchable through `skills_recall` and available to other team members.
 
 For additional export options (Download as `.md` and Save as preset), switch to the [Advanced Builder](./advanced-builder.md).
 

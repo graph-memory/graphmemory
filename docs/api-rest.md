@@ -49,7 +49,7 @@ See [Authentication](authentication.md) for details on auth middleware.
 | GET | `/api/projects/:id/knowledge/notes/:noteId` | Get note by ID |
 | PUT | `/api/projects/:id/knowledge/notes/:noteId` | Update note (partial) |
 | DELETE | `/api/projects/:id/knowledge/notes/:noteId` | Delete note (204) |
-| GET | `/api/projects/:id/knowledge/search?q=...` | Search notes (query: `q`, `topK`, `minScore`, `searchMode`) |
+| GET | `/api/projects/:id/knowledge/search?q=...` | Search notes (query: `q`, `topK`, `minScore`, `searchMode`, `bfsDepth`, `maxResults`, `bfsDecay`) |
 | POST | `/api/projects/:id/knowledge/relations` | Create relation (body: `fromId`, `toId`, `kind`, `targetGraph?`) |
 | DELETE | `/api/projects/:id/knowledge/relations` | Delete relation (body: `fromId`, `toId`, `targetGraph?`) |
 | GET | `/api/projects/:id/knowledge/notes/:noteId/relations` | List note relations |
@@ -100,13 +100,22 @@ See [Authentication](authentication.md) for details on auth middleware.
 | GET | `/api/projects/:id/skills/:skillId/attachments/:filename` | Download attachment |
 | DELETE | `/api/projects/:id/skills/:skillId/attachments/:filename` | Delete attachment |
 
-## Search endpoints (docs/files)
+## Docs endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|
+| GET | `/api/projects/:id/docs/topics` | List indexed doc files (query: `filter`, `limit`) |
+| GET | `/api/projects/:id/docs/toc/*fileId` | Get table of contents for a doc file |
+| GET | `/api/projects/:id/docs/nodes/*nodeId` | Get a specific doc node by ID |
 | GET | `/api/projects/:id/docs/search?q=...` | Search docs |
+
+## File index endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
 | GET | `/api/projects/:id/files` | List files (query: `directory`, `extension`, `language`, `filter`, `limit`) |
 | GET | `/api/projects/:id/files/search?q=...` | Search files by path |
+| GET | `/api/projects/:id/files/info?path=...` | Get file metadata by path |
 
 ## Team endpoint
 

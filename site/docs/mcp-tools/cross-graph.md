@@ -2,8 +2,8 @@
 title: "Cross-Graph Tools"
 sidebar_label: "Cross-Graph"
 sidebar_position: 5
-description: "The cross_references tool bridges code definitions and documentation examples to give complete context for any symbol."
-keywords: [cross_references, cross-graph, code and docs, symbol lookup, bridge]
+description: "The docs_cross_references tool bridges code definitions and documentation examples to give complete context for any symbol."
+keywords: [docs_cross_references, cross-graph, code and docs, symbol lookup, bridge]
 ---
 
 # Cross-Graph Tools
@@ -14,7 +14,7 @@ The cross-graph tool bridges the code graph and docs graph, giving you a unified
 This tool requires **both the docs graph and code graph** to be enabled.
 :::
 
-## cross_references
+## docs_cross_references
 
 Returns the complete picture for a symbol: its source code definition, documentation mentions, and code examples from docs.
 
@@ -42,7 +42,7 @@ Returns the complete picture for a symbol: its source code definition, documenta
 
 ### When to use
 
-Use `cross_references` when you need **complete context** about a symbol. Instead of making separate calls to `search_code`, `search`, and `find_examples`, this single tool gives you everything:
+Use `docs_cross_references` when you need **complete context** about a symbol. Instead of making separate calls to `code_search`, `docs_search`, and `docs_find_examples`, this single tool gives you everything:
 
 - The actual code definition (from source files)
 - The documentation that explains it (from markdown)

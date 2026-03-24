@@ -33,7 +33,7 @@ What you can do:
 - **Find code examples** -- code blocks inside docs are extracted and searchable separately
 - **Follow cross-references** -- links between doc files are preserved as graph connections
 
-Key tools: `search`, `search_topic_files`, `get_toc`, `get_node`, `find_examples`
+Key tools: `docs_search`, `docs_search_files`, `docs_get_toc`, `docs_get_node`, `docs_find_examples`
 
 ## Code Graph
 
@@ -45,7 +45,7 @@ What you can do:
 - **Explore structure** -- list all symbols in a file, see what a class contains, follow import chains
 - **Find cross-references** -- see where a symbol is referenced across both code and documentation
 
-Key tools: `search_code`, `get_symbol`, `get_file_symbols`, `list_files`, `cross_references`
+Key tools: `code_search`, `code_get_symbol`, `code_get_file_symbols`, `code_list_files`, `docs_cross_references`
 
 ## File Index Graph
 
@@ -56,7 +56,7 @@ What you can do:
 - **Browse directories** -- explore the project structure like a file explorer
 - **Get file metadata** -- language, size, MIME type for any file
 
-Key tools: `search_all_files`, `list_all_files`, `get_file_info`
+Key tools: `files_search`, `files_list`, `files_get_info`
 
 ## Knowledge Graph
 
@@ -69,7 +69,7 @@ What you can do:
 - **Link notes to docs, tasks, and files** -- build a web of context
 - **Edit in your IDE** -- notes are mirrored to `.notes/` as markdown files
 
-Key tools: `create_note`, `search_notes`, `get_note`, `create_relation`, `find_linked_notes`
+Key tools: `notes_create`, `notes_search`, `notes_get`, `notes_create_link`, `notes_find_linked`
 
 :::tip
 Knowledge notes are ideal for capturing the "why" behind decisions. Your AI assistant can create notes during conversations and find them again later, giving it long-term memory across sessions.
@@ -86,7 +86,7 @@ What you can do:
 - **Search tasks** -- "what authentication tasks are open?" uses semantic search
 - **Edit in your IDE** -- tasks are mirrored to `.tasks/` as markdown files
 
-Key tools: `create_task`, `list_tasks`, `move_task`, `search_tasks`, `create_task_link`
+Key tools: `tasks_create`, `tasks_list`, `tasks_move`, `tasks_search`, `tasks_create_link`
 
 ## Skills Graph
 
@@ -99,7 +99,7 @@ What you can do:
 - **Link skills to code and docs** -- connect a skill to the files it applies to
 - **Edit in your IDE** -- skills are mirrored to `.skills/` as markdown files
 
-Key tools: `create_skill`, `search_skills`, `recall_skills`, `bump_skill_usage`, `create_skill_link`
+Key tools: `skills_create`, `skills_search`, `skills_recall`, `skills_bump_usage`, `skills_create_link`
 
 ## How the graphs connect
 

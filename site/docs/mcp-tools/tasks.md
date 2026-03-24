@@ -3,7 +3,7 @@ title: "Task Tools"
 sidebar_label: "Tasks"
 sidebar_position: 9
 description: "13 MCP tools for managing tasks — create, update, move, link, search, and attach files to tasks with Kanban workflow support."
-keywords: [task tools, create_task, move_task, link_task, kanban, task management, cross-graph links]
+keywords: [task tools, tasks_create, tasks_move, tasks_link, kanban, task management, cross-graph links]
 ---
 
 # Task Tools
@@ -14,7 +14,7 @@ These 13 tools manage the **task graph** — a Kanban-style task system with pri
 These tools are **always available**. Mutation tools (marked below) are hidden when the task graph is set to `readonly`.
 :::
 
-## create_task {#create_task}
+## tasks_create {#tasks_create}
 
 > **Mutation** — hidden in readonly mode
 
@@ -39,7 +39,7 @@ Creates a new task.
 
 ---
 
-## update_task {#update_task}
+## tasks_update {#tasks_update}
 
 > **Mutation** — hidden in readonly mode
 
@@ -50,7 +50,7 @@ Partially updates a task. Only send fields you want to change.
 | Parameter | Required | Description |
 |-----------|----------|-------------|
 | `taskId` | Yes | Task ID to update |
-| All create_task fields | No | Any field from create_task can be updated |
+| All tasks_create fields | No | Any field from tasks_create can be updated |
 | `expectedVersion` | No | Current version for optimistic locking — fails with `version_conflict` if the task has been updated since |
 
 ### Returns
@@ -58,12 +58,12 @@ Partially updates a task. Only send fields you want to change.
 `{ taskId, updated }`.
 
 :::tip
-Use `move_task` instead of `update_task` for status changes — it handles `completedAt` automatically.
+Use `tasks_move` instead of `tasks_update` for status changes — it handles `completedAt` automatically.
 :::
 
 ---
 
-## delete_task {#delete_task}
+## tasks_delete {#tasks_delete}
 
 > **Mutation** — hidden in readonly mode
 
@@ -81,7 +81,7 @@ Deletes the task, all its relations, proxy nodes, and mirror directory.
 
 ---
 
-## get_task
+## tasks_get
 
 Fetches a task with all its relations and cross-graph links.
 
@@ -97,7 +97,7 @@ Fetches a task with all its relations and cross-graph links.
 
 ---
 
-## list_tasks
+## tasks_list
 
 Lists tasks with optional filters, sorted by priority (critical first) then due date (earliest first, nulls last).
 
@@ -117,12 +117,12 @@ Lists tasks with optional filters, sorted by priority (critical first) then due 
 Array of `{ id, title, description, status, priority, tags, dueDate, estimate, assignee, completedAt, version, createdAt, updatedAt, attachments }`.
 
 :::note
-Descriptions are truncated to 500 characters in list results. Use `get_task` to retrieve the full description.
+Descriptions are truncated to 500 characters in list results. Use `tasks_get` to retrieve the full description.
 :::
 
 ---
 
-## search_tasks
+## tasks_search
 
 Hybrid semantic search over tasks.
 
@@ -144,7 +144,7 @@ Array of `{ id, title, description, status, priority, tags, score }`.
 
 ---
 
-## move_task {#move_task}
+## tasks_move {#tasks_move}
 
 > **Mutation** — hidden in readonly mode
 
@@ -169,11 +169,11 @@ Changes a task's status with automatic `completedAt` management.
 
 ### When to use
 
-Always use `move_task` instead of `update_task` for status changes. It properly manages completion timestamps.
+Always use `tasks_move` instead of `tasks_update` for status changes. It properly manages completion timestamps.
 
 ---
 
-## link_task {#link_task}
+## tasks_link {#tasks_link}
 
 > **Mutation** — hidden in readonly mode
 
@@ -193,7 +193,7 @@ Creates a relation between two tasks.
 
 ---
 
-## create_task_link {#create_task_link}
+## tasks_create_link {#tasks_create_link}
 
 > **Mutation** — hidden in readonly mode
 
@@ -219,7 +219,7 @@ Connect tasks to the code, docs, or files they relate to. For instance, link a b
 
 ---
 
-## delete_task_link {#delete_task_link}
+## tasks_delete_link {#tasks_delete_link}
 
 > **Mutation** — hidden in readonly mode
 
@@ -240,7 +240,7 @@ Deletes a cross-graph link from a task.
 
 ---
 
-## find_linked_tasks
+## tasks_find_linked
 
 Reverse lookup: finds all tasks that link to a specific node in another graph.
 
@@ -263,7 +263,7 @@ Before modifying code, check for related tasks. For instance: "Are there open ta
 
 ---
 
-## add_task_attachment {#add_task_attachment}
+## tasks_add_attachment {#tasks_add_attachment}
 
 > **Mutation** — hidden in readonly mode
 
@@ -286,7 +286,7 @@ Max 10 MB per file. Max 20 attachments per entity.
 
 ---
 
-## remove_task_attachment {#remove_task_attachment}
+## tasks_remove_attachment {#tasks_remove_attachment}
 
 > **Mutation** — hidden in readonly mode
 

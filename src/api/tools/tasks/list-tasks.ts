@@ -20,7 +20,7 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
         tag:      z.string().max(MAX_TAG_LEN).optional().describe('Filter by tag (exact match, case-insensitive)'),
         filter:   z.string().max(500).optional().describe('Substring match on title or ID'),
         assignee: z.string().max(MAX_ASSIGNEE_LEN).optional().describe('Filter by assignee (team member ID)'),
-        limit:    z.number().max(1000).optional().describe('Max results (default 50)'),
+        limit:    z.number().int().min(1).max(1000).optional().describe('Max results (default 50)'),
       },
     },
     async ({ status, priority, tag, filter, assignee, limit }) => {

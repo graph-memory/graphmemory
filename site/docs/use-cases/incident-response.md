@@ -21,14 +21,14 @@ During an incident, time is critical. You need to navigate unfamiliar code paths
 Start by finding the relevant code:
 
 ```
-search_code({ query: "payment processing timeout" })
-search_code({ query: "database connection pool exhaustion" })
+code_docs_search({ query: "payment processing timeout" })
+code_docs_search({ query: "database connection pool exhaustion" })
 ```
 
 Get the full source of suspicious functions:
 
 ```
-get_symbol({ nodeId: "src/payments/processor.ts::processPayment" })
+code_get_symbol({ nodeId: "src/payments/processor.ts::processPayment" })
 ```
 
 ### 2. Check Documentation
@@ -36,8 +36,8 @@ get_symbol({ nodeId: "src/payments/processor.ts::processPayment" })
 Find relevant documentation about the system's expected behavior:
 
 ```
-search({ query: "payment processing flow" })
-search({ query: "error handling strategy" })
+docs_search({ query: "payment processing flow" })
+docs_search({ query: "error handling strategy" })
 ```
 
 ### 3. Look Up Past Knowledge
@@ -45,8 +45,8 @@ search({ query: "error handling strategy" })
 Check if there are notes about this area — past incidents, known issues, or design constraints:
 
 ```
-search_notes({ query: "payment timeout" })
-search_notes({ query: "connection pool" })
+notes_search({ query: "payment timeout" })
+notes_search({ query: "connection pool" })
 ```
 
 Finding a note like "Database connection pool sizing decision" can immediately explain why the pool is configured a certain way and what the expected limits are.
@@ -56,8 +56,8 @@ Finding a note like "Database connection pool sizing decision" can immediately e
 Check if there is a documented procedure for this type of incident:
 
 ```
-recall_skills({ context: "database connection pool troubleshooting" })
-recall_skills({ context: "payment system recovery" })
+skills_recall({ context: "database connection pool troubleshooting" })
+skills_recall({ context: "payment system recovery" })
 ```
 
 ### 5. Create a Fix Task
@@ -65,7 +65,7 @@ recall_skills({ context: "payment system recovery" })
 Once you understand the issue, create a task to track the fix:
 
 ```
-create_task({
+tasks_create({
   title: "Fix connection pool exhaustion under high payment load",
   description: "Under sustained high load, the connection pool is exhausted because...",
   priority: "critical",
@@ -77,7 +77,7 @@ create_task({
 Link the task to the affected code:
 
 ```
-create_task_link({
+tasks_create_link({
   taskId: "fix-connection-pool-exhaustion-under-high-payment-load",
   targetId: "src/db/pool.ts::createPool",
   targetGraph: "code",
@@ -90,7 +90,7 @@ create_task_link({
 After resolution, capture what you learned:
 
 ```
-create_note({
+notes_create({
   title: "Incident: Connection pool exhaustion (2025-01-15)",
   content: "Root cause: Long-running transactions held connections during payment retries...\n\nResolution: Added connection timeout and retry backoff...\n\nPrevention: Monitor pool usage, alert at 80% utilization",
   tags: ["incident", "postmortem", "database"]
@@ -100,7 +100,7 @@ create_note({
 Link the postmortem to the fix and the code:
 
 ```
-create_relation({
+notes_create_link({
   fromId: "incident-connection-pool-exhaustion-2025-01-15",
   toId: "fix-connection-pool-exhaustion-under-high-payment-load",
   targetGraph: "tasks",
@@ -113,7 +113,7 @@ create_relation({
 If this type of incident might recur, save the debugging steps as a skill:
 
 ```
-create_skill({
+skills_create({
   title: "Debug connection pool exhaustion",
   steps: [
     "1. Check active connection count: SELECT count(*) FROM pg_stat_activity",
@@ -131,15 +131,15 @@ create_skill({
 
 | Tool | Purpose in incident response |
 |------|------------------------------|
-| `search_code` | Find relevant code quickly |
-| `get_symbol` | Read the full source of a function |
-| `search` | Find documentation about system behavior |
-| `search_notes` | Look up past decisions and incidents |
-| `recall_skills` | Find existing troubleshooting procedures |
-| `create_task` | Track the fix |
-| `create_task_link` | Link fix task to affected code |
-| `create_note` | Write the postmortem |
-| `create_skill` | Save the debugging procedure for next time |
+| `code_search` | Find relevant code quickly |
+| `code_get_symbol` | Read the full source of a function |
+| `docs_search` | Find documentation about system behavior |
+| `notes_search` | Look up past decisions and incidents |
+| `skills_recall` | Find existing troubleshooting procedures |
+| `tasks_create` | Track the fix |
+| `tasks_create_link` | Link fix task to affected code |
+| `notes_create` | Write the postmortem |
+| `skills_create` | Save the debugging procedure for next time |
 
 ## Tip: Use the Prompt Builder
 

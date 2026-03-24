@@ -36,7 +36,7 @@ You can make any combination of graphs readonly. The read-only graphs are still 
 
 ## Effect on MCP Tools
 
-When a graph is readonly, all mutation tools for that graph are **hidden** from MCP clients. The AI assistant will not see `create_note`, `update_note`, `delete_note`, etc. — it can only use read and search tools like `search_notes`, `list_notes`, and `get_note`.
+When a graph is readonly, all mutation tools for that graph are **hidden** from MCP clients. The AI assistant will not see `notes_create`, `notes_update`, `notes_delete`, etc. — it can only use read and search tools like `notes_search`, `notes_list`, and `notes_get`.
 
 This means the AI cannot accidentally modify protected data, and it will not attempt operations that would fail.
 

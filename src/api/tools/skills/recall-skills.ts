@@ -14,10 +14,11 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
         context:  z.string().max(MAX_SEARCH_QUERY_LEN).describe('Description of the current task or context to match skills against'),
         topK:     z.number().min(1).max(500).optional().describe('How many top similar skills to use as seeds (default 5)'),
         minScore: z.number().min(0).max(1).optional().describe('Minimum relevance score 0–1 (default 0.3)'),
+        searchMode: z.enum(['hybrid', 'vector', 'keyword']).optional().describe('Search mode: hybrid (default, BM25 + vector), vector (embedding only), keyword (BM25 only)'),
       },
     },
-    async ({ context, topK, minScore }) => {
-      const results = await mgr.searchSkills(context, { topK, minScore: minScore ?? 0.3 });
+    async ({ context, topK, minScore, searchMode }) => {
+      const results = await mgr.searchSkills(context, { topK, minScore: minScore ?? 0.3, searchMode });
       return { content: [{ type: 'text', text: JSON.stringify(results, null, 2) }] };
     },
   );

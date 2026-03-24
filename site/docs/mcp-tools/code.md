@@ -3,7 +3,7 @@ title: "Code Tools"
 sidebar_label: "Code"
 sidebar_position: 6
 description: "5 MCP tools for searching and inspecting indexed source code — list files, browse symbols, semantic search, and full symbol retrieval."
-keywords: [code tools, search_code, get_symbol, list_files, get_file_symbols, source code, tree-sitter]
+keywords: [code tools, code_search, code_get_symbol, code_list_files, code_get_file_symbols, source code, tree-sitter]
 ---
 
 # Code Tools
@@ -14,7 +14,7 @@ These 5 tools work with **indexed source code files** (TypeScript/JavaScript). G
 These tools require the **code graph** to be enabled.
 :::
 
-## list_files
+## code_list_files
 
 Lists all indexed source code files.
 
@@ -23,7 +23,7 @@ Lists all indexed source code files.
 | Parameter | Required | Default | Description |
 |-----------|----------|---------|-------------|
 | `filter` | No | — | Substring filter on file path |
-| `limit` | No | 20 | Maximum number of results |
+| `limit` | No | — | Maximum number of results |
 
 ### Returns
 
@@ -35,7 +35,7 @@ Get an overview of all indexed source files. Useful for understanding project st
 
 ---
 
-## get_file_symbols
+## code_get_file_symbols
 
 Lists all symbols in a source file, sorted by line number.
 
@@ -51,11 +51,11 @@ Array of `{ id, kind, name, signature, startLine, endLine, isExported }` — eve
 
 ### When to use
 
-Get an outline of a file's structure, like an IDE's symbol panel. Use this before `get_symbol` to find the specific symbol you want to read.
+Get an outline of a file's structure, like an IDE's symbol panel. Use this before `code_get_symbol` to find the specific symbol you want to read.
 
 ---
 
-## search_code
+## code_search
 
 Semantic search over code symbols with optional graph expansion.
 
@@ -66,7 +66,7 @@ Semantic search over code symbols with optional graph expansion.
 | `query` | Yes | — | Search query (natural language) |
 | `topK` | No | 5 | Number of seed results for BFS expansion |
 | `bfsDepth` | No | 1 | How many hops to expand through graph connections |
-| `maxResults` | No | 20 | Maximum results returned |
+| `maxResults` | No | 5 | Maximum results returned |
 | `minScore` | No | 0.3 | Minimum relevance score (0-1) |
 | `bfsDecay` | No | 0.8 | Score decay factor per BFS hop |
 | `searchMode` | No | `hybrid` | `hybrid`, `vector`, or `keyword` |
@@ -78,11 +78,11 @@ Array of `{ id, fileId, kind, name, signature, docComment, startLine, endLine, s
 
 ### When to use
 
-The primary tool for finding code. Use natural language queries like "Find the function that handles password hashing" or "Where is the database connection configured?" Always prefer `search_code` over manually browsing files.
+The primary tool for finding code. Use natural language queries like "Find the function that handles password hashing" or "Where is the database connection configured?" Always prefer `code_search` over manually browsing files.
 
 ---
 
-## get_symbol
+## code_get_symbol
 
 Retrieves the full source body of a specific symbol.
 
@@ -98,11 +98,11 @@ Retrieves the full source body of a specific symbol.
 
 ### When to use
 
-After `search_code` finds a relevant symbol, use `get_symbol` to read the full implementation. Node IDs follow the format `fileId::symbolName`.
+After `code_search` finds a relevant symbol, use `code_get_symbol` to read the full implementation. Node IDs follow the format `fileId::symbolName`.
 
 ---
 
-## search_files
+## code_search_files
 
 File-level semantic search over source files.
 
@@ -111,7 +111,7 @@ File-level semantic search over source files.
 | Parameter | Required | Default | Description |
 |-----------|----------|---------|-------------|
 | `query` | Yes | — | Search query |
-| `topK` | No | 10 | Maximum results |
+| `limit` | No | 10 | Maximum results |
 | `minScore` | No | 0.3 | Minimum relevance score |
 
 ### Returns
@@ -120,4 +120,4 @@ Array of `{ fileId, symbolCount, score }` — matching source files ranked by re
 
 ### When to use
 
-When you want to find which source files are relevant before drilling into individual symbols. This searches at the file level, while `search_code` searches at the symbol level.
+When you want to find which source files are relevant before drilling into individual symbols. This searches at the file level, while `code_search` searches at the symbol level.

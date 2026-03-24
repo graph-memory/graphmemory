@@ -71,7 +71,7 @@ Uses the `mime` npm library (IANA-complete database). Unknown types → `null`.
 |--------|-------------|
 | `listAllFiles(opts)` | List files/dirs with filters (directory, extension, language, substring) |
 | `getFileInfo(filePath)` | Full metadata for a file or directory |
-| `search(query, opts)` | Cosine similarity search over file path embeddings |
+| `search(query, opts)` | Hybrid BM25 + vector search (RRF fusion) over file path embeddings |
 
 ### Write operations (used by indexer)
 

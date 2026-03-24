@@ -36,6 +36,9 @@ export function createTasksRouter(): Router {
         topK: q.topK,
         minScore: q.minScore,
         searchMode: q.searchMode,
+        bfsDepth: q.bfsDepth,
+        maxResults: q.maxResults,
+        bfsDecay: q.bfsDecay,
       });
       res.json({ results });
     } catch (err) { next(err); }

@@ -13,7 +13,7 @@ Graph Memory includes a lightweight task management system. Unlike standalone pr
 ## Creating tasks
 
 ```
-create_task({
+tasks_create({
   title: "Fix auth redirect loop",
   description: "When users log in with an expired session, the app enters a redirect loop between /login and /dashboard.",
   priority: "high",
@@ -54,10 +54,10 @@ backlog → todo → in_progress → review → done
 | `done` | Completed |
 | `cancelled` | Won't be done |
 
-Move tasks between statuses with the `move_task` tool:
+Move tasks between statuses with the `tasks_move` tool:
 
 ```
-move_task({ taskId: "fix-auth-redirect-loop", status: "in_progress" })
+tasks_move({ taskId: "fix-auth-redirect-loop", status: "in_progress" })
 ```
 
 :::info
@@ -78,12 +78,12 @@ Four priority levels control how tasks are sorted:
 When you list tasks, they are sorted by priority first (critical at the top), then by due date (earliest first). Tasks without a due date appear after those with one.
 
 ```
-list_tasks({ status: "todo" })
+tasks_list({ status: "todo" })
 ```
 
 ## Optimistic locking
 
-Every task has a `version` field that starts at 1 and increments on each mutation. The `update_task` and `move_task` tools accept an optional `expectedVersion` parameter. When provided, the operation succeeds only if the task's current version matches the expected value. If another update happened in between, the operation fails with a `version_conflict` error containing the current and expected versions. This prevents concurrent updates from silently overwriting each other.
+Every task has a `version` field that starts at 1 and increments on each mutation. The `tasks_update` and `tasks_move` tools accept an optional `expectedVersion` parameter. When provided, the operation succeeds only if the task's current version matches the expected value. If another update happened in between, the operation fails with a `version_conflict` error containing the current and expected versions. This prevents concurrent updates from silently overwriting each other.
 
 ## Task relationships
 
@@ -94,35 +94,35 @@ Tasks can be connected to other tasks in three ways:
 Break large tasks into smaller pieces:
 
 ```
-link_task({
+tasks_link({
   fromId: "write-auth-tests",
   toId: "implement-authentication",
   kind: "subtask_of"
 })
 ```
 
-When you view the parent task with `get_task`, its subtasks are listed automatically.
+When you view the parent task with `tasks_get`, its subtasks are listed automatically.
 
 ### Dependencies
 
 Indicate that one task blocks another:
 
 ```
-link_task({
+tasks_link({
   fromId: "fix-database-migration",
   toId: "deploy-v2",
   kind: "blocks"
 })
 ```
 
-`get_task` shows both what a task blocks and what blocks it, so you can see the full dependency picture.
+`tasks_get` shows both what a task blocks and what blocks it, so you can see the full dependency picture.
 
 ### Related tasks
 
 For tasks that are associated but don't have a hard dependency:
 
 ```
-link_task({
+tasks_link({
   fromId: "update-auth-docs",
   toId: "fix-auth-redirect-loop",
   kind: "related_to"
@@ -134,7 +134,7 @@ link_task({
 Tasks become much more useful when linked to the rest of your project. You can connect a task to code, documentation, knowledge notes, files, or skills:
 
 ```
-create_task_link({
+tasks_create_link({
   taskId: "fix-auth-redirect-loop",
   targetId: "src/auth.ts::login",
   targetGraph: "code",
@@ -149,7 +149,7 @@ Some practical uses:
 - **Link to a knowledge note** -- "the bug investigation note explains the root cause"
 - **Link to a skill** -- "use this debugging recipe to troubleshoot"
 
-When you view a task with `get_task`, all cross-graph links are included in the response, giving your AI assistant full context about what the task involves.
+When you view a task with `tasks_get`, all cross-graph links are included in the response, giving your AI assistant full context about what the task involves.
 
 :::tip
 Before starting a task, ask your AI assistant to look up the task's cross-graph links. It can read the linked code, check the relevant documentation, and review any related knowledge notes -- all in one step.
@@ -158,13 +158,13 @@ Before starting a task, ask your AI assistant to look up the task's cross-graph 
 ## Searching tasks
 
 ```
-search_tasks({ query: "authentication issues" })
+tasks_search({ query: "authentication issues" })
 ```
 
 Task search uses the same hybrid approach as other graphs -- combining keyword matching with semantic similarity. You can also filter by status, priority, tag, or assignee when listing:
 
 ```
-list_tasks({ status: "in_progress", tag: "auth" })
+tasks_list({ status: "in_progress", tag: "auth" })
 ```
 
 ## Assignees

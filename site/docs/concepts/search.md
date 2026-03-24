@@ -55,11 +55,11 @@ BFS expansion is what makes graph-based search more powerful than flat document 
 | `topK` | 5 | Number of seed results before BFS expansion |
 | `bfsDepth` | 1 | How many hops to expand |
 | `bfsDecay` | 0.8 | Score multiplier per hop |
-| `maxResults` | 20 | Maximum results returned |
+| `maxResults` | 5 | Maximum results returned |
 | `minScore` | 0.5 (docs, notes, tasks, skills) / 0.3 (code) | Minimum score threshold |
 
 :::note File Index search defaults
-File-level searches (`search_files`, `search_topic_files`, `search_all_files`) use `topK: 10`, `minScore: 0.3`, and no BFS expansion. They use hybrid BM25 + vector search, so exact filename queries (e.g. "embedder.ts") work via keyword matching. File paths are normalized (slashes/dots → spaces) for better embedding quality.
+File-level searches (`code_search_files`, `docs_search_files`, `files_search`) use `topK: 10`, `minScore: 0.3`, and no BFS expansion. They use hybrid BM25 + vector search, so exact filename queries (e.g. "embedder.ts") work via keyword matching. File paths are normalized (slashes/dots → spaces) for better embedding quality.
 :::
 
 :::note Code graph BFS behavior
@@ -72,12 +72,12 @@ Graph Memory includes search tools for each graph:
 
 | Tool | Searches |
 |------|----------|
-| `search` | Documentation chunks |
-| `search_code` | Code symbols |
-| `search_notes` | Knowledge graph notes |
-| `search_tasks` | Tasks |
-| `search_skills` / `recall_skills` | Skills and recipes |
-| `search_all_files` | File index (by path) |
+| `docs_search` | Documentation chunks |
+| `code_search` | Code symbols |
+| `notes_search` | Knowledge graph notes |
+| `tasks_search` | Tasks |
+| `skills_search` / `skills_recall` | Skills and recipes |
+| `files_search` | File index (by path) |
 
 Each tool searches its own graph but follows the same hybrid algorithm. Cross-graph links mean that BFS expansion can surface related nodes from the searched graph's connections.
 
@@ -92,7 +92,7 @@ Each graph extracts different text for keyword search:
 | Knowledge | Title + content |
 | Tasks | Title + description |
 | Skills | Title + description + triggers |
-| File Index | Path only (vector search, no BM25) |
+| File Index | Path only (hybrid BM25 + vector, RRF fusion) |
 
 :::tip
 For skills, **triggers are included in the keyword index**. Adding good trigger phrases like `["new endpoint", "add route"]` makes a skill easier to find via keyword search.

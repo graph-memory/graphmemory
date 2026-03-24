@@ -3,7 +3,7 @@ title: "File Index Tools"
 sidebar_label: "File Index"
 sidebar_position: 7
 description: "3 MCP tools for browsing and searching all project files — not just code or docs, but everything in the project directory."
-keywords: [file index, list_all_files, search_all_files, get_file_info, project files]
+keywords: [file index, files_list, files_search, files_get_info, project files]
 ---
 
 # File Index Tools
@@ -14,7 +14,7 @@ These 3 tools work with **all files in the project directory** — not just sour
 These tools are **always available**, regardless of graph configuration.
 :::
 
-## list_all_files
+## files_list
 
 Lists all project files and directories with optional filters.
 
@@ -38,7 +38,7 @@ Browsing the project file tree with filters. Useful for questions like "What con
 
 ---
 
-## search_all_files
+## files_search
 
 Semantic search over all project files by path and name.
 
@@ -60,7 +60,7 @@ When you need to find files by description rather than exact path. For instance:
 
 ---
 
-## get_file_info
+## files_get_info
 
 Returns full metadata for a specific file or directory.
 

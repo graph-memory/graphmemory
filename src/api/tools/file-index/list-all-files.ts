@@ -21,7 +21,7 @@ export function register(server: McpServer, mgr: FileIndexGraphManager): void {
           .describe('Filter by language (e.g. "typescript", "markdown", "json")'),
         filter: z.string().max(500).optional()
           .describe('Substring filter on file path (case-insensitive)'),
-        limit: z.number().max(1000).optional().default(50)
+        limit: z.number().int().min(1).max(1000).optional().default(50)
           .describe('Max results (default 50)'),
       },
     },

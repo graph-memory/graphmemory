@@ -23,7 +23,7 @@ With Graph Memory connected to your AI assistant, onboarding becomes a conversat
 Start by understanding what documentation exists:
 
 ```
-list_topics()
+docs_list_files()
 ```
 
 This returns all indexed markdown files with their titles and section counts. Get an overview of the project's documentation landscape.
@@ -31,8 +31,8 @@ This returns all indexed markdown files with their titles and section counts. Ge
 Search for specific topics:
 
 ```
-search({ query: "getting started" })
-search({ query: "architecture overview" })
+docs_search({ query: "getting started" })
+docs_search({ query: "architecture overview" })
 ```
 
 ### 2. Understand the Code Structure
@@ -40,23 +40,23 @@ search({ query: "architecture overview" })
 List code graph source files (TypeScript/JavaScript) to see how the codebase is organized:
 
 ```
-list_files()
+code_list_files()
 ```
 
-For a full project structure overview including all file types, use `list_all_files()` instead.
+For a full project structure overview including all file types, use `files_list()` instead.
 
 Explore symbols in key files:
 
 ```
-get_file_symbols({ fileId: "src/index.ts" })
-get_file_symbols({ fileId: "src/api/routes.ts" })
+code_get_file_symbols({ fileId: "src/index.ts" })
+code_get_file_symbols({ fileId: "src/api/routes.ts" })
 ```
 
 Search for specific concepts in the code:
 
 ```
-search_code({ query: "authentication middleware" })
-search_code({ query: "database connection" })
+code_search({ query: "authentication middleware" })
+code_search({ query: "database connection" })
 ```
 
 ### 3. Read Existing Knowledge
@@ -64,8 +64,8 @@ search_code({ query: "database connection" })
 Check for team notes and decisions:
 
 ```
-list_notes()
-search_notes({ query: "architecture decisions" })
+notes_list()
+notes_search({ query: "architecture decisions" })
 ```
 
 These notes often contain the "why" behind design choices — exactly what onboarding docs miss.
@@ -75,8 +75,8 @@ These notes often contain the "why" behind design choices — exactly what onboa
 See what the team is working on:
 
 ```
-list_tasks({ status: "in_progress" })
-list_tasks({ status: "todo" })
+tasks_list({ status: "in_progress" })
+tasks_list({ status: "todo" })
 ```
 
 This gives context on active development areas and priorities.
@@ -86,25 +86,25 @@ This gives context on active development areas and priorities.
 Check for existing skills and procedures:
 
 ```
-list_skills()
-recall_skills({ context: "development setup" })
-recall_skills({ context: "deployment process" })
+skills_list()
+skills_recall({ context: "development setup" })
+skills_recall({ context: "deployment process" })
 ```
 
 ## Key Tools
 
 | Tool | Purpose in onboarding |
 |------|----------------------|
-| `list_topics` | See all available documentation |
-| `search` | Find relevant doc sections by topic |
-| `list_files` | List code graph source files (TS/JS) |
-| `list_all_files` | Browse full project file tree |
-| `get_file_symbols` | Explore what a source file exports |
-| `search_code` | Find code by concept, not just name |
-| `list_notes` | Read team knowledge and decisions |
-| `search_notes` | Find notes on specific topics |
-| `list_tasks` | See current work items |
-| `recall_skills` | Find documented procedures |
+| `docs_list_files` | See all available documentation |
+| `docs_search` | Find relevant doc sections by topic |
+| `code_list_files` | List code graph source files (TS/JS) |
+| `files_list` | Browse full project file tree |
+| `code_get_file_symbols` | Explore what a source file exports |
+| `code_search` | Find code by concept, not just name |
+| `notes_list` | Read team knowledge and decisions |
+| `notes_search` | Find notes on specific topics |
+| `tasks_list` | See current work items |
+| `skills_recall` | Find documented procedures |
 
 ## Tip: Use the Prompt Builder
 

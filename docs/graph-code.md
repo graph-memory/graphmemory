@@ -91,7 +91,7 @@ Each `LanguageMapper` implements three methods:
 
 ### Parser details
 
-- `signature` = first line of full text (max 200 chars)
+- `signature` = first line of full text (max 300 chars)
 - `docComment` = JSDoc block from preceding comment node (`/** ... */`)
 - `body` = full source text of the declaration
 - `isExported` = detected from `export_statement` wrapper
@@ -131,7 +131,7 @@ Tree-sitter parser and language WASM grammars are loaded lazily on first parse. 
 
 ## Dangling edges
 
-`updateCodeFile()` skips cross-file edges (e.g. `imports`) whose target node is not yet indexed. These edges are **not** automatically restored when the target is later indexed — the source file must be re-indexed to pick them up.
+`updateCodeFile()` skips cross-file edges (e.g. `imports`) whose target node is not yet indexed. These edges are stored as pending metadata on the file node. After the full indexing scan completes, the indexer calls `resolvePendingImports()` and `resolvePendingEdges()` to create edges for targets that now exist in the graph. Any remaining unresolved edges stay as pending metadata for future re-indexes.
 
 ## File-level embeddings
 

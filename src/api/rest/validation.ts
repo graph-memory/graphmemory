@@ -69,6 +69,9 @@ export const noteSearchSchema = z.object({
   topK:       z.coerce.number().int().positive().max(MAX_SEARCH_TOP_K).optional(),
   minScore:   z.coerce.number().min(0).max(1).optional(),
   searchMode: z.enum(['hybrid', 'vector', 'keyword']).optional(),
+  bfsDepth:   z.coerce.number().int().min(0).max(10).optional(),
+  maxResults: z.coerce.number().int().min(1).max(500).optional(),
+  bfsDecay:   z.coerce.number().min(0).max(1).optional(),
 });
 
 export const noteListSchema = z.object({
@@ -122,6 +125,9 @@ export const taskSearchSchema = z.object({
   topK:       z.coerce.number().int().positive().max(MAX_SEARCH_TOP_K).optional(),
   minScore:   z.coerce.number().min(0).max(1).optional(),
   searchMode: z.enum(['hybrid', 'vector', 'keyword']).optional(),
+  bfsDepth:   z.coerce.number().int().min(0).max(10).optional(),
+  maxResults: z.coerce.number().int().min(1).max(500).optional(),
+  bfsDecay:   z.coerce.number().min(0).max(1).optional(),
 });
 
 export const taskListSchema = z.object({
@@ -142,6 +148,10 @@ export const searchQuerySchema = z.object({
   topK:       z.coerce.number().int().positive().max(MAX_SEARCH_TOP_K).optional(),
   minScore:   z.coerce.number().min(0).max(1).optional(),
   searchMode: z.enum(['hybrid', 'vector', 'keyword']).optional(),
+  bfsDepth:   z.coerce.number().int().min(0).max(10).optional(),
+  maxResults: z.coerce.number().int().min(1).max(500).optional(),
+  bfsDecay:   z.coerce.number().min(0).max(1).optional(),
+  includeBody: z.coerce.boolean().optional(),
 });
 
 export const listQuerySchema = z.object({
@@ -153,12 +163,18 @@ export const listQuerySchema = z.object({
 // File index schemas
 // ---------------------------------------------------------------------------
 
+export const fileSearchSchema = z.object({
+  q:          z.string().min(1).max(MAX_SEARCH_QUERY_LEN),
+  topK:       z.coerce.number().int().positive().max(MAX_SEARCH_TOP_K).optional(),
+  minScore:   z.coerce.number().min(0).max(1).optional(),
+});
+
 export const fileListSchema = z.object({
   directory: z.string().max(4096).optional(),
   extension: z.string().max(100).optional(),
   language:  z.string().max(100).optional(),
   filter:    z.string().max(500).optional(),
-  limit:     z.coerce.number().int().positive().max(1000).optional(),
+  limit:     z.coerce.number().int().positive().max(1000).optional().default(50),
 });
 
 // ---------------------------------------------------------------------------
@@ -203,6 +219,9 @@ export const skillSearchSchema = z.object({
   topK:       z.coerce.number().int().positive().max(MAX_SEARCH_TOP_K).optional(),
   minScore:   z.coerce.number().min(0).max(1).optional(),
   searchMode: z.enum(['hybrid', 'vector', 'keyword']).optional(),
+  bfsDepth:   z.coerce.number().int().min(0).max(10).optional(),
+  maxResults: z.coerce.number().int().min(1).max(500).optional(),
+  bfsDecay:   z.coerce.number().min(0).max(1).optional(),
 });
 
 export const skillListSchema = z.object({

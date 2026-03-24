@@ -14,7 +14,7 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
       inputSchema: {
         filter: z.string().max(500).optional().describe('Case-insensitive substring to match against note title or ID'),
         tag:    z.string().max(MAX_TAG_LEN).optional().describe('Filter by tag (exact match, case-insensitive)'),
-        limit:  z.number().max(1000).optional().describe('Maximum number of results'),
+        limit:  z.number().int().min(1).max(1000).optional().describe('Maximum number of results'),
       },
     },
     async ({ filter, tag, limit }) => ({

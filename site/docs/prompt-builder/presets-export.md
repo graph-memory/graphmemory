@@ -60,7 +60,7 @@ The downloaded file contains the complete assembled prompt, ready to use as-is.
 
 Click **Export as Skill** to create a skill entry in your project's skill graph. This stores the prompt as a reusable procedure within graphmemory itself, which means:
 
-- The prompt becomes searchable through `search_skills` and `recall_skills`
+- The prompt becomes searchable through `skills_search` and `skills_recall`
 - Other AI assistants connected to the same project can find and use the prompt
 - The skill tracks usage count, so you can see which prompts your team uses most
 
@@ -73,7 +73,7 @@ When exporting as a skill, the builder creates a skill with:
 
 Since presets are stored in browser local storage, they don't automatically sync across machines or team members. Here are ways to share prompt configurations:
 
-**Export as Skill** (recommended): This stores the prompt in the project's skill graph, which is shared across all users of the project. Team members can find it with `recall_skills` or browse it in the Skills section of the Web UI.
+**Export as Skill** (recommended): This stores the prompt in the project's skill graph, which is shared across all users of the project. Team members can find it with `skills_recall` or browse it in the Skills section of the Web UI.
 
 **Download and share the `.md` file**: Save the prompt as markdown and commit it to your repository, share it in a team chat, or add it to your project's documentation.
 
@@ -83,4 +83,4 @@ For teams that want standardized prompts, the recommended workflow is:
 
 1. Build and test the prompt in the Advanced Builder
 2. Export it as a Skill with descriptive tags and trigger keywords
-3. Team members use `recall_skills` to find the right prompt for their current task
+3. Team members use `skills_recall` to find the right prompt for their current task

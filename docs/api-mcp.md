@@ -31,16 +31,16 @@ The set of tools registered for an MCP session depends on:
 | Code blocks | 4 | docs graph enabled | `tools/docs/` |
 | Cross-graph | 1 | docs + code enabled | `tools/docs/` |
 | Code | 5 | code graph enabled | `tools/code/` |
-| File index | 3 | always | `tools/file-index/` |
-| Knowledge | 12 | always | `tools/knowledge/` |
-| Tasks | 13 | always | `tools/tasks/` |
-| Skills | 14 | always | `tools/skills/` |
+| File index | 3 | file index enabled | `tools/file-index/` |
+| Knowledge | 12 | knowledge graph enabled | `tools/knowledge/` |
+| Tasks | 13 | task graph enabled | `tools/tasks/` |
+| Skills | 14 | skill graph enabled | `tools/skills/` |
 
 ## Context tool
 
 | Tool | Input | Output |
 |------|-------|--------|
-| `get_context` | — | `{ projectId, workspaceId?, workspaceProjects?, availableGraphs, userId? }` |
+| `get_context` | — | `{ projectId, workspaceId?, workspaceProjects?, hasWorkspace }` |
 
 ## Docs tools
 
@@ -48,7 +48,7 @@ The set of tools registered for an MCP session depends on:
 |------|-------|--------|
 | `docs_list_files` | optional `filter`, `limit` | `[{ fileId, title, chunks }]` |
 | `docs_get_toc` | `fileId` | `[{ id, title, level }]` |
-| `docs_search` | `query` + optional `topK`, `bfsDepth`, `maxResults`, `minScore`, `bfsDecay`, `searchMode` | `[{ id, fileId, title, content, level, score }]` |
+| `docs_search` | `query` + optional `topK`, `bfsDepth`, `maxResults` (default 5), `minScore`, `bfsDecay`, `searchMode` | `[{ id, fileId, title, content, level, score }]` |
 | `docs_get_node` | `nodeId` | `{ id, fileId, title, content, level, mtime }` |
 | `docs_search_files` | `query` + optional `limit`, `minScore` | `[{ fileId, title, chunks, score }]` |
 
@@ -92,9 +92,9 @@ Requires both DocGraph and CodeGraph to be enabled. Bridges code definitions wit
 | Tool | Input | Output |
 |------|-------|--------|
 | `notes_create` | `title`, `content`, optional `tags` | `{ noteId }` |
-| `notes_update` | `noteId` + optional `title`, `content`, `tags` | `{ noteId, updated }` |
+| `notes_update` | `noteId` + optional `title`, `content`, `tags`, `expectedVersion` | `{ noteId, updated }` |
 | `notes_delete` | `noteId` | `{ noteId, deleted }` |
-| `notes_get` | `noteId` | `{ id, title, content, tags, createdAt, updatedAt }` |
+| `notes_get` | `noteId` | `{ id, title, content, tags, createdAt, updatedAt, relations }` |
 | `notes_list` | optional `filter`, `tag`, `limit` | `[{ id, title, tags, updatedAt }]` |
 | `notes_search` | `query` + optional `topK`, `bfsDepth`, `maxResults`, `minScore`, `bfsDecay`, `searchMode` | `[{ id, title, content, tags, score }]` |
 | `notes_create_link` | `fromId`, `toId`, `kind` + optional `targetGraph`, `projectId` | `{ fromId, toId, kind, targetGraph?, created }` |
@@ -109,15 +109,15 @@ Requires both DocGraph and CodeGraph to be enabled. Bridges code definitions wit
 | Tool | Input | Output |
 |------|-------|--------|
 | `tasks_create` | `title`, `description`, `priority` + optional `status`, `tags`, `dueDate`, `estimate`, `assignee` | `{ taskId }` |
-| `tasks_update` | `taskId` + optional fields | `{ taskId, updated }` |
+| `tasks_update` | `taskId` + optional fields, `expectedVersion` | `{ taskId, updated }` |
 | `tasks_delete` | `taskId` | `{ taskId, deleted }` |
 | `tasks_get` | `taskId` | `{ id, title, description, status, priority, tags, dueDate, estimate, assignee, completedAt, createdAt, updatedAt, subtasks, blockedBy, blocks, related, crossLinks? }` |
-| `tasks_list` | optional `status`, `priority`, `tag`, `filter`, `assignee`, `limit` | `[{ id, title, status, priority, tags, dueDate, estimate, assignee, completedAt }]` |
+| `tasks_list` | optional `status`, `priority`, `tag`, `filter`, `assignee`, `limit` | `[{ id, title, description, status, priority, tags, dueDate, estimate, assignee, completedAt, createdAt, updatedAt }]` |
 | `tasks_search` | `query` + optional `topK`, `bfsDepth`, `maxResults`, `minScore`, `bfsDecay`, `searchMode` | `[{ id, title, description, status, priority, tags, score }]` |
-| `tasks_move` | `taskId`, `status` | `{ taskId, status, completedAt }` |
+| `tasks_move` | `taskId`, `status` + optional `expectedVersion` | `{ taskId, status, completedAt }` |
 | `tasks_link` | `fromId`, `toId`, `kind` (`subtask_of`, `blocks`, `related_to`) | `{ fromId, toId, kind, created }` |
 | `tasks_create_link` | `taskId`, `targetId`, `targetGraph`, `kind` + optional `projectId` | `{ taskId, targetId, targetGraph, kind, created }` |
-| `tasks_delete_link` | `taskId`, `targetId`, `targetGraph` + optional `projectId` | `{ taskId, targetId, deleted }` |
+| `tasks_delete_link` | `taskId`, `targetId`, `targetGraph` + optional `projectId` | `{ taskId, targetId, targetGraph, deleted }` |
 | `tasks_find_linked` | `targetId`, `targetGraph` + optional `kind`, `projectId` | `[{ taskId, title, kind, status, priority, tags }]` |
 | `tasks_add_attachment` | `taskId`, `filePath` (absolute path on disk) | `{ filename, mimeType, size, addedAt }` |
 | `tasks_remove_attachment` | `taskId`, `filename` | `{ deleted: filename }` |
@@ -130,10 +130,10 @@ Requires both DocGraph and CodeGraph to be enabled. Bridges code definitions wit
 | `skills_update` | `skillId` + optional fields | `{ skillId, updated }` |
 | `skills_delete` | `skillId` | `{ skillId, deleted }` |
 | `skills_get` | `skillId` | `{ id, title, description, steps, triggers, inputHints, filePatterns, source, confidence, tags, usageCount, lastUsedAt, createdAt, updatedAt, dependsOn, dependedBy, related, variants, crossLinks? }` |
-| `skills_list` | optional `source`, `tag`, `filter`, `limit` | `[{ id, title, source, tags, usageCount, lastUsedAt }]` |
+| `skills_list` | optional `source`, `tag`, `filter`, `limit` | `[{ id, title, description, source, confidence, tags, usageCount, lastUsedAt, createdAt, updatedAt }]` |
 | `skills_search` | `query` + optional `topK`, `bfsDepth`, `maxResults`, `minScore`, `bfsDecay`, `searchMode` | `[{ id, title, description, source, confidence, usageCount, tags, score }]` |
-| `skills_recall` | `context` + optional `topK`, `minScore` | `[{ id, title, description, steps, triggers, source, tags, score, usageCount }]` |
-| `skills_bump_usage` | `skillId` | `{ skillId, usageCount, lastUsedAt }` |
+| `skills_recall` | `context` + optional `topK`, `minScore`, `searchMode` | `[{ id, title, description, source, confidence, tags, score, usageCount }]` |
+| `skills_bump_usage` | `skillId` | `{ skillId, bumped }` |
 | `skills_link` | `fromId`, `toId`, `kind` (`depends_on`, `related_to`, `variant_of`) | `{ fromId, toId, kind, created }` |
 | `skills_create_link` | `skillId`, `targetId`, `targetGraph`, `kind` + optional `projectId` | `{ skillId, targetId, targetGraph, kind, created }` |
 | `skills_delete_link` | `skillId`, `targetId`, `targetGraph` + optional `projectId` | `{ skillId, targetId, deleted }` |

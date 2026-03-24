@@ -54,7 +54,7 @@ If an `author` is configured in `graph-memory.yaml`, a team member file is auto-
 Tasks have an `assignee` field that references a team member ID:
 
 ```
-create_task({
+tasks_create({
   title: "Fix auth redirect loop",
   priority: "high",
   status: "todo",
@@ -64,16 +64,16 @@ create_task({
 
 The assignee appears in:
 
-- **MCP tools** — `create_task`, `update_task`, `list_tasks`, `get_task`
+- **MCP tools** — `tasks_create`, `tasks_update`, `tasks_list`, `tasks_get`
 - **REST API** — all task endpoints
 - **Web UI** — kanban board cards, task detail view, and the filter bar
 
 ## Filtering Tasks by Assignee
 
-Use `list_tasks` with the assignee filter to see a team member's workload:
+Use `tasks_list` with the assignee filter to see a team member's workload:
 
 ```
-list_tasks({ assignee: "alice" })
+tasks_list({ assignee: "alice" })
 ```
 
 In the Web UI, use the filter bar on the kanban board to show tasks for a specific team member.

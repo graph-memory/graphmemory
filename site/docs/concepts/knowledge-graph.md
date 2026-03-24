@@ -26,10 +26,10 @@ Knowledge notes give your AI assistant persistent memory across conversations. W
 
 ## Creating notes
 
-Use the `create_note` tool to create a note with a title, content, and optional tags:
+Use the `notes_create` tool to create a note with a title, content, and optional tags:
 
 ```
-create_note({
+notes_create({
   title: "Why we chose PostgreSQL over MongoDB",
   content: "We need ACID transactions for payment processing. MongoDB's eventual consistency model doesn't meet our compliance requirements.",
   tags: ["architecture", "database"]
@@ -43,7 +43,7 @@ Each note gets an auto-generated ID based on its title (e.g., `why-we-chose-post
 Tags help you organize and filter notes. Use them for categories, project areas, or any grouping that makes sense:
 
 ```
-create_note({
+notes_create({
   title: "Session cookie security",
   content: "...",
   tags: ["security", "auth", "cookies"]
@@ -53,7 +53,7 @@ create_note({
 You can filter notes by tag when listing:
 
 ```
-list_notes({ tag: "architecture" })
+notes_list({ tag: "architecture" })
 ```
 
 ## Versioning
@@ -65,7 +65,7 @@ Every time a note is updated, its version number increments automatically. The `
 Notes can be connected to each other with typed relations:
 
 ```
-create_relation({
+notes_create_link({
   fromId: "auth-architecture",
   toId: "session-management-design",
   kind: "depends_on"
@@ -87,7 +87,7 @@ The `kind` is free-form -- use whatever describes the relationship. Common kinds
 The most powerful feature of knowledge notes is linking them to nodes in other graphs. A note about an architectural decision can point directly to the code it affects, the docs that explain it, or the task that implements it.
 
 ```
-create_relation({
+notes_create_link({
   fromId: "why-we-chose-postgresql",
   toId: "src/db/connection.ts",
   targetGraph: "code",
@@ -110,7 +110,7 @@ You can link to any of the other five graphs:
 You can also ask: "What notes reference this code symbol?"
 
 ```
-find_linked_notes({
+notes_find_linked({
   targetId: "src/auth.ts::loginUser",
   targetGraph: "code"
 })
@@ -125,7 +125,7 @@ Cross-graph links are validated when created. You can only link to nodes that ac
 ## Searching notes
 
 ```
-search_notes({ query: "how does authentication work?" })
+notes_search({ query: "how does authentication work?" })
 ```
 
 Search combines keyword matching with semantic similarity. This means:
@@ -138,7 +138,7 @@ Search combines keyword matching with semantic similarity. This means:
 Notes can have file attachments -- diagrams, screenshots, data files, or anything relevant:
 
 ```
-add_note_attachment({
+notes_add_attachment({
   noteId: "auth-architecture",
   filename: "auth-flow.png",
   content: "<base64-encoded content>"

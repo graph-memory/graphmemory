@@ -16,7 +16,7 @@ Scenarios are pre-configured starting points that optimize the prompt for a spec
 
 - **Default role**: Developer | **Style**: Balanced
 - **Graphs**: All six (docs, code, files, knowledge, tasks, skills)
-- **Focus tools**: `search`, `search_code`, `cross_references`, `explain_symbol`, `get_toc`, `list_topics`, `get_symbol`, `search_all_files`
+- **Focus tools**: `docs_search`, `code_search`, `docs_cross_references`, `docs_explain_symbol`, `docs_get_toc`, `docs_list_files`, `code_get_symbol`, `files_search`
 
 Use this when joining a project for the first time or returning after a long break. The prompt emphasizes deep search, detailed explanations, and read-heavy exploration. Notes and tasks are created only when asked.
 
@@ -26,7 +26,7 @@ Use this when joining a project for the first time or returning after a long bre
 
 - **Default role**: Developer | **Style**: Proactive
 - **Graphs**: All six
-- **Focus tools**: `search_code`, `get_symbol`, `search_tasks`, `move_task`, `recall_skills`, `create_note`, `find_linked_tasks`, `cross_references`
+- **Focus tools**: `code_search`, `code_get_symbol`, `tasks_search`, `tasks_move`, `skills_recall`, `notes_create`, `tasks_find_linked`, `docs_cross_references`
 
 Use this for day-to-day development work. The prompt balances code search with task management and encourages the assistant to proactively capture knowledge and track work items.
 
@@ -36,7 +36,7 @@ Use this for day-to-day development work. The prompt balances code search with t
 
 - **Default role**: Reviewer | **Style**: Reactive
 - **Graphs**: Code, Docs, Files, Tasks
-- **Focus tools**: `search_code`, `get_symbol`, `find_linked_tasks`, `find_examples`, `cross_references`, `search_notes`, `get_file_symbols`
+- **Focus tools**: `code_search`, `code_get_symbol`, `tasks_find_linked`, `docs_find_examples`, `docs_cross_references`, `notes_search`, `code_get_file_symbols`
 
 Use this when reviewing pull requests or code changes. The prompt focuses on correctness, consistency, and checking changes against documentation. The assistant searches freely but only creates notes or tasks when you ask.
 
@@ -46,7 +46,7 @@ Use this when reviewing pull requests or code changes. The prompt focuses on cor
 
 - **Default role**: Developer | **Style**: Proactive
 - **Graphs**: Code, Knowledge, Tasks, Files
-- **Focus tools**: `search_code`, `get_symbol`, `search_notes`, `find_linked_tasks`, `create_task`, `create_note`, `get_file_symbols`, `search_all_files`
+- **Focus tools**: `code_search`, `code_get_symbol`, `notes_search`, `tasks_find_linked`, `tasks_create`, `notes_create`, `code_get_file_symbols`, `files_search`
 
 Use this when debugging issues. The prompt enables deep search with maximum cross-graph expansion and encourages the assistant to automatically capture findings as notes and create follow-up tasks.
 
@@ -56,7 +56,7 @@ Use this when debugging issues. The prompt enables deep search with maximum cros
 
 - **Default role**: Developer | **Style**: Reactive
 - **Graphs**: Code, Docs, Files, Tasks
-- **Focus tools**: `search_code`, `get_file_symbols`, `get_symbol`, `cross_references`, `find_linked_tasks`, `list_files`, `search_files`
+- **Focus tools**: `code_search`, `code_get_file_symbols`, `code_get_symbol`, `docs_cross_references`, `tasks_find_linked`, `code_list_files`, `code_search_files`
 
 Use this when restructuring or reorganizing code. The prompt emphasizes dependency analysis and deep search to help you understand what depends on the code you're changing.
 
@@ -66,7 +66,7 @@ Use this when restructuring or reorganizing code. The prompt emphasizes dependen
 
 - **Default role**: Architect | **Style**: Proactive
 - **Graphs**: Code, Docs, Files, Knowledge, Skills
-- **Focus tools**: `search`, `search_code`, `cross_references`, `list_files`, `get_toc`, `create_note`, `create_skill`, `recall_skills`
+- **Focus tools**: `docs_search`, `code_search`, `docs_cross_references`, `code_list_files`, `docs_get_toc`, `notes_create`, `skills_create`, `skills_recall`
 
 Use this when designing new features, evaluating system structure, or making architectural decisions. The prompt encourages capturing decisions as notes and saving architectural patterns as skills.
 
@@ -76,7 +76,7 @@ Use this when designing new features, evaluating system structure, or making arc
 
 - **Default role**: Tech Writer | **Style**: Proactive
 - **Graphs**: Docs, Code, Knowledge, Files
-- **Focus tools**: `search`, `get_toc`, `cross_references`, `search_topic_files`, `get_node`, `search_code`, `create_note`, `list_topics`
+- **Focus tools**: `docs_search`, `docs_get_toc`, `docs_cross_references`, `docs_search_files`, `docs_get_node`, `code_search`, `notes_create`, `docs_list_files`
 
 Use this when writing or updating documentation. The prompt focuses on finding documentation gaps, verifying code examples, and maintaining consistency between docs and code.
 
@@ -86,7 +86,7 @@ Use this when writing or updating documentation. The prompt focuses on finding d
 
 - **Default role**: Team Lead | **Style**: Proactive
 - **Graphs**: Tasks, Skills, Knowledge, Code
-- **Focus tools**: `list_tasks`, `search_tasks`, `create_task`, `move_task`, `recall_skills`, `create_note`, `link_task`, `find_linked_tasks`
+- **Focus tools**: `tasks_list`, `tasks_search`, `tasks_create`, `tasks_move`, `skills_recall`, `notes_create`, `tasks_link`, `tasks_find_linked`
 
 Use this for sprint planning, backlog grooming, or priority management. The prompt emphasizes task creation and management with concise, action-oriented responses.
 
@@ -96,7 +96,7 @@ Use this for sprint planning, backlog grooming, or priority management. The prom
 
 - **Default role**: Developer | **Style**: Proactive
 - **Graphs**: Knowledge, Tasks, Skills, Code
-- **Focus tools**: `create_note`, `create_relation`, `create_skill`, `create_task`, `create_task_link`, `search_notes`, `search_code`
+- **Focus tools**: `notes_create`, `notes_create_link`, `skills_create`, `tasks_create`, `tasks_create_link`, `notes_search`, `code_search`
 
 Use this during or after meetings, decision discussions, or when you want to systematically capture project knowledge. The prompt maximizes note creation, relation building, and skill capture.
 
@@ -106,7 +106,7 @@ Use this during or after meetings, decision discussions, or when you want to sys
 
 - **Default role**: Developer | **Style**: Read-only
 - **Graphs**: Code, Docs, Files, Knowledge
-- **Focus tools**: `explain_symbol`, `cross_references`, `get_toc`, `search`, `search_code`, `get_symbol`, `get_node`, `list_topics`
+- **Focus tools**: `docs_explain_symbol`, `docs_cross_references`, `docs_get_toc`, `docs_search`, `code_search`, `code_get_symbol`, `docs_get_node`, `docs_list_files`
 
 Use this when teaching someone about the codebase. The prompt provides exhaustive explanations with deep search but never modifies the graph, keeping the focus on reading and explaining.
 
@@ -116,7 +116,7 @@ Use this when teaching someone about the codebase. The prompt provides exhaustiv
 
 - **Default role**: Developer | **Style**: Proactive
 - **Graphs**: Code, Knowledge, Tasks, Files, Skills
-- **Focus tools**: `search_code`, `get_symbol`, `search_notes`, `recall_skills`, `create_task`, `create_note`, `find_linked_tasks`, `search_all_files`
+- **Focus tools**: `code_search`, `code_get_symbol`, `notes_search`, `skills_recall`, `tasks_create`, `notes_create`, `tasks_find_linked`, `files_search`
 
 Use this during production incidents. The prompt enables deep, wide search and aggressive knowledge capture — every finding gets documented, every fix gets tracked. Concise responses keep the focus on speed.
 
@@ -126,7 +126,7 @@ Use this during production incidents. The prompt enables deep, wide search and a
 
 - **Default role**: Architect | **Style**: Balanced
 - **Graphs**: Code, Files, Knowledge, Tasks
-- **Focus tools**: `search_all_files`, `list_all_files`, `get_file_info`, `search_code`, `get_file_symbols`, `list_files`, `create_note`
+- **Focus tools**: `files_search`, `files_list`, `files_get_info`, `code_search`, `code_get_file_symbols`, `code_list_files`, `notes_create`
 
 Use this when analyzing your project's dependency structure, auditing packages, or mapping module boundaries. The prompt emphasizes file and code analysis tools.
 
@@ -136,7 +136,7 @@ Use this when analyzing your project's dependency structure, auditing packages, 
 
 - **Default role**: Team Lead | **Style**: Proactive
 - **Graphs**: Tasks, Knowledge, Skills, Code
-- **Focus tools**: `list_tasks`, `search_tasks`, `list_notes`, `search_notes`, `recall_skills`, `create_note`, `create_task`, `create_skill`
+- **Focus tools**: `tasks_list`, `tasks_search`, `notes_list`, `notes_search`, `skills_recall`, `notes_create`, `tasks_create`, `skills_create`
 
 Use this for sprint reviews and retrospectives. The prompt focuses on reviewing completed tasks, extracting learnings as knowledge notes, and creating improvement tasks for the next sprint.
 

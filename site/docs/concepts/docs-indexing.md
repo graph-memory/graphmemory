@@ -102,10 +102,10 @@ const token = jwt.sign({ userId }, secret, { expiresIn: '1h' });
 
 The code block becomes its own searchable node. For TypeScript and JavaScript code blocks, symbol names are also extracted, so you can find documentation examples by the functions or classes they demonstrate.
 
-This is especially useful with the `find_examples` tool -- search for code examples across your documentation:
+This is especially useful with the `docs_find_examples` tool -- search for code examples across your documentation:
 
 ```
-find_examples({ symbol: "JWT token creation" })
+docs_find_examples({ symbol: "JWT token creation" })
 ```
 
 ## Searching documentation
@@ -115,7 +115,7 @@ Graph Memory provides several ways to search your docs:
 ### Semantic search
 
 ```
-search({ query: "how does authentication work?" })
+docs_search({ query: "how does authentication work?" })
 ```
 
 Finds sections by meaning, not just keyword matching. If the word "authentication" only appears in the file title but the section explains JWT tokens, it will still be found.
@@ -123,7 +123,7 @@ Finds sections by meaning, not just keyword matching. If the word "authenticatio
 ### File-level search
 
 ```
-search_topic_files({ query: "deployment" })
+docs_search_files({ query: "deployment" })
 ```
 
 Quickly identifies which documentation files are relevant to a topic, before drilling into specific sections.
@@ -131,7 +131,7 @@ Quickly identifies which documentation files are relevant to a topic, before dri
 ### Table of contents
 
 ```
-get_toc({ fileId: "docs/auth.md" })
+docs_get_toc({ fileId: "docs/auth.md" })
 ```
 
 Returns the heading structure of a documentation file, similar to a sidebar table of contents.
@@ -139,7 +139,7 @@ Returns the heading structure of a documentation file, similar to a sidebar tabl
 ### Read a specific section
 
 ```
-get_node({ nodeId: "docs/auth.md::JWT Tokens" })
+docs_get_node({ nodeId: "docs/auth.md::JWT Tokens" })
 ```
 
 Returns the full content of a specific section by its ID.

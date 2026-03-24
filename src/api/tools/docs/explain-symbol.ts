@@ -54,7 +54,8 @@ export function register(server: McpServer, mgr: DocGraphManager): void {
         return { content: [{ type: 'text', text: `No documentation found for symbol: ${symbol}` }] };
       }
 
-      return { content: [{ type: 'text', text: JSON.stringify(results, null, 2) }] };
+      const clean = (_k: string, v: any) => (v === null || (Array.isArray(v) && v.length === 0) ? undefined : v);
+      return { content: [{ type: 'text', text: JSON.stringify(results, clean, 2) }] };
     },
   );
 }

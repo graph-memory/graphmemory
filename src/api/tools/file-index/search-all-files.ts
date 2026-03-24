@@ -24,7 +24,8 @@ export function register(server: McpServer, mgr: FileIndexGraphManager): void {
     },
     async ({ query, limit = FILE_SEARCH_TOP_K, minScore = SEARCH_MIN_SCORE_FILES }) => {
       const results = await mgr.search(query, { topK: limit, minScore });
-      return { content: [{ type: 'text', text: JSON.stringify(results, null, 2) }] };
+      const clean = (_k: string, v: any) => (v === null ? undefined : v);
+      return { content: [{ type: 'text', text: JSON.stringify(results, clean, 2) }] };
     },
   );
 }

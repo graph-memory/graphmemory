@@ -26,11 +26,12 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
           return { content: [{ type: 'text', text: 'Task not found' }], isError: true };
         }
         const task = mgr.getTask(taskId)!;
+        const clean = (_k: string, v: any) => (v === null ? undefined : v);
         return { content: [{ type: 'text', text: JSON.stringify({
           taskId: task.id,
           status: task.status,
           completedAt: task.completedAt,
-        }, null, 2) }] };
+        }, clean, 2) }] };
       } catch (err) {
         if (err instanceof VersionConflictError) {
           return { content: [{ type: 'text', text: JSON.stringify({ error: 'version_conflict', current: err.current, expected: err.expected }) }], isError: true };

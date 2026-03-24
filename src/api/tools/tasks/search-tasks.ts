@@ -26,7 +26,8 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
     },
     async ({ query, topK, bfsDepth, maxResults, minScore, bfsDecay, searchMode }) => {
       const results = await mgr.searchTasks(query, { topK, bfsDepth, maxResults, minScore, bfsDecay, searchMode });
-      return { content: [{ type: 'text', text: JSON.stringify(results, null, 2) }] };
+      const clean = (_k: string, v: any) => (Array.isArray(v) && v.length === 0 ? undefined : v);
+      return { content: [{ type: 'text', text: JSON.stringify(results, clean, 2) }] };
     },
   );
 }

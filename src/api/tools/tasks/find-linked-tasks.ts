@@ -25,7 +25,8 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
       if (results.length === 0) {
         return { content: [{ type: 'text', text: `No tasks linked to ${targetGraph}::${targetId}` }] };
       }
-      return { content: [{ type: 'text', text: JSON.stringify(results, null, 2) }] };
+      const clean = (_k: string, v: any) => (Array.isArray(v) && v.length === 0 ? undefined : v);
+      return { content: [{ type: 'text', text: JSON.stringify(results, clean, 2) }] };
     },
   );
 }

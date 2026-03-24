@@ -5,6 +5,46 @@ description: Graph Memory release history and version changes.
 
 # Changelog
 
+## v1.6.0
+
+**Released: March 2026**
+
+### Highlights
+
+- **OAuth 2.0 for AI chat clients** — Graph Memory now implements the OAuth 2.0 `client_credentials` flow. AI chat clients that support OAuth connectors (Claude.ai, etc.) can authenticate automatically — no manual API key headers required. Client ID = `userId`, Client Secret = `apiKey` from config.
+- **Tool naming consistency** — all 58 MCP tools audited and renamed to consistent `graph_verb_noun` prefixes. Parameter names, defaults, and descriptions aligned across MCP tools and REST endpoints.
+- **Array syntax for `include` patterns** — the `include` field in graph config now accepts a YAML array in addition to a single glob string, matching the existing `exclude` behavior.
+- **Cleaner MCP responses** — internal graph fields (`fileEmbedding`, `pendingLinks`, `pendingImports`, `pendingEdges`, `version`), null values, and empty arrays stripped from all MCP tool responses to reduce noise and token usage.
+
+### New Endpoints
+
+- `GET /.well-known/oauth-authorization-server` — RFC 8414 OAuth discovery metadata
+- `POST /oauth/token` — OAuth 2.0 `client_credentials` grant; returns a short-lived Bearer JWT (1 hour, type `oauth_access`)
+
+### Security
+
+- **Auth before project lookup** — MCP handler now checks authentication before resolving the project, preventing unauthenticated callers from enumerating which project IDs exist via 404 vs 401 responses
+- **`WWW-Authenticate: Bearer` on 401** — MCP endpoints include the RFC 6750 required header on all 401 responses, enabling OAuth clients to trigger automatic re-authentication
+
+### Fixes
+
+- `docs_get_node` — removed `fileEmbedding`, `pendingLinks`, `mtime` from response
+- `code_get_symbol` — removed `fileEmbedding`, `pendingImports`, `pendingEdges` from response
+- `notes_get`, `tasks_get`, `skills_get` — removed `version`; null fields and empty arrays stripped
+- `notes_list` — removed content preview field (not in tool description)
+
+### Tests
+
+- 33 new tests in `oauth.test.ts`: unit tests for `signOAuthToken` and `resolveUserFromBearer`, supertest coverage of discovery and token endpoints, integration tests against a real HTTP server for `WWW-Authenticate` header behavior
+
+### Documentation
+
+- `docs/authentication.md` — added OAuth 2.0 section with endpoint reference and token format
+- `site/docs/security/authentication.md` — new OAuth 2.0 subsection and "Connecting Claude.ai" guide
+- `site/docs/guides/mcp-clients.md` — new Claude.ai section with connector setup instructions
+
+---
+
 ## v1.5.0
 
 **Released: March 2026**

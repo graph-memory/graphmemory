@@ -3,6 +3,7 @@ import os from 'os';
 import path from 'path';
 import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
+import { type RedisConfig, REDIS_DEFAULTS } from '@/lib/redis';
 
 const HOME = os.homedir();
 
@@ -97,6 +98,13 @@ const rateLimitSchema = z.object({
   auth:   z.number().int().min(0).optional(),   // req/min per IP for login
 });
 
+const redisSchema = z.object({
+  enabled:            z.boolean().optional(),
+  url:                z.string().optional(),
+  prefix:             z.string().optional(),
+  embeddingCacheTtl:  z.string().optional(),
+});
+
 const serverSchema = z.object({
   host:            z.string().optional(),
   port:            z.number().int().positive().optional(),
@@ -116,6 +124,7 @@ const serverSchema = z.object({
   rateLimit:       rateLimitSchema.optional(),
   maxFileSize:     z.number().int().positive().optional(),
   exclude:         excludeSchema,
+  redis:           redisSchema.optional(),
 });
 
 const wsGraphConfigSchema = z.object({
@@ -242,6 +251,7 @@ export interface ServerConfig {
   rateLimit: RateLimitConfig;
   maxFileSize: number;
   exclude: string[];
+  redis: RedisConfig;
 }
 
 export interface GraphConfig {
@@ -355,6 +365,7 @@ const SERVER_DEFAULTS: Omit<ServerConfig, 'embedding'> & { embedding: EmbeddingC
   rateLimit:       RATE_LIMIT_DEFAULTS,
   maxFileSize:     1 * 1024 * 1024,  // 1 MB
   exclude:         ['**/node_modules/**', '**/dist/**'],
+  redis:           { ...REDIS_DEFAULTS },
 };
 
 const PROJECT_DEFAULTS = {
@@ -462,6 +473,12 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
     },
     maxFileSize:     srv.maxFileSize     ?? SERVER_DEFAULTS.maxFileSize,
     exclude:         [...SERVER_DEFAULTS.exclude, ...parseExclude(srv.exclude)],
+    redis: {
+      enabled:           srv.redis?.enabled           ?? REDIS_DEFAULTS.enabled,
+      url:               srv.redis?.url               ?? REDIS_DEFAULTS.url,
+      prefix:            srv.redis?.prefix            ?? REDIS_DEFAULTS.prefix,
+      embeddingCacheTtl: srv.redis?.embeddingCacheTtl ?? REDIS_DEFAULTS.embeddingCacheTtl,
+    },
   };
 
   // Users
@@ -631,6 +648,7 @@ export function defaultConfig(projectDir: string): MultiConfig {
     rateLimit:       RATE_LIMIT_DEFAULTS,
     maxFileSize:     SERVER_DEFAULTS.maxFileSize,
     exclude:         [...SERVER_DEFAULTS.exclude],
+    redis:           { ...REDIS_DEFAULTS },
   };
 
   const graphConfigs = {} as Record<GraphName, GraphConfig>;

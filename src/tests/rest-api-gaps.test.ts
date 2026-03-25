@@ -597,6 +597,7 @@ describe('CORS credentials', () => {
         corsOrigins: ['http://localhost:3000'],
         defaultAccess: 'rw',
         accessTokenTtl: '15m', refreshTokenTtl: '7d', rateLimit: { global: 0, search: 0, auth: 0 }, maxFileSize: 1048576, exclude: [],
+        redis: { enabled: false, url: 'redis://localhost:6379', prefix: 'mgm:', embeddingCacheTtl: '30d' },
       },
     });
     const res = await request(app)

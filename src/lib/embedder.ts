@@ -1,11 +1,24 @@
 import { pipeline, env, type FeatureExtractionPipeline } from '@huggingface/transformers';
+import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import type { ModelConfig, EmbeddingConfig } from '@/lib/multi-config';
 import { DEFAULT_EMBEDDING_CACHE_SIZE, REMOTE_MAX_RETRIES, REMOTE_BASE_DELAY_MS, ERROR_BODY_LIMIT } from '@/lib/defaults';
+import { float32ToBase64, base64ToFloat32 } from '@/lib/embedding-codec';
+import type { RedisClientType } from 'redis';
 
 // ---------------------------------------------------------------------------
-// LRU cache for embedding vectors (avoids re-computing identical texts)
+// Embedding cache abstraction
+// ---------------------------------------------------------------------------
+
+export interface EmbeddingCache {
+  get(text: string): Promise<number[] | undefined>;
+  set(text: string, vector: number[]): Promise<void>;
+  clear(): Promise<void>;
+}
+
+// ---------------------------------------------------------------------------
+// LRU cache (in-memory) — default implementation
 // ---------------------------------------------------------------------------
 
 const DEFAULT_CACHE_SIZE = DEFAULT_EMBEDDING_CACHE_SIZE;
@@ -37,6 +50,51 @@ class LruCache<V> {
   clear(): void { this.map.clear(); }
 }
 
+export class MemoryEmbeddingCache implements EmbeddingCache {
+  private lru: LruCache<number[]>;
+  constructor(maxSize: number) { this.lru = new LruCache(maxSize); }
+  async get(text: string): Promise<number[] | undefined> { return this.lru.get(text); }
+  async set(text: string, vector: number[]): Promise<void> { this.lru.set(text, vector); }
+  async clear(): Promise<void> { this.lru.clear(); }
+}
+
+export class RedisEmbeddingCache implements EmbeddingCache {
+  constructor(
+    private client: RedisClientType,
+    private prefix: string,
+    private ttlSeconds: number,  // 0 = no TTL
+  ) {}
+
+  private hashKey(text: string): string {
+    const hash = crypto.createHash('sha256').update(text).digest('hex');
+    return `${this.prefix}emb:${hash}`;
+  }
+
+  async get(text: string): Promise<number[] | undefined> {
+    const raw = await this.client.get(this.hashKey(text));
+    if (!raw) return undefined;
+    return base64ToFloat32(raw);
+  }
+
+  async set(text: string, vector: number[]): Promise<void> {
+    const key = this.hashKey(text);
+    const value = float32ToBase64(vector);
+    if (this.ttlSeconds > 0) {
+      await this.client.set(key, value, { EX: this.ttlSeconds });
+    } else {
+      await this.client.set(key, value);
+    }
+  }
+
+  async clear(): Promise<void> {
+    // Clear by pattern — expensive, but only used in dispose/reset
+    const pattern = `${this.prefix}emb:*`;
+    for await (const key of this.client.scanIterator({ MATCH: pattern, COUNT: 100 })) {
+      await this.client.del(key);
+    }
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Model registry
 // ---------------------------------------------------------------------------
@@ -48,7 +106,7 @@ interface ModelEntry {
   embedding: EmbeddingConfig;
   modelsDir: string;
   maxChars: number;
-  cache: LruCache<number[]>;
+  cache: EmbeddingCache;
   remote?: { url: string; apiKey?: string; model?: string };
 }
 
@@ -70,20 +128,22 @@ function validateRemoteUrl(url: string): void {
  */
 export async function loadModel(
   model: ModelConfig, embedding: EmbeddingConfig, modelsDir: string, name = 'default',
+  cache?: EmbeddingCache,
 ): Promise<void> {
   const maxChars = embedding.maxChars;
   const cacheSize = embedding.cacheSize ?? DEFAULT_CACHE_SIZE;
+  const embeddingCache = cache ?? new MemoryEmbeddingCache(cacheSize);
 
   // Remote embedding: register proxy, skip ONNX loading
   if (embedding.remote) {
     validateRemoteUrl(embedding.remote);
-    _models.set(name, { pipe: null, pipePromise: null, model, embedding, modelsDir, maxChars, cache: new LruCache(cacheSize), remote: { url: embedding.remote, apiKey: embedding.remoteApiKey, model: embedding.remoteModel } });
+    _models.set(name, { pipe: null, pipePromise: null, model, embedding, modelsDir, maxChars, cache: embeddingCache, remote: { url: embedding.remote, apiKey: embedding.remoteApiKey, model: embedding.remoteModel } });
     process.stderr.write(`[embedder] Model "${name}" using remote endpoint ${embedding.remote}\n`);
     return;
   }
 
   // Register for lazy loading — pipeline created on first use
-  _models.set(name, { pipe: null, pipePromise: null, model, embedding, modelsDir, maxChars, cache: new LruCache(cacheSize) });
+  _models.set(name, { pipe: null, pipePromise: null, model, embedding, modelsDir, maxChars, cache: embeddingCache });
   process.stderr.write(`[embedder] Registered model ${model.name} for "${name}" (lazy)\n`);
 }
 
@@ -168,7 +228,7 @@ export async function disposeModel(name: string): Promise<void> {
     }
   }
 
-  entry.cache.clear();
+  await entry.cache.clear();
   _models.delete(name);
 }
 
@@ -180,7 +240,7 @@ export async function disposeAllModels(): Promise<void> {
       disposed.add(entry.pipe);
       await entry.pipe.dispose();
     }
-    entry.cache.clear();
+    await entry.cache.clear();
   }
   _models.clear();
   _pipeCache.clear();
@@ -249,7 +309,7 @@ export async function embed(title: string, content: string, modelName = 'default
   const raw = `${title}\n${content}`;
   const text = `${entry.model.documentPrefix}${raw}`.slice(0, entry.maxChars);
 
-  const cached = entry.cache.get(text);
+  const cached = await entry.cache.get(text);
   if (cached) return cached;
 
   let vec: number[];
@@ -260,7 +320,7 @@ export async function embed(title: string, content: string, modelName = 'default
     const tensor = await pipe._call(text, { pooling: entry.model.pooling, normalize: entry.model.normalize });
     vec = Array.from(tensor.data as Float32Array);
   }
-  entry.cache.set(text, vec);
+  await entry.cache.set(text, vec);
   return vec;
 }
 
@@ -269,7 +329,7 @@ export async function embedQuery(query: string, modelName = 'default'): Promise<
   const entry = getEntry(modelName);
   const text = `${entry.model.queryPrefix}${query}`.slice(0, entry.maxChars);
 
-  const cached = entry.cache.get(text);
+  const cached = await entry.cache.get(text);
   if (cached) return cached;
 
   let vec: number[];
@@ -280,7 +340,7 @@ export async function embedQuery(query: string, modelName = 'default'): Promise<
     const tensor = await pipe._call(text, { pooling: entry.model.pooling, normalize: entry.model.normalize });
     vec = Array.from(tensor.data as Float32Array);
   }
-  entry.cache.set(text, vec);
+  await entry.cache.set(text, vec);
   return vec;
 }
 
@@ -297,7 +357,8 @@ export async function embedBatch(
   );
 
   // Check cache: split into hits and misses
-  const result: (number[] | null)[] = texts.map(t => entry.cache.get(t) ?? null);
+  const cachedResults = await Promise.all(texts.map(t => entry.cache.get(t)));
+  const result: (number[] | null)[] = cachedResults.map(v => v ?? null);
   const missIndices = result.map((v, i) => v === null ? i : -1).filter(i => i >= 0);
 
   if (missIndices.length === 0) return result as number[][];
@@ -326,14 +387,14 @@ export async function embedBatch(
   for (let j = 0; j < missIndices.length; j++) {
     const idx = missIndices[j];
     result[idx] = missVecs[j];
-    entry.cache.set(texts[idx], missVecs[j]);
+    await entry.cache.set(texts[idx], missVecs[j]);
   }
 
   return result as number[][];
 }
 
-export function resetEmbedder(): void {
-  for (const entry of _models.values()) entry.cache.clear();
+export async function resetEmbedder(): Promise<void> {
+  for (const entry of _models.values()) await entry.cache.clear();
   _models.clear();
   _pipeCache.clear();
 }

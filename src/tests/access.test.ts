@@ -39,6 +39,7 @@ function makeServerConfig(overrides?: Partial<ServerConfig>): ServerConfig {
     accessTokenTtl: '15m', refreshTokenTtl: '7d',
     rateLimit: { global: 200, search: 60, auth: 10 },
     maxFileSize: 1048576,
+    redis: { enabled: false, url: 'redis://localhost:6379', prefix: 'mgm:', embeddingCacheTtl: '30d' },
     ...overrides,
   };
 }

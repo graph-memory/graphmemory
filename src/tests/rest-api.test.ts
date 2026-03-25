@@ -841,6 +841,7 @@ describe('REST API — Auth & ACL', () => {
         defaultAccess: 'deny',
         access: { admin: 'rw' },
         accessTokenTtl: '15m', refreshTokenTtl: '7d', rateLimit: { global: 0, search: 0, auth: 0 }, maxFileSize: 1048576, exclude: [],
+        redis: { enabled: false, url: 'redis://localhost:6379', prefix: 'mgm:', embeddingCacheTtl: '30d' },
       },
       users: {
         admin: { name: 'Admin', email: 'admin@test.com', apiKey: 'key-admin' },
@@ -889,6 +890,7 @@ describe('REST API — Auth & ACL', () => {
         defaultAccess: 'deny',
         access: { reader: 'r' },
         accessTokenTtl: '15m', refreshTokenTtl: '7d', rateLimit: { global: 0, search: 0, auth: 0 }, maxFileSize: 1048576, exclude: [],
+        redis: { enabled: false, url: 'redis://localhost:6379', prefix: 'mgm:', embeddingCacheTtl: '30d' },
       },
       users: {
         reader: { name: 'Reader', email: 'reader@test.com', apiKey: 'key-reader' },
@@ -956,6 +958,7 @@ describe('REST API — Embedding API', () => {
         embeddingApi: { enabled: true, apiKey: 'emb-secret', maxTexts: 100, maxTextChars: 10_000 },
         defaultAccess: 'rw',
         accessTokenTtl: '15m', refreshTokenTtl: '7d', rateLimit: { global: 0, search: 0, auth: 0 }, maxFileSize: 1048576, exclude: [],
+        redis: { enabled: false, url: 'redis://localhost:6379', prefix: 'mgm:', embeddingCacheTtl: '30d' },
       },
       embeddingApiModelNames: { default: EMBED_MODEL_NAME, code: EMBED_MODEL_NAME },
     });
@@ -1025,6 +1028,7 @@ describe('REST API — Embedding API', () => {
         embedding: { ...TEST_EMBEDDING },
         defaultAccess: 'rw',
         accessTokenTtl: '15m', refreshTokenTtl: '7d', rateLimit: { global: 0, search: 0, auth: 0 }, maxFileSize: 1048576, exclude: [],
+        redis: { enabled: false, url: 'redis://localhost:6379', prefix: 'mgm:', embeddingCacheTtl: '30d' },
       },
     });
     const res = await request(noEmbedApp).post('/api/embed').send({ texts: ['test'] });
@@ -1068,6 +1072,7 @@ describe('REST API — JWT Cookie Auth', () => {
         access: { admin: 'rw' },
         jwtSecret: JWT_SECRET,
         accessTokenTtl: '15m', refreshTokenTtl: '7d', rateLimit: { global: 0, search: 0, auth: 0 }, maxFileSize: 1048576, exclude: [],
+        redis: { enabled: false, url: 'redis://localhost:6379', prefix: 'mgm:', embeddingCacheTtl: '30d' },
       },
       users: {
         admin: { name: 'Admin', email: 'admin@test.com', apiKey: 'key-admin', passwordHash: adminPasswordHash },

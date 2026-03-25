@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import express from 'express';
-import { signOAuthToken, signRefreshToken, parseTtl, verifyToken, getAccessToken } from '@/lib/jwt';
+import { signOAuthToken, signOAuthRefreshToken, parseTtl, verifyToken, getAccessToken } from '@/lib/jwt';
 import { resolveUserFromApiKey } from '@/lib/access';
 import type { UserConfig, ServerConfig } from '@/lib/multi-config';
 
@@ -23,7 +23,7 @@ function verifyPkce(codeVerifier: string, codeChallenge: string): boolean {
 
 function issueTokenPair(userId: string, jwtSecret: string, accessTtl: string, refreshTtl: string): object {
   const accessToken = signOAuthToken(userId, jwtSecret, accessTtl);
-  const refreshToken = signRefreshToken(userId, jwtSecret, refreshTtl);
+  const refreshToken = signOAuthRefreshToken(userId, jwtSecret, refreshTtl);
   return {
     access_token: accessToken,
     token_type: 'bearer',
@@ -195,7 +195,7 @@ export function createOAuthRouter(
       }
 
       const payload = verifyToken(refresh_token, jwtSecret);
-      if (!payload || payload.type !== 'refresh') {
+      if (!payload || payload.type !== 'oauth_refresh') {
         res.status(400).json({ error: 'invalid_grant', error_description: 'Invalid or expired refresh token' });
         return;
       }

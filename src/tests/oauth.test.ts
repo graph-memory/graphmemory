@@ -610,10 +610,10 @@ describe('POST /oauth/token — authorization_code happy path', () => {
     expect(payload).toMatchObject({ userId: 'alice', type: 'oauth_access' });
   });
 
-  it('refresh_token is valid JWT with type refresh', async () => {
+  it('refresh_token is valid JWT with type oauth_refresh', async () => {
     const { body } = await doAuthCodeFlow(app, 'alice');
     const payload = verifyToken(body.refresh_token, SECRET);
-    expect(payload).toMatchObject({ userId: 'alice', type: 'refresh' });
+    expect(payload).toMatchObject({ userId: 'alice', type: 'oauth_refresh' });
   });
 
   it('code is single-use — second exchange fails', async () => {
@@ -789,7 +789,7 @@ describe('POST /oauth/token — refresh_token error cases', () => {
   it('returns invalid_grant for expired refresh_token', async () => {
     const jwt = require('jsonwebtoken');
     const expired = jwt.sign(
-      { userId: 'alice', type: 'refresh', exp: Math.floor(Date.now() / 1000) - 10 },
+      { userId: 'alice', type: 'oauth_refresh', exp: Math.floor(Date.now() / 1000) - 10 },
       SECRET,
     );
     const res = await request(app)

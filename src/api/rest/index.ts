@@ -25,6 +25,16 @@ import { createEmbedRouter } from '@/api/rest/embed';
 import { createOAuthRouter } from '@/api/rest/oauth';
 import { scanTeamDir } from '@/lib/team';
 import { RATE_LIMIT_WINDOW_MS } from '@/lib/defaults';
+import type { DirectedGraph } from 'graphology';
+
+/** Count real (non-proxy) nodes in a graph. */
+function realNodeCount(graph: DirectedGraph): number {
+  let count = 0;
+  graph.forEachNode((_id, attrs) => {
+    if (!(attrs as any).proxyFor) count++;
+  });
+  return count;
+}
 
 export interface RestAppOptions {
   serverConfig?: ServerConfig;
@@ -291,12 +301,12 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
         workspaceId: p.workspaceId ?? null,
         graphs,
         stats: {
-          docs:      p.docGraph      ? p.docGraph.order      : 0,
-          code:      p.codeGraph     ? p.codeGraph.order      : 0,
-          knowledge: p.knowledgeGraph ? p.knowledgeGraph.order : 0,
-          files:     p.fileIndexGraph ? p.fileIndexGraph.order : 0,
-          tasks:     p.taskGraph     ? p.taskGraph.order      : 0,
-          skills:    p.skillGraph    ? p.skillGraph.order     : 0,
+          docs:      p.docGraph      ? realNodeCount(p.docGraph)      : 0,
+          code:      p.codeGraph     ? realNodeCount(p.codeGraph)     : 0,
+          knowledge: p.knowledgeGraph ? realNodeCount(p.knowledgeGraph) : 0,
+          files:     p.fileIndexGraph ? realNodeCount(p.fileIndexGraph) : 0,
+          tasks:     p.taskGraph     ? realNodeCount(p.taskGraph)     : 0,
+          skills:    p.skillGraph    ? realNodeCount(p.skillGraph)    : 0,
         },
       };
     });
@@ -319,12 +329,12 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
   app.get('/api/projects/:projectId/stats', (req, res) => {
     const p = (req as any).project;
     res.json({
-      docs:      p.docGraph      ? { nodes: p.docGraph.order,      edges: p.docGraph.size }      : null,
-      code:      p.codeGraph     ? { nodes: p.codeGraph.order,     edges: p.codeGraph.size }     : null,
-      knowledge: p.knowledgeGraph ? { nodes: p.knowledgeGraph.order, edges: p.knowledgeGraph.size } : null,
-      fileIndex: p.fileIndexGraph ? { nodes: p.fileIndexGraph.order, edges: p.fileIndexGraph.size } : null,
-      tasks:     p.taskGraph     ? { nodes: p.taskGraph.order,      edges: p.taskGraph.size }     : null,
-      skills:    p.skillGraph    ? { nodes: p.skillGraph.order,     edges: p.skillGraph.size }    : null,
+      docs:      p.docGraph      ? { nodes: realNodeCount(p.docGraph),      edges: p.docGraph.size }      : null,
+      code:      p.codeGraph     ? { nodes: realNodeCount(p.codeGraph),     edges: p.codeGraph.size }     : null,
+      knowledge: p.knowledgeGraph ? { nodes: realNodeCount(p.knowledgeGraph), edges: p.knowledgeGraph.size } : null,
+      fileIndex: p.fileIndexGraph ? { nodes: realNodeCount(p.fileIndexGraph), edges: p.fileIndexGraph.size } : null,
+      tasks:     p.taskGraph     ? { nodes: realNodeCount(p.taskGraph),      edges: p.taskGraph.size }     : null,
+      skills:    p.skillGraph    ? { nodes: realNodeCount(p.skillGraph),     edges: p.skillGraph.size }    : null,
     });
   });
 

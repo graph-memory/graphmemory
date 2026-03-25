@@ -635,6 +635,38 @@ describe('Cross-graph relations (tasks)', () => {
     it('returns false for nonexistent', () => {
       expect(deleteCrossRelation(tg, taskId, 'docs', 'guide.md::Setup')).toBe(false);
     });
+
+    it('deletes incoming mirror proxy edge (proxy → taskId)', () => {
+      // Simulate a mirror edge created by another graph (e.g. knowledge → task)
+      const mirrorProxyId = '@knowledge::some-note';
+      tg.addNode(mirrorProxyId, {
+        title: '', description: '', status: 'backlog', priority: 'low',
+        tags: [], dueDate: null, estimate: null, completedAt: null, assignee: null,
+        version: 0, embedding: [], attachments: [], createdAt: 0, updatedAt: 0,
+        proxyFor: { graph: 'knowledge', nodeId: 'some-note' },
+      });
+      tg.addEdgeWithKey(`${mirrorProxyId}→${taskId}`, mirrorProxyId, taskId, { kind: 'relates_to' });
+      // deleteCrossRelation should find and remove the incoming edge
+      expect(deleteCrossRelation(tg, taskId, 'knowledge', 'some-note')).toBe(true);
+      expect(tg.hasNode(mirrorProxyId)).toBe(false); // orphan proxy cleaned up
+    });
+
+    it('deletes when fromId/toId are swapped by resolveEntry (reverse proxy lookup)', () => {
+      // Simulate the scenario: UI sends {fromId: noteId, toId: taskId, targetGraph: 'knowledge'}
+      // but the actual edge is @knowledge::noteId → taskId
+      const noteId = 'my-note';
+      const mirrorProxyId = `@knowledge::${noteId}`;
+      tg.addNode(mirrorProxyId, {
+        title: '', description: '', status: 'backlog', priority: 'low',
+        tags: [], dueDate: null, estimate: null, completedAt: null, assignee: null,
+        version: 0, embedding: [], attachments: [], createdAt: 0, updatedAt: 0,
+        proxyFor: { graph: 'knowledge', nodeId: noteId },
+      });
+      tg.addEdgeWithKey(`${mirrorProxyId}→${taskId}`, mirrorProxyId, taskId, { kind: 'relates_to' });
+      // Called as deleteCrossRelation(graph, noteId, 'knowledge', taskId) — fromId=noteId (not a task!)
+      expect(deleteCrossRelation(tg, noteId, 'knowledge', taskId)).toBe(true);
+      expect(tg.hasNode(mirrorProxyId)).toBe(false);
+    });
   });
 
   describe('deleteTask cleans up orphaned proxies', () => {

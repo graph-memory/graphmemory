@@ -653,6 +653,34 @@ describe('Cross-graph relations (skills)', () => {
     it('returns false for nonexistent', () => {
       expect(deleteCrossRelation(sg, skillId, 'docs', 'guide.md::Setup')).toBe(false);
     });
+
+    it('deletes incoming mirror proxy edge (proxy → skillId)', () => {
+      const mirrorProxyId = '@knowledge::some-note';
+      sg.addNode(mirrorProxyId, {
+        title: '', description: '', triggers: [], steps: [], inputHints: [], filePatterns: [],
+        tags: [], source: 'user', confidence: 0, embedding: [], attachments: [], usageCount: 0,
+        lastUsedAt: null, createdAt: 0, updatedAt: 0, version: 0,
+        proxyFor: { graph: 'knowledge', nodeId: 'some-note' },
+      });
+      sg.addEdgeWithKey(`${mirrorProxyId}→${skillId}`, mirrorProxyId, skillId, { kind: 'relates_to' });
+      expect(deleteCrossRelation(sg, skillId, 'knowledge', 'some-note')).toBe(true);
+      expect(sg.hasNode(mirrorProxyId)).toBe(false);
+    });
+
+    it('deletes when fromId/toId are swapped by resolveEntry (reverse proxy lookup)', () => {
+      const noteId = 'my-note';
+      const mirrorProxyId = `@knowledge::${noteId}`;
+      sg.addNode(mirrorProxyId, {
+        title: '', description: '', triggers: [], steps: [], inputHints: [], filePatterns: [],
+        tags: [], source: 'user', confidence: 0, embedding: [], attachments: [], usageCount: 0,
+        lastUsedAt: null, createdAt: 0, updatedAt: 0, version: 0,
+        proxyFor: { graph: 'knowledge', nodeId: noteId },
+      });
+      sg.addEdgeWithKey(`${mirrorProxyId}→${skillId}`, mirrorProxyId, skillId, { kind: 'relates_to' });
+      // Called as deleteCrossRelation(graph, noteId, 'knowledge', skillId) — fromId=noteId (not a skill!)
+      expect(deleteCrossRelation(sg, noteId, 'knowledge', skillId)).toBe(true);
+      expect(sg.hasNode(mirrorProxyId)).toBe(false);
+    });
   });
 
   describe('deleteSkill cleans up orphaned proxies', () => {

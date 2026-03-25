@@ -598,8 +598,34 @@ export function deleteCrossRelation(
   if (projectId) candidates.push(proxyId(targetGraph, targetNodeId));
 
   for (const pId of candidates) {
+    // Outgoing: taskId → proxy(targetId) — task created this link
     if (graph.hasEdge(fromTaskId, pId)) {
       graph.dropEdge(fromTaskId, pId);
+      cleanupProxy(graph, pId);
+      return true;
+    }
+    // Incoming: proxy(targetId) → taskId — mirror from another graph
+    if (graph.hasEdge(pId, fromTaskId)) {
+      graph.dropEdge(pId, fromTaskId);
+      cleanupProxy(graph, pId);
+      return true;
+    }
+  }
+
+  // Also check reverse proxy direction: proxy(fromId) → targetId
+  // This handles the case when resolveEntry swaps fromId/toId for incoming mirrors,
+  // e.g. UI sends {fromId: noteId, toId: taskId} but the edge is @knowledge::noteId → taskId
+  const reverseCandidates = [proxyId(targetGraph, fromTaskId, projectId)];
+  if (projectId) reverseCandidates.push(proxyId(targetGraph, fromTaskId));
+
+  for (const pId of reverseCandidates) {
+    if (graph.hasEdge(pId, targetNodeId)) {
+      graph.dropEdge(pId, targetNodeId);
+      cleanupProxy(graph, pId);
+      return true;
+    }
+    if (graph.hasEdge(targetNodeId, pId)) {
+      graph.dropEdge(targetNodeId, pId);
       cleanupProxy(graph, pId);
       return true;
     }
@@ -905,29 +931,62 @@ export class TaskGraphManager {
 
   deleteCrossLink(taskId: string, targetId: string, targetGraph: TaskCrossGraphType, projectId?: string): boolean {
     const pid = projectId || this.ctx.projectId;
-    // Read edge kind before deleting
+    // Read edge kind before deleting — check both directions
     let kind = '';
     try {
-      const proxyNodeId = proxyId(targetGraph, targetId, pid);
-      if (this._graph.hasEdge(taskId, proxyNodeId)) {
-        const ek = this._graph.edge(taskId, proxyNodeId);
-        if (ek) kind = this._graph.getEdgeAttribute(ek, 'kind') ?? '';
+      for (const tid of [targetId, taskId]) {
+        const pnId = proxyId(targetGraph, tid, pid);
+        const other = tid === targetId ? taskId : targetId;
+        if (this._graph.hasEdge(other, pnId)) {
+          const ek = this._graph.edge(other, pnId);
+          if (ek) { kind = this._graph.getEdgeAttribute(ek, 'kind') ?? ''; break; }
+        }
+        if (this._graph.hasEdge(pnId, other)) {
+          const ek = this._graph.edge(pnId, other);
+          if (ek) { kind = this._graph.getEdgeAttribute(ek, 'kind') ?? ''; break; }
+        }
       }
     } catch { /* ignore */ }
 
     const ok = deleteCrossRelation(this._graph, taskId, targetGraph, targetId, pid);
-    // Bidirectional: remove mirror proxy from KnowledgeGraph
     if (ok && targetGraph === 'knowledge' && this.knowledgeGraph) {
+      // Remove mirror/original edge from KnowledgeGraph in both directions.
+      // Case 1: task created the link → mirror is @tasks::taskId → noteId
       deleteMirrorFromKnowledgeGraph(this.knowledgeGraph, taskId, targetId);
+      // Case 2: note created the link → original is noteId → @tasks::taskId (or targetId → @tasks::taskId)
+      // Try both ID interpretations since resolveEntry may have swapped them
+      for (const [noteCandidate, taskCandidate] of [[targetId, taskId], [taskId, targetId]]) {
+        const taskProxy = `@tasks::${taskCandidate}`;
+        if (this.knowledgeGraph.hasNode(taskProxy)) {
+          // noteId → @tasks::taskId
+          if (this.knowledgeGraph.hasEdge(noteCandidate, taskProxy)) {
+            this.knowledgeGraph.dropEdge(noteCandidate, taskProxy);
+            if (this.knowledgeGraph.degree(taskProxy) === 0) {
+              this.knowledgeGraph.dropNode(taskProxy);
+            }
+          }
+          // @tasks::taskId → noteId (mirror direction)
+          if (this.knowledgeGraph.hasEdge(taskProxy, noteCandidate)) {
+            this.knowledgeGraph.dropEdge(taskProxy, noteCandidate);
+            if (this.knowledgeGraph.degree(taskProxy) === 0) {
+              this.knowledgeGraph.dropNode(taskProxy);
+            }
+          }
+        }
+      }
     }
     if (ok) {
       this.ctx.markDirty();
       const dir = this.tasksDir;
       if (dir) {
-        const attrs = this._graph.getNodeAttributes(taskId);
-        const relations = listTaskRelations(this._graph, taskId, this.ext);
-        mirrorTaskRelation(dir, taskId, 'remove', kind, targetId, attrs, relations, targetGraph);
-        this.recordMirrorWrites(taskId);
+        // taskId might actually be a noteId for incoming mirrors — use the real task node
+        const realTaskId = this._graph.hasNode(taskId) && !isProxy(this._graph, taskId) ? taskId : targetId;
+        if (this._graph.hasNode(realTaskId) && !isProxy(this._graph, realTaskId)) {
+          const attrs = this._graph.getNodeAttributes(realTaskId);
+          const relations = listTaskRelations(this._graph, realTaskId, this.ext);
+          mirrorTaskRelation(dir, realTaskId, 'remove', kind, targetId, attrs, relations, targetGraph);
+          this.recordMirrorWrites(realTaskId);
+        }
       }
     }
     return ok;

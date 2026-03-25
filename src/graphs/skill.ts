@@ -576,8 +576,33 @@ export function deleteCrossRelation(
   if (projectId) candidates.push(proxyId(targetGraph, targetNodeId));
 
   for (const pId of candidates) {
+    // Outgoing: skillId → proxy(targetId) — skill created this link
     if (graph.hasEdge(fromSkillId, pId)) {
       graph.dropEdge(fromSkillId, pId);
+      cleanupProxy(graph, pId);
+      return true;
+    }
+    // Incoming: proxy(targetId) → skillId — mirror from another graph
+    if (graph.hasEdge(pId, fromSkillId)) {
+      graph.dropEdge(pId, fromSkillId);
+      cleanupProxy(graph, pId);
+      return true;
+    }
+  }
+
+  // Also check reverse proxy direction: proxy(fromId) → targetId
+  // Handles the case when resolveEntry swaps fromId/toId for incoming mirrors
+  const reverseCandidates = [proxyId(targetGraph, fromSkillId, projectId)];
+  if (projectId) reverseCandidates.push(proxyId(targetGraph, fromSkillId));
+
+  for (const pId of reverseCandidates) {
+    if (graph.hasEdge(pId, targetNodeId)) {
+      graph.dropEdge(pId, targetNodeId);
+      cleanupProxy(graph, pId);
+      return true;
+    }
+    if (graph.hasEdge(targetNodeId, pId)) {
+      graph.dropEdge(targetNodeId, pId);
       cleanupProxy(graph, pId);
       return true;
     }
@@ -945,31 +970,72 @@ export class SkillGraphManager {
 
   deleteCrossLink(skillId: string, targetId: string, targetGraph: SkillCrossGraphType, projectId?: string): boolean {
     const pid = projectId || this.ctx.projectId;
-    // Read edge kind before deleting
+    // Read edge kind before deleting — check both directions
     let kind = '';
     try {
-      const proxyNodeId = proxyId(targetGraph, targetId, pid);
-      if (this._graph.hasEdge(skillId, proxyNodeId)) {
-        const ek = this._graph.edge(skillId, proxyNodeId);
-        if (ek) kind = this._graph.getEdgeAttribute(ek, 'kind') ?? '';
+      for (const tid of [targetId, skillId]) {
+        const pnId = proxyId(targetGraph, tid, pid);
+        const other = tid === targetId ? skillId : targetId;
+        if (this._graph.hasEdge(other, pnId)) {
+          const ek = this._graph.edge(other, pnId);
+          if (ek) { kind = this._graph.getEdgeAttribute(ek, 'kind') ?? ''; break; }
+        }
+        if (this._graph.hasEdge(pnId, other)) {
+          const ek = this._graph.edge(pnId, other);
+          if (ek) { kind = this._graph.getEdgeAttribute(ek, 'kind') ?? ''; break; }
+        }
       }
     } catch { /* ignore */ }
 
     const ok = deleteCrossRelation(this._graph, skillId, targetGraph, targetId, pid);
     if (ok && targetGraph === 'knowledge' && this.knowledgeGraph) {
+      // Remove mirror/original edge from KnowledgeGraph in both directions
       deleteMirrorFromKnowledgeGraph(this.knowledgeGraph, skillId, targetId);
+      // Also try removing original edge if link was created from knowledge side
+      for (const [noteCandidate, skillCandidate] of [[targetId, skillId], [skillId, targetId]]) {
+        const skillProxy = `@skills::${skillCandidate}`;
+        if (this.knowledgeGraph.hasNode(skillProxy)) {
+          if (this.knowledgeGraph.hasEdge(noteCandidate, skillProxy)) {
+            this.knowledgeGraph.dropEdge(noteCandidate, skillProxy);
+            if (this.knowledgeGraph.degree(skillProxy) === 0) this.knowledgeGraph.dropNode(skillProxy);
+          }
+          if (this.knowledgeGraph.hasEdge(skillProxy, noteCandidate)) {
+            this.knowledgeGraph.dropEdge(skillProxy, noteCandidate);
+            if (this.knowledgeGraph.degree(skillProxy) === 0) this.knowledgeGraph.dropNode(skillProxy);
+          }
+        }
+      }
     }
     if (ok && targetGraph === 'tasks' && this.taskGraph) {
+      // Remove mirror/original edge from TaskGraph in both directions
       deleteMirrorFromTaskGraph(this.taskGraph, skillId, targetId);
+      // Also try removing original edge if link was created from task side
+      for (const [taskCandidate, skillCandidate] of [[targetId, skillId], [skillId, targetId]]) {
+        const skillProxy = `@skills::${skillCandidate}`;
+        if (this.taskGraph.hasNode(skillProxy)) {
+          if (this.taskGraph.hasEdge(taskCandidate, skillProxy)) {
+            this.taskGraph.dropEdge(taskCandidate, skillProxy);
+            if (this.taskGraph.degree(skillProxy) === 0) this.taskGraph.dropNode(skillProxy);
+          }
+          if (this.taskGraph.hasEdge(skillProxy, taskCandidate)) {
+            this.taskGraph.dropEdge(skillProxy, taskCandidate);
+            if (this.taskGraph.degree(skillProxy) === 0) this.taskGraph.dropNode(skillProxy);
+          }
+        }
+      }
     }
     if (ok) {
       this.ctx.markDirty();
       const dir = this.skillsDir;
       if (dir) {
-        const attrs = this._graph.getNodeAttributes(skillId);
-        const relations = listSkillRelations(this._graph, skillId, this.ext);
-        mirrorSkillRelation(dir, skillId, 'remove', kind, targetId, attrs, relations, targetGraph);
-        this.recordMirrorWrites(skillId);
+        // skillId might actually be a noteId/taskId for incoming mirrors — use the real skill node
+        const realSkillId = this._graph.hasNode(skillId) && !isProxy(this._graph, skillId) ? skillId : targetId;
+        if (this._graph.hasNode(realSkillId) && !isProxy(this._graph, realSkillId)) {
+          const attrs = this._graph.getNodeAttributes(realSkillId);
+          const relations = listSkillRelations(this._graph, realSkillId, this.ext);
+          mirrorSkillRelation(dir, realSkillId, 'remove', kind, targetId, attrs, relations, targetGraph);
+          this.recordMirrorWrites(realSkillId);
+        }
       }
     }
     return ok;

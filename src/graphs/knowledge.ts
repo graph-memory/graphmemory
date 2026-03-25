@@ -393,8 +393,33 @@ export function deleteCrossRelation(
   if (projectId) candidates.push(proxyId(targetGraph, targetNodeId));
 
   for (const pId of candidates) {
+    // Outgoing: noteId → proxy(targetId) — note created this link
     if (graph.hasEdge(fromNoteId, pId)) {
       graph.dropEdge(fromNoteId, pId);
+      cleanupProxy(graph, pId);
+      return true;
+    }
+    // Incoming: proxy(targetId) → noteId — mirror from another graph
+    if (graph.hasEdge(pId, fromNoteId)) {
+      graph.dropEdge(pId, fromNoteId);
+      cleanupProxy(graph, pId);
+      return true;
+    }
+  }
+
+  // Also check reverse proxy direction: proxy(fromId) → targetId
+  // Handles the case when resolveEntry swaps fromId/toId for incoming mirrors
+  const reverseCandidates = [proxyId(targetGraph, fromNoteId, projectId)];
+  if (projectId) reverseCandidates.push(proxyId(targetGraph, fromNoteId));
+
+  for (const pId of reverseCandidates) {
+    if (graph.hasEdge(pId, targetNodeId)) {
+      graph.dropEdge(pId, targetNodeId);
+      cleanupProxy(graph, pId);
+      return true;
+    }
+    if (graph.hasEdge(targetNodeId, pId)) {
+      graph.dropEdge(targetNodeId, pId);
       cleanupProxy(graph, pId);
       return true;
     }
@@ -670,13 +695,27 @@ export class KnowledgeGraphManager {
 
   deleteRelation(fromId: string, toId: string, targetGraph?: CrossGraphType, projectId?: string): boolean {
     const pid = projectId || this.ctx.projectId;
-    // Read edge kind before deleting (for event log)
+    // Read edge kind before deleting — check both directions for cross-graph
     let kind = '';
     try {
-      const actualToId = targetGraph ? proxyId(targetGraph, toId, pid) : toId;
-      if (this._graph.hasEdge(fromId, actualToId)) {
-        const ek = this._graph.edge(fromId, actualToId);
-        if (ek) kind = this._graph.getEdgeAttribute(ek, 'kind') ?? '';
+      if (targetGraph) {
+        for (const tid of [toId, fromId]) {
+          const pnId = proxyId(targetGraph, tid, pid);
+          const other = tid === toId ? fromId : toId;
+          if (this._graph.hasEdge(other, pnId)) {
+            const ek = this._graph.edge(other, pnId);
+            if (ek) { kind = this._graph.getEdgeAttribute(ek, 'kind') ?? ''; break; }
+          }
+          if (this._graph.hasEdge(pnId, other)) {
+            const ek = this._graph.edge(pnId, other);
+            if (ek) { kind = this._graph.getEdgeAttribute(ek, 'kind') ?? ''; break; }
+          }
+        }
+      } else {
+        if (this._graph.hasEdge(fromId, toId)) {
+          const ek = this._graph.edge(fromId, toId);
+          if (ek) kind = this._graph.getEdgeAttribute(ek, 'kind') ?? '';
+        }
       }
     } catch { /* ignore */ }
 
@@ -686,6 +725,20 @@ export class KnowledgeGraphManager {
       // Bidirectional: remove mirror proxy from TaskGraph
       if (ok && targetGraph === 'tasks' && this.taskGraph) {
         deleteMirrorFromTaskGraph(this.taskGraph, fromId, toId);
+        // Also clean up any reverse-direction edges
+        for (const [noteCandidate, taskCandidate] of [[toId, fromId], [fromId, toId]]) {
+          const knowledgeProxy = `@knowledge::${noteCandidate}`;
+          if (this.taskGraph.hasNode(knowledgeProxy)) {
+            if (this.taskGraph.hasEdge(knowledgeProxy, taskCandidate)) {
+              this.taskGraph.dropEdge(knowledgeProxy, taskCandidate);
+              if (this.taskGraph.degree(knowledgeProxy) === 0) this.taskGraph.dropNode(knowledgeProxy);
+            }
+            if (this.taskGraph.hasEdge(taskCandidate, knowledgeProxy)) {
+              this.taskGraph.dropEdge(taskCandidate, knowledgeProxy);
+              if (this.taskGraph.degree(knowledgeProxy) === 0) this.taskGraph.dropNode(knowledgeProxy);
+            }
+          }
+        }
       }
     } else {
       ok = deleteRelation(this._graph, fromId, toId);
@@ -694,10 +747,13 @@ export class KnowledgeGraphManager {
       this.ctx.markDirty();
       const dir = this.notesDir;
       if (dir) {
-        const attrs = this._graph.getNodeAttributes(fromId);
-        const relations = listRelations(this._graph, fromId, this.ext);
-        mirrorNoteRelation(dir, fromId, 'remove', kind, toId, attrs, relations, targetGraph);
-        this.recordMirrorWrites(fromId);
+        const realNoteId = this._graph.hasNode(fromId) && !isProxy(this._graph, fromId) ? fromId : toId;
+        if (this._graph.hasNode(realNoteId) && !isProxy(this._graph, realNoteId)) {
+          const attrs = this._graph.getNodeAttributes(realNoteId);
+          const relations = listRelations(this._graph, realNoteId, this.ext);
+          mirrorNoteRelation(dir, realNoteId, 'remove', kind, toId, attrs, relations, targetGraph);
+          this.recordMirrorWrites(realNoteId);
+        }
       }
     }
     return ok;

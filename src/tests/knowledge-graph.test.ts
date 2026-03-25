@@ -647,6 +647,32 @@ describe('Cross-graph relations', () => {
       deleteCrossRelation(kg, noteId, 'docs', 'guide.md::Setup');
       expect(kg.hasNode('@docs::guide.md::Setup')).toBe(true);
     });
+
+    it('deletes incoming mirror proxy edge (proxy → noteId)', () => {
+      const mirrorProxyId = '@tasks::some-task';
+      kg.addNode(mirrorProxyId, {
+        title: '', content: '', tags: [], embedding: [], attachments: [],
+        createdAt: 0, updatedAt: 0, version: 0,
+        proxyFor: { graph: 'tasks', nodeId: 'some-task' },
+      });
+      kg.addEdgeWithKey(`${mirrorProxyId}→${noteId}`, mirrorProxyId, noteId, { kind: 'relates_to' });
+      expect(deleteCrossRelation(kg, noteId, 'tasks', 'some-task')).toBe(true);
+      expect(kg.hasNode(mirrorProxyId)).toBe(false);
+    });
+
+    it('deletes when fromId/toId are swapped by resolveEntry (reverse proxy lookup)', () => {
+      const taskId = 'my-task';
+      const mirrorProxyId = `@tasks::${taskId}`;
+      kg.addNode(mirrorProxyId, {
+        title: '', content: '', tags: [], embedding: [], attachments: [],
+        createdAt: 0, updatedAt: 0, version: 0,
+        proxyFor: { graph: 'tasks', nodeId: taskId },
+      });
+      kg.addEdgeWithKey(`${mirrorProxyId}→${noteId}`, mirrorProxyId, noteId, { kind: 'relates_to' });
+      // Called as deleteCrossRelation(graph, taskId, 'tasks', noteId) — fromId=taskId (not a note!)
+      expect(deleteCrossRelation(kg, taskId, 'tasks', noteId)).toBe(true);
+      expect(kg.hasNode(mirrorProxyId)).toBe(false);
+    });
   });
 
   describe('deleteNote cleans up orphaned proxies', () => {

@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { Box, Card, CardContent, TextField, Button, Typography, Alert } from '@mui/material';
 
 export default function SignInPage() {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   // Only allow relative paths to prevent open redirect attacks
   const rawReturn = searchParams.get('returnUrl') || '/';
@@ -27,7 +26,9 @@ export default function SignInPage() {
         body: JSON.stringify({ email: email.trim(), password }),
       });
       if (res.ok) {
-        navigate(returnUrl, { replace: true });
+        // Full page reload so AuthGate re-checks auth from scratch
+        window.location.href = '/ui' + returnUrl;
+        return;
       } else {
         const body = await res.json().catch(() => ({ error: 'Login failed' }));
         setError(body.error || 'Login failed');

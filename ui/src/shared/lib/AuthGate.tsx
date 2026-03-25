@@ -44,6 +44,12 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   }
 
   if (state === 'login') {
+    // Only include returnUrl when user was on a meaningful page (session expired mid-use).
+    // For root/initial visits, no returnUrl needed — signin defaults to '/'.
+    const isRoot = location.pathname === '/' && !location.search;
+    if (isRoot) {
+      return <Navigate to="/auth/signin" replace />;
+    }
     const returnUrl = `${location.pathname}${location.search}`;
     return <Navigate to={`/auth/signin?returnUrl=${encodeURIComponent(returnUrl)}`} replace />;
   }

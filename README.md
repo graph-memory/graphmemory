@@ -112,21 +112,19 @@ See [docs/docker.md](docs/docker.md) for details.
 | **Real-time** | File watching + WebSocket push to UI |
 | **Multi-project** | One process manages multiple projects from a single config |
 | **Workspaces** | Share knowledge/tasks/skills across related projects |
-| **Auth & ACL** | Password login (JWT), API keys, 4-level access control |
+| **Auth & ACL** | Password login (JWT), API keys, OAuth 2.0 (PKCE), 4-level access control |
 
 ## 58 MCP tools
 
 | Group | Tools |
 |-------|-------|
 | **Context** | `get_context` |
-| **Docs** | `list_topics`, `get_toc`, `search`, `get_node`, `search_topic_files` |
-| **Code blocks** | `find_examples`, `search_snippets`, `list_snippets`, `explain_symbol` |
-| **Cross-graph** | `cross_references` |
-| **Code** | `list_files`, `get_file_symbols`, `search_code`, `get_symbol`, `search_files` |
-| **Files** | `list_all_files`, `search_all_files`, `get_file_info` |
-| **Knowledge** | `create_note`, `update_note`, `delete_note`, `get_note`, `list_notes`, `search_notes`, `create_relation`, `delete_relation`, `list_relations`, `find_linked_notes`, `add_note_attachment`, `remove_note_attachment` |
-| **Tasks** | `create_task`, `update_task`, `delete_task`, `get_task`, `list_tasks`, `search_tasks`, `move_task`, `link_task`, `create_task_link`, `delete_task_link`, `find_linked_tasks`, `add_task_attachment`, `remove_task_attachment` |
-| **Skills** | `create_skill`, `update_skill`, `delete_skill`, `get_skill`, `list_skills`, `search_skills`, `recall_skills`, `bump_skill_usage`, `link_skill`, `create_skill_link`, `delete_skill_link`, `find_linked_skills`, `add_skill_attachment`, `remove_skill_attachment` |
+| **Docs** | `docs_list_files`, `docs_get_toc`, `docs_search`, `docs_get_node`, `docs_search_files`, `docs_find_examples`, `docs_search_snippets`, `docs_list_snippets`, `docs_explain_symbol`, `docs_cross_references` |
+| **Code** | `code_list_files`, `code_get_file_symbols`, `code_search`, `code_get_symbol`, `code_search_files` |
+| **Files** | `files_list`, `files_search`, `files_get_info` |
+| **Knowledge** | `notes_create`, `notes_update`, `notes_delete`, `notes_get`, `notes_list`, `notes_search`, `notes_create_link`, `notes_delete_link`, `notes_list_links`, `notes_find_linked`, `notes_add_attachment`, `notes_remove_attachment` |
+| **Tasks** | `tasks_create`, `tasks_update`, `tasks_delete`, `tasks_get`, `tasks_list`, `tasks_search`, `tasks_move`, `tasks_link`, `tasks_create_link`, `tasks_delete_link`, `tasks_find_linked`, `tasks_add_attachment`, `tasks_remove_attachment` |
+| **Skills** | `skills_create`, `skills_update`, `skills_delete`, `skills_get`, `skills_list`, `skills_search`, `skills_recall`, `skills_bump_usage`, `skills_link`, `skills_create_link`, `skills_delete_link`, `skills_find_linked`, `skills_add_attachment`, `skills_remove_attachment` |
 
 ## Web UI
 
@@ -153,6 +151,7 @@ server:
 
 - **UI login**: email + password → JWT cookies (httpOnly, SameSite=Strict)
 - **API access**: `Authorization: Bearer <apiKey>`
+- **OAuth 2.0**: Authorization Code + PKCE (S256), client credentials, refresh tokens
 - **ACL**: graph > project > workspace > server > defaultAccess (`deny` / `r` / `rw`)
 
 See [docs/authentication.md](docs/authentication.md).
@@ -162,7 +161,7 @@ See [docs/authentication.md](docs/authentication.md).
 ```bash
 npm run dev              # tsc --watch (backend)
 cd ui && npm run dev     # Vite on :5173, proxies /api → :3000
-npm test                 # 1619 tests across 42 suites
+npm test                 # 1649 tests across 42 suites
 ```
 
 ## Documentation

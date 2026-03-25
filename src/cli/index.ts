@@ -363,7 +363,7 @@ usersCmd
     });
 
     try {
-      const userId = await ask('User ID (e.g. "prih"): ');
+      const userId = await ask('User ID (e.g. "user"): ');
       if (!userId.trim()) { process.stderr.write('User ID is required\n'); process.exit(1); }
       const id = userId.trim();
 

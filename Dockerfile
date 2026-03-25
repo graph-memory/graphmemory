@@ -1,4 +1,4 @@
-FROM node:24-slim AS build
+FROM node:24-slim AS deps
 
 WORKDIR /app
 
@@ -9,6 +9,9 @@ RUN npm ci
 # Install dependencies (UI)
 COPY ui/package.json ui/package-lock.json ./ui/
 RUN cd ui && npm ci
+
+# --- Build ---
+FROM deps AS build
 
 # Copy source
 COPY tsconfig.json tsconfig.build.json ./

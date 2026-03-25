@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { Box, CircularProgress } from '@mui/material';
+import { Navigate, useLocation } from 'react-router-dom';
 import { onAuthFailure } from '@/shared/api/client.ts';
 import { checkAuthStatus } from '@/entities/project/api.ts';
-import LoginPage from '@/pages/login/index.tsx';
 
 export default function AuthGate({ children }: { children: ReactNode }) {
   const [state, setState] = useState<'loading' | 'ok' | 'login'>('loading');
+  const location = useLocation();
 
   const check = useCallback(async () => {
     try {
@@ -23,7 +24,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
 
   useEffect(() => { check(); }, [check]);
 
-  // Register auth failure handler — when refresh token expires, show login
+  // Register auth failure handler — when refresh token expires, redirect to login
   useEffect(() => {
     onAuthFailure(() => setState('login'));
   }, []);
@@ -37,7 +38,8 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   }
 
   if (state === 'login') {
-    return <LoginPage onSuccess={() => setState('ok')} />;
+    const returnUrl = `${location.pathname}${location.search}`;
+    return <Navigate to={`/auth/signin?returnUrl=${encodeURIComponent(returnUrl)}`} replace />;
   }
 
   return <>{children}</>;

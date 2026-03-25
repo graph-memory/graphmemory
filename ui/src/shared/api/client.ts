@@ -26,7 +26,11 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
     if (refreshed) {
       res = await doFetch();
     } else {
-      _onAuthFailure?.();
+      if (_onAuthFailure) {
+        _onAuthFailure();
+      } else {
+        window.location.href = `/ui/auth/signin?returnUrl=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+      }
       throw new Error('Session expired');
     }
   }

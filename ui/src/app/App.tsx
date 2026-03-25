@@ -31,6 +31,8 @@ const ToolDetailPage2 = lazy(() => import('@/pages/tools/[toolName].tsx'));
 const PromptsPage = lazy(() => import('@/pages/prompts/index.tsx'));
 const HelpPage = lazy(() => import('@/pages/help/index.tsx'));
 const HelpArticlePage = lazy(() => import('@/pages/help/[articleId].tsx'));
+const SignInPage = lazy(() => import('@/pages/auth/signin.tsx'));
+const AuthorizePage = lazy(() => import('@/pages/auth/authorize.tsx'));
 
 function PageLoader() {
   return (
@@ -44,6 +46,8 @@ export default function App() {
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes>
+        <Route path="/auth/signin" element={<SignInPage />} />
+        <Route path="/auth/authorize" element={<AuthorizePage />} />
         <Route path="/:projectId" element={<Layout />}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />

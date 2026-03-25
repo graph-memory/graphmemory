@@ -18,7 +18,7 @@
 
 | Feature | Description |
 |---------|-------------|
-| **6 graph types** | DocGraph, CodeGraph, KnowledgeGraph, FileIndexGraph, TaskGraph, SkillGraph |
+| **Graph types** | DocGraph, CodeGraph, KnowledgeGraph, FileIndexGraph, TaskGraph, SkillGraph |
 | **58 MCP tools** | Full CRUD + search across all graphs, cross-graph linking, attachments |
 | **Multi-project** | One process manages multiple projects with independent graphs |
 | **Workspaces** | Share knowledge/tasks/skills across related projects (e.g. microservices) |

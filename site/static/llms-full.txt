@@ -1,0 +1,1151 @@
+# Graph Memory — Full Documentation
+
+> MCP server that turns a project directory into a queryable semantic knowledge base with 58 tools, REST API, and web UI.
+
+Graph Memory indexes markdown documentation, TypeScript/JavaScript source code, and all project files into six interconnected graph structures. It runs locally with no external API calls — embeddings are computed on-device using ONNX models.
+
+---
+
+## Installation
+
+### npm (recommended)
+
+```bash
+npm install -g @graphmemory/server
+```
+
+Requires Node.js >= 22. The default embedding model (`Xenova/bge-m3`, ~560 MB) downloads on first startup and is cached at `~/.graph-memory/models/`.
+
+### npx (no install)
+
+```bash
+npx @graphmemory/server serve
+```
+
+### Docker
+
+```bash
+docker run -d \
+  --name graph-memory \
+  -p 3000:3000 \
+  -v $(pwd):/data/projects/my-project:ro \
+  -v graph-memory-models:/data/models \
+  ghcr.io/graph-memory/graphmemory-server
+```
+
+Multi-platform images (amd64 + arm64) on GitHub Container Registry.
+
+### From source
+
+```bash
+git clone https://github.com/graph-memory/graphmemory.git
+cd graphmemory && npm install && npm run build
+node dist/cli/index.js serve
+```
+
+---
+
+## Quick Start
+
+```bash
+cd /path/to/your-project
+graphmemory serve
+```
+
+No config file needed — the current directory becomes your project. Server starts at http://localhost:3000 with the web UI.
+
+### Connect an AI assistant
+
+**Claude Code:**
+```bash
+claude mcp add --transport http --scope project graph-memory http://localhost:3000/mcp/your-project
+```
+
+**Claude Desktop:** Settings > Connectors > add URL: `http://localhost:3000/mcp/your-project`
+
+**Cursor / Windsurf** (`.mcp.json`):
+```json
+{
+  "mcpServers": {
+    "graph-memory": {
+      "type": "http",
+      "url": "http://localhost:3000/mcp/your-project"
+    }
+  }
+}
+```
+
+The project ID is your directory name (e.g., `my-app` for `/path/to/my-app`).
+
+---
+
+## Configuration
+
+All configuration is in `graph-memory.yaml`. Running without a config file uses the current directory as a single project with all defaults.
+
+### Minimal multi-project config
+
+```yaml
+projects:
+  my-app:
+    projectDir: "/path/to/my-app"
+  docs-site:
+    projectDir: "/path/to/docs-site"
+
+server:
+  port: 3000
+```
+
+### Key settings
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `projectDir` | (required) | Absolute path to project directory |
+| `include` | `["**/*.md"]` | Glob patterns for doc indexing |
+| `code` | `["**/*.ts", "**/*.js", ...]` | Glob patterns for code indexing |
+| `exclude` | `["node_modules/**", ...]` | Glob patterns to exclude |
+| `model` | `"Xenova/bge-m3"` | Embedding model for docs/knowledge/tasks/skills |
+| `codeModel` | (inherits `model`) | Separate embedding model for code graph |
+| `server.port` | `3000` | HTTP port |
+| `server.host` | `"127.0.0.1"` | Bind address |
+| `server.modelsDir` | `"~/.graph-memory/models"` | Model cache directory |
+| `server.sessionTimeout` | `3600` | MCP session timeout in seconds |
+| `server.defaultAccess` | `"readwrite"` | Default access level |
+
+### Embedding model configuration
+
+```yaml
+server:
+  embedding:
+    model: "Xenova/bge-m3"
+    pooling: "cls"
+    normalize: true
+    dtype: "fp32"
+    queryPrefix: "Represent this sentence: "
+    docPrefix: ""
+```
+
+Per-graph model override:
+
+```yaml
+projects:
+  my-app:
+    projectDir: "/path/to/my-app"
+    model: "Xenova/bge-m3"
+    codeModel: "Xenova/jina-embeddings-v2-base-code"
+```
+
+### Remote embedding
+
+Delegate embedding to a GPU server:
+
+```yaml
+server:
+  embedding:
+    model: "http://gpu-server:8080/embed"
+```
+
+The remote endpoint receives `POST { texts: string[] }` and returns `{ embeddings: number[][] }`.
+
+### Redis (optional)
+
+```yaml
+server:
+  redis:
+    enabled: true
+    url: "redis://localhost:6379"
+    prefix: "gm:"
+    embeddingCacheTtl: 86400
+```
+
+Redis is used for session store and embedding cache. When disabled (default), in-memory fallback is used.
+
+### Authentication
+
+```yaml
+server:
+  auth:
+    users:
+      - username: admin
+        password: "$scrypt$..."
+    apiKeys:
+      - name: ci-bot
+        key: "gm_..."
+        access: readonly
+
+  oauth:
+    enabled: true
+    accessTokenTtl: 3600
+    refreshTokenTtl: 604800
+    authCodeTtl: 600
+```
+
+Add users interactively: `graphmemory users add --config graph-memory.yaml`
+
+### Access control
+
+5-level ACL resolution chain: graph → project → workspace → server.access → server.defaultAccess.
+
+```yaml
+projects:
+  my-app:
+    projectDir: "/path/to/my-app"
+    access: readwrite
+    graphs:
+      docs:
+        access: readonly
+      knowledge:
+        access: readwrite
+```
+
+Access levels: `readwrite`, `readonly`, `none`.
+
+### Workspaces
+
+Share knowledge, tasks, and skills across related projects:
+
+```yaml
+workspaces:
+  platform:
+    projects: [api, web, worker]
+    access: readwrite
+
+projects:
+  api:
+    projectDir: "/path/to/api"
+  web:
+    projectDir: "/path/to/web"
+  worker:
+    projectDir: "/path/to/worker"
+```
+
+Shared graphs: KnowledgeGraph, TaskGraph, SkillGraph. Per-project graphs: DocGraph, CodeGraph, FileIndexGraph.
+
+---
+
+## CLI Reference
+
+### `graphmemory serve`
+
+Start HTTP server with MCP, REST API, and web UI.
+
+```bash
+graphmemory serve [options]
+```
+
+| Flag | Description |
+|------|-------------|
+| `--config <path>` | Path to `graph-memory.yaml` |
+| `--project <id>` | Serve a single project |
+| `--port <number>` | Override server port |
+| `--host <address>` | Override bind address |
+| `--reindex` | Force re-index all projects on startup |
+| `--debug` | Log MCP tool calls and responses to stderr |
+
+### `graphmemory index`
+
+One-shot index: scan, embed, save, and exit.
+
+```bash
+graphmemory index --config graph-memory.yaml --project my-app
+```
+
+### `graphmemory users add`
+
+Add a user to the config file interactively (prompts for username and password).
+
+```bash
+graphmemory users add --config graph-memory.yaml
+```
+
+---
+
+## Graphs
+
+### DocGraph
+Indexes markdown files into heading-based chunks. Each chunk is a node with an embedding. Edges represent document structure (parent/child headings) and cross-file links.
+
+### CodeGraph
+Parses TypeScript/JavaScript via tree-sitter AST. Extracts functions, classes, interfaces, types, enums, and their relationships (calls, imports, extends, implements).
+
+### KnowledgeGraph
+User-managed notes and facts with typed relations. Supports file attachments, cross-graph links (to docs, code, files, tasks, skills), and file mirror to `.notes/` directory.
+
+### FileIndexGraph
+Indexes all project files with directory hierarchy, language detection, and MIME types. Provides file-level search without reading content.
+
+### TaskGraph
+Kanban-style task management with statuses: `backlog`, `todo`, `in_progress`, `review`, `done`, `cancelled`. Supports priorities, due dates, estimates, assignees, tags, cross-graph links, and file mirror to `.tasks/` directory.
+
+### SkillGraph
+Reusable procedures/recipes with steps, triggers, tags, and usage tracking. Cross-graph links and file mirror to `.skills/` directory.
+
+---
+
+## Search
+
+Graph Memory uses hybrid search combining three strategies:
+
+1. **BM25 keyword search** — exact and partial term matching with TF-IDF scoring
+2. **Vector cosine similarity** — semantic similarity using embedding vectors
+3. **BFS graph expansion** — after finding initial matches, traverses graph edges to discover related nodes
+
+Results are fused using Reciprocal Rank Fusion (RRF) and filtered by `minScore` threshold.
+
+### Search parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `query` | (required) | Search query text |
+| `maxResults` | `5` | Maximum results to return |
+| `minScore` | `0.5` | Minimum relevance threshold (0–1) |
+| `bfsDepth` | `1` | BFS expansion depth (0 = no expansion) |
+| `bfsDecay` | `0.5` | Score decay per BFS hop |
+| `searchMode` | `"hybrid"` | `"hybrid"`, `"keyword"`, or `"vector"` |
+
+---
+
+## MCP Tools Reference
+
+58 tools organized by graph type. All tools use the `graph_verb_noun` naming convention.
+
+### Context (1 tool)
+
+#### `get_context`
+
+Returns current project and workspace context. No parameters. Always call this at the start of a session.
+
+Returns: `{ projectId, workspaceId?, workspaceProjects?, hasWorkspace }`
+
+---
+
+### Documentation Tools (10 tools)
+
+#### `docs_list_files`
+
+Lists all indexed markdown files.
+
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `filter` | No | — | Substring filter on file path or title |
+| `limit` | No | — | Maximum number of results |
+
+Returns: `[{ fileId, title, chunks }]`
+
+#### `docs_get_toc`
+
+Returns table of contents for a documentation file.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `fileId` | Yes | File ID (e.g. `"docs/auth.md"`) |
+
+Returns: `[{ id, title, level }]`
+
+#### `docs_search`
+
+Hybrid search across documentation sections with BFS graph expansion.
+
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `query` | Yes | — | Search query (natural language) |
+| `topK` | No | 5 | Seed results for BFS expansion |
+| `bfsDepth` | No | 1 | BFS expansion hops |
+| `maxResults` | No | 5 | Maximum results returned |
+| `minScore` | No | 0.5 | Minimum relevance score (0–1) |
+| `bfsDecay` | No | 0.8 | Score decay per BFS hop |
+| `searchMode` | No | `hybrid` | `hybrid`, `vector`, or `keyword` |
+
+Returns: `[{ id, fileId, title, content, level, score }]`
+
+#### `docs_get_node`
+
+Retrieves full content of a specific documentation section.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `nodeId` | Yes | Node ID (e.g. `"docs/auth.md::JWT Tokens"`) |
+
+Returns: `{ id, fileId, title, content, level, mtime }`
+
+#### `docs_search_files`
+
+File-level semantic search on documentation files.
+
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `query` | Yes | — | Search query |
+| `limit` | No | 10 | Maximum results |
+| `minScore` | No | 0.3 | Minimum relevance score |
+
+Returns: `[{ fileId, title, chunks, score }]`
+
+#### `docs_list_snippets`
+
+Lists fenced code blocks extracted from documentation.
+
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `fileId` | No | — | Filter by documentation file |
+| `language` | No | — | Filter by language (e.g. `"typescript"`) |
+| `filter` | No | — | Substring match on code content |
+| `limit` | No | 20 | Maximum results |
+
+Returns: `[{ id, fileId, language, symbols, preview }]`
+
+#### `docs_search_snippets`
+
+Semantic search over code blocks extracted from documentation.
+
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `query` | Yes | — | Search query |
+| `topK` | No | 10 | Maximum results |
+| `minScore` | No | 0.3 | Minimum relevance score |
+| `language` | No | — | Filter by language |
+
+Returns: `[{ id, fileId, language, symbols, content, score }]`
+
+#### `docs_find_examples`
+
+Finds code blocks in documentation that mention a specific symbol.
+
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `symbol` | Yes | — | Symbol name (e.g. `"UserService"`) |
+| `limit` | No | 20 | Maximum results |
+
+Returns: `[{ id, fileId, language, symbols, content, parentId, parentTitle }]`
+
+#### `docs_explain_symbol`
+
+Finds a code example for a symbol along with its surrounding prose explanation.
+
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `symbol` | Yes | — | Symbol name to look up |
+| `limit` | No | 10 | Maximum results |
+
+Returns: `[{ codeBlock, explanation, fileId }]`
+
+#### `docs_cross_references`
+
+Returns complete picture for a symbol: source code definition, documentation mentions, and code examples. Use this instead of making separate calls to `code_search`, `docs_search`, and `docs_find_examples`.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `symbol` | Yes | Symbol name (e.g. `"hashPassword"`) |
+
+Returns: `{ definitions: [...], documentation: [...], examples: [...] }`
+
+---
+
+### Code Tools (5 tools)
+
+#### `code_list_files`
+
+Lists all indexed source code files.
+
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `filter` | No | — | Substring filter on file path |
+| `limit` | No | — | Maximum results |
+
+Returns: `[{ fileId, symbolCount }]`
+
+#### `code_get_file_symbols`
+
+Lists all symbols in a source file.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `fileId` | Yes | File ID (e.g. `"src/auth.ts"`) |
+
+Returns: `[{ id, kind, name, signature, startLine, endLine, isExported }]`
+
+#### `code_search`
+
+Hybrid search over code symbols with BFS graph expansion.
+
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `query` | Yes | — | Search query |
+| `topK` | No | 5 | Seed results for BFS |
+| `bfsDepth` | No | 1 | BFS expansion hops |
+| `maxResults` | No | 5 | Maximum results |
+| `minScore` | No | 0.3 | Minimum relevance score |
+| `bfsDecay` | No | 0.8 | Score decay per hop |
+| `searchMode` | No | `hybrid` | `hybrid`, `vector`, or `keyword` |
+| `includeBody` | No | `false` | Include the full source body in results |
+
+Returns: `[{ id, fileId, kind, name, signature, docComment, startLine, endLine, score, body? }]`
+
+#### `code_get_symbol`
+
+Retrieves full source body of a specific symbol.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `nodeId` | Yes | Symbol node ID (e.g. `"src/auth.ts::hashPassword"`) |
+
+Returns: `{ id, fileId, kind, name, signature, docComment, body, startLine, endLine, isExported, crossLinks? }`
+
+#### `code_search_files`
+
+File-level semantic search over source files.
+
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `query` | Yes | — | Search query |
+| `limit` | No | 10 | Maximum results |
+| `minScore` | No | 0.3 | Minimum relevance score |
+
+Returns: `[{ fileId, symbolCount, score }]`
+
+---
+
+### Knowledge Tools (12 tools)
+
+#### `notes_create` (mutation)
+
+Creates a new note with automatic slug ID generation.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `title` | Yes | Note title |
+| `content` | Yes | Note content (markdown) |
+| `tags` | No | Array of tags |
+
+Returns: `{ noteId }`
+
+#### `notes_update` (mutation)
+
+Partially updates a note.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `noteId` | Yes | Note ID to update |
+| `title` | No | New title |
+| `content` | No | New content |
+| `tags` | No | New tags (replaces existing) |
+
+Returns: `{ noteId, updated }`
+
+#### `notes_delete` (mutation)
+
+Deletes a note and all its relations.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `noteId` | Yes | Note ID to delete |
+
+Returns: `{ noteId, deleted }`
+
+#### `notes_get`
+
+Fetches a note by ID.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `noteId` | Yes | Note ID |
+
+Returns: `{ id, title, content, tags, createdAt, updatedAt }`
+
+#### `notes_list`
+
+Lists notes with optional filters.
+
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `filter` | No | — | Substring match on title |
+| `tag` | No | — | Filter by tag |
+| `limit` | No | 20 | Maximum results |
+
+Returns: `[{ id, title, tags, updatedAt }]`
+
+#### `notes_search`
+
+Hybrid search over notes with BFS graph expansion.
+
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `query` | Yes | — | Search query |
+| `topK` | No | 5 | Seed results for BFS |
+| `bfsDepth` | No | 1 | BFS expansion hops |
+| `maxResults` | No | 5 | Maximum results |
+| `minScore` | No | 0.5 | Minimum relevance score |
+| `bfsDecay` | No | 0.8 | Score decay per hop |
+| `searchMode` | No | `hybrid` | `hybrid`, `vector`, or `keyword` |
+
+Returns: `[{ id, title, content, tags, score }]`
+
+#### `notes_create_link` (mutation)
+
+Creates a typed relation from a note to another note or to a node in another graph.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `fromId` | Yes | Source note ID |
+| `toId` | Yes | Target note ID or external node ID |
+| `kind` | Yes | Relation type (e.g. `"references"`, `"contradicts"`, `"extends"`) |
+| `targetGraph` | No | Target graph: `"docs"`, `"code"`, `"files"`, `"tasks"`, `"skills"` |
+| `projectId` | No | Target project ID (for cross-project links in workspaces) |
+
+Returns: `{ fromId, toId, kind, targetGraph?, created }`
+
+#### `notes_delete_link` (mutation)
+
+Deletes a relation and cleans up orphaned proxy nodes.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `fromId` | Yes | Source note ID |
+| `toId` | Yes | Target note ID or external node ID |
+| `targetGraph` | No | Target graph (if cross-graph link) |
+| `projectId` | No | Target project ID |
+
+Returns: `{ fromId, toId, deleted }`
+
+#### `notes_list_links`
+
+Lists all relations for a note (incoming and outgoing).
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `noteId` | Yes | Note ID |
+
+Returns: `[{ fromId, toId, kind, targetGraph? }]`
+
+#### `notes_find_linked`
+
+Reverse lookup: finds all notes that link to a specific node in another graph.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `targetId` | Yes | Target node ID |
+| `targetGraph` | Yes | Which graph: `"docs"`, `"code"`, `"files"`, `"tasks"`, `"skills"` |
+| `kind` | No | Filter by relation kind |
+| `projectId` | No | Target project ID |
+
+Returns: `[{ noteId, title, kind, tags }]`
+
+#### `notes_add_attachment` (mutation)
+
+Attaches a file to a note. Max 10 MB per file, 20 attachments per note.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `noteId` | Yes | Note ID |
+| `filePath` | Yes | Absolute path to the file |
+
+Returns: `{ filename, mimeType, size, addedAt }`
+
+#### `notes_remove_attachment` (mutation)
+
+Removes a file attachment from a note.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `noteId` | Yes | Note ID |
+| `filename` | Yes | Filename to remove |
+
+Returns: `{ deleted: filename }`
+
+---
+
+### Task Tools (13 tools)
+
+#### `tasks_create` (mutation)
+
+Creates a new task.
+
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `title` | Yes | — | Task title |
+| `description` | Yes | — | Task description (markdown) |
+| `priority` | Yes | — | `critical`, `high`, `medium`, `low` |
+| `status` | No | `backlog` | `backlog`, `todo`, `in_progress`, `review`, `done`, `cancelled` |
+| `tags` | No | — | Array of tags |
+| `dueDate` | No | — | Due date (Unix ms) |
+| `estimate` | No | — | Estimated effort in hours |
+| `assignee` | No | — | Assignee name |
+
+Returns: `{ taskId }`
+
+#### `tasks_update` (mutation)
+
+Partially updates a task.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `taskId` | Yes | Task ID |
+| (any field) | No | Any `tasks_create` field |
+| `expectedVersion` | No | Optimistic locking — fails if task was updated since |
+
+Returns: `{ taskId, updated }`
+
+#### `tasks_delete` (mutation)
+
+Deletes a task and all its relations.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `taskId` | Yes | Task ID |
+
+Returns: `{ taskId, deleted }`
+
+#### `tasks_get`
+
+Fetches a task with all relations and cross-graph links.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `taskId` | Yes | Task ID |
+
+Returns: `{ id, title, description, status, priority, tags, dueDate, estimate, assignee, completedAt, createdAt, updatedAt, version, attachments, subtasks, blockedBy, blocks, related, crossLinks? }`
+
+#### `tasks_list`
+
+Lists tasks with optional filters, sorted by priority then due date.
+
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `status` | No | — | Filter by status |
+| `priority` | No | — | Filter by priority |
+| `tag` | No | — | Filter by tag |
+| `filter` | No | — | Substring match on title |
+| `assignee` | No | — | Filter by assignee |
+| `limit` | No | 50 | Maximum results |
+
+Returns: `[{ id, title, description, status, priority, tags, dueDate, estimate, assignee, completedAt, version }]` (descriptions truncated to 500 chars)
+
+#### `tasks_search`
+
+Hybrid search over tasks.
+
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `query` | Yes | — | Search query |
+| `topK` | No | 5 | Seed results for BFS |
+| `bfsDepth` | No | 1 | BFS expansion hops |
+| `maxResults` | No | 5 | Maximum results |
+| `minScore` | No | 0.5 | Minimum relevance score |
+| `bfsDecay` | No | 0.8 | Score decay per hop |
+| `searchMode` | No | `hybrid` | `hybrid`, `vector`, or `keyword` |
+
+Returns: `[{ id, title, description, status, priority, tags, score }]`
+
+#### `tasks_move` (mutation)
+
+Changes a task's status. Automatically sets `completedAt` on `done`/`cancelled`, clears it on other statuses. Always use this instead of `tasks_update` for status changes.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `taskId` | Yes | Task ID |
+| `status` | Yes | New status |
+| `expectedVersion` | No | Optimistic locking |
+
+Returns: `{ taskId, status, completedAt }`
+
+#### `tasks_link` (mutation)
+
+Creates a relation between two tasks.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `fromId` | Yes | Source task ID |
+| `toId` | Yes | Target task ID |
+| `kind` | Yes | `subtask_of`, `blocks`, or `related_to` |
+
+Returns: `{ fromId, toId, kind, created }`
+
+#### `tasks_create_link` (mutation)
+
+Creates a cross-graph link from a task.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `taskId` | Yes | Source task ID |
+| `targetId` | Yes | Target node ID |
+| `targetGraph` | Yes | `"docs"`, `"code"`, `"files"`, `"knowledge"`, `"skills"` |
+| `kind` | Yes | Relation type |
+| `projectId` | No | Target project ID |
+
+Returns: `{ taskId, targetId, targetGraph, kind, created }`
+
+#### `tasks_delete_link` (mutation)
+
+Deletes a cross-graph link from a task.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `taskId` | Yes | Task ID |
+| `targetId` | Yes | Target node ID |
+| `targetGraph` | Yes | Target graph |
+| `projectId` | No | Target project ID |
+
+Returns: `{ taskId, targetId, deleted }`
+
+#### `tasks_find_linked`
+
+Reverse lookup: finds all tasks linked to a node in another graph.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `targetId` | Yes | Target node ID |
+| `targetGraph` | Yes | Which graph |
+| `kind` | No | Filter by relation kind |
+| `projectId` | No | Target project ID |
+
+Returns: `[{ taskId, title, kind, status, priority, tags }]`
+
+#### `tasks_add_attachment` (mutation)
+
+Attaches a file to a task. Max 10 MB per file, 20 attachments per task.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `taskId` | Yes | Task ID |
+| `filePath` | Yes | Absolute path to the file |
+
+Returns: `{ filename, mimeType, size, addedAt }`
+
+#### `tasks_remove_attachment` (mutation)
+
+Removes a file attachment from a task.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `taskId` | Yes | Task ID |
+| `filename` | Yes | Filename to remove |
+
+Returns: `{ deleted: filename }`
+
+---
+
+### Skill Tools (14 tools)
+
+#### `skills_create` (mutation)
+
+Creates a new skill (reusable procedure or recipe).
+
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `title` | Yes | — | Skill title |
+| `description` | Yes | — | What this skill does |
+| `steps` | No | — | Array of step strings (ordered procedure) |
+| `triggers` | No | — | Array of trigger phrases that activate this skill |
+| `inputHints` | No | — | Array of expected inputs or prerequisites |
+| `filePatterns` | No | — | Glob patterns for relevant files (e.g. `["src/**/*.ts"]`) |
+| `tags` | No | — | Array of tags |
+| `source` | No | `user` | `"user"` or `"learned"` |
+| `confidence` | No | 1.0 | Confidence score (0–1) |
+
+Returns: `{ skillId }`
+
+#### `skills_update` (mutation)
+
+Partially updates a skill.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `skillId` | Yes | Skill ID |
+| (any field) | No | Any `skills_create` field |
+
+Returns: `{ skillId, updated }`
+
+#### `skills_delete` (mutation)
+
+Deletes a skill and all its relations.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `skillId` | Yes | Skill ID |
+
+Returns: `{ skillId, deleted }`
+
+#### `skills_get`
+
+Fetches a skill with all relations and metadata.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `skillId` | Yes | Skill ID |
+
+Returns: `{ id, title, description, steps, triggers, inputHints, filePatterns, source, confidence, tags, usageCount, lastUsedAt, createdAt, updatedAt, dependsOn, dependedBy, related, variants, crossLinks? }`
+
+#### `skills_list`
+
+Lists skills with optional filters.
+
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `source` | No | — | Filter by source |
+| `tag` | No | — | Filter by tag |
+| `filter` | No | — | Substring match on title |
+| `limit` | No | 50 | Maximum results |
+
+Returns: `[{ id, title, source, tags, usageCount, lastUsedAt }]`
+
+#### `skills_search`
+
+Hybrid search over skills.
+
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `query` | Yes | — | Search query |
+| `topK` | No | 5 | Seed results for BFS |
+| `bfsDepth` | No | 1 | BFS expansion hops |
+| `maxResults` | No | 5 | Maximum results |
+| `minScore` | No | 0.5 | Minimum relevance score |
+| `bfsDecay` | No | 0.8 | Score decay per hop |
+| `searchMode` | No | `hybrid` | `hybrid`, `vector`, or `keyword` |
+
+Returns: `[{ id, title, description, source, confidence, usageCount, tags, score }]`
+
+#### `skills_recall`
+
+Broad skill recall with lower relevance threshold. Use at the start of non-trivial tasks to catch tangentially relevant procedures.
+
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `context` | Yes | — | Description of the current task or situation |
+| `topK` | No | 5 | Maximum results |
+| `minScore` | No | 0.3 | Minimum relevance score (lower than `skills_search`) |
+
+Returns: `[{ id, title, description, steps, triggers, source, tags, score, usageCount }]` (includes full steps)
+
+#### `skills_bump_usage` (mutation)
+
+Increments a skill's usage counter and updates its last-used timestamp. Call this after a skill helped with a task.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `skillId` | Yes | Skill ID |
+
+Returns: `{ skillId, usageCount, lastUsedAt }`
+
+#### `skills_link` (mutation)
+
+Creates a relation between two skills.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `fromId` | Yes | Source skill ID |
+| `toId` | Yes | Target skill ID |
+| `kind` | Yes | `depends_on`, `related_to`, or `variant_of` |
+
+Returns: `{ fromId, toId, kind, created }`
+
+#### `skills_create_link` (mutation)
+
+Creates a cross-graph link from a skill.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `skillId` | Yes | Source skill ID |
+| `targetId` | Yes | Target node ID |
+| `targetGraph` | Yes | `"docs"`, `"code"`, `"files"`, `"knowledge"`, `"tasks"` |
+| `kind` | Yes | Relation type |
+| `projectId` | No | Target project ID |
+
+Returns: `{ skillId, targetId, targetGraph, kind, created }`
+
+#### `skills_delete_link` (mutation)
+
+Deletes a cross-graph link from a skill.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `skillId` | Yes | Skill ID |
+| `targetId` | Yes | Target node ID |
+| `targetGraph` | Yes | Target graph |
+| `projectId` | No | Target project ID |
+
+Returns: `{ skillId, targetId, deleted }`
+
+#### `skills_find_linked`
+
+Reverse lookup: finds all skills linked to a node in another graph.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `targetId` | Yes | Target node ID |
+| `targetGraph` | Yes | Which graph |
+| `kind` | No | Filter by relation kind |
+| `projectId` | No | Target project ID |
+
+Returns: `[{ skillId, title, kind, source, tags }]`
+
+#### `skills_add_attachment` (mutation)
+
+Attaches a file to a skill. Max 10 MB per file, 20 attachments per skill.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `skillId` | Yes | Skill ID |
+| `filePath` | Yes | Absolute path to the file |
+
+Returns: `{ filename, mimeType, size, addedAt }`
+
+#### `skills_remove_attachment` (mutation)
+
+Removes a file attachment from a skill.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `skillId` | Yes | Skill ID |
+| `filename` | Yes | Filename to remove |
+
+Returns: `{ deleted: filename }`
+
+---
+
+### File Index Tools (3 tools)
+
+#### `files_list`
+
+Lists all project files and directories with optional filters.
+
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `directory` | No | — | Filter by parent directory (e.g. `"src/lib"`) |
+| `extension` | No | — | Filter by extension (e.g. `".ts"`) |
+| `language` | No | — | Filter by language (e.g. `"typescript"`) |
+| `filter` | No | — | Substring match on file path |
+| `limit` | No | 50 | Maximum results |
+
+Returns: `[{ filePath, kind, fileName, extension, language, mimeType, size, fileCount }]`
+
+#### `files_search`
+
+Semantic search over all project files by path and name.
+
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `query` | Yes | — | Search query |
+| `topK` | No | 10 | Maximum results |
+| `minScore` | No | 0.3 | Minimum relevance score |
+
+Returns: `[{ filePath, fileName, extension, language, size, score }]`
+
+#### `files_get_info`
+
+Returns full metadata for a specific file or directory.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `filePath` | Yes | File path relative to project root (e.g. `"src/lib/embedder.ts"`) |
+
+Returns: `{ filePath, kind, fileName, directory, extension, language, mimeType, size, fileCount, mtime }`
+
+---
+
+## Best Practices for AI Assistants
+
+1. **Start with `get_context`** — understand which project and workspace you're in
+2. **Search before creating** — avoid duplicate notes, tasks, and skills
+3. **Use search tools, not list tools** — hybrid search is much more effective than manual browsing
+4. **Recall skills for complex tasks** — `skills_recall` uses a lower threshold to catch relevant procedures
+5. **Use cross-graph links** — connect notes to code, tasks to files, skills to docs
+6. **Use `docs_cross_references`** — get source + docs + examples for a symbol in one call
+7. **Use `tasks_move` for status changes** — it manages `completedAt` automatically
+8. **Manage context budget** — lower `maxResults`, raise `minScore`, use TOC before fetching full content
+9. **Link everything** — the more connections, the better BFS graph expansion works
+
+---
+
+## Authentication
+
+### Password login (UI)
+
+Users log in at `/ui/auth/signin`. Passwords are hashed with scrypt (N=65536). Sessions use JWT cookies (httpOnly, SameSite=Lax).
+
+### API keys (programmatic)
+
+```yaml
+server:
+  auth:
+    apiKeys:
+      - name: ci-bot
+        key: "gm_your_api_key_here"
+        access: readonly
+```
+
+Use via `Authorization: Bearer gm_your_api_key_here` header.
+
+### OAuth 2.0
+
+Two flows supported:
+
+- **Client Credentials** — for server-to-server (Claude.ai, scripts)
+- **Authorization Code + PKCE (S256)** — for browser-based clients
+
+Discovery: `GET /.well-known/oauth-authorization-server`
+
+Endpoints: `/api/oauth/authorize`, `/api/oauth/token`, `/api/oauth/userinfo`, `/api/oauth/introspect`, `/api/oauth/revoke`, `/api/oauth/end-session`
+
+---
+
+## Security
+
+- **Rate limiting**: 600 req/min global, 120 req/min search, 10 req/min auth
+- **CSRF protection**: SameSite cookies + API keys for non-browser clients
+- **XSS prevention**: httpOnly cookies, X-Content-Type-Options: nosniff
+- **Path traversal**: multi-level filename validation
+- **Session timeout**: configurable, default 60 minutes
+- **CORS**: credentials enabled, origins configurable
+- **Headers**: X-Content-Type-Options, X-Frame-Options: DENY
+
+---
+
+## File Mirror
+
+Notes, tasks, and skills are mirrored to markdown files:
+
+```
+your-project/
+  .notes/
+    my-note/
+      index.md          # note content with YAML frontmatter
+      attachments/      # uploaded files
+  .tasks/
+    fix-bug/
+      index.md
+  .skills/
+    deploy-to-prod/
+      index.md
+```
+
+Edit these files in your IDE — changes are automatically detected and synced back to the graph (reverse import).
+
+---
+
+## REST API
+
+All endpoints under `/api/projects/:projectId/`.
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/projects/:id/docs/search` | Search docs |
+| `GET /api/projects/:id/code/search` | Search code |
+| `GET /api/projects/:id/knowledge` | List notes |
+| `POST /api/projects/:id/knowledge` | Create note |
+| `GET /api/projects/:id/tasks` | List tasks |
+| `POST /api/projects/:id/tasks` | Create task |
+| `GET /api/projects/:id/skills` | List skills |
+| `POST /api/projects/:id/skills` | Create skill |
+| `GET /api/projects/:id/files` | List files |
+| `POST /api/embed` | Compute embeddings via the server's model |
+
+WebSocket at `/ws` for real-time mutation events.
+
+---
+
+## Links
+
+- GitHub: https://github.com/graph-memory/graphmemory
+- npm: https://www.npmjs.com/package/@graphmemory/server
+- Docker: ghcr.io/graph-memory/graphmemory-server
+- Website: https://graphmemory.dev
+- Changelog: https://graphmemory.dev/changelog

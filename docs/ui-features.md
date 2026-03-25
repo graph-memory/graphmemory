@@ -90,7 +90,7 @@ AI prompt generator for creating customized system prompts:
 
 ## Search
 
-Unified semantic search across all 6 graphs:
+Unified semantic search across all graphs:
 - Single search box queries all graphs simultaneously
 - Results grouped by graph type (docs, code, knowledge, tasks, files, skills)
 - Score-based ranking within each group

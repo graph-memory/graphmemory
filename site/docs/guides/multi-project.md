@@ -50,7 +50,7 @@ Connect each AI workspace to its corresponding project endpoint. This keeps cont
 
 ## Independent Graphs
 
-Each project maintains its own six graphs:
+Each project maintains its own graphs:
 
 - **DocGraph** — markdown documentation
 - **CodeGraph** — source code symbols

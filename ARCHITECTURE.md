@@ -35,7 +35,7 @@
                         │
                         ▼
      ┌──────────────────────────────────────────┐
-     │           6 Graphs (Graphology)          │
+     │           Graphs (Graphology)            │
      │                                          │
      │   DocGraph ────── markdown chunks        │
      │   CodeGraph ───── AST symbols            │
@@ -46,7 +46,7 @@
      └──────────────────┬───────────────────────┘
                         │
      ┌──────────────────┴───────────────────────┐
-     │        6 Graph Managers (unified API)     │
+     │        Graph Managers (unified API)       │
      │                                          │
      │   embed + CRUD + dirty + events          │
      │   + cross-graph cleanup                  │

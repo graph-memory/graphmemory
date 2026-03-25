@@ -13,9 +13,9 @@ Imagine having a smart assistant that has read every file in your project and ca
 - **Store reusable skills** — recipes, procedures, and troubleshooting guides
 - **Cross-reference** code definitions with documentation examples
 
-## The Six Graphs
+## The Graphs
 
-Graph Memory maintains six separate but interconnected graphs:
+Graph Memory maintains separate but interconnected graphs:
 
 | Graph | What it indexes | Created from |
 |-------|----------------|--------------|

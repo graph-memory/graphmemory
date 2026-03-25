@@ -22,7 +22,7 @@ See [Scenarios](./scenarios.md) for the full list of 14 available scenarios.
 
 ## Step 2: Select graphs
 
-Choose which of the six graphs your prompt should reference:
+Choose which of the graphs your prompt should reference:
 
 | Graph | What it contains |
 |-------|-----------------|

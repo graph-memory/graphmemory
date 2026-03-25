@@ -19,7 +19,7 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'Concepts',
       items: [
-        'concepts/six-graphs',
+        'concepts/graphs',
         'concepts/docs-indexing',
         'concepts/code-indexing',
         'concepts/knowledge-graph',

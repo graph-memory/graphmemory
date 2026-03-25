@@ -46,7 +46,7 @@ There is no hard limit. Graph Memory has been tested on projects with over 10,00
 Yes. Graph Memory provides three interfaces:
 
 - **MCP** — for AI assistants (Claude, Cursor, Windsurf, etc.)
-- **Web UI** — a browser-based interface at `http://localhost:3000` for browsing, searching, and managing all six graphs
+- **Web UI** — a browser-based interface at `http://localhost:3000` for browsing, searching, and managing all graphs
 - **REST API** — programmatic access to all graphs at `/api/*`
 
 You can use any combination. The Web UI and REST API work without any MCP client connected.

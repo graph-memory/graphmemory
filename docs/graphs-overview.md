@@ -1,8 +1,8 @@
 # Graphs — Overview
 
-The system maintains six graph types, all built on **Graphology** (in-memory directed graph library). Each graph is persisted as a JSON file and managed by a dedicated Manager class.
+The system maintains multiple graph types, all built on **Graphology** (in-memory directed graph library). Each graph is persisted as a JSON file and managed by a dedicated Manager class.
 
-## Six graph types
+## Graph types
 
 | Graph | File | Manager | Description |
 |-------|------|---------|-------------|

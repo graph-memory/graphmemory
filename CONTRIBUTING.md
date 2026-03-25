@@ -35,7 +35,7 @@ src/
 │   ├── tools/        # MCP tool handlers (one file per tool)
 │   └── rest/         # Express routers
 ├── cli/              # CLI entry point (commander)
-├── graphs/           # Six graph managers (docs, code, knowledge, files, tasks, skills)
+├── graphs/           # Graph managers (docs, code, knowledge, files, tasks, skills)
 ├── lib/              # Core libraries (parsers, embedder, config, access control)
 └── tests/            # Jest test suites
 ui/src/               # React + MUI web interface

@@ -1,14 +1,14 @@
 ---
-title: "The Six Graphs"
-sidebar_label: "The Six Graphs"
+title: "Graphs"
+sidebar_label: "Graphs"
 sidebar_position: 1
-description: "Overview of Graph Memory's six interconnected graphs: Docs, Code, Knowledge, Tasks, Skills, and File Index."
+description: "Overview of Graph Memory's interconnected graphs: Docs, Code, Knowledge, Tasks, Skills, and File Index."
 keywords: [graphs, overview, docs, code, knowledge, tasks, skills, file index, cross-graph]
 ---
 
-# The Six Graphs
+# Graphs
 
-Graph Memory organizes your project into six specialized graphs, each designed for a different kind of information. Together, they give your AI assistant a complete, searchable picture of your project.
+Graph Memory organizes your project into specialized graphs, each designed for a different kind of information. Together, they give your AI assistant a complete, searchable picture of your project.
 
 ## At a glance
 

@@ -35,7 +35,7 @@ graphmemory users add --config graph-memory.yaml                     # add user 
 
 ## Architecture
 
-Six graphs on Graphology: DocGraph, CodeGraph, KnowledgeGraph, FileIndexGraph, TaskGraph, SkillGraph.
+Graphs on Graphology: DocGraph, CodeGraph, KnowledgeGraph, FileIndexGraph, TaskGraph, SkillGraph.
 Each has a Manager class (unified API for CRUD + search + embedding + events + file mirror).
 MCP tools and REST routes are thin adapters over managers.
 

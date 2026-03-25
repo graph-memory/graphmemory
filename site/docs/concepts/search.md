@@ -2,7 +2,7 @@
 title: "Search"
 sidebar_label: "Search"
 sidebar_position: 8
-description: "How Graph Memory searches across all six graphs — hybrid BM25 + vector search, Reciprocal Rank Fusion, and BFS graph expansion."
+description: "How Graph Memory searches across all graphs — hybrid BM25 + vector search, Reciprocal Rank Fusion, and BFS graph expansion."
 keywords: [search, hybrid search, BM25, vector search, cosine similarity, RRF, BFS, semantic search]
 ---
 

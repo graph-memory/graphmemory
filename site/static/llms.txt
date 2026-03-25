@@ -1,0 +1,57 @@
+# Graph Memory
+
+> MCP server that turns a project directory into a queryable semantic knowledge base with 58 tools, REST API, and web UI.
+
+Graph Memory indexes markdown documentation, TypeScript/JavaScript source code, and all project files into six interconnected graph structures. It runs locally with no external API calls — embeddings are computed on-device using ONNX models.
+
+## Quick start
+
+```bash
+npm install -g @graphmemory/server
+cd /path/to/your-project
+graphmemory serve
+```
+
+Server starts at http://localhost:3000. Connect your AI assistant via MCP:
+
+```
+http://localhost:3000/mcp/your-project
+```
+
+## Core concepts
+
+- **Graph types**: DocGraph (markdown chunks), CodeGraph (AST symbols), KnowledgeGraph (notes/facts), FileIndexGraph (all files), TaskGraph (kanban), SkillGraph (reusable recipes)
+- **58 MCP tools**: full CRUD + hybrid search (BM25 + cosine + BFS graph expansion) across all graphs
+- **Cross-graph links**: connect notes to code, tasks to files, skills to docs — enables powerful reverse lookups
+- **Multi-project**: one server manages multiple projects with independent graphs
+- **Workspaces**: share knowledge/tasks/skills across related projects
+- **File mirror**: notes, tasks, skills mirrored to `.notes/`, `.tasks/`, `.skills/` markdown files — edit in IDE, changes sync back
+- **Authentication**: password login (scrypt + JWT) for UI, API keys for programmatic access, OAuth 2.0 (client_credentials + Authorization Code with PKCE)
+- **Access control**: 5-level ACL chain (graph → project → workspace → server → default)
+
+## Documentation
+
+- [Quick Start](https://graphmemory.dev/docs/getting-started/quick-start): Install and connect in under a minute
+- [Configuration](https://graphmemory.dev/docs/getting-started/configuration): YAML config reference
+- [CLI Reference](https://graphmemory.dev/docs/getting-started/cli-reference): All CLI commands and flags
+- [Docker](https://graphmemory.dev/docs/getting-started/docker): Container deployment
+- [Graphs](https://graphmemory.dev/docs/concepts/graphs): How the graph types work
+- [Search](https://graphmemory.dev/docs/concepts/search): Hybrid search algorithm explained
+- [Embeddings](https://graphmemory.dev/docs/concepts/embeddings): Model configuration and remote embedding
+- [MCP Tools](https://graphmemory.dev/docs/mcp-tools): All 58 tools with parameters and examples
+- [Best Practices](https://graphmemory.dev/docs/mcp-tools/best-practices): Tips for AI assistants using Graph Memory
+- [Authentication](https://graphmemory.dev/docs/security/authentication): Auth setup and API keys
+- [Access Control](https://graphmemory.dev/docs/security/access-control): ACL configuration
+- [Workspaces](https://graphmemory.dev/docs/guides/workspaces): Multi-project workspace setup
+- [FAQ](https://graphmemory.dev/docs/faq): Common questions
+
+## Optional
+
+- [llms-full.txt](https://graphmemory.dev/llms-full.txt): Extended documentation with configuration, tools reference, and usage details
+
+## Links
+
+- GitHub: https://github.com/graph-memory/graphmemory
+- npm: https://www.npmjs.com/package/@graphmemory/server
+- Docker: ghcr.io/graph-memory/graphmemory-server
+- Website: https://graphmemory.dev

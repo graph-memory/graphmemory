@@ -41,7 +41,7 @@ The Advanced Builder gives you full control through 14 configuration tabs:
 | Tab | What it controls |
 |-----|-----------------|
 | Scenario | Starting template and focus tools |
-| Graphs | Which of the 6 graphs to include |
+| Graphs | Which of the graphs to include |
 | Role | Assistant personality and workflow |
 | Style | Mutation behavior (proactive vs reactive) |
 | Stack | Technology domains and frameworks |

@@ -2,7 +2,7 @@
 title: "Search & Code Browsing"
 sidebar_label: "Search & Code"
 sidebar_position: 4
-description: "Search across all six graphs from one search box, browse code symbols with navigable detail pages, and test MCP tools live from the browser."
+description: "Search across all graphs from one search box, browse code symbols with navigable detail pages, and test MCP tools live from the browser."
 keywords: [search, code browser, MCP tools, semantic search]
 ---
 
@@ -10,7 +10,7 @@ keywords: [search, code browser, MCP tools, semantic search]
 
 ## Unified search
 
-The Search page provides a single search box that queries all six graphs simultaneously. This is the fastest way to find anything in your project.
+The Search page provides a single search box that queries all graphs simultaneously. This is the fastest way to find anything in your project.
 
 ![Unified search results](/img/screenshots/search-dark.png)
 

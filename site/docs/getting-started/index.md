@@ -8,7 +8,7 @@ keywords: [graph memory, MCP server, semantic search, knowledge graph, AI tools]
 
 # What is Graph Memory?
 
-Graph Memory is an [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server that turns any project directory into a queryable semantic knowledge base. It indexes your markdown docs, source code, and files into six interconnected graphs, then exposes them as **58 MCP tools** and a full-featured **web UI**.
+Graph Memory is an [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server that turns any project directory into a queryable semantic knowledge base. It indexes your markdown docs, source code, and files into interconnected graphs, then exposes them as **58 MCP tools** and a full-featured **web UI**.
 
 ![Graph Memory Dashboard](/img/screenshots/dashboard-dark.png)
 
@@ -38,13 +38,13 @@ Graph Memory is an [MCP (Model Context Protocol)](https://modelcontextprotocol.i
 ```
 Your Project → Graph Memory → AI Assistant
      │              │               │
-  files,         6 graphs,       58 MCP tools
+  files,         graphs,         58 MCP tools
   docs,          embeddings,     for search,
   code           web UI          CRUD, linking
 ```
 
 1. **Point** Graph Memory at your project directory
-2. **It indexes** docs, code, and files into six interconnected graphs
+2. **It indexes** docs, code, and files into interconnected graphs
 3. **It embeds** every node locally using an embedding model (~560 MB, no API calls)
 4. **AI assistants** query the graphs through 58 MCP tools
 5. **You manage** knowledge, tasks, and skills through MCP tools or the web UI

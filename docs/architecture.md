@@ -35,7 +35,7 @@
                         │
                         ▼
      ┌──────────────────────────────────────────┐
-     │           6 Graphs (Graphology)          │
+     │           Graphs (Graphology)            │
      │                                          │
      │   DocGraph ────── markdown chunks        │
      │   CodeGraph ───── AST symbols            │
@@ -46,7 +46,7 @@
      └──────────────────┬───────────────────────┘
                         │
      ┌──────────────────┴───────────────────────┐
-     │        6 Graph Managers (unified API)     │
+     │        Graph Managers (unified API)       │
      │                                          │
      │   embed + CRUD + dirty + events          │
      │   + cross-graph cleanup                  │
@@ -73,7 +73,7 @@ Entry point: `src/cli/index.ts` (Commander.js). Three main commands (`index`, `m
 
 ### 3. Project Management Layer
 
-`src/lib/project-manager.ts` — `ProjectManager` class manages multiple project instances. Each project has its own 6 graphs, embed functions, indexer, watcher, and mutation queue.
+`src/lib/project-manager.ts` — `ProjectManager` class manages multiple project instances. Each project has its own graphs, embed functions, indexer, watcher, and mutation queue.
 
 ### 4. Indexing Layer
 
@@ -85,7 +85,7 @@ Entry point: `src/cli/index.ts` (Commander.js). Three main commands (`index`, `m
 
 ### 6. Graph Layer
 
-`src/graphs/` — six graph types built on Graphology (in-memory directed graph). Each graph has a Manager class providing a unified API for CRUD, search, embedding, event emission, and cross-graph cleanup. See [Graphs Overview](graphs-overview.md).
+`src/graphs/` — graph types built on Graphology (in-memory directed graph). Each graph has a Manager class providing a unified API for CRUD, search, embedding, event emission, and cross-graph cleanup. See [Graphs Overview](graphs-overview.md).
 
 ### 7. API Layer
 

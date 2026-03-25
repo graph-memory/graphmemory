@@ -20,7 +20,7 @@ Select a starting scenario template. This pre-fills defaults across all other ta
 
 ### Graphs
 
-Toggle which of the six graphs (Documentation, Code, Files, Knowledge, Tasks, Skills) are included in the prompt. Each enabled graph adds its tools and usage instructions.
+Toggle which of the graphs (Documentation, Code, Files, Knowledge, Tasks, Skills) are included in the prompt. Each enabled graph adds its tools and usage instructions.
 
 ### Role
 

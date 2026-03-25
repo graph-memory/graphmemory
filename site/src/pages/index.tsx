@@ -285,7 +285,7 @@ function WebUI() {
     {title: 'Dashboard', desc: 'Stats, recent activity, quick actions', img: '/img/screenshots/dashboard-dark.png'},
     {title: 'Kanban Board', desc: 'Drag-drop tasks across columns', img: '/img/screenshots/tasks-kanban-dark.png'},
     {title: 'Graph Visualization', desc: 'Interactive Cytoscape.js force-directed graph', img: '/img/screenshots/graph-dark.png'},
-    {title: 'Unified Search', desc: 'One query across all six graphs', img: '/img/screenshots/search-dark.png'},
+    {title: 'Unified Search', desc: 'One query across all graphs', img: '/img/screenshots/search-dark.png'},
   ];
   return (
     <section className={s.sec}>
@@ -359,7 +359,7 @@ function Features() {
       label: 'Search',
       title: 'Hybrid Search Across Everything',
       desc: 'Not keyword-only, not vector-only — both. BM25 keyword matching + vector cosine similarity fused via Reciprocal Rank Fusion, then expanded via graph BFS traversal.',
-      bullets: ['BM25 + vector + RRF fusion', 'Graph-aware BFS expansion', 'One query searches all 6 graphs', 'Local embeddings — no API calls'],
+      bullets: ['BM25 + vector + RRF fusion', 'Graph-aware BFS expansion', 'One query searches all graphs', 'Local embeddings — no API calls'],
       img: '/img/screenshots/search-dark.png',
       alt: 'Search results across graphs',
       href: '/docs/concepts/search',
@@ -376,7 +376,7 @@ function Features() {
     {
       label: 'Connecting the Dots',
       title: 'Cross-Graph Links',
-      desc: 'Link a task to the code it affects. Connect a note to the doc it references. Graph Memory creates phantom proxy nodes that bridge all six graphs into one connected web.',
+      desc: 'Link a task to the code it affects. Connect a note to the doc it references. Graph Memory creates phantom proxy nodes that bridge all graphs into one connected web.',
       bullets: ['Link any node to any other graph', 'Automatic cleanup when targets are removed', 'Workspace-wide links across projects', 'Navigate from code → docs → tasks → knowledge'],
       img: '/img/screenshots/graph-dark.png',
       alt: 'Graph visualization with cross-graph links',

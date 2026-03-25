@@ -26,7 +26,7 @@
 
 ## Graphs
 
-- [Graphs Overview](graphs-overview.md) — six graph types, managers, persistence, cross-graph links, node IDs
+- [Graphs Overview](graphs-overview.md) — graph types, managers, persistence, cross-graph links, node IDs
 - [DocGraph](graph-docs.md) — markdown document chunks, parsing, code block extraction
 - [CodeGraph](graph-code.md) — AST symbols, tree-sitter parsing, supported languages
 - [KnowledgeGraph](graph-knowledge.md) — user/LLM notes, relations, cross-graph links, attachments

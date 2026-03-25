@@ -238,7 +238,7 @@ graph.embedding → project.embedding → server.embedding → defaults
 
 ## Per-graph configuration
 
-Each of the six graphs (`docs`, `code`, `knowledge`, `tasks`, `files`, `skills`) supports:
+Each graph (`docs`, `code`, `knowledge`, `tasks`, `files`, `skills`) supports:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|

@@ -8,7 +8,7 @@ keywords: [web UI, dashboard, search, code browser, knowledge management]
 
 # Web UI Overview
 
-Graph Memory ships with a built-in web interface that gives you full access to all six graphs without needing an AI assistant or API client. Once the server is running, open your browser and navigate to:
+Graph Memory ships with a built-in web interface that gives you full access to all graphs without needing an AI assistant or API client. Once the server is running, open your browser and navigate to:
 
 ```
 http://localhost:3000
@@ -31,7 +31,7 @@ The UI is organized into dedicated pages, each accessible from the sidebar:
 | **Docs** | Browse all indexed markdown documentation with rendered content |
 | **Code** | Browse indexed code symbols with navigable detail pages |
 | **Files** | Navigate the file index with metadata and directory hierarchy |
-| **Search** | Unified semantic search across all six graphs in one query |
+| **Search** | Unified semantic search across all graphs in one query |
 | **Prompts** | Generate AI system prompts with scenario presets, roles, and graph selection |
 | **Tools** | Browse and live-test all 58 MCP tools from your browser |
 | **Help** | Built-in searchable documentation with getting-started guides and concept explanations |

@@ -40,7 +40,7 @@ Every entity is embedded for vector search, but it's also connected to related e
 
 | Aspect | RAG | Graph Memory |
 |--------|-----|-------------|
-| **Data model** | Flat text chunks | Typed nodes + edges in 6 graphs |
+| **Data model** | Flat text chunks | Typed nodes + edges in typed graphs |
 | **Code understanding** | Text similarity | AST-parsed symbols + import graph |
 | **Relationships** | None | Typed edges (calls, imports, blocks, relates_to) |
 | **Search** | Vector similarity | Hybrid BM25 + vector + graph expansion |

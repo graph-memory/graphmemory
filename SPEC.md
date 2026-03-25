@@ -6,10 +6,10 @@
 
 An MCP server that turns a project directory into a queryable semantic knowledge base.
 Indexes markdown documentation, TypeScript/JavaScript source code, and all project files
-into six interconnected graph structures. Supports multi-project operation, workspaces,
+into interconnected graph structures. Supports multi-project operation, workspaces,
 access control, and real-time updates.
 
-## Six graphs
+## Graphs
 
 | Graph | Storage | Description |
 |-------|---------|-------------|

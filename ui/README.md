@@ -48,7 +48,7 @@ The backend (`serve` command) must be running on port 3000 for the API proxy to 
 | `/:projectId/files` | File browser, directory navigation, metadata |
 | `/:projectId/skills` | Skill/recipe management with triggers, steps, usage tracking |
 | `/:projectId/prompts` | AI prompt generator: scenarios, role/style/graph selection, live preview, export as skill |
-| `/:projectId/search` | Unified search across all 6 graphs |
+| `/:projectId/search` | Unified search across all graphs |
 | `/:projectId/graph` | Interactive force-directed graph (Cytoscape.js) |
 | `/:projectId/tools` | MCP tools explorer with live execution |
 | `/:projectId/help` | Built-in searchable documentation |

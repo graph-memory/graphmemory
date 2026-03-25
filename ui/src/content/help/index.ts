@@ -26,7 +26,7 @@ export const helpArticles: HelpArticle[] = [
   {
     id: 'getting-started',
     title: 'Getting Started',
-    summary: 'What Graph Memory does, how the six graphs work, and how to get started.',
+    summary: 'What Graph Memory does, how the graphs work, and how to get started.',
     category: 'overview',
     relatedTools: [],
     content: gettingStarted,
@@ -44,7 +44,7 @@ export const helpArticles: HelpArticle[] = [
   {
     id: 'graph-structure',
     title: 'Graph Structure',
-    summary: 'The six graphs: DocGraph, CodeGraph, FileIndexGraph, KnowledgeGraph, TaskGraph, SkillGraph.',
+    summary: 'The graphs: DocGraph, CodeGraph, FileIndexGraph, KnowledgeGraph, TaskGraph, SkillGraph.',
     category: 'concept',
     relatedTools: ['docs_list_files', 'docs_get_toc', 'docs_get_node', 'code_list_files', 'code_get_file_symbols', 'code_get_symbol', 'files_list', 'files_get_info', 'notes_list', 'notes_get', 'tasks_list', 'tasks_get', 'skills_list', 'skills_get'],
     content: graphStructure,

@@ -2,7 +2,7 @@
 title: "Access Control"
 sidebar_label: "Access Control"
 sidebar_position: 2
-description: "Configure per-user, per-graph access control with a 4-level ACL system supporting deny, read-only, and read-write permissions."
+description: "Configure per-user, per-graph access control with a 5-level ACL system supporting deny, read-only, and read-write permissions."
 keywords: [access control, ACL, permissions, readonly, deny, read-only, authorization]
 ---
 
@@ -22,7 +22,7 @@ Three access levels are available:
 
 ## ACL resolution chain
 
-When a user accesses a graph, their effective permission is resolved through a 4-level chain. The **first match wins**:
+When a user accesses a graph, their effective permission is resolved through a 5-level chain. The **first match wins**:
 
 ```
 1. graph.access[userId]       ← most specific

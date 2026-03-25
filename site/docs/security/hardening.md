@@ -106,13 +106,13 @@ All API endpoints are subject to a global rate limit to protect server resources
 
 ## Session management
 
-- **MCP HTTP sessions** have a configurable idle timeout (default: 30 minutes). Inactive sessions are cleaned up automatically.
+- **MCP HTTP sessions** have a configurable idle timeout (default: 60 minutes). Inactive sessions are cleaned up automatically.
 - **JWT access tokens** expire after the configured TTL (default: 15 minutes). Each request validates that the user still exists in the config, so removing a user from `graph-memory.yaml` revokes their access immediately.
 - **JWT refresh tokens** expire after the configured TTL (default: 7 days).
 
 ## CORS configuration
 
-By default, Graph Memory allows all origins (`*`) without credentials. For production, configure explicit origins:
+By default, Graph Memory allows all origins (`*`) with credentials enabled. For production, configure explicit origins:
 
 ```yaml
 server:
@@ -121,7 +121,7 @@ server:
     - "https://admin.example.com"
 ```
 
-When explicit origins are configured, `credentials: true` is enabled so cookies work correctly. Without explicit origins, credentials mode is off -- this prevents credential leakage to arbitrary domains.
+When explicit origins are configured, allowed origins are restricted to the listed domains. Credentials mode (`credentials: true`) is always enabled for cookie-based authentication support.
 
 ## Production deployment checklist
 

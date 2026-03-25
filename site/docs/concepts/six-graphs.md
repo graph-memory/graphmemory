@@ -77,7 +77,7 @@ Knowledge notes are ideal for capturing the "why" behind decisions. Your AI assi
 
 ## Tasks Graph
 
-The Tasks Graph provides a lightweight kanban workflow right inside your project. Tasks flow through statuses (backlog, todo, in_progress, review, done) and can be linked to the code they affect, the docs they reference, and the notes that provide context.
+The Tasks Graph provides a lightweight kanban workflow right inside your project. Tasks flow through statuses (backlog, todo, in_progress, review, done, cancelled) and can be linked to the code they affect, the docs they reference, and the notes that provide context.
 
 What you can do:
 - **Create and manage tasks** with priorities, assignees, due dates, and estimates

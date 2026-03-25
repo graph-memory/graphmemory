@@ -24,7 +24,7 @@ Graph Memory uses **Streamable HTTP** transport. Each project gets its own MCP e
 POST /mcp/{projectId}
 ```
 
-Each request creates a session. Sessions share graph instances and are automatically cleaned up after 30 minutes of inactivity.
+Each request creates a session. Sessions share graph instances and are automatically cleaned up after 60 minutes of inactivity (configurable via `server.sessionTimeout`).
 
 ## Authentication
 
@@ -65,9 +65,9 @@ Write operations (create, update, delete) are automatically serialized through a
 | **[Code Blocks](code-blocks.md)** | `docs_find_examples`, `docs_search_snippets`, `docs_list_snippets`, `docs_explain_symbol` | 4 | Docs graph enabled |
 | **[Cross-Graph](cross-graph.md)** | `docs_cross_references` | 1 | Docs + Code graphs enabled |
 | **[Code](code.md)** | `code_list_files`, `code_get_file_symbols`, `code_search`, `code_get_symbol`, `code_search_files` | 5 | Code graph enabled |
-| **[File Index](file-index.md)** | `files_list`, `files_search`, `files_get_info` | 3 | Always available |
-| **[Knowledge](knowledge.md)** | `notes_create`, `notes_update`, `notes_delete`, `notes_get`, `notes_list`, `notes_search`, `notes_create_link`, `notes_delete_link`, `notes_list_links`, `notes_find_linked`, `notes_add_attachment`, `notes_remove_attachment` | 12 | Always available |
-| **[Tasks](tasks.md)** | `tasks_create`, `tasks_update`, `tasks_delete`, `tasks_get`, `tasks_list`, `tasks_search`, `tasks_move`, `tasks_link`, `tasks_create_link`, `tasks_delete_link`, `tasks_find_linked`, `tasks_add_attachment`, `tasks_remove_attachment` | 13 | Always available |
-| **[Skills](skills.md)** | `skills_create`, `skills_update`, `skills_delete`, `skills_get`, `skills_list`, `skills_search`, `skills_recall`, `skills_bump_usage`, `skills_link`, `skills_create_link`, `skills_delete_link`, `skills_find_linked`, `skills_add_attachment`, `skills_remove_attachment` | 14 | Always available |
+| **[File Index](file-index.md)** | `files_list`, `files_search`, `files_get_info` | 3 | File Index graph enabled |
+| **[Knowledge](knowledge.md)** | `notes_create`, `notes_update`, `notes_delete`, `notes_get`, `notes_list`, `notes_search`, `notes_create_link`, `notes_delete_link`, `notes_list_links`, `notes_find_linked`, `notes_add_attachment`, `notes_remove_attachment` | 12 | Knowledge graph enabled |
+| **[Tasks](tasks.md)** | `tasks_create`, `tasks_update`, `tasks_delete`, `tasks_get`, `tasks_list`, `tasks_search`, `tasks_move`, `tasks_link`, `tasks_create_link`, `tasks_delete_link`, `tasks_find_linked`, `tasks_add_attachment`, `tasks_remove_attachment` | 13 | Tasks graph enabled |
+| **[Skills](skills.md)** | `skills_create`, `skills_update`, `skills_delete`, `skills_get`, `skills_list`, `skills_search`, `skills_recall`, `skills_bump_usage`, `skills_link`, `skills_create_link`, `skills_delete_link`, `skills_find_linked`, `skills_add_attachment`, `skills_remove_attachment` | 14 | Skills graph enabled |
 
 **Total: 58 tools**

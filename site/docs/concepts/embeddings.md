@@ -35,12 +35,12 @@ This model provides strong multilingual performance and is suitable for most pro
 Configure the embedding model in `graph-memory.yaml`:
 
 ```yaml
-# Set at server level (applies to all projects)
-model:
-  name: "Xenova/bge-m3"
-  pooling: "cls"
-  normalize: true
-  dtype: "q8"           # fp32, fp16, q8, or q4
+server:
+  model:
+    name: "Xenova/bge-m3"
+    pooling: "cls"
+    normalize: true
+    dtype: "q8"           # fp32, fp16, q8, or q4
 ```
 
 ### Alternative models

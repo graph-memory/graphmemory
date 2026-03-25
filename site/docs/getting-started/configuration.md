@@ -59,7 +59,8 @@ server:
     search: 120
     auth: 10
   redis:
-    url: "redis://localhost:6379"  # optional; enables Redis session store + embedding cache
+    enabled: true                  # must be true to activate Redis
+    url: "redis://localhost:6379"  # Redis connection URL
 
 # Projects
 projects:
@@ -105,7 +106,10 @@ workspaces:
 | `refreshTokenTtl` | `7d` | JWT refresh token lifetime |
 | `maxFileSize` | `1048576` | Max file size for indexing (bytes) |
 | `exclude` | — | Additional glob to exclude from indexing |
-| `redis.url` | — | Redis connection URL. Enables Redis-backed session store and embedding cache. |
+| `redis.enabled` | `false` | Enable Redis backend for session store and embedding cache |
+| `redis.url` | — | Redis connection URL (`redis://` or `rediss://` for TLS) |
+| `redis.prefix` | `mgm:` | Key prefix for all Redis keys |
+| `redis.embeddingCacheTtl` | `30d` | TTL for cached embeddings in Redis |
 
 ## Model config
 
@@ -169,19 +173,23 @@ By default, Graph Memory uses in-memory storage for MCP HTTP sessions and the em
 ```yaml
 server:
   redis:
-    url: "redis://localhost:6379"   # Redis connection URL
+    enabled: true
+    url: "redis://localhost:6379"
 ```
 
-When `server.redis.url` is set:
+When `server.redis.enabled` is `true`:
 
 - **MCP session store** — active MCP HTTP sessions are stored in Redis instead of memory. Sessions survive server restarts and are shared across instances.
 - **Embedding cache** — computed embeddings are cached in Redis. Vectors computed in one server instance are reused by others, and the cache persists across restarts.
 
 | Field | Default | Description |
 |-------|---------|-------------|
-| `redis.url` | — | Redis connection URL (`redis://` or `rediss://` for TLS). Leave unset to use in-memory stores. |
+| `redis.enabled` | `false` | Enable Redis backend |
+| `redis.url` | — | Redis connection URL (`redis://` or `rediss://` for TLS) |
+| `redis.prefix` | `mgm:` | Key prefix for all Redis keys |
+| `redis.embeddingCacheTtl` | `30d` | TTL for cached embeddings in Redis |
 
-No other configuration changes are required. The session store and embedding cache automatically switch to Redis when the URL is provided.
+Set `enabled: true` and provide a `url` to activate Redis. Without `enabled: true`, in-memory stores are used regardless of the URL.
 
 ## Applying changes
 

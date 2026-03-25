@@ -97,7 +97,7 @@ Semantic search over code symbols. Matches against signatures and doc comments u
 | `query` | string | Yes | — | Natural language or code search query |
 | `topK` | number | No | 5 | Number of seed nodes (1–500) |
 | `bfsDepth` | number | No | 1 | Hops to follow graph edges (0–10). 0 = no expansion |
-| `maxResults` | number | No | 20 | Maximum results to return (1–500) |
+| `maxResults` | number | No | 5 | Maximum results to return (1–500) |
 | `minScore` | number | No | 0.3 | Minimum relevance score (0–1) |
 | `bfsDecay` | number | No | 0.8 | Score multiplier per graph hop (0–1) |
 | `searchMode` | string | No | `hybrid` | `hybrid`, `vector`, or `keyword` |

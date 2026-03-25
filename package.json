@@ -1,6 +1,6 @@
 {
   "name": "@graphmemory/server",
-  "version": "1.7.1",
+  "version": "1.8.0",
   "description": "MCP server for semantic graph memory from markdown files",
   "main": "dist/cli/index.js",
   "bin": {

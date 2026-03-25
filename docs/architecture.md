@@ -131,7 +131,7 @@ src/
     file-mirror.ts           # File mirror helpers (write/delete .notes/ .tasks/ .skills/)
     file-import.ts           # Reverse import from mirror files
     mirror-watcher.ts        # MirrorWriteTracker + watcher for reverse import
-    access.ts                # Access resolution (4-level chain) + API key lookup
+    access.ts                # Access resolution (5-level chain) + API key lookup
     jwt.ts                   # Password hashing (scrypt), JWT tokens, cookie helpers
     team.ts                  # Team directory scanning (.team/*.md)
     parsers/

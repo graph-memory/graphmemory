@@ -38,7 +38,7 @@ const clients = [
 
 const prodFeatures = [
   {title: 'Auth & Security', href: '/docs/security/authentication', items: ['JWT + API keys', 'scrypt passwords', 'Rate limiting']},
-  {title: 'Access Control', href: '/docs/security/access-control', items: ['4-level ACL', 'Per-graph readonly', 'Per-user permissions']},
+  {title: 'Access Control', href: '/docs/security/access-control', items: ['5-level ACL', 'Per-graph readonly', 'Per-user permissions']},
   {title: 'Scale', href: '/docs/guides/multi-project', items: ['Multi-project', 'Shared workspaces', 'Real-time sync']},
   {title: 'Deploy', href: '/docs/getting-started/docker', items: ['npm package', 'Docker multi-arch', 'Zero-config mode']},
 ];

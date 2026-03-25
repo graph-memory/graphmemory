@@ -126,7 +126,7 @@ Full parameter set:
 | `query` | (required) | Natural language search query |
 | `topK` | 5 | Number of seed nodes from hybrid scoring |
 | `bfsDepth` | 1 | Hops to follow in graph expansion (0 = no expansion) |
-| `maxResults` | 20 | Maximum results to return |
+| `maxResults` | 5 | Maximum results to return |
 | `minScore` | 0.5 | Minimum relevance score (0–1) |
 | `bfsDecay` | 0.8 | Score multiplier per hop |
 | `searchMode` | `hybrid` | `hybrid`, `vector`, or `keyword` |

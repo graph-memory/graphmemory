@@ -55,7 +55,7 @@ Always use `tasks_move` instead of `tasks_update` when changing a task's status.
 
 MCP responses can be large, especially for search results. To keep context manageable:
 
-- **Lower `maxResults`** when you only need a few matches (default is 20)
+- **Lower `maxResults`** when you only need a few matches (default is 5)
 - **Raise `minScore`** to filter out low-relevance results (default is 0.5 for most tools)
 - **Use `docs_get_toc` before `docs_get_node`** — scan a document's structure before fetching full sections
 - **Use `code_search_files` / `docs_search_files` first** — find the right file before searching within it

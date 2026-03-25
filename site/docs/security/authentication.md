@@ -247,7 +247,7 @@ Note: OAuth refresh tokens (type `oauth_refresh`) are only accepted at `POST /ap
 
 Passwords are hashed using Node.js `crypto.scrypt` with these parameters:
 
-- **N** = 16384, **r** = 8, **p** = 1, **keylen** = 64
+- **N** = 65536, **r** = 8, **p** = 1, **keylen** = 64
 - A random 16-byte salt per password
 - Verification uses `crypto.timingSafeEqual` to prevent timing attacks
 

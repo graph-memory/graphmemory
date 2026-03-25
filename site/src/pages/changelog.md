@@ -5,278 +5,131 @@ description: Graph Memory release history and version changes.
 
 # Changelog
 
-## v1.7.0
+## v1.8.0
 
-**Released: March 2026**
+**March 2026**
 
-### Highlights
+### New
 
-- **Full OAuth 2.0 support** — both `client_credentials` and Authorization Code + PKCE (`S256`) grant types. AI chat clients (Claude.ai, etc.) authenticate via the browser-based consent flow; programmatic clients use client credentials. Discovery at `GET /.well-known/oauth-authorization-server`.
-- **Frontend auth pages** — consent page at `/ui/auth/authorize` (shows requesting service hostname, inline login if needed), standalone login page at `/ui/auth/signin` with `returnUrl` redirect.
-- **Redis backend** — optional Redis support (`server.redis`) for session store (auth codes, OAuth sessions) and embedding cache. Enables horizontal scaling and survives server restarts. In-memory fallback when disabled.
-- **Tool naming consistency** — all 58 MCP tools audited and renamed to consistent `graph_verb_noun` prefixes. Parameter names, defaults, and descriptions aligned across MCP tools and REST endpoints.
-
-### New Endpoints
-
-- `GET /.well-known/oauth-authorization-server` — RFC 8414 OAuth discovery metadata
-- `POST /api/oauth/authorize` — issue authorization code (JSON request/response)
-- `POST /api/oauth/token` — token exchange for `client_credentials`, `authorization_code`, and `refresh_token` grants
-- `GET /api/oauth/userinfo` — returns `{ sub, name, email }` from Bearer token
-- `POST /api/oauth/introspect` — RFC 7662 token introspection
-- `POST /api/oauth/revoke` — RFC 7009 token revocation
-- `POST /api/oauth/end-session` — session termination
-
-### OAuth
-
-- **`oauth_refresh` JWT type** — refresh tokens are self-contained signed JWTs with `type: "oauth_refresh"`, separate from UI `refresh` type. Only accepted at `POST /api/oauth/token`.
-- **Atomic auth code exchange** — `SessionStore.getAndDelete()` prevents TOCTOU race conditions on single-use authorization codes.
-- **PKCE S256** — code challenge verification required for all Authorization Code flows.
-- **Open redirect protection** — `returnUrl` on `/ui/auth/signin` validated to allow only relative paths.
-
-### Security
-
-- **Auth before project lookup** — MCP handler checks authentication before resolving the project, preventing project ID enumeration
-- **`WWW-Authenticate: Bearer` on 401** — RFC 6750 header on all MCP 401 responses
-- **Express `trust proxy`** — `X-Forwarded-For` and `X-Forwarded-Proto` correctly trusted behind reverse proxies
-
-### Configuration
-
-- New `server.redis` section: `enabled`, `url`, `prefix`, `embeddingCacheTtl`
-- Docker Compose includes Redis service with healthcheck
-- `include` field accepts YAML array in addition to single glob string
+- **OAuth config section** — dedicated `server.oauth` config with `enabled`, `accessTokenTtl`, `refreshTokenTtl`, and `authCodeTtl` fields
+- **Per-model embedding cache** — cache factory supports per-model namespacing for multi-model setups
 
 ### Fixes
 
-- **Cleaner MCP responses** — internal fields (`fileEmbedding`, `pendingLinks`, `pendingImports`, `pendingEdges`, `version`), null values, and empty arrays stripped
-- `docs_get_node` — removed `fileEmbedding`, `pendingLinks`, `mtime` from response
-- `code_get_symbol` — removed `fileEmbedding`, `pendingImports`, `pendingEdges` from response
-- `notes_get`, `tasks_get`, `skills_get` — removed `version`; null fields and empty arrays stripped
+- Cross-graph link deletion from mirror side now works correctly; proxy nodes excluded from graph stats
+- OAuth token endpoint moved to `/api/oauth/token` for consistency with all other OAuth endpoints
+- Security hardening — path traversal, input validation, headers, error message disclosure
 
-### Tests
+### Docs
 
-- 1700 tests across 44 suites
-- Full OAuth endpoint coverage: discovery, authorize, token (all 3 grants), userinfo, introspect, revoke, end-session
-- Session store unit tests (Memory + Redis mock)
-- Embedding cache unit tests (Memory LRU + Redis mock)
+- Comprehensive documentation audit — synced all docs, site, UI help, and changelog with actual code
+- Changelog rewritten in compact user-facing format, trimmed to v1.5.0+
 
-### Documentation
+---
 
-- Updated all auth docs: `docs/authentication.md`, `docs/security.md`, `docs/api-rest.md`, `docs/configuration.md`
-- Updated site docs: `security/authentication.md`, `guides/mcp-clients.md`, `getting-started/configuration.md`
-- Updated `README.md` with OAuth and Redis overview
-- Updated `docs/docker.md` with Redis compose example
+## v1.7.1
+
+**March 2026**
+
+### Fixes
+
+- Fixed auth redirect loop after login — sign-in page now uses full page reload so `AuthGate` re-checks auth state
+- `trust proxy` set to `1` to prevent rate-limit bypass via `X-Forwarded-For` spoofing
+- Documentation fixes for Redis config, OAuth endpoint paths, and Docker Compose examples
+
+---
+
+## v1.7.0
+
+**March 2026**
+
+### New
+
+- **OAuth 2.0** — `client_credentials` and Authorization Code + PKCE (`S256`) flows. Discovery at `GET /.well-known/oauth-authorization-server`
+- **OAuth endpoints** — `POST /api/oauth/authorize`, `POST /api/oauth/token`, `GET /api/oauth/userinfo`, `POST /api/oauth/introspect`, `POST /api/oauth/revoke`, `POST /api/oauth/end-session`
+- **Frontend auth pages** — consent page at `/ui/auth/authorize`, login page at `/ui/auth/signin`
+- **Redis backend** — optional Redis for session store and embedding cache (`server.redis` config). In-memory fallback when disabled
+- **Docker Compose** includes Redis service with healthcheck
+
+### Changes
+
+- `include` config field accepts YAML array in addition to single glob string
+- Auth checked before project lookup on MCP endpoints (prevents project ID enumeration)
+- `WWW-Authenticate: Bearer` header on all MCP 401 responses
+- Cleaner MCP responses — internal fields, null values, and empty arrays stripped
+
+### Breaking
+
+- OAuth `/authorize` changed from GET to POST
+
+---
+
+## v1.6.2
+
+**March 2026**
+
+### New
+
+- **OAuth Authorization Code + PKCE** — browser-based OAuth clients (Claude.ai) can authenticate via Authorization Code flow with PKCE S256
+- **Refresh tokens** — `POST /api/oauth/token` supports `grant_type=refresh_token` with configurable TTL
+- Updated OAuth discovery metadata with authorization endpoint and PKCE support
+
+---
+
+## v1.6.1
+
+**March 2026**
+
+### New
+
+- **Docker Compose** file for self-hosting
+
+### Fixes
+
+- `trust proxy` enabled for correct IP detection and rate limiting behind reverse proxies
+
+---
+
+## v1.6.0
+
+**March 2026**
+
+### New
+
+- **OAuth 2.0 `client_credentials`** flow for MCP chat clients (Claude.ai). Discovery at `GET /.well-known/oauth-authorization-server`, token exchange at `POST /api/oauth/token`
+- **Array syntax for `include` patterns** — `include` field now accepts YAML array of globs
+- **`--debug` CLI flag** — logs MCP tool calls and responses to stderr
+
+### Changes
+
+- REST search endpoints now expose all MCP search parameters (`bfsDepth`, `maxResults`, `bfsDecay`, `searchMode`)
+- Default `maxResults` reduced from 20 to 5; default list `limit` reduced to 10
+
+### Breaking
+
+- **All 58 MCP tools renamed** to `graph_verb_noun` format (e.g. `search_code` → `code_search`)
+- **`topK` renamed to `limit`** across all tools
+- MCP responses no longer include internal fields (`fileEmbedding`, `pendingEdges`, `version`, etc.)
+- 404 returned for stale MCP session IDs (per MCP spec)
 
 ---
 
 ## v1.5.0
 
-**Released: March 2026**
+**March 2026**
 
-### Highlights
+### New
 
-- **Code Browsing UI** — new dedicated Code section in the Web UI. Browse indexed files, expand to see symbols with kind chips and signature snippets, view full source code and graph relations (imports, extends, contains), navigate between symbols. Semantic search with clickable results.
-- **Graph Visualization Removed** — the Cytoscape.js force-directed graph page has been removed from the UI along with the `GET /api/projects/:id/graph` export endpoint. Code browsing and search provide better navigation.
-- **Prompt Builder Unlocked** — empty graphs can now be toggled on in the prompt builder. Previously, graphs with 0 nodes were disabled and couldn't be included in generated prompts.
+- **Code Browsing UI** — browse indexed files, symbols with kind chips, source code, and graph relations
+- **Code symbol edges endpoint** — `GET /api/projects/:id/code/symbols/:symbolId/edges`
+- **Prompt Builder** — empty graphs can now be toggled on
 
-### Security
+### Changes
 
-- **Upload filename validation** — attachment uploads now validate `file.originalname` through `attachmentFilenameSchema` in all three routers (knowledge, tasks, skills), preventing path traversal via crafted filenames
-- **Relation schema length limits** — added `.max()` constraints to `fromId`, `toId`, `kind`, and `projectId` in `createRelationSchema`, `createTaskLinkSchema`, and `createSkillLinkSchema`
-- **Code edges encapsulation** — new `getSymbolEdges()` public method on `CodeGraphManager` replaces direct `_graph` access in the REST endpoint
-
-### New Endpoints
-
-- `GET /api/projects/:id/code/symbols/:symbolId/edges` — returns all incoming and outgoing edges for a code symbol (imports, contains, extends, implements)
-
-### UI Changes
-
-- New Code list page: file list with symbol counts, expandable symbols with kind/export chips and signature preview
-- New Code detail page: metadata, signature, source code, relations (in-graph edges + cross-graph links), file siblings
-- Code search results in unified Search page are now clickable and navigate to symbol detail
-- Docs TOC entries now show content snippets (first 120 chars)
-- Removed Graph page, graph entity, Cytoscape/cytoscape-fcose dependencies
-- Fixed RelationManager navigation for code links (was routing to removed graph page)
-- Cleaned orphaned `cytoscape-fcose.d.ts` type declaration and vite `vendor-graph` chunk config
-
-### Tests
-
-- Added 3 tests for code symbol edges endpoint (edges returned, leaf symbol, unknown symbol)
-- Added 7 tests for skill attachment CRUD (upload, list, download, delete, 404, no-file, empty-list)
-- Removed graph export tests (endpoint removed)
-
-### Documentation
-
-- Updated docs/: removed graph visualization references, added Code endpoints and Code browsing sections
-- Updated site/: search-graph → "Search & Code Browsing", updated getting-started, quick-start, knowledge-tasks-skills
-- Updated UI help: fixed RelationManager code link navigation
-
----
-
-## v1.4.0
-
-**Released: March 2026**
-
-### Highlights
-
-- **Code-Optimized Embedding Model** — code graph now defaults to `jinaai/jina-embeddings-v2-base-code` via new `codeModel` config field. Separate inheritance chain: `graphs.code.model → project.codeModel → server.codeModel → code defaults`.
-- **Full Body in Code Embeddings** — code symbols now embed `signature + docComment + body` (was signature + docComment only). Functions without JSDoc are now visible to semantic search.
-- **Edge-Specific BFS Decay** — code graph BFS uses per-edge-type decay: `contains` (0.95), `extends/implements` (0.85), `imports` (0.70). Reflects that class→method is a tighter relationship than a cross-file import.
-- **Hybrid File Search** — file-level searches (`code_search_files`, `docs_search_files`, `files_search`) now use BM25 + vector hybrid (was vector-only). Exact filename queries like "embedder.ts" now work reliably.
-- **Embedding API Model Selection** — `POST /api/embed` accepts `model: "default" | "code"` to select which embedding model to use. Both models loaded at startup when `embeddingApi` is enabled.
-- **Graph Data Versioning** — persisted graphs now store `GRAPH_DATA_VERSION`. Version mismatch triggers automatic re-index (alongside existing embedding fingerprint check).
-
-### Search Improvements
-
-- BFS `queue.shift()` replaced with index pointer — O(1) dequeue instead of O(n) array shift
-- File paths normalized for embedding: `src/lib/search/code.ts` → `src lib search code ts` for better tokenization
-- `embedding.maxChars` default raised from 8000 to 24000, matching ~8k token model capacity
-
-### Configuration
-
-- New `codeModel` field at server/project/workspace levels with its own inheritance chain
-- New `embedding.remoteModel` field: `"default"` or `"code"` — auto-set to `"code"` for code graph with remote embedding
-- New `CODE_EDGE_DECAY` constants in defaults for per-edge-type BFS decay
-- `GRAPH_DATA_VERSION = 2` — bump when changing embedding content or stored format
-
-### Breaking Changes
-
-- Code graph default model changed from `Xenova/bge-m3` to `jinaai/jina-embeddings-v2-base-code` — existing code graphs will be automatically re-indexed on first startup
-- `embedding.maxChars` default changed from 8000 to 24000
-- Embedding API `embeddingApiModelName` option replaced with `embeddingApiModelNames: { default, code }`
-
----
-
-## v1.3.4
-
-**Released: March 2026**
-
-### Bug Fixes
-
-- **Fix UI 404 when Node is installed via nvm/fnm/volta** — the `send` module's default `dotfiles: 'ignore'` policy rejected `sendFile` paths containing dot-directories (`.nvm`, `.fnm`, `.volta`), causing the SPA fallback to silently fail. Now passes `dotfiles: 'allow'` to `sendFile`.
-
-## v1.3.3
-
-**Released: March 2026**
-
-### Highlights
-
-- **Security Audit** — comprehensive security audit and hardening across the entire codebase (~90 files changed). Fixed 4 HIGH, 4 MEDIUM, and 4 LOW severity findings.
+- Graph Visualization page removed (replaced by Code Browsing)
+- `GET /api/projects/:id/graph` export endpoint removed
 
 ### Security
 
-- **Path traversal via entity IDs** — `sanitizeEntityId()` applied to all file mirror operations, preventing directory traversal through crafted note/task/skill IDs
-- **Path traversal via attachments** — attachment tools now reject operations when `projectDir` is not configured; use `fs.realpathSync()` to prevent case-insensitive and symlink-based bypasses
-- **Insecure graph deserialization** — `validateGraphStructure()` validates JSON structure before `graph.import()` in all 6 graph load functions, preventing injection of arbitrary nodes/edges
-- **Stored XSS via Markdown** — added `rehype-sanitize` to MDEditor preview pane to strip dangerous HTML
-- **Symlink following in indexer** — `scan()` now skips symbolic links, preventing indexing of files outside the project directory
-- **Input size limits** — added `.max()` constraints to all 58 MCP tool Zod schemas and REST list schemas, preventing memory exhaustion via oversized inputs
-- **AuthGate fail-open** — UI now redirects to login on network error instead of showing the full interface
-- **Error message disclosure** — removed user-supplied IDs from MCP tool error messages (18 handlers)
-- **Log injection** — added `sanitizeForLog()` to all `process.stderr.write` calls in file-mirror.ts
-- **scrypt cost increased** — `SCRYPT_COST` raised from 16384 to 65536 per OWASP 2023 recommendations
-- **projectDir disclosure** — removed server filesystem path from project list API response
-
-### Improvements
-
-- **Graph export size** — stripped `body`, `pendingImports`, `pendingEdges` from `/api/graph` response, reducing payload by 50-100 MB on large projects
-- **PromiseQueue rewrite** — replaced `.then()` chain with array-based drain loop to prevent memory growth under sustained mutation load
-
----
-
-## v1.3.2
-
-**Released: March 2026**
-
-### Highlights
-
-- **Signature Extraction Fix** — `sliceBeforeBody` now uses AST `bodyNode.startPosition.column` instead of `indexOf('{')`, fixing truncated signatures for functions with destructured params or type annotations containing braces.
-- **API Key Security** — `apiKey` removed from `GET /api/auth/status` response to prevent exposure in DevTools/proxy logs. New dedicated `GET /api/auth/apikey` endpoint (requires JWT cookie).
-- **Cookie Secure Flag** — New `server.cookieSecure` config option for explicit control over cookie `Secure` attribute, replacing unreliable `NODE_ENV` guessing.
-- **Indexer Race Condition Fix** — `dispatchRemove` now enqueues removals into serial queues instead of executing synchronously, preventing races with in-flight indexing tasks.
-
-### Fixes
-
-- `sliceBeforeBody` — use `bodyNode.startPosition.column` for accurate body brace detection; fixes signatures like `({ data }: { data: string }) =>` and `parse(cfg: { key: string })`
-- `_wikiIndex` — cache now invalidated when `.md` files are added or removed during watch mode; previously `[[NewFile]]` wiki links wouldn't resolve until restart
-- `dispatchRemove` — enqueued to serial queues (docs/code/files) to prevent race with in-flight `indexDocFile`/`indexCodeFile` tasks during rapid file changes
-- `dispatchAdd` — added missing `docGraph` null check (consistent with `dispatchRemove`)
-- Default `codeInclude` — expanded from `**/*.{js,ts,jsx,tsx}` to `**/*.{js,ts,jsx,tsx,mjs,mts,cjs,cts}` to cover ES module and CommonJS variants
-- File index removal now logged (`[indexer] removed file ...`) for debugging parity with docs/code removal
-- CORS `credentials: true` now always enabled (was missing in zero-config mode, breaking cookie auth behind reverse proxy)
-- CLI version now read from `package.json` instead of hardcoded
-
-### Security
-
-- `apiKey` no longer returned in `/api/auth/status` — use `GET /api/auth/apikey` instead
-- `server.cookieSecure` config for explicit `Secure` cookie flag (fallback: `NODE_ENV !== 'development'`)
-- CORS credentials always enabled for cookie-based auth support
-
-### Documentation
-
-- Deep audit of docs/, site/, UI help, and example config — fixed stale test counts, missing endpoints (`/api/workspaces`, `/api/auth/apikey`), wrong embed API format, missing server settings in config tables
-- Added `cookieSecure` to all config references (docs, site, UI help, example YAML)
-- Updated `codeInclude` default pattern across all documentation sources
-
----
-
-## v1.3.1
-
-**Released: March 2026**
-
-### Highlights
-
-- **Code Audit Bugfixes** — 10 bugs fixed from deep codebase audit: Unicode signature extraction, import-based symbol disambiguation, BM25 body truncation, embedding codec optimization, attachment limits, graph persistence recovery, WebSocket cleanup.
-- **Embedding API Base64** — `POST /api/embed` now supports `format: "base64"` for compact transfer (~2x smaller than JSON number arrays).
-- **REST Embedding Stripping** — GET endpoints for notes/symbols/docs no longer return raw embedding vectors.
-- **Centralized Defaults** — All magic numbers extracted to `src/lib/defaults.ts` (~80 constants).
-
-### Fixes
-
-- `buildSignature` — line-based slicing instead of byte offsets; correct for Cyrillic/emoji in JSDoc
-- `getDocComment` — use `previousNamedSibling` for robustness across tree-sitter grammars
-- `resolvePendingEdges` — disambiguate via import edges when multiple classes share the same name
-- `float32ToBase64` — O(n) `Buffer.from` instead of O(n²) string concatenation
-- BM25 body truncation to 2000 chars prevents `avgDl` distortion from large code files
-- Parser caches (`_pathMappings`, `_wikiIndex`) cleared between projects in multi-project mode
-- Graph `loadGraph` recovers from interrupted saves via `.tmp` file fallback
-- WebSocket `attachWebSocket` returns cleanup function for listener removal
-
-### Security
-
-- Attachment limits enforced: 10 MB per file, 20 per entity (note/task/skill)
-- REST endpoints strip embedding vectors from responses (matching MCP tool behavior)
-
----
-
-## v1.3.0
-
-**Released: March 2026**
-
-### Highlights
-
-- **MCP Authentication** — API key authentication for MCP sessions. When users are configured, MCP clients must provide `Authorization: Bearer <apiKey>` to create sessions.
-- **Per-Graph Readonly Mode** — New `readonly: true` graph setting. Graph remains loaded and searchable, but mutation tools are hidden from MCP clients and REST mutations return 403.
-- **Per-User MCP Access** — MCP tool visibility now respects per-user access levels (deny/r/rw). Users with read-only access don't see mutation tools.
-- **AI Prompt Builder** — New Web UI page with Simple and Advanced modes. 14 scenarios, 8 roles, 6 styles. Generate optimized system prompts for any MCP-connected AI assistant.
-- **Connect Dialog** — Web UI button to generate MCP connection config for Claude Code, Cursor, Windsurf, and Claude Desktop.
-- **Code Parser Audit** — 6-phase audit improving search quality, symbol matching, embedding compression, stop words, wiki-link cache, and docs link extraction.
-- **Bundle Optimization** — Vite manual chunks for vendor splitting. React.lazy for MarkdownEditor (~679 KB lazy-loaded).
-
-### Security
-
-- MCP endpoints now require authentication when users are configured
-- Timing-safe API key comparison for MCP sessions
-- Readonly mode as defense-in-depth for sensitive graphs
-
-### Breaking Changes
-
-- License changed from ISC to **Elastic License 2.0 (ELv2)** — free to use, modify, and self-host; not permitted to offer as a managed/hosted service
-- MCP clients connecting to servers with configured users now require an API key
-
----
-
-## v1.2.0
-
-**Released: January 2026**
-
-Initial public release with 58 MCP tools, 6 graph types, REST API, Web UI, hybrid search, multi-project support, and workspaces.
+- Upload filename validation prevents path traversal
+- Relation schema length limits added

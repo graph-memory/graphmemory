@@ -127,7 +127,7 @@ Hybrid semantic search over skills.
 | `query` | Yes | — | Search query (natural language) |
 | `topK` | No | 5 | Seed results for BFS |
 | `bfsDepth` | No | 1 | BFS expansion hops |
-| `maxResults` | No | 20 | Maximum results |
+| `maxResults` | No | 5 | Maximum results |
 | `minScore` | No | 0.5 | Minimum relevance score |
 | `bfsDecay` | No | 0.8 | Score decay per hop |
 | `searchMode` | No | `hybrid` | `hybrid`, `vector`, or `keyword` |

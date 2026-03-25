@@ -49,8 +49,8 @@ Can be overridden per project or per workspace.
 | `rateLimit.global` | `600` | Requests/min per IP for all API routes |
 | `rateLimit.search` | `120` | Requests/min per IP for search/embed endpoints |
 | `rateLimit.auth` | `10` | Requests/min per IP for login endpoint |
-| `embedding.model` | `Xenova/bge-m3` | Default model for all graphs (except code) |
-| `embedding.codeModel` | `jinaai/jina-embeddings-v2-base-code` | Default model for code graph (separate chain) |
+| `model` | `Xenova/bge-m3` | Default embedding model for all graphs (except code) |
+| `codeModel` | `jinaai/jina-embeddings-v2-base-code` | Default embedding model for code graph (separate inheritance chain) |
 | `embedding.remote` | — | Remote embedding API URL (delegates instead of local model) |
 | `embedding.remoteApiKey` | — | API key for remote embedding |
 | `embedding.remoteModel` | — | Which model to request from remote: `"default"` or `"code"` (auto-set to `"code"` for code graph) |

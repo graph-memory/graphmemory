@@ -26,7 +26,7 @@
 | **Web UI** | React 19 + MUI 7 dashboard with kanban board, code browsing, search |
 | **Real-time updates** | WebSocket push events on every mutation |
 | **Authentication** | Password-based login with JWT cookies, API keys for programmatic access |
-| **Access control** | 4-level ACL: graph > project > workspace > server > default |
+| **Access control** | 5-level ACL: graph > project > workspace > server > default |
 | **File mirror** | Notes, tasks, skills mirrored to `.notes/`, `.tasks/`, `.skills/` markdown files |
 | **Reverse import** | Edit mirror files in IDE — changes sync back to the graph automatically |
 | **Team management** | `.team/` directory with team members for task assignment |

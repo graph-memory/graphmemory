@@ -229,7 +229,9 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
   });
 
   // --- OAuth 2.0 endpoints (before auth middleware — unauthenticated) ---
-  app.use('/', createOAuthRouter(users, serverConfig, options?.sessionStore));
+  if (serverConfig?.oauth?.enabled !== false) {
+    app.use('/', createOAuthRouter(users, serverConfig, options?.sessionStore));
+  }
 
   // --- Auth middleware: cookie JWT → Bearer apiKey → anonymous ---
   if (hasUsers) {

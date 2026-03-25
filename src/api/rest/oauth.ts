@@ -5,8 +5,6 @@ import { resolveUserFromApiKey } from '@/lib/access';
 import type { UserConfig, ServerConfig } from '@/lib/multi-config';
 import { MemorySessionStore, type SessionStore } from '@/lib/session-store';
 
-const AUTH_CODE_TTL_S = 600; // 10 minutes
-
 function verifyPkce(codeVerifier: string, codeChallenge: string): boolean {
   const hash = crypto.createHash('sha256').update(codeVerifier).digest();
   const computed = hash.toString('base64url');
@@ -47,8 +45,10 @@ export function createOAuthRouter(
   router.use(express.json());
   const hasUsers = Object.keys(users).length > 0;
   const jwtSecret = serverConfig?.jwtSecret;
-  const accessTtl = serverConfig?.accessTokenTtl ?? '15m';
-  const refreshTtl = serverConfig?.refreshTokenTtl ?? '7d';
+  const oauthCfg = serverConfig?.oauth;
+  const accessTtl = oauthCfg?.accessTokenTtl ?? '1h';
+  const refreshTtl = oauthCfg?.refreshTokenTtl ?? '7d';
+  const authCodeTtlS = oauthCfg?.authCodeTtl ? parseTtl(oauthCfg.authCodeTtl) : 600;
   const store = sessionStore ?? new MemorySessionStore();
 
   // RFC 8414 — OAuth Authorization Server Metadata
@@ -100,7 +100,7 @@ export function createOAuthRouter(
       userId: payload.userId,
       redirectUri: redirect_uri,
       codeChallenge: code_challenge,
-    }), AUTH_CODE_TTL_S);
+    }), authCodeTtlS);
 
     const callbackParams = new URLSearchParams({ code });
     if (state) callbackParams.set('state', state);

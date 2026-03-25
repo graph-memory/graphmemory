@@ -51,6 +51,13 @@ server:
   # accessTokenTtl: "15m"                       # JWT access token lifetime (default: 15m)
   # refreshTokenTtl: "7d"                       # JWT refresh token lifetime (default: 7d)
   # maxFileSize: 1048576                        # Max file size for indexing in bytes (default: 1 MB)
+
+  # OAuth 2.0 settings (separate from UI JWT tokens above)
+  # oauth:
+  #   enabled: true                              # Enable OAuth endpoints (default: false)
+  #   accessTokenTtl: "1h"                       # OAuth access token lifetime (default: 1h)
+  #   refreshTokenTtl: "7d"                      # OAuth refresh token lifetime (default: 7d)
+  #   authCodeTtl: "10m"                         # Authorization code TTL for PKCE flow (default: 10m)
   # exclude: "**/vendor/**"                     # Additional glob to exclude (merged with default: **/node_modules/**, **/dist/**)
 
   # Redis (optional — session store for OAuth codes/sessions + embedding cache)

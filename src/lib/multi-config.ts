@@ -98,6 +98,13 @@ const rateLimitSchema = z.object({
   auth:   z.number().int().min(0).optional(),   // req/min per IP for login
 });
 
+const oauthSchema = z.object({
+  enabled:         z.boolean().optional(),
+  accessTokenTtl:  z.string().optional(),
+  refreshTokenTtl: z.string().optional(),
+  authCodeTtl:     z.string().optional(),
+});
+
 const redisSchema = z.object({
   enabled:            z.boolean().optional(),
   url:                z.string().optional(),
@@ -125,6 +132,7 @@ const serverSchema = z.object({
   maxFileSize:     z.number().int().positive().optional(),
   exclude:         excludeSchema,
   redis:           redisSchema.optional(),
+  oauth:           oauthSchema.optional(),
 });
 
 const wsGraphConfigSchema = z.object({
@@ -226,6 +234,13 @@ export function embeddingFingerprint(model: ModelConfig): string {
   return `${model.name}|${model.pooling}|${model.normalize}|${model.dtype ?? ''}|${model.documentPrefix}`;
 }
 
+export interface OAuthConfig {
+  enabled: boolean;
+  accessTokenTtl: string;
+  refreshTokenTtl: string;
+  authCodeTtl: string;
+}
+
 export interface RateLimitConfig {
   global: number;   // req/min per IP (0 = disabled)
   search: number;   // req/min per IP for search/embed
@@ -252,6 +267,7 @@ export interface ServerConfig {
   maxFileSize: number;
   exclude: string[];
   redis: RedisConfig;
+  oauth: OAuthConfig;
 }
 
 export interface GraphConfig {
@@ -345,6 +361,13 @@ const EMBEDDING_DEFAULTS: EmbeddingConfig = {
   cacheSize:      10_000,
 };
 
+const OAUTH_DEFAULTS: OAuthConfig = {
+  enabled:         false,
+  accessTokenTtl:  '1h',
+  refreshTokenTtl: '7d',
+  authCodeTtl:     '10m',
+};
+
 const RATE_LIMIT_DEFAULTS: RateLimitConfig = {
   global: 600,
   search: 120,
@@ -366,6 +389,7 @@ const SERVER_DEFAULTS: Omit<ServerConfig, 'embedding'> & { embedding: EmbeddingC
   maxFileSize:     1 * 1024 * 1024,  // 1 MB
   exclude:         ['**/node_modules/**', '**/dist/**'],
   redis:           { ...REDIS_DEFAULTS },
+  oauth:           { ...OAUTH_DEFAULTS },
 };
 
 const PROJECT_DEFAULTS = {
@@ -478,6 +502,12 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
       url:               srv.redis?.url               ?? REDIS_DEFAULTS.url,
       prefix:            srv.redis?.prefix            ?? REDIS_DEFAULTS.prefix,
       embeddingCacheTtl: srv.redis?.embeddingCacheTtl ?? REDIS_DEFAULTS.embeddingCacheTtl,
+    },
+    oauth: {
+      enabled:         srv.oauth?.enabled         ?? OAUTH_DEFAULTS.enabled,
+      accessTokenTtl:  srv.oauth?.accessTokenTtl  ?? OAUTH_DEFAULTS.accessTokenTtl,
+      refreshTokenTtl: srv.oauth?.refreshTokenTtl ?? OAUTH_DEFAULTS.refreshTokenTtl,
+      authCodeTtl:     srv.oauth?.authCodeTtl     ?? OAUTH_DEFAULTS.authCodeTtl,
     },
   };
 
@@ -649,6 +679,7 @@ export function defaultConfig(projectDir: string): MultiConfig {
     maxFileSize:     SERVER_DEFAULTS.maxFileSize,
     exclude:         [...SERVER_DEFAULTS.exclude],
     redis:           { ...REDIS_DEFAULTS },
+    oauth:           { ...OAUTH_DEFAULTS },
   };
 
   const graphConfigs = {} as Record<GraphName, GraphConfig>;

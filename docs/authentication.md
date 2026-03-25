@@ -188,7 +188,7 @@ Authorization: Bearer mgm-key-abc123
 
 ### Option 2 — OAuth 2.0
 
-The server implements RFC 8414 OAuth 2.0 Authorization Server Metadata. `jwtSecret` must be set in the config for OAuth to work.
+The server implements RFC 8414 OAuth 2.0 Authorization Server Metadata. `jwtSecret` must be set in the config for OAuth to work. OAuth is disabled by default; enable it with `server.oauth.enabled: true`. Token TTLs are configured separately from UI tokens via `server.oauth.accessTokenTtl` (default `1h`), `server.oauth.refreshTokenTtl` (default `7d`), and `server.oauth.authCodeTtl` (default `10m`).
 
 #### Discovery manifest
 
@@ -234,7 +234,7 @@ grant_type=client_credentials&client_id=<userId>&client_secret=<apiKey>
 }
 ```
 
-The `access_token` is a short-lived JWT (1 hour) signed with `jwtSecret`, with payload `{ userId, type: 'oauth_access' }`.
+The `access_token` is a short-lived JWT (default 1 hour, configurable via `server.oauth.accessTokenTtl`) signed with `jwtSecret`, with payload `{ userId, type: 'oauth_access' }`.
 
 #### Grant type: authorization_code + PKCE
 

@@ -48,6 +48,11 @@ server:
   cookieSecure: true
   accessTokenTtl: "15m"
   refreshTokenTtl: "7d"
+  oauth:
+    enabled: false
+    accessTokenTtl: "1h"
+    refreshTokenTtl: "7d"
+    authCodeTtl: "10m"
   maxFileSize: 1048576
   exclude: "**/vendor/**"
   rateLimit:
@@ -163,6 +168,16 @@ workspaces:
 | `rateLimit` | object | — | Rate limiting: `global` (default 600), `search` (default 120), `auth` (default 10) requests/min |
 | `maxFileSize` | number | `1048576` | Max file size in bytes for indexing (1 MB default). Also settable at workspace/project level |
 | `exclude` | string | — | Additional glob to exclude (merged with default `**/node_modules/**`, `**/dist/**`) |
+| `oauth` | object | (see below) | OAuth 2.0 configuration |
+
+## OAuth config
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | boolean | `false` | Enable/disable OAuth 2.0 endpoints. When `false`, discovery and all OAuth routes return 404 |
+| `accessTokenTtl` | string | `1h` | OAuth access token lifetime (separate from UI `accessTokenTtl`) |
+| `refreshTokenTtl` | string | `7d` | OAuth refresh token lifetime (separate from UI `refreshTokenTtl`) |
+| `authCodeTtl` | string | `10m` | Authorization code lifetime for PKCE flow |
 
 ## Model config
 

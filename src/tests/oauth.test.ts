@@ -7,7 +7,7 @@ import cookieParser from 'cookie-parser';
 import { createOAuthRouter } from '@/api/rest/oauth';
 import { startMultiProjectHttpServer } from '@/api/index';
 import { resolveUserFromBearer } from '@/lib/access';
-import { signOAuthToken, signAccessToken, signRefreshToken, verifyToken } from '@/lib/jwt';
+import { signOAuthToken, signAccessToken, signRefreshToken, signOAuthRefreshToken, verifyToken } from '@/lib/jwt';
 import type { UserConfig } from '@/lib/multi-config';
 import type { ProjectManager } from '@/lib/project-manager';
 
@@ -44,9 +44,9 @@ async function doAuthCodeFlow(app: express.Express, userId: string): Promise<{ b
   const accessCookie = signAccessToken(userId, SECRET, '1h');
 
   const authorizeRes = await request(app)
-    .get('/api/oauth/authorize')
+    .post('/api/oauth/authorize')
     .set('Cookie', `mgm_access=${accessCookie}`)
-    .query({
+    .send({
       response_type: 'code',
       client_id: userId,
       redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
@@ -55,8 +55,8 @@ async function doAuthCodeFlow(app: express.Express, userId: string): Promise<{ b
       state: 'test-state',
     });
 
-  const location = authorizeRes.headers['location'] as string;
-  const code = new URL(location).searchParams.get('code')!;
+  const redirectUrl = authorizeRes.body.redirectUrl as string;
+  const code = new URL(redirectUrl).searchParams.get('code')!;
 
   const tokenRes = await request(app)
     .post('/oauth/token')
@@ -96,7 +96,6 @@ describe('resolveUserFromBearer', () => {
 
   it('returns undefined for JWT with wrong type (access, not oauth_access)', () => {
     const token = signAccessToken('alice', SECRET, '1h');
-    // Should NOT match oauth_access check; falls through to apiKey check which also fails
     expect(resolveUserFromBearer(token, USERS, SECRET)).toBeUndefined();
   });
 
@@ -152,6 +151,25 @@ describe('signOAuthToken', () => {
 });
 
 // ---------------------------------------------------------------------------
+// signOAuthRefreshToken — unit tests
+// ---------------------------------------------------------------------------
+
+describe('signOAuthRefreshToken', () => {
+  it('produces a JWT with type oauth_refresh', () => {
+    const token = signOAuthRefreshToken('alice', SECRET, '7d');
+    const payload = verifyToken(token, SECRET);
+    expect(payload).toEqual({ userId: 'alice', type: 'oauth_refresh' });
+  });
+
+  it('produces a different type than signRefreshToken', () => {
+    const oauthRefresh = signOAuthRefreshToken('alice', SECRET, '7d');
+    const uiRefresh = signRefreshToken('alice', SECRET, '7d');
+    expect(verifyToken(oauthRefresh, SECRET)!.type).toBe('oauth_refresh');
+    expect(verifyToken(uiRefresh, SECRET)!.type).toBe('refresh');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // GET /.well-known/oauth-authorization-server
 // ---------------------------------------------------------------------------
 
@@ -195,10 +213,46 @@ describe('GET /.well-known/oauth-authorization-server', () => {
       .get('/.well-known/oauth-authorization-server')
       .expect(200);
   });
+
+  it('authorization_endpoint points to /ui/auth/authorize', async () => {
+    const res = await request(app).get('/.well-known/oauth-authorization-server').expect(200);
+    expect(res.body.authorization_endpoint).toMatch(/\/ui\/auth\/authorize$/);
+  });
+
+  it('includes refresh_token in grant_types_supported', async () => {
+    const res = await request(app).get('/.well-known/oauth-authorization-server').expect(200);
+    expect(res.body.grant_types_supported).toContain('refresh_token');
+  });
+
+  it('includes response_types_supported and code_challenge_methods_supported', async () => {
+    const res = await request(app).get('/.well-known/oauth-authorization-server').expect(200);
+    expect(res.body.response_types_supported).toContain('code');
+    expect(res.body.code_challenge_methods_supported).toContain('S256');
+  });
+
+  it('includes userinfo_endpoint', async () => {
+    const res = await request(app).get('/.well-known/oauth-authorization-server').expect(200);
+    expect(res.body.userinfo_endpoint).toMatch(/\/api\/oauth\/userinfo$/);
+  });
+
+  it('includes introspection_endpoint', async () => {
+    const res = await request(app).get('/.well-known/oauth-authorization-server').expect(200);
+    expect(res.body.introspection_endpoint).toMatch(/\/api\/oauth\/introspect$/);
+  });
+
+  it('includes revocation_endpoint', async () => {
+    const res = await request(app).get('/.well-known/oauth-authorization-server').expect(200);
+    expect(res.body.revocation_endpoint).toMatch(/\/api\/oauth\/revoke$/);
+  });
+
+  it('includes end_session_endpoint', async () => {
+    const res = await request(app).get('/.well-known/oauth-authorization-server').expect(200);
+    expect(res.body.end_session_endpoint).toMatch(/\/api\/oauth\/end-session$/);
+  });
 });
 
 // ---------------------------------------------------------------------------
-// POST /oauth/token
+// POST /oauth/token — client_credentials
 // ---------------------------------------------------------------------------
 
 describe('POST /oauth/token — happy path', () => {
@@ -353,121 +407,62 @@ describe('POST /oauth/token — error cases', () => {
 });
 
 // ---------------------------------------------------------------------------
-// GET /.well-known/oauth-authorization-server — new fields
+// POST /api/oauth/authorize
 // ---------------------------------------------------------------------------
 
-describe('GET /.well-known/oauth-authorization-server — authorization_code fields', () => {
-  const app = buildApp(USERS, SERVER_CONFIG);
-
-  it('includes authorization_endpoint', async () => {
-    const res = await request(app).get('/.well-known/oauth-authorization-server').expect(200);
-    expect(res.body.authorization_endpoint).toMatch(/^https?:\/\/.+\/authorize$/);
-  });
-
-  it('includes refresh_token in grant_types_supported', async () => {
-    const res = await request(app).get('/.well-known/oauth-authorization-server').expect(200);
-    expect(res.body.grant_types_supported).toContain('refresh_token');
-  });
-
-  it('includes response_types_supported and code_challenge_methods_supported', async () => {
-    const res = await request(app).get('/.well-known/oauth-authorization-server').expect(200);
-    expect(res.body.response_types_supported).toContain('code');
-    expect(res.body.code_challenge_methods_supported).toContain('S256');
-  });
-});
-
-// ---------------------------------------------------------------------------
-// GET /authorize
-// ---------------------------------------------------------------------------
-
-describe('GET /authorize', () => {
-  const app = buildApp(USERS, SERVER_CONFIG);
-
-  it('redirects to /api/oauth/authorize preserving query params', async () => {
-    const res = await request(app)
-      .get('/authorize')
-      .query({ response_type: 'code', client_id: 'alice', state: 'abc' })
-      .expect(302);
-
-    expect(res.headers['location']).toMatch(/^\/api\/oauth\/authorize\?/);
-    expect(res.headers['location']).toContain('client_id=alice');
-    expect(res.headers['location']).toContain('state=abc');
-  });
-
-  it('redirects with no query params', async () => {
-    const res = await request(app).get('/authorize').expect(302);
-    expect(res.headers['location']).toBe('/api/oauth/authorize?');
-  });
-});
-
-// ---------------------------------------------------------------------------
-// GET /api/oauth/authorize
-// ---------------------------------------------------------------------------
-
-describe('GET /api/oauth/authorize — not logged in', () => {
+describe('POST /api/oauth/authorize — not logged in', () => {
   const app = buildApp(USERS, SERVER_CONFIG);
   const { codeChallenge } = makePkce();
+  const params = {
+    response_type: 'code',
+    client_id: 'alice',
+    redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
+    code_challenge: codeChallenge,
+    code_challenge_method: 'S256',
+  };
 
-  it('redirects to /ui when no cookie present', async () => {
+  it('returns 401 login_required when no cookie present', async () => {
     const res = await request(app)
-      .get('/api/oauth/authorize')
-      .query({
-        response_type: 'code',
-        client_id: 'alice',
-        redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
-        code_challenge: codeChallenge,
-        code_challenge_method: 'S256',
-      })
-      .expect(302);
+      .post('/api/oauth/authorize')
+      .send(params)
+      .expect(401);
 
-    expect(res.headers['location']).toBe('/ui');
+    expect(res.body.error).toBe('login_required');
   });
 
-  it('redirects to /ui when cookie is invalid JWT', async () => {
+  it('returns 401 login_required when cookie is invalid JWT', async () => {
     const res = await request(app)
-      .get('/api/oauth/authorize')
+      .post('/api/oauth/authorize')
       .set('Cookie', 'mgm_access=not-a-valid-token')
-      .query({
-        response_type: 'code',
-        client_id: 'alice',
-        redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
-        code_challenge: codeChallenge,
-        code_challenge_method: 'S256',
-      })
-      .expect(302);
+      .send(params)
+      .expect(401);
 
-    expect(res.headers['location']).toBe('/ui');
+    expect(res.body.error).toBe('login_required');
   });
 
-  it('redirects to /ui when cookie is a refresh token (wrong type)', async () => {
+  it('returns 401 login_required when cookie is a refresh token (wrong type)', async () => {
     const refreshToken = signRefreshToken('alice', SECRET, '7d');
     const res = await request(app)
-      .get('/api/oauth/authorize')
+      .post('/api/oauth/authorize')
       .set('Cookie', `mgm_access=${refreshToken}`)
-      .query({
-        response_type: 'code',
-        client_id: 'alice',
-        redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
-        code_challenge: codeChallenge,
-        code_challenge_method: 'S256',
-      })
-      .expect(302);
+      .send(params)
+      .expect(401);
 
-    expect(res.headers['location']).toBe('/ui');
+    expect(res.body.error).toBe('login_required');
   });
 });
 
-describe('GET /api/oauth/authorize — logged in', () => {
+describe('POST /api/oauth/authorize — logged in', () => {
   const app = buildApp(USERS, SERVER_CONFIG);
 
-  it('redirects to redirect_uri with code and state when logged in', async () => {
+  it('returns JSON with redirectUrl containing code and state', async () => {
     const { codeChallenge } = makePkce();
     const accessCookie = signAccessToken('alice', SECRET, '1h');
 
     const res = await request(app)
-      .get('/api/oauth/authorize')
+      .post('/api/oauth/authorize')
       .set('Cookie', `mgm_access=${accessCookie}`)
-      .query({
+      .send({
         response_type: 'code',
         client_id: 'alice',
         redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
@@ -475,32 +470,31 @@ describe('GET /api/oauth/authorize — logged in', () => {
         code_challenge_method: 'S256',
         state: 'my-state',
       })
-      .expect(302);
+      .expect(200);
 
-    const location = res.headers['location'] as string;
-    expect(location).toContain('https://claude.ai/api/mcp/auth_callback');
-    const params = new URL(location).searchParams;
+    expect(res.body.redirectUrl).toContain('https://claude.ai/api/mcp/auth_callback');
+    const params = new URL(res.body.redirectUrl).searchParams;
     expect(params.get('code')).toBeTruthy();
     expect(params.get('state')).toBe('my-state');
   });
 
-  it('redirects without state param when state not provided', async () => {
+  it('returns redirectUrl without state when state not provided', async () => {
     const { codeChallenge } = makePkce();
     const accessCookie = signAccessToken('alice', SECRET, '1h');
 
     const res = await request(app)
-      .get('/api/oauth/authorize')
+      .post('/api/oauth/authorize')
       .set('Cookie', `mgm_access=${accessCookie}`)
-      .query({
+      .send({
         response_type: 'code',
         client_id: 'alice',
         redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
         code_challenge: codeChallenge,
         code_challenge_method: 'S256',
       })
-      .expect(302);
+      .expect(200);
 
-    const params = new URL(res.headers['location'] as string).searchParams;
+    const params = new URL(res.body.redirectUrl).searchParams;
     expect(params.get('code')).toBeTruthy();
     expect(params.has('state')).toBe(false);
   });
@@ -510,22 +504,22 @@ describe('GET /api/oauth/authorize — logged in', () => {
     const oauthToken = signOAuthToken('alice', SECRET, '1h');
 
     const res = await request(app)
-      .get('/api/oauth/authorize')
+      .post('/api/oauth/authorize')
       .set('Cookie', `mgm_access=${oauthToken}`)
-      .query({
+      .send({
         response_type: 'code',
         client_id: 'alice',
         redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
         code_challenge: codeChallenge,
         code_challenge_method: 'S256',
       })
-      .expect(302);
+      .expect(200);
 
-    expect(res.headers['location']).toContain('https://claude.ai');
+    expect(res.body.redirectUrl).toContain('https://claude.ai');
   });
 });
 
-describe('GET /api/oauth/authorize — invalid params', () => {
+describe('POST /api/oauth/authorize — invalid params', () => {
   const app = buildApp(USERS, SERVER_CONFIG);
   const accessCookie = signAccessToken('alice', SECRET, '1h');
   const { codeChallenge } = makePkce();
@@ -539,18 +533,18 @@ describe('GET /api/oauth/authorize — invalid params', () => {
 
   it('returns 400 when response_type is not code', async () => {
     const res = await request(app)
-      .get('/api/oauth/authorize')
+      .post('/api/oauth/authorize')
       .set('Cookie', `mgm_access=${accessCookie}`)
-      .query({ ...base, response_type: 'token' })
+      .send({ ...base, response_type: 'token' })
       .expect(400);
     expect(res.body.error).toBe('invalid_request');
   });
 
   it('returns 400 when code_challenge_method is not S256', async () => {
     const res = await request(app)
-      .get('/api/oauth/authorize')
+      .post('/api/oauth/authorize')
       .set('Cookie', `mgm_access=${accessCookie}`)
-      .query({ ...base, code_challenge_method: 'plain' })
+      .send({ ...base, code_challenge_method: 'plain' })
       .expect(400);
     expect(res.body.error).toBe('invalid_request');
   });
@@ -558,9 +552,9 @@ describe('GET /api/oauth/authorize — invalid params', () => {
   it('returns 400 when code_challenge is missing', async () => {
     const { code_challenge: _, ...withoutChallenge } = base;
     const res = await request(app)
-      .get('/api/oauth/authorize')
+      .post('/api/oauth/authorize')
       .set('Cookie', `mgm_access=${accessCookie}`)
-      .query(withoutChallenge)
+      .send(withoutChallenge)
       .expect(400);
     expect(res.body.error).toBe('invalid_request');
   });
@@ -568,9 +562,9 @@ describe('GET /api/oauth/authorize — invalid params', () => {
   it('returns 400 when redirect_uri is missing', async () => {
     const { redirect_uri: _, ...withoutUri } = base;
     const res = await request(app)
-      .get('/api/oauth/authorize')
+      .post('/api/oauth/authorize')
       .set('Cookie', `mgm_access=${accessCookie}`)
-      .query(withoutUri)
+      .send(withoutUri)
       .expect(400);
     expect(res.body.error).toBe('invalid_request');
   });
@@ -578,9 +572,9 @@ describe('GET /api/oauth/authorize — invalid params', () => {
   it('returns 400 when OAuth not configured', async () => {
     const noConfigApp = buildApp({}, SERVER_CONFIG);
     const res = await request(noConfigApp)
-      .get('/api/oauth/authorize')
+      .post('/api/oauth/authorize')
       .set('Cookie', `mgm_access=${accessCookie}`)
-      .query(base)
+      .send(base)
       .expect(400);
     expect(res.body.error).toBe('server_error');
   });
@@ -621,9 +615,9 @@ describe('POST /oauth/token — authorization_code happy path', () => {
     const accessCookie = signAccessToken('alice', SECRET, '1h');
 
     const authorizeRes = await request(app)
-      .get('/api/oauth/authorize')
+      .post('/api/oauth/authorize')
       .set('Cookie', `mgm_access=${accessCookie}`)
-      .query({
+      .send({
         response_type: 'code',
         client_id: 'alice',
         redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
@@ -631,7 +625,7 @@ describe('POST /oauth/token — authorization_code happy path', () => {
         code_challenge_method: 'S256',
       });
 
-    const code = new URL(authorizeRes.headers['location'] as string).searchParams.get('code')!;
+    const code = new URL(authorizeRes.body.redirectUrl).searchParams.get('code')!;
     const tokenPayload = {
       grant_type: 'authorization_code',
       code,
@@ -673,9 +667,9 @@ describe('POST /oauth/token — authorization_code error cases', () => {
     const accessCookie = signAccessToken('alice', SECRET, '1h');
 
     const authorizeRes = await request(app)
-      .get('/api/oauth/authorize')
+      .post('/api/oauth/authorize')
       .set('Cookie', `mgm_access=${accessCookie}`)
-      .query({
+      .send({
         response_type: 'code',
         client_id: 'alice',
         redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
@@ -683,7 +677,7 @@ describe('POST /oauth/token — authorization_code error cases', () => {
         code_challenge_method: 'S256',
       });
 
-    const code = new URL(authorizeRes.headers['location'] as string).searchParams.get('code')!;
+    const code = new URL(authorizeRes.body.redirectUrl).searchParams.get('code')!;
     const res = await request(app)
       .post('/oauth/token')
       .type('form')
@@ -697,9 +691,9 @@ describe('POST /oauth/token — authorization_code error cases', () => {
     const accessCookie = signAccessToken('alice', SECRET, '1h');
 
     const authorizeRes = await request(app)
-      .get('/api/oauth/authorize')
+      .post('/api/oauth/authorize')
       .set('Cookie', `mgm_access=${accessCookie}`)
-      .query({
+      .send({
         response_type: 'code',
         client_id: 'alice',
         redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
@@ -707,7 +701,7 @@ describe('POST /oauth/token — authorization_code error cases', () => {
         code_challenge_method: 'S256',
       });
 
-    const code = new URL(authorizeRes.headers['location'] as string).searchParams.get('code')!;
+    const code = new URL(authorizeRes.body.redirectUrl).searchParams.get('code')!;
     const res = await request(app)
       .post('/oauth/token')
       .type('form')
@@ -776,12 +770,22 @@ describe('POST /oauth/token — refresh_token error cases', () => {
     expect(res.body.error).toBe('invalid_grant');
   });
 
-  it('returns invalid_grant when token type is access (not refresh)', async () => {
+  it('returns invalid_grant when token type is access (not oauth_refresh)', async () => {
     const wrongTypeToken = signAccessToken('alice', SECRET, '7d');
     const res = await request(app)
       .post('/oauth/token')
       .type('form')
       .send({ grant_type: 'refresh_token', refresh_token: wrongTypeToken })
+      .expect(400);
+    expect(res.body.error).toBe('invalid_grant');
+  });
+
+  it('returns invalid_grant when token type is ui refresh (not oauth_refresh)', async () => {
+    const uiRefresh = signRefreshToken('alice', SECRET, '7d');
+    const res = await request(app)
+      .post('/oauth/token')
+      .type('form')
+      .send({ grant_type: 'refresh_token', refresh_token: uiRefresh })
       .expect(400);
     expect(res.body.error).toBe('invalid_grant');
   });
@@ -798,6 +802,157 @@ describe('POST /oauth/token — refresh_token error cases', () => {
       .send({ grant_type: 'refresh_token', refresh_token: expired })
       .expect(400);
     expect(res.body.error).toBe('invalid_grant');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/oauth/userinfo
+// ---------------------------------------------------------------------------
+
+describe('GET /api/oauth/userinfo', () => {
+  const app = buildApp(USERS, SERVER_CONFIG);
+
+  it('returns sub, name, email for valid Bearer token', async () => {
+    const token = signOAuthToken('alice', SECRET, '1h');
+    const res = await request(app)
+      .get('/api/oauth/userinfo')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(res.body).toEqual({ sub: 'alice', name: 'Alice', email: 'alice@example.com' });
+  });
+
+  it('returns 401 without Bearer token', async () => {
+    await request(app)
+      .get('/api/oauth/userinfo')
+      .expect(401);
+  });
+
+  it('returns 401 for expired token', async () => {
+    const jwt = require('jsonwebtoken');
+    const expired = jwt.sign(
+      { userId: 'alice', type: 'oauth_access', exp: Math.floor(Date.now() / 1000) - 10 },
+      SECRET,
+    );
+    await request(app)
+      .get('/api/oauth/userinfo')
+      .set('Authorization', `Bearer ${expired}`)
+      .expect(401);
+  });
+
+  it('returns 401 for non-oauth_access token type', async () => {
+    const accessToken = signAccessToken('alice', SECRET, '1h');
+    await request(app)
+      .get('/api/oauth/userinfo')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(401);
+  });
+
+  it('returns 401 for unknown user', async () => {
+    const token = signOAuthToken('unknown', SECRET, '1h');
+    await request(app)
+      .get('/api/oauth/userinfo')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(401);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/oauth/introspect
+// ---------------------------------------------------------------------------
+
+describe('POST /api/oauth/introspect', () => {
+  const app = buildApp(USERS, SERVER_CONFIG);
+
+  it('returns active:true with claims for valid token', async () => {
+    const token = signOAuthToken('alice', SECRET, '1h');
+    const res = await request(app)
+      .post('/api/oauth/introspect')
+      .send({ token })
+      .expect(200);
+
+    expect(res.body.active).toBe(true);
+    expect(res.body.sub).toBe('alice');
+    expect(res.body.token_type).toBe('oauth_access');
+    expect(res.body.exp).toEqual(expect.any(Number));
+    expect(res.body.iat).toEqual(expect.any(Number));
+  });
+
+  it('returns active:false for expired token', async () => {
+    const jwt = require('jsonwebtoken');
+    const expired = jwt.sign(
+      { userId: 'alice', type: 'oauth_access', exp: Math.floor(Date.now() / 1000) - 10 },
+      SECRET,
+    );
+    const res = await request(app)
+      .post('/api/oauth/introspect')
+      .send({ token: expired })
+      .expect(200);
+
+    expect(res.body).toEqual({ active: false });
+  });
+
+  it('returns active:false for garbage token', async () => {
+    const res = await request(app)
+      .post('/api/oauth/introspect')
+      .send({ token: 'not-a-jwt' })
+      .expect(200);
+
+    expect(res.body).toEqual({ active: false });
+  });
+
+  it('returns active:false when token is missing', async () => {
+    const res = await request(app)
+      .post('/api/oauth/introspect')
+      .send({})
+      .expect(200);
+
+    expect(res.body).toEqual({ active: false });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/oauth/revoke
+// ---------------------------------------------------------------------------
+
+describe('POST /api/oauth/revoke', () => {
+  const app = buildApp(USERS, SERVER_CONFIG);
+
+  it('returns 200 OK', async () => {
+    await request(app)
+      .post('/api/oauth/revoke')
+      .send({ token: 'any-token' })
+      .expect(200);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/oauth/end-session
+// ---------------------------------------------------------------------------
+
+describe('POST /api/oauth/end-session', () => {
+  const app = buildApp(USERS, SERVER_CONFIG);
+
+  it('returns 200 OK', async () => {
+    await request(app)
+      .post('/api/oauth/end-session')
+      .send({})
+      .expect(200);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GET /authorize — removed (should 404)
+// ---------------------------------------------------------------------------
+
+describe('GET /authorize — removed', () => {
+  const app = buildApp(USERS, SERVER_CONFIG);
+
+  it('returns 404 (endpoint removed)', async () => {
+    await request(app)
+      .get('/authorize')
+      .query({ response_type: 'code', client_id: 'alice' })
+      .expect(404);
   });
 });
 
@@ -882,7 +1037,6 @@ describe('MCP handler — auth 401 responses', () => {
       .set('Content-Type', 'application/json')
       .send({ jsonrpc: '2.0', method: 'initialize', id: 1, params: {} });
 
-    // Auth passed — fails at project lookup (no projects configured in fake manager)
     expect(res.status).toBe(404);
     expect(res.headers['www-authenticate']).toBeUndefined();
   });
@@ -894,7 +1048,6 @@ describe('MCP handler — auth 401 responses', () => {
       .set('Content-Type', 'application/json')
       .send({ jsonrpc: '2.0', method: 'initialize', id: 1, params: {} });
 
-    // Auth passed — fails at project lookup
     expect(res.status).toBe(404);
     expect(res.headers['www-authenticate']).toBeUndefined();
   });

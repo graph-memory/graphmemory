@@ -3,17 +3,9 @@ import express from 'express';
 import { signOAuthToken, signOAuthRefreshToken, parseTtl, verifyToken, getAccessToken } from '@/lib/jwt';
 import { resolveUserFromApiKey } from '@/lib/access';
 import type { UserConfig, ServerConfig } from '@/lib/multi-config';
+import { MemorySessionStore, type SessionStore } from '@/lib/session-store';
 
-const AUTH_CODE_TTL_MS = 10 * 60 * 1000; // 10 minutes
-
-interface AuthCodeEntry {
-  userId: string;
-  redirectUri: string;
-  codeChallenge: string;
-  expiresAt: number;
-}
-
-const authCodes = new Map<string, AuthCodeEntry>();
+const AUTH_CODE_TTL_S = 600; // 10 minutes
 
 function verifyPkce(codeVerifier: string, codeChallenge: string): boolean {
   const hash = crypto.createHash('sha256').update(codeVerifier).digest();
@@ -38,13 +30,17 @@ function issueTokenPair(userId: string, jwtSecret: string, accessTtl: string, re
  *
  * Endpoints:
  *   GET  /.well-known/oauth-authorization-server  — RFC 8414 discovery
- *   GET  /authorize                               — redirect to /api/oauth/authorize (cross-site entry)
- *   GET  /api/oauth/authorize                     — check session cookie, issue code or redirect to /ui
+ *   POST /api/oauth/authorize                     — issue auth code (session cookie required)
  *   POST /oauth/token                             — client_credentials, authorization_code, refresh_token grants
+ *   GET  /api/oauth/userinfo                      — user info from Bearer token
+ *   POST /api/oauth/introspect                    — RFC 7662 token introspection
+ *   POST /api/oauth/revoke                        — token revocation (stub)
+ *   POST /api/oauth/end-session                   — end session (stub)
  */
 export function createOAuthRouter(
   users: Record<string, UserConfig>,
   serverConfig?: ServerConfig,
+  sessionStore?: SessionStore,
 ): express.Router {
   const router = express.Router();
   router.use(express.urlencoded({ extended: false }));
@@ -53,6 +49,7 @@ export function createOAuthRouter(
   const jwtSecret = serverConfig?.jwtSecret;
   const accessTtl = serverConfig?.accessTokenTtl ?? '15m';
   const refreshTtl = serverConfig?.refreshTokenTtl ?? '7d';
+  const store = sessionStore ?? new MemorySessionStore();
 
   // RFC 8414 — OAuth Authorization Server Metadata
   router.get('/.well-known/oauth-authorization-server', (req, res) => {
@@ -60,8 +57,12 @@ export function createOAuthRouter(
     const base = `${proto}://${req.get('host')}`;
     res.json({
       issuer: base,
-      authorization_endpoint: `${base}/authorize`,
+      authorization_endpoint: `${base}/ui/auth/authorize`,
       token_endpoint: `${base}/oauth/token`,
+      userinfo_endpoint: `${base}/api/oauth/userinfo`,
+      introspection_endpoint: `${base}/api/oauth/introspect`,
+      revocation_endpoint: `${base}/api/oauth/revoke`,
+      end_session_endpoint: `${base}/api/oauth/end-session`,
       grant_types_supported: ['client_credentials', 'authorization_code', 'refresh_token'],
       response_types_supported: ['code'],
       code_challenge_methods_supported: ['S256'],
@@ -69,21 +70,15 @@ export function createOAuthRouter(
     });
   });
 
-  // Cross-site entry point — redirect to /api/oauth/authorize so sameSite:strict cookie is sent
-  router.get('/authorize', (req, res) => {
-    const params = new URLSearchParams(req.query as Record<string, string>);
-    res.redirect(302, `/api/oauth/authorize?${params.toString()}`);
-  });
-
-  // Session-aware authorize — cookie is available here (path: /api, same-site)
-  router.get('/api/oauth/authorize', (req, res) => {
+  // Session-aware authorize — frontend POSTs here after user consents
+  router.post('/api/oauth/authorize', async (req, res) => {
     if (!hasUsers || !jwtSecret) {
       res.status(400).json({ error: 'server_error', error_description: 'OAuth not configured' });
       return;
     }
 
     const { response_type, client_id, redirect_uri, code_challenge, code_challenge_method, state } =
-      req.query as Record<string, string | undefined>;
+      req.body as Record<string, string | undefined>;
 
     if (response_type !== 'code' || !client_id || !redirect_uri || !code_challenge || code_challenge_method !== 'S256') {
       res.status(400).json({ error: 'invalid_request', error_description: 'Missing or invalid OAuth parameters' });
@@ -95,26 +90,96 @@ export function createOAuthRouter(
     const payload = accessToken ? verifyToken(accessToken, jwtSecret) : null;
 
     if (!payload || (payload.type !== 'access' && payload.type !== 'oauth_access')) {
-      res.redirect(302, '/ui');
+      res.status(401).json({ error: 'login_required', error_description: 'User session required' });
       return;
     }
 
-    // Issue authorization code
+    // Issue authorization code and store in session store
     const code = crypto.randomBytes(32).toString('base64url');
-    authCodes.set(code, {
+    await store.set(`authcode:${code}`, JSON.stringify({
       userId: payload.userId,
       redirectUri: redirect_uri,
       codeChallenge: code_challenge,
-      expiresAt: Date.now() + AUTH_CODE_TTL_MS,
-    });
+    }), AUTH_CODE_TTL_S);
 
     const callbackParams = new URLSearchParams({ code });
     if (state) callbackParams.set('state', state);
-    res.redirect(302, `${redirect_uri}?${callbackParams.toString()}`);
+    res.json({ redirectUrl: `${redirect_uri}?${callbackParams.toString()}` });
+  });
+
+  // Userinfo — returns fixed user data from Bearer token
+  router.get('/api/oauth/userinfo', (req, res) => {
+    if (!jwtSecret) {
+      res.status(500).json({ error: 'server_error' });
+      return;
+    }
+
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) {
+      res.status(401).json({ error: 'invalid_token' });
+      return;
+    }
+
+    const token = authHeader.slice(7);
+    const payload = verifyToken(token, jwtSecret);
+    if (!payload || payload.type !== 'oauth_access') {
+      res.status(401).json({ error: 'invalid_token' });
+      return;
+    }
+
+    const user = users[payload.userId];
+    if (!user) {
+      res.status(401).json({ error: 'invalid_token', error_description: 'User not found' });
+      return;
+    }
+
+    res.json({ sub: payload.userId, name: user.name, email: user.email });
+  });
+
+  // RFC 7662 — Token Introspection
+  router.post('/api/oauth/introspect', (req, res) => {
+    if (!jwtSecret) {
+      res.status(500).json({ error: 'server_error' });
+      return;
+    }
+
+    const { token } = req.body as Record<string, string | undefined>;
+    if (!token) {
+      res.json({ active: false });
+      return;
+    }
+
+    const payload = verifyToken(token, jwtSecret);
+    if (!payload) {
+      res.json({ active: false });
+      return;
+    }
+
+    // Decode full JWT to get exp/iat
+    const jwt = require('jsonwebtoken');
+    const decoded = jwt.decode(token) as { exp?: number; iat?: number } | null;
+
+    res.json({
+      active: true,
+      sub: payload.userId,
+      token_type: payload.type,
+      exp: decoded?.exp,
+      iat: decoded?.iat,
+    });
+  });
+
+  // Token Revocation — stub for compatibility
+  router.post('/api/oauth/revoke', (_req, res) => {
+    res.status(200).json({});
+  });
+
+  // End Session — stub for compatibility
+  router.post('/api/oauth/end-session', (_req, res) => {
+    res.status(200).json({});
   });
 
   // Token endpoint — client_credentials, authorization_code, refresh_token grants
-  router.post('/oauth/token', (req, res) => {
+  router.post('/oauth/token', async (req, res) => {
     if (!hasUsers || !jwtSecret) {
       res.status(400).json({ error: 'server_error', error_description: 'OAuth not configured: no users or jwtSecret missing' });
       return;
@@ -157,19 +222,15 @@ export function createOAuthRouter(
         return;
       }
 
-      const entry = authCodes.get(code);
-      if (!entry) {
+      // Get and delete from session store (single use)
+      const raw = await store.get(`authcode:${code}`);
+      if (!raw) {
         res.status(400).json({ error: 'invalid_grant', error_description: 'Unknown or expired authorization code' });
         return;
       }
+      await store.delete(`authcode:${code}`);
 
-      // Always delete — single use
-      authCodes.delete(code);
-
-      if (entry.expiresAt < Date.now()) {
-        res.status(400).json({ error: 'invalid_grant', error_description: 'Authorization code expired' });
-        return;
-      }
+      const entry = JSON.parse(raw) as { userId: string; redirectUri: string; codeChallenge: string };
 
       if (entry.redirectUri !== redirect_uri) {
         res.status(400).json({ error: 'invalid_grant', error_description: 'redirect_uri mismatch' });

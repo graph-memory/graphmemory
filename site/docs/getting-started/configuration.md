@@ -58,6 +58,8 @@ server:
     global: 600                   # requests/min
     search: 120
     auth: 10
+  redis:
+    url: "redis://localhost:6379"  # optional; enables Redis session store + embedding cache
 
 # Projects
 projects:
@@ -103,6 +105,7 @@ workspaces:
 | `refreshTokenTtl` | `7d` | JWT refresh token lifetime |
 | `maxFileSize` | `1048576` | Max file size for indexing (bytes) |
 | `exclude` | — | Additional glob to exclude from indexing |
+| `redis.url` | — | Redis connection URL. Enables Redis-backed session store and embedding cache. |
 
 ## Model config
 
@@ -158,6 +161,27 @@ graphs:
 | `readonly: true` | Yes | Visible | Hidden |
 
 `readonly` overrides per-user `rw` access. See [Access Control](/docs/security/access-control) for details.
+
+## Redis configuration
+
+By default, Graph Memory uses in-memory storage for MCP HTTP sessions and the embedding cache. For production deployments or multi-instance setups, you can use Redis instead.
+
+```yaml
+server:
+  redis:
+    url: "redis://localhost:6379"   # Redis connection URL
+```
+
+When `server.redis.url` is set:
+
+- **MCP session store** — active MCP HTTP sessions are stored in Redis instead of memory. Sessions survive server restarts and are shared across instances.
+- **Embedding cache** — computed embeddings are cached in Redis. Vectors computed in one server instance are reused by others, and the cache persists across restarts.
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `redis.url` | — | Redis connection URL (`redis://` or `rediss://` for TLS). Leave unset to use in-memory stores. |
+
+No other configuration changes are required. The session store and embedding cache automatically switch to Redis when the URL is provided.
 
 ## Applying changes
 

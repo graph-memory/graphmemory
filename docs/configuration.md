@@ -78,6 +78,11 @@ server:
     apiKey: "emb-secret-key"
     maxTexts: 100
     maxTextChars: 10000
+  redis:
+    enabled: false
+    url: "redis://localhost:6379"
+    prefix: "mgm:"
+    embeddingCacheTtl: "30d"
 
 # Projects
 projects:
@@ -154,6 +159,7 @@ workspaces:
 | `codeModel` | object | (see below) | Default model config for code graph (overrides `model` for code) |
 | `embedding` | object | (see below) | Default embedding config for all graphs |
 | `embeddingApi` | object | — | Expose embedding model via `POST /api/embed` |
+| `redis` | object | — | Redis configuration for session store and embedding cache (see below) |
 | `rateLimit` | object | — | Rate limiting: `global` (default 600), `search` (default 120), `auth` (default 10) requests/min |
 | `maxFileSize` | number | `1048576` | Max file size in bytes for indexing (1 MB default). Also settable at workspace/project level |
 | `exclude` | string | — | Additional glob to exclude (merged with default `**/node_modules/**`, `**/dist/**`) |
@@ -310,6 +316,31 @@ server:
 ```
 
 See [Embeddings](embeddings.md) for details.
+
+## Redis
+
+When `redis.enabled` is `true`, Redis is used as a shared backend for:
+
+- **Session store** — auth codes and OAuth sessions (replaces in-memory Map)
+- **Embedding cache** — persistent LRU-equivalent cache keyed by SHA-256 hash of the input text (replaces in-memory LRU cache)
+
+When `redis.enabled` is `false` (the default), both fall back to in-memory implementations with no external dependency.
+
+```yaml
+server:
+  redis:
+    enabled: true
+    url: "redis://localhost:6379"
+    prefix: "mgm:"
+    embeddingCacheTtl: "30d"
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | boolean | `false` | Enable Redis backend. When `false`, in-memory implementations are used |
+| `url` | string | `redis://localhost:6379` | Redis connection URL |
+| `prefix` | string | `mgm:` | Key prefix applied to all Redis keys |
+| `embeddingCacheTtl` | string | `30d` | TTL for cached embeddings (e.g. `30d`, `24h`, `0` = no expiry) |
 
 ## Access control resolution
 

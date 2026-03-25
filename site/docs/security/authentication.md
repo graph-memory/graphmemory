@@ -8,7 +8,7 @@ keywords: [authentication, login, API key, JWT, password, scrypt, MCP authentica
 
 # Authentication
 
-Graph Memory supports three authentication methods: password-based login for the web UI, API keys for programmatic access, and OAuth 2.0 client_credentials for AI chat clients such as Claude.ai.
+Graph Memory supports three authentication methods: password-based login for the web UI, API keys for programmatic access, and OAuth 2.0 for AI chat clients such as Claude.ai (both `client_credentials` and Authorization Code + PKCE flows are supported).
 
 ## When is authentication needed?
 
@@ -151,14 +151,13 @@ For clients that support custom request headers -- Claude Code, Cursor, Windsurf
 }
 ```
 
-### OAuth 2.0 client_credentials
+### OAuth 2.0 flows
 
-For AI chat clients such as Claude.ai that support the OAuth connector flow, Graph Memory implements the OAuth 2.0 `client_credentials` grant. This is the recommended method for those clients -- no login page is required and the entire flow is automated.
+Graph Memory supports two OAuth 2.0 grant types for AI chat clients.
 
-Requirements:
+#### client_credentials
 
-- `jwtSecret` must be set in your `graph-memory.yaml` (see [JWT secret](#jwt-secret))
-- The server must be reachable at a public HTTPS URL
+The `client_credentials` grant is the simplest option for clients that support it. No browser redirect is required and the entire flow is automated.
 
 The client credentials map to your user config:
 
@@ -167,30 +166,56 @@ The client credentials map to your user config:
 | Client ID | your `userId` (e.g., `alice`) |
 | Client Secret | your `apiKey` (e.g., `mgm-abc123...`) |
 
-The exchange flow:
+Flow:
 
 1. The client posts to `POST /oauth/token` with `grant_type=client_credentials`, client ID, and client secret
-2. The server validates the credentials and returns a short-lived access token (1-hour JWT)
+2. The server validates the credentials and returns a short-lived access token (JWT, type `oauth_access`)
 3. The client uses the token as a `Bearer` value in the `Authorization` header for all MCP requests
 4. When the token expires, the server responds with `WWW-Authenticate: Bearer` on a `401` response; the client fetches a new token automatically and retries
+
+#### Authorization Code + PKCE
+
+For browser-based OAuth clients (including Claude.ai), Graph Memory also supports the Authorization Code flow with PKCE (`S256`). This flow uses your existing UI session -- if you are already logged in, no re-authentication is required.
+
+Flow:
+
+1. The client redirects to `GET /oauth/authorize` with `response_type=code`, `client_id`, `code_challenge`, and `code_challenge_method=S256`
+2. If the user has an active UI session they are shown a **consent page** at `/ui/auth/authorize` where they can approve the request; otherwise they are redirected to the login page first
+3. After approval, the server redirects back to the client's `redirect_uri` with an authorization code
+4. The client exchanges the code at `POST /oauth/token` with `grant_type=authorization_code` and the `code_verifier`
+5. The server returns an access token (type `oauth_access`) and a refresh token (type `oauth_refresh`)
+6. The client can refresh the access token via `POST /oauth/token` with `grant_type=refresh_token`
+
+The OAuth discovery document at `GET /.well-known/oauth-authorization-server` advertises both flows.
+
+#### Token types
+
+| JWT `type` field | Issued by | Purpose |
+|-----------------|-----------|---------|
+| `oauth_access` | Both grant types | Short-lived bearer token for API/MCP requests |
+| `oauth_refresh` | Authorization Code flow | Long-lived token used to obtain new access tokens via `refresh_token` grant |
+
+Requirements for both flows:
+
+- `jwtSecret` must be set in your `graph-memory.yaml` (see [JWT secret](#jwt-secret))
+- The server must be reachable at a public HTTPS URL
 
 When no users are configured, MCP endpoints remain open -- no credentials needed.
 
 ## Connecting Claude.ai
 
-Claude.ai can connect to Graph Memory using its "Add custom connector" dialog, which uses the OAuth 2.0 flow described above.
+Claude.ai connects to Graph Memory using its "Add custom connector" dialog, which uses the **OAuth 2.0 Authorization Code + PKCE** flow.
 
 1. In Claude.ai, open **Settings > Connectors** and click **Add custom connector**
-2. Fill in the fields:
+2. Enter the MCP server URL:
 
-   | Field | Value |
-   |-------|-------|
-   | Name | Any label, e.g., `Graph Memory` |
-   | Remote MCP server URL | `https://yourserver.com/mcp/your-project` |
-   | OAuth Client ID | your `userId` from `graph-memory.yaml` |
-   | OAuth Client Secret | your `apiKey` from `graph-memory.yaml` |
+   ```
+   https://yourserver.com/mcp/your-project
+   ```
 
-3. Save the connector. Claude.ai will perform the OAuth exchange automatically and connect to the MCP endpoint.
+3. Claude.ai will redirect you to the Graph Memory consent page at `/ui/auth/authorize`. If you are not already logged in, you will be taken to the login page first.
+4. After approving on the consent page, Claude.ai receives an authorization code and exchanges it for tokens automatically.
+5. The connection is established. Claude.ai will use refresh tokens to maintain the session without requiring you to re-approve.
 
 Two requirements must be met before connecting:
 
@@ -204,15 +229,19 @@ Two requirements must be met before connecting:
 
   Generate a strong secret with: `openssl rand -base64 32`
 
+If your Claude.ai version still uses the older connector dialog with explicit Client ID and Client Secret fields, use `client_credentials` instead: set Client ID to your `userId` and Client Secret to your `apiKey` from `graph-memory.yaml`. See [OAuth 2.0 flows → client_credentials](#client_credentials) above.
+
 ## Auth middleware priority
 
 When a request arrives, the server checks credentials in this order:
 
 1. **JWT cookie** -- if a `jwtSecret` is configured, check the `mgm_access` cookie
-2. **API key** -- check the `Authorization: Bearer` header against all user API keys
+2. **Bearer token** -- check the `Authorization: Bearer` header; accepts both API keys (`mgm-...`) and OAuth access tokens (JWT type `oauth_access`)
 3. **Anonymous** -- if neither is present, the request uses `server.defaultAccess` permissions
 
 The first successful match determines the user identity for the request.
+
+Note: OAuth refresh tokens (type `oauth_refresh`) are only accepted at `POST /oauth/token`. They cannot be used as Bearer tokens for API or MCP requests.
 
 ## Password security
 

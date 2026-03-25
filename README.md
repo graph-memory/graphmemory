@@ -147,12 +147,15 @@ users:
 server:
   jwtSecret: "your-secret"
   defaultAccess: rw
+  redis: "redis://localhost:6379"   # optional: session store + embedding cache
 ```
 
 - **UI login**: email + password → JWT cookies (httpOnly, SameSite=Strict)
 - **API access**: `Authorization: Bearer <apiKey>`
-- **OAuth 2.0**: Authorization Code + PKCE (S256), client credentials, refresh tokens
+- **OAuth 2.0**: Authorization Code + PKCE (S256) with frontend consent page at `/ui/auth/authorize`; also supports client credentials and refresh tokens
+- **OAuth endpoints**: `/oauth/userinfo`, `/oauth/introspect`, `/oauth/revoke`, `/oauth/end-session`
 - **ACL**: graph > project > workspace > server > defaultAccess (`deny` / `r` / `rw`)
+- **Redis** (optional): when `server.redis` is configured, used for OAuth session store and embedding cache
 
 See [docs/authentication.md](docs/authentication.md).
 

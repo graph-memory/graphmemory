@@ -18,21 +18,19 @@ Any MCP-compatible client can connect to this URL using the Streamable HTTP tran
 
 ## Claude.ai
 
-Claude.ai connects via its "Add custom connector" dialog, which uses OAuth 2.0. This requires the server to be reachable at a public HTTPS URL and `jwtSecret` to be configured in `graph-memory.yaml`.
+Claude.ai connects via its "Add custom connector" dialog using the **OAuth 2.0 Authorization Code + PKCE** flow. This requires the server to be reachable at a public HTTPS URL and `jwtSecret` to be configured in `graph-memory.yaml`.
 
 1. In Claude.ai, open **Settings > Connectors** and click **Add custom connector**
-2. Fill in the fields:
+2. Enter the MCP server URL:
 
-   | Field | Value |
-   |-------|-------|
-   | Name | Any label, e.g., `Graph Memory` |
-   | Remote MCP server URL | `https://yourserver.com/mcp/your-project` |
-   | OAuth Client ID | your `userId` from `graph-memory.yaml` (e.g., `alice`) |
-   | OAuth Client Secret | your `apiKey` from `graph-memory.yaml` (e.g., `mgm-abc123...`) |
+   ```
+   https://yourserver.com/mcp/your-project
+   ```
 
-3. Save the connector. Claude.ai performs the OAuth exchange automatically and connects.
+3. Claude.ai redirects you to the Graph Memory **consent page** at `/ui/auth/authorize`. Log in if prompted, then approve the request.
+4. Claude.ai receives an authorization code, exchanges it for tokens, and connects automatically. Refresh tokens keep the session active without requiring re-approval.
 
-See [Authentication → Connecting Claude.ai](../security/authentication.md#connecting-claudeai) for configuration details.
+See [Authentication → Connecting Claude.ai](../security/authentication.md#connecting-claudeai) for full configuration details and the legacy `client_credentials` fallback.
 
 ## Claude Code
 
@@ -114,7 +112,7 @@ The Graph Memory Web UI includes a **Connect** dialog that shows the MCP URL for
 
 If your server has users configured, MCP clients need credentials to connect. Two methods are supported.
 
-**OAuth 2.0** (recommended for Claude.ai and other chat clients that support the OAuth connector flow) -- see the [Claude.ai section](#claudeai) above and [Authentication → MCP authentication](../security/authentication.md#mcp-authentication) for details.
+**OAuth 2.0** (recommended for Claude.ai and other browser-based clients) -- Graph Memory supports Authorization Code + PKCE (with a consent page at `/ui/auth/authorize`) and `client_credentials`. See the [Claude.ai section](#claudeai) above and [Authentication → MCP authentication](../security/authentication.md#mcp-authentication) for details.
 
 **API key header** (for Claude Code, Cursor, Windsurf, and any client that supports custom headers) -- add the key as a header:
 

@@ -97,7 +97,68 @@ When not set, allows all origins (`*`). `credentials: true` is always enabled to
 
 ## MCP authentication
 
-MCP endpoints (`/mcp/{projectId}`) are now authenticated via API key when users are configured. Previously, MCP was unprotected. The API key is sent via the `Authorization: Bearer <apiKey>` header, and comparison uses `crypto.timingSafeEqual` (same as REST API key checks).
+MCP endpoints (`/mcp/{projectId}`) are authenticated via API key when users are configured. Previously, MCP was unprotected. The API key is sent via the `Authorization: Bearer <apiKey>` header, and comparison uses `crypto.timingSafeEqual` (same as REST API key checks).
+
+## OAuth 2.0 Authorization Code + PKCE
+
+MCP clients that support OAuth (e.g., Claude.ai) can authenticate via the OAuth 2.0 Authorization Code flow with PKCE (Proof Key for Code Exchange, S256 method). This avoids sharing static API keys with third-party clients.
+
+### Discovery
+
+The server publishes RFC 8414 metadata at `GET /.well-known/oauth-authorization-server`, advertising all supported endpoints, grant types, and `code_challenge_methods_supported: ["S256"]`.
+
+### Flow
+
+1. The MCP client redirects the user's browser to the authorization endpoint (`/ui/auth/authorize`) with `response_type=code`, `code_challenge` (SHA-256 of the verifier, base64url-encoded), `code_challenge_method=S256`, `client_id`, `redirect_uri`, and optional `state`.
+2. The consent page at `/ui/auth/authorize` shows the requesting service's hostname so the user knows which service is requesting access. The user must already hold a valid session cookie (i.e., be logged in to the UI).
+3. After the user consents, the frontend POSTs to `POST /api/oauth/authorize`. The server verifies the active session JWT (`type: access` or `type: oauth_access`), generates a 32-byte random authorization code, stores it in the session store (keyed as `authcode:<code>`) with a 10-minute TTL, and returns a `redirectUrl` for the client callback.
+4. The client exchanges the code at `POST /oauth/token` with `grant_type=authorization_code`, `code`, `redirect_uri`, `client_id`, and `code_verifier`. The server:
+   - Retrieves and immediately deletes the code entry from the session store (single-use enforcement).
+   - Verifies `redirect_uri` matches exactly.
+   - Verifies PKCE: `base64url(sha256(code_verifier)) === code_challenge`.
+   - Issues an access/refresh token pair on success.
+5. Subsequent requests use the access token as `Authorization: Bearer <token>`. Refresh tokens are exchanged at `POST /oauth/token` with `grant_type=refresh_token`.
+
+### Supported grant types
+
+| Grant type | Use case |
+|---|---|
+| `authorization_code` | Interactive MCP clients (Claude.ai, browser-based tools) |
+| `client_credentials` | Programmatic/machine clients using a user's `apiKey` as `client_secret` |
+| `refresh_token` | Renewing an expired access token without re-authentication |
+
+### JWT token types
+
+OAuth flows introduce two additional JWT `type` values distinct from the cookie-based UI session tokens:
+
+| Type | Description |
+|---|---|
+| `access` | UI session access token (cookie-based) |
+| `refresh` | UI session refresh token (cookie-based, scoped to `/api/auth/refresh`) |
+| `oauth_access` | OAuth access token (Bearer header) |
+| `oauth_refresh` | OAuth refresh token; accepted only on `POST /oauth/token` with `grant_type=refresh_token` |
+
+This separation ensures OAuth Bearer tokens cannot be used to call the UI session refresh endpoint and vice versa.
+
+### Session store (auth code storage)
+
+Authorization codes are stored in a `SessionStore` abstraction (`src/lib/session-store.ts`) rather than in-process memory or the JWT itself. Two implementations are provided:
+
+| Implementation | Class | Notes |
+|---|---|---|
+| In-memory | `MemorySessionStore` | Default; uses `Map` with `setTimeout`-based expiry. Not suitable for multi-instance deployments. |
+| Redis | `RedisSessionStore` | Wraps a `redis` client, uses `SET … EX` for atomic TTL. Safe for clustered/multi-process deployments. |
+
+The store is injected into `createOAuthRouter()` so the correct backend can be wired at startup.
+
+### Additional OAuth endpoints
+
+| Endpoint | Description |
+|---|---|
+| `GET /api/oauth/userinfo` | Returns `{ sub, name, email }` for a valid `oauth_access` Bearer token |
+| `POST /api/oauth/introspect` | RFC 7662 token introspection — returns `active`, `sub`, `token_type`, `exp`, `iat` |
+| `POST /api/oauth/revoke` | Stub; returns 200 for client compatibility |
+| `POST /api/oauth/end-session` | Stub; returns 200 for client compatibility |
 
 ## Readonly mode (defense-in-depth)
 
@@ -117,4 +178,7 @@ This is useful for graphs that should be searchable but not modifiable — e.g.,
 - MCP HTTP sessions have configurable idle timeout (default: 30 min)
 - JWT access tokens expire after configurable TTL (default: 15 min)
 - JWT refresh tokens expire after configurable TTL (default: 7 days)
+- OAuth access tokens share the same TTL as UI access tokens
+- OAuth refresh tokens share the same TTL as UI refresh tokens
+- OAuth authorization codes expire after 10 minutes and are single-use (deleted from the session store on first redemption)
 - Each JWT request validates user still exists in config (revocation on user removal)

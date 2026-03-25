@@ -31,6 +31,20 @@ See [Authentication](authentication.md) for details on auth middleware.
 
 `/api/auth/status` and `/api/auth/apikey` are accessible before the auth middleware (they verify JWT internally).
 
+## OAuth endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/.well-known/oauth-authorization-server` | OAuth 2.0 Authorization Server discovery manifest |
+| POST | `/api/oauth/authorize` | Begin authorization — returns `{ redirectUrl }` (JSON). Body: `response_type`, `client_id`, `redirect_uri`, `code_challenge`, `code_challenge_method`, `state` |
+| POST | `/api/oauth/token` | Exchange authorization code or refresh token for access/refresh tokens |
+| GET | `/api/oauth/userinfo` | Bearer token → `{ sub, name, email }` |
+| POST | `/api/oauth/introspect` | RFC 7662 token introspection. Body: `{ token }` → `{ active, sub, token_type, exp, iat }` or `{ active: false }` |
+| POST | `/api/oauth/revoke` | Token revocation stub — always returns 200 |
+| POST | `/api/oauth/end-session` | End session stub — always returns 200 |
+
+`POST /api/oauth/authorize` never issues an HTTP redirect; callers must follow the returned `redirectUrl` themselves. This keeps the flow compatible with non-browser MCP clients.
+
 ## Project endpoints
 
 | Method | Path | Description |

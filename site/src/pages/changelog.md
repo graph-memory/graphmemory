@@ -5,6 +5,28 @@ description: Graph Memory release history and version changes.
 
 # Changelog
 
+## v1.6.3
+
+**Released: March 2026**
+
+### New
+
+- **OAuth 2.0 Authorization Code + PKCE** — full browser-based OAuth flow with PKCE (`S256`) support. Clients redirect to `GET /oauth/authorize`; authenticated users see a **consent page** at `/ui/auth/authorize` and can approve without re-entering credentials. Unauthenticated users are redirected to the login page at `/ui/auth/signin` first.
+- **Frontend consent page** — new UI page at `/ui/auth/authorize` for reviewing and approving OAuth authorization requests. Displays client name, requested scopes, and redirect URI.
+- **Frontend login page** — new dedicated login page at `/ui/auth/signin` for the OAuth redirect flow, separate from the main UI login gate.
+- **Refresh token support** — `POST /oauth/token` with `grant_type=refresh_token` issues a new access token using a previously issued refresh token (JWT type `oauth_refresh`). Enables long-lived sessions without re-authentication.
+- **`oauth_refresh` JWT type** — refresh tokens are self-contained signed JWTs with `type: "oauth_refresh"`. They are only accepted at `POST /oauth/token`; presenting one as a Bearer token for API/MCP access returns 401.
+- **New OAuth endpoints** — `GET /oauth/userinfo` (RFC 7662 user info), `POST /oauth/introspect` (RFC 7662 token introspection), `POST /oauth/revoke` (RFC 7009 token revocation), `GET /oauth/end-session` (session termination).
+- **Redis session store** — session store is now pluggable. Set `server.redis.url` to use Redis for MCP HTTP sessions instead of the default in-memory store. Enables horizontal scaling and survives server restarts.
+- **Redis embedding cache** — embedding cache can be backed by Redis (`server.redis.url`). Embeddings computed once are reused across restarts and shared between server instances.
+- **Session store abstraction** — internal `SessionStore` interface with `Memory` and `Redis` implementations. Selecting the backend is done via config; no code changes required.
+
+### Updated OAuth discovery
+
+`GET /.well-known/oauth-authorization-server` now includes `authorization_endpoint`, `token_endpoint`, `userinfo_endpoint`, `introspection_endpoint`, `revocation_endpoint`, `end_session_endpoint`, `response_types_supported: ["code"]`, `code_challenge_methods_supported: ["S256"]`, and `refresh_token` in `grant_types_supported`.
+
+---
+
 ## v1.6.2
 
 **Released: March 2026**

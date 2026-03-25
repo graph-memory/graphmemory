@@ -10,7 +10,9 @@ The system supports three authentication methods:
 |--------|----------|-----------|
 | **Password + JWT cookies** | Web UI login | Browser (REST API) |
 | **API key (Bearer token)** | Programmatic access | MCP HTTP, REST API, scripts |
-| **OAuth 2.0 client_credentials** | AI chat clients (Claude.ai, etc.) | MCP HTTP Bearer JWT |
+| **OAuth 2.0** | AI chat clients (Claude.ai, etc.) | MCP HTTP Bearer JWT |
+
+OAuth 2.0 supports two grant types: `client_credentials` (machine-to-machine) and `authorization_code` with PKCE (user-delegated, for clients that open a browser).
 
 ## Password-based login (UI)
 
@@ -45,6 +47,8 @@ Two tokens, both in httpOnly cookies with `SameSite=Strict`:
 | `mgm_refresh` | `/api/auth/refresh` | 7d | Long-lived refresh token |
 
 Token payload: `{ userId: string, type: 'access' | 'refresh' }`.
+
+The `type` field distinguishes UI tokens from OAuth tokens — `refresh` is the UI refresh type; OAuth uses a separate `oauth_refresh` type (see OAuth section below).
 
 TTL is configurable:
 ```yaml
@@ -168,7 +172,7 @@ projects:
 
 ## MCP authentication
 
-MCP endpoints (`/mcp/{projectId}`) support two Bearer authentication methods: legacy API keys and OAuth 2.0 client credentials. Auth is checked **before** project lookup, so unauthenticated callers cannot probe which projects exist.
+MCP endpoints (`/mcp/{projectId}`) support two Bearer authentication methods: legacy API keys and OAuth 2.0. Auth is checked **before** project lookup, so unauthenticated callers cannot probe which projects exist.
 
 When users are configured in `graph-memory.yaml`, MCP endpoints require a valid Bearer credential. When no users are configured, MCP remains open (backward-compatible).
 
@@ -182,11 +186,11 @@ Pass the raw API key directly as a Bearer token:
 Authorization: Bearer mgm-key-abc123
 ```
 
-### Option 2 — OAuth 2.0 client credentials
+### Option 2 — OAuth 2.0
 
-Clients that require standard OAuth 2.0 (e.g. Claude.ai) can use the client credentials flow. `jwtSecret` must be set in the config for this flow to work.
+The server implements RFC 8414 OAuth 2.0 Authorization Server Metadata. `jwtSecret` must be set in the config for OAuth to work.
 
-**Discovery** — RFC 8414 metadata endpoint:
+#### Discovery manifest
 
 ```
 GET /.well-known/oauth-authorization-server
@@ -195,16 +199,26 @@ GET /.well-known/oauth-authorization-server
 ```json
 {
   "issuer": "https://your-server",
-  "token_endpoint": "https://your-server/oauth/token",
-  "grant_types_supported": ["client_credentials"],
-  "token_endpoint_auth_methods_supported": ["client_secret_post"]
+  "authorization_endpoint": "https://your-server/ui/auth/authorize",
+  "token_endpoint": "https://your-server/api/oauth/token",
+  "userinfo_endpoint": "https://your-server/api/oauth/userinfo",
+  "introspection_endpoint": "https://your-server/api/oauth/introspect",
+  "revocation_endpoint": "https://your-server/api/oauth/revoke",
+  "end_session_endpoint": "https://your-server/api/oauth/end-session",
+  "grant_types_supported": ["client_credentials", "authorization_code", "refresh_token"],
+  "token_endpoint_auth_methods_supported": ["client_secret_post"],
+  "code_challenge_methods_supported": ["S256"]
 }
 ```
+
+#### Grant type: client_credentials
+
+Machine-to-machine flow — no user involved, client authenticates directly with its credentials.
 
 **Token request:**
 
 ```
-POST /oauth/token
+POST /api/oauth/token
 Content-Type: application/x-www-form-urlencoded
 
 grant_type=client_credentials&client_id=<userId>&client_secret=<apiKey>
@@ -220,13 +234,151 @@ grant_type=client_credentials&client_id=<userId>&client_secret=<apiKey>
 }
 ```
 
-The `access_token` is a short-lived JWT (1 hour) signed with `jwtSecret`, with payload type `oauth_access`. Pass it as a Bearer token on subsequent requests:
+The `access_token` is a short-lived JWT (1 hour) signed with `jwtSecret`, with payload `{ userId, type: 'oauth_access' }`.
+
+#### Grant type: authorization_code + PKCE
+
+User-delegated flow for clients that can open a browser (e.g. AI assistants with OAuth consent UX). Requires PKCE with S256 code challenge.
+
+**Step 1 — Client initiates authorization**
+
+The client generates a `code_verifier` (random string), computes `code_challenge = BASE64URL(SHA256(code_verifier))`, then calls:
+
+```
+POST /api/oauth/authorize
+Content-Type: application/json
+
+{
+  "response_type": "code",
+  "client_id": "<userId>",
+  "redirect_uri": "https://client.example/callback",
+  "code_challenge": "<S256-challenge>",
+  "code_challenge_method": "S256",
+  "state": "<random-state>"
+}
+```
+
+Response:
+
+```json
+{ "redirectUrl": "https://your-server/ui/auth/authorize?session=<token>&..." }
+```
+
+The client opens `redirectUrl` in a browser. Note: the old `GET /authorize` redirect endpoint has been removed; all authorization requests go through this JSON endpoint.
+
+**Step 2 — User consents**
+
+The browser loads `/ui/auth/authorize`. This page displays the hostname extracted from `redirect_uri` so the user can identify the requesting client. If the user is not already signed in, they are redirected to `/ui/auth/signin?returnUrl=...` first.
+
+After the user approves, the server issues an authorization code and redirects the browser to:
+
+```
+https://client.example/callback?code=<auth-code>&state=<state>
+```
+
+**Step 3 — Client exchanges code for tokens**
+
+```
+POST /api/oauth/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code
+&code=<auth-code>
+&redirect_uri=https://client.example/callback
+&client_id=<userId>
+&code_verifier=<original-verifier>
+```
+
+**Token response:**
+
+```json
+{
+  "access_token": "<JWT>",
+  "token_type": "bearer",
+  "expires_in": 3600,
+  "refresh_token": "<refresh-JWT>"
+}
+```
+
+The `access_token` has payload `{ userId, type: 'oauth_access' }`. The `refresh_token` has payload `{ userId, type: 'oauth_refresh' }` — this is a distinct type from the UI `refresh` token and is only accepted at the token endpoint.
+
+**Step 4 — Refresh**
+
+```
+POST /api/oauth/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=refresh_token&refresh_token=<refresh-JWT>&client_id=<userId>
+```
+
+Returns a new `access_token` (and optionally a new `refresh_token`).
+
+#### Using the access token
+
+Pass it as a Bearer token on subsequent requests:
 
 ```
 Authorization: Bearer <access_token>
 ```
 
-The Bearer check accepts both OAuth JWTs and legacy API keys.
+The Bearer check accepts both OAuth JWTs (`oauth_access` type) and legacy API keys.
+
+### Additional OAuth endpoints
+
+#### GET /api/oauth/userinfo
+
+Returns identity claims for the authenticated user. Requires a valid Bearer access token.
+
+```json
+{ "sub": "alice", "name": "Alice", "email": "alice@example.com" }
+```
+
+#### POST /api/oauth/introspect
+
+RFC 7662 token introspection. Accepts a token and returns its active status and metadata.
+
+```
+POST /api/oauth/introspect
+Content-Type: application/x-www-form-urlencoded
+
+token=<JWT>
+```
+
+```json
+{ "active": true, "sub": "alice", "exp": 1234567890, ... }
+```
+
+#### POST /api/oauth/revoke
+
+Token revocation stub (RFC 7009). Accepts a token and returns `200 OK`. Full revocation via deny-list is not yet implemented.
+
+#### POST /api/oauth/end-session
+
+End-session stub (OpenID Connect RP-Initiated Logout). Returns `200 OK`.
+
+### Frontend auth pages
+
+| Route | Purpose |
+|-------|---------|
+| `/ui/auth/authorize` | OAuth consent page — shows requesting client hostname, requires login |
+| `/ui/auth/signin` | Standalone login page with `returnUrl` redirect support |
+
+### Session store
+
+Authorization codes are held in a session store with a short TTL. Two backends are supported:
+
+| Backend | Default | Config |
+|---------|---------|--------|
+| **Memory** | Yes (single-process) | — |
+| **Redis** | Multi-instance / persistent | `server.redis` |
+
+```yaml
+server:
+  redis:
+    url: "redis://localhost:6379"
+```
+
+When Redis is configured, it is also used as the embedding cache backend (replacing the default in-memory cache).
 
 ### Per-user tool visibility
 

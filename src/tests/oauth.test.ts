@@ -1,11 +1,13 @@
+import crypto from 'crypto';
 import http from 'http';
 import request from 'supertest';
 import express from 'express';
 import { EventEmitter } from 'events';
+import cookieParser from 'cookie-parser';
 import { createOAuthRouter } from '@/api/rest/oauth';
 import { startMultiProjectHttpServer } from '@/api/index';
 import { resolveUserFromBearer } from '@/lib/access';
-import { signOAuthToken, signAccessToken, verifyToken } from '@/lib/jwt';
+import { signOAuthToken, signAccessToken, signRefreshToken, verifyToken } from '@/lib/jwt';
 import type { UserConfig } from '@/lib/multi-config';
 import type { ProjectManager } from '@/lib/project-manager';
 
@@ -20,12 +22,54 @@ const USERS: Record<string, UserConfig> = {
   bob:   { name: 'Bob',   email: 'bob@example.com',   apiKey: 'mgm-key-bob'   },
 };
 
-const SERVER_CONFIG = { jwtSecret: SECRET } as any;
+const SERVER_CONFIG = { jwtSecret: SECRET, accessTokenTtl: '1h', refreshTokenTtl: '7d' } as any;
 
 function buildApp(users: Record<string, UserConfig>, serverConfig?: any): express.Express {
   const app = express();
+  app.use(cookieParser());
   app.use('/', createOAuthRouter(users, serverConfig));
   return app;
+}
+
+// PKCE helpers
+function makePkce(): { codeVerifier: string; codeChallenge: string } {
+  const codeVerifier = crypto.randomBytes(32).toString('base64url');
+  const codeChallenge = crypto.createHash('sha256').update(codeVerifier).digest().toString('base64url');
+  return { codeVerifier, codeChallenge };
+}
+
+// Perform full authorization_code flow: authorize → extract code → exchange for token
+async function doAuthCodeFlow(app: express.Express, userId: string): Promise<{ body: any; codeVerifier: string }> {
+  const { codeVerifier, codeChallenge } = makePkce();
+  const accessCookie = signAccessToken(userId, SECRET, '1h');
+
+  const authorizeRes = await request(app)
+    .get('/api/oauth/authorize')
+    .set('Cookie', `mgm_access=${accessCookie}`)
+    .query({
+      response_type: 'code',
+      client_id: userId,
+      redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
+      code_challenge: codeChallenge,
+      code_challenge_method: 'S256',
+      state: 'test-state',
+    });
+
+  const location = authorizeRes.headers['location'] as string;
+  const code = new URL(location).searchParams.get('code')!;
+
+  const tokenRes = await request(app)
+    .post('/oauth/token')
+    .type('form')
+    .send({
+      grant_type: 'authorization_code',
+      code,
+      client_id: userId,
+      redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
+      code_verifier: codeVerifier,
+    });
+
+  return { body: tokenRes.body, codeVerifier };
 }
 
 // ---------------------------------------------------------------------------
@@ -122,7 +166,7 @@ describe('GET /.well-known/oauth-authorization-server', () => {
     expect(res.body).toMatchObject({
       issuer: expect.any(String),
       token_endpoint: expect.stringContaining('/oauth/token'),
-      grant_types_supported: ['client_credentials'],
+      grant_types_supported: expect.arrayContaining(['client_credentials', 'authorization_code']),
       token_endpoint_auth_methods_supported: ['client_secret_post'],
     });
   });
@@ -218,7 +262,7 @@ describe('POST /oauth/token — error cases', () => {
     const res = await request(app)
       .post('/oauth/token')
       .type('form')
-      .send({ grant_type: 'authorization_code', client_id: 'alice', client_secret: 'mgm-key-alice' })
+      .send({ grant_type: 'implicit', client_id: 'alice', client_secret: 'mgm-key-alice' })
       .expect(400);
 
     expect(res.body.error).toBe('unsupported_grant_type');
@@ -305,6 +349,455 @@ describe('POST /oauth/token — error cases', () => {
       .expect(400);
 
     expect(res.body.error).toBe('server_error');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GET /.well-known/oauth-authorization-server — new fields
+// ---------------------------------------------------------------------------
+
+describe('GET /.well-known/oauth-authorization-server — authorization_code fields', () => {
+  const app = buildApp(USERS, SERVER_CONFIG);
+
+  it('includes authorization_endpoint', async () => {
+    const res = await request(app).get('/.well-known/oauth-authorization-server').expect(200);
+    expect(res.body.authorization_endpoint).toMatch(/^https?:\/\/.+\/authorize$/);
+  });
+
+  it('includes refresh_token in grant_types_supported', async () => {
+    const res = await request(app).get('/.well-known/oauth-authorization-server').expect(200);
+    expect(res.body.grant_types_supported).toContain('refresh_token');
+  });
+
+  it('includes response_types_supported and code_challenge_methods_supported', async () => {
+    const res = await request(app).get('/.well-known/oauth-authorization-server').expect(200);
+    expect(res.body.response_types_supported).toContain('code');
+    expect(res.body.code_challenge_methods_supported).toContain('S256');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GET /authorize
+// ---------------------------------------------------------------------------
+
+describe('GET /authorize', () => {
+  const app = buildApp(USERS, SERVER_CONFIG);
+
+  it('redirects to /api/oauth/authorize preserving query params', async () => {
+    const res = await request(app)
+      .get('/authorize')
+      .query({ response_type: 'code', client_id: 'alice', state: 'abc' })
+      .expect(302);
+
+    expect(res.headers['location']).toMatch(/^\/api\/oauth\/authorize\?/);
+    expect(res.headers['location']).toContain('client_id=alice');
+    expect(res.headers['location']).toContain('state=abc');
+  });
+
+  it('redirects with no query params', async () => {
+    const res = await request(app).get('/authorize').expect(302);
+    expect(res.headers['location']).toBe('/api/oauth/authorize?');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/oauth/authorize
+// ---------------------------------------------------------------------------
+
+describe('GET /api/oauth/authorize — not logged in', () => {
+  const app = buildApp(USERS, SERVER_CONFIG);
+  const { codeChallenge } = makePkce();
+
+  it('redirects to /ui when no cookie present', async () => {
+    const res = await request(app)
+      .get('/api/oauth/authorize')
+      .query({
+        response_type: 'code',
+        client_id: 'alice',
+        redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
+        code_challenge: codeChallenge,
+        code_challenge_method: 'S256',
+      })
+      .expect(302);
+
+    expect(res.headers['location']).toBe('/ui');
+  });
+
+  it('redirects to /ui when cookie is invalid JWT', async () => {
+    const res = await request(app)
+      .get('/api/oauth/authorize')
+      .set('Cookie', 'mgm_access=not-a-valid-token')
+      .query({
+        response_type: 'code',
+        client_id: 'alice',
+        redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
+        code_challenge: codeChallenge,
+        code_challenge_method: 'S256',
+      })
+      .expect(302);
+
+    expect(res.headers['location']).toBe('/ui');
+  });
+
+  it('redirects to /ui when cookie is a refresh token (wrong type)', async () => {
+    const refreshToken = signRefreshToken('alice', SECRET, '7d');
+    const res = await request(app)
+      .get('/api/oauth/authorize')
+      .set('Cookie', `mgm_access=${refreshToken}`)
+      .query({
+        response_type: 'code',
+        client_id: 'alice',
+        redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
+        code_challenge: codeChallenge,
+        code_challenge_method: 'S256',
+      })
+      .expect(302);
+
+    expect(res.headers['location']).toBe('/ui');
+  });
+});
+
+describe('GET /api/oauth/authorize — logged in', () => {
+  const app = buildApp(USERS, SERVER_CONFIG);
+
+  it('redirects to redirect_uri with code and state when logged in', async () => {
+    const { codeChallenge } = makePkce();
+    const accessCookie = signAccessToken('alice', SECRET, '1h');
+
+    const res = await request(app)
+      .get('/api/oauth/authorize')
+      .set('Cookie', `mgm_access=${accessCookie}`)
+      .query({
+        response_type: 'code',
+        client_id: 'alice',
+        redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
+        code_challenge: codeChallenge,
+        code_challenge_method: 'S256',
+        state: 'my-state',
+      })
+      .expect(302);
+
+    const location = res.headers['location'] as string;
+    expect(location).toContain('https://claude.ai/api/mcp/auth_callback');
+    const params = new URL(location).searchParams;
+    expect(params.get('code')).toBeTruthy();
+    expect(params.get('state')).toBe('my-state');
+  });
+
+  it('redirects without state param when state not provided', async () => {
+    const { codeChallenge } = makePkce();
+    const accessCookie = signAccessToken('alice', SECRET, '1h');
+
+    const res = await request(app)
+      .get('/api/oauth/authorize')
+      .set('Cookie', `mgm_access=${accessCookie}`)
+      .query({
+        response_type: 'code',
+        client_id: 'alice',
+        redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
+        code_challenge: codeChallenge,
+        code_challenge_method: 'S256',
+      })
+      .expect(302);
+
+    const params = new URL(res.headers['location'] as string).searchParams;
+    expect(params.get('code')).toBeTruthy();
+    expect(params.has('state')).toBe(false);
+  });
+
+  it('accepts oauth_access token type (already OAuth-authenticated)', async () => {
+    const { codeChallenge } = makePkce();
+    const oauthToken = signOAuthToken('alice', SECRET, '1h');
+
+    const res = await request(app)
+      .get('/api/oauth/authorize')
+      .set('Cookie', `mgm_access=${oauthToken}`)
+      .query({
+        response_type: 'code',
+        client_id: 'alice',
+        redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
+        code_challenge: codeChallenge,
+        code_challenge_method: 'S256',
+      })
+      .expect(302);
+
+    expect(res.headers['location']).toContain('https://claude.ai');
+  });
+});
+
+describe('GET /api/oauth/authorize — invalid params', () => {
+  const app = buildApp(USERS, SERVER_CONFIG);
+  const accessCookie = signAccessToken('alice', SECRET, '1h');
+  const { codeChallenge } = makePkce();
+  const base = {
+    response_type: 'code',
+    client_id: 'alice',
+    redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
+    code_challenge: codeChallenge,
+    code_challenge_method: 'S256',
+  };
+
+  it('returns 400 when response_type is not code', async () => {
+    const res = await request(app)
+      .get('/api/oauth/authorize')
+      .set('Cookie', `mgm_access=${accessCookie}`)
+      .query({ ...base, response_type: 'token' })
+      .expect(400);
+    expect(res.body.error).toBe('invalid_request');
+  });
+
+  it('returns 400 when code_challenge_method is not S256', async () => {
+    const res = await request(app)
+      .get('/api/oauth/authorize')
+      .set('Cookie', `mgm_access=${accessCookie}`)
+      .query({ ...base, code_challenge_method: 'plain' })
+      .expect(400);
+    expect(res.body.error).toBe('invalid_request');
+  });
+
+  it('returns 400 when code_challenge is missing', async () => {
+    const { code_challenge: _, ...withoutChallenge } = base;
+    const res = await request(app)
+      .get('/api/oauth/authorize')
+      .set('Cookie', `mgm_access=${accessCookie}`)
+      .query(withoutChallenge)
+      .expect(400);
+    expect(res.body.error).toBe('invalid_request');
+  });
+
+  it('returns 400 when redirect_uri is missing', async () => {
+    const { redirect_uri: _, ...withoutUri } = base;
+    const res = await request(app)
+      .get('/api/oauth/authorize')
+      .set('Cookie', `mgm_access=${accessCookie}`)
+      .query(withoutUri)
+      .expect(400);
+    expect(res.body.error).toBe('invalid_request');
+  });
+
+  it('returns 400 when OAuth not configured', async () => {
+    const noConfigApp = buildApp({}, SERVER_CONFIG);
+    const res = await request(noConfigApp)
+      .get('/api/oauth/authorize')
+      .set('Cookie', `mgm_access=${accessCookie}`)
+      .query(base)
+      .expect(400);
+    expect(res.body.error).toBe('server_error');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// POST /oauth/token — authorization_code grant
+// ---------------------------------------------------------------------------
+
+describe('POST /oauth/token — authorization_code happy path', () => {
+  const app = buildApp(USERS, SERVER_CONFIG);
+
+  it('returns access_token, refresh_token, expires_in, refresh_token_expires_in', async () => {
+    const { body } = await doAuthCodeFlow(app, 'alice');
+    expect(body).toMatchObject({
+      access_token: expect.any(String),
+      refresh_token: expect.any(String),
+      token_type: 'bearer',
+      expires_in: expect.any(Number),
+      refresh_token_expires_in: expect.any(Number),
+    });
+  });
+
+  it('access_token is valid JWT with type oauth_access and correct userId', async () => {
+    const { body } = await doAuthCodeFlow(app, 'alice');
+    const payload = verifyToken(body.access_token, SECRET);
+    expect(payload).toMatchObject({ userId: 'alice', type: 'oauth_access' });
+  });
+
+  it('refresh_token is valid JWT with type refresh', async () => {
+    const { body } = await doAuthCodeFlow(app, 'alice');
+    const payload = verifyToken(body.refresh_token, SECRET);
+    expect(payload).toMatchObject({ userId: 'alice', type: 'refresh' });
+  });
+
+  it('code is single-use — second exchange fails', async () => {
+    const { codeVerifier, codeChallenge } = makePkce();
+    const accessCookie = signAccessToken('alice', SECRET, '1h');
+
+    const authorizeRes = await request(app)
+      .get('/api/oauth/authorize')
+      .set('Cookie', `mgm_access=${accessCookie}`)
+      .query({
+        response_type: 'code',
+        client_id: 'alice',
+        redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
+        code_challenge: codeChallenge,
+        code_challenge_method: 'S256',
+      });
+
+    const code = new URL(authorizeRes.headers['location'] as string).searchParams.get('code')!;
+    const tokenPayload = {
+      grant_type: 'authorization_code',
+      code,
+      client_id: 'alice',
+      redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
+      code_verifier: codeVerifier,
+    };
+
+    await request(app).post('/oauth/token').type('form').send(tokenPayload).expect(200);
+    const second = await request(app).post('/oauth/token').type('form').send(tokenPayload).expect(400);
+    expect(second.body.error).toBe('invalid_grant');
+  });
+});
+
+describe('POST /oauth/token — authorization_code error cases', () => {
+  const app = buildApp(USERS, SERVER_CONFIG);
+
+  it('returns invalid_request when code is missing', async () => {
+    const res = await request(app)
+      .post('/oauth/token')
+      .type('form')
+      .send({ grant_type: 'authorization_code', client_id: 'alice', redirect_uri: 'https://claude.ai/api/mcp/auth_callback', code_verifier: 'x' })
+      .expect(400);
+    expect(res.body.error).toBe('invalid_request');
+  });
+
+  it('returns invalid_grant for unknown code', async () => {
+    const { codeVerifier } = makePkce();
+    const res = await request(app)
+      .post('/oauth/token')
+      .type('form')
+      .send({ grant_type: 'authorization_code', code: 'bogus-code', client_id: 'alice', redirect_uri: 'https://claude.ai/api/mcp/auth_callback', code_verifier: codeVerifier })
+      .expect(400);
+    expect(res.body.error).toBe('invalid_grant');
+  });
+
+  it('returns invalid_grant when redirect_uri does not match', async () => {
+    const { codeVerifier, codeChallenge } = makePkce();
+    const accessCookie = signAccessToken('alice', SECRET, '1h');
+
+    const authorizeRes = await request(app)
+      .get('/api/oauth/authorize')
+      .set('Cookie', `mgm_access=${accessCookie}`)
+      .query({
+        response_type: 'code',
+        client_id: 'alice',
+        redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
+        code_challenge: codeChallenge,
+        code_challenge_method: 'S256',
+      });
+
+    const code = new URL(authorizeRes.headers['location'] as string).searchParams.get('code')!;
+    const res = await request(app)
+      .post('/oauth/token')
+      .type('form')
+      .send({ grant_type: 'authorization_code', code, client_id: 'alice', redirect_uri: 'https://evil.com/callback', code_verifier: codeVerifier })
+      .expect(400);
+    expect(res.body.error).toBe('invalid_grant');
+  });
+
+  it('returns invalid_grant when PKCE code_verifier is wrong', async () => {
+    const { codeChallenge } = makePkce();
+    const accessCookie = signAccessToken('alice', SECRET, '1h');
+
+    const authorizeRes = await request(app)
+      .get('/api/oauth/authorize')
+      .set('Cookie', `mgm_access=${accessCookie}`)
+      .query({
+        response_type: 'code',
+        client_id: 'alice',
+        redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
+        code_challenge: codeChallenge,
+        code_challenge_method: 'S256',
+      });
+
+    const code = new URL(authorizeRes.headers['location'] as string).searchParams.get('code')!;
+    const res = await request(app)
+      .post('/oauth/token')
+      .type('form')
+      .send({ grant_type: 'authorization_code', code, client_id: 'alice', redirect_uri: 'https://claude.ai/api/mcp/auth_callback', code_verifier: 'wrong-verifier' })
+      .expect(400);
+    expect(res.body.error).toBe('invalid_grant');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// POST /oauth/token — refresh_token grant
+// ---------------------------------------------------------------------------
+
+describe('POST /oauth/token — refresh_token happy path', () => {
+  const app = buildApp(USERS, SERVER_CONFIG);
+
+  it('returns new access_token and refresh_token', async () => {
+    const { body: first } = await doAuthCodeFlow(app, 'alice');
+
+    const res = await request(app)
+      .post('/oauth/token')
+      .type('form')
+      .send({ grant_type: 'refresh_token', refresh_token: first.refresh_token })
+      .expect(200);
+
+    expect(res.body).toMatchObject({
+      access_token: expect.any(String),
+      refresh_token: expect.any(String),
+      token_type: 'bearer',
+      expires_in: expect.any(Number),
+    });
+  });
+
+  it('new access_token is a valid JWT with type oauth_access', async () => {
+    const { body: first } = await doAuthCodeFlow(app, 'alice');
+
+    const res = await request(app)
+      .post('/oauth/token')
+      .type('form')
+      .send({ grant_type: 'refresh_token', refresh_token: first.refresh_token })
+      .expect(200);
+
+    const payload = verifyToken(res.body.access_token, SECRET);
+    expect(payload).toMatchObject({ userId: 'alice', type: 'oauth_access' });
+  });
+});
+
+describe('POST /oauth/token — refresh_token error cases', () => {
+  const app = buildApp(USERS, SERVER_CONFIG);
+
+  it('returns invalid_request when refresh_token is missing', async () => {
+    const res = await request(app)
+      .post('/oauth/token')
+      .type('form')
+      .send({ grant_type: 'refresh_token' })
+      .expect(400);
+    expect(res.body.error).toBe('invalid_request');
+  });
+
+  it('returns invalid_grant for garbage refresh_token', async () => {
+    const res = await request(app)
+      .post('/oauth/token')
+      .type('form')
+      .send({ grant_type: 'refresh_token', refresh_token: 'not-a-jwt' })
+      .expect(400);
+    expect(res.body.error).toBe('invalid_grant');
+  });
+
+  it('returns invalid_grant when token type is access (not refresh)', async () => {
+    const wrongTypeToken = signAccessToken('alice', SECRET, '7d');
+    const res = await request(app)
+      .post('/oauth/token')
+      .type('form')
+      .send({ grant_type: 'refresh_token', refresh_token: wrongTypeToken })
+      .expect(400);
+    expect(res.body.error).toBe('invalid_grant');
+  });
+
+  it('returns invalid_grant for expired refresh_token', async () => {
+    const jwt = require('jsonwebtoken');
+    const expired = jwt.sign(
+      { userId: 'alice', type: 'refresh', exp: Math.floor(Date.now() / 1000) - 10 },
+      SECRET,
+    );
+    const res = await request(app)
+      .post('/oauth/token')
+      .type('form')
+      .send({ grant_type: 'refresh_token', refresh_token: expired })
+      .expect(400);
+    expect(res.body.error).toBe('invalid_grant');
   });
 });
 

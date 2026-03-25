@@ -5,6 +5,18 @@ description: Graph Memory release history and version changes.
 
 # Changelog
 
+## v1.6.2
+
+**Released: March 2026**
+
+### New
+
+- **OAuth 2.0 Authorization Code + PKCE** — Claude.ai and other browser-based OAuth clients can now authenticate via the full Authorization Code flow with PKCE (`S256`). Endpoint `GET /authorize` redirects to the session-aware `GET /api/oauth/authorize`; if the user has an active UI session they are immediately redirected back with an authorization code. If not logged in, redirects to `/ui`.
+- **Refresh tokens** — `POST /oauth/token` now supports `grant_type=refresh_token`. Tokens are self-contained signed JWTs using the configured `refreshTokenTtl` (default `7d`). Access and refresh tokens use the configured `accessTokenTtl`/`refreshTokenTtl` from `graph-memory.yaml`.
+- **Updated OAuth discovery** — `/.well-known/oauth-authorization-server` now includes `authorization_endpoint`, `response_types_supported: ["code"]`, `code_challenge_methods_supported: ["S256"]`, and `refresh_token` in `grant_types_supported`.
+
+---
+
 ## v1.6.1
 
 **Released: March 2026**

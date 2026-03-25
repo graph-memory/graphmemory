@@ -50,7 +50,7 @@ export function requireWriteAccess(req: express.Request, res: express.Response, 
  */
 export function createRestApp(projectManager: ProjectManager, options?: RestAppOptions): express.Express {
   const app = express();
-  app.set('trust proxy', true);
+  app.set('trust proxy', 1);
   const serverConfig = options?.serverConfig;
   const users = options?.users ?? {};
   const hasUsers = Object.keys(users).length > 0;

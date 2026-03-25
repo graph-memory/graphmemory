@@ -126,13 +126,25 @@ function validateRemoteUrl(url: string): void {
  * it will be loaded on the first embed/embedQuery/embedBatch call.
  * Remote models are registered immediately (no ONNX needed).
  */
+/**
+ * Factory that creates embedding caches keyed by model identity.
+ * Called with a stable model fingerprint (e.g. "Xenova/bge-m3|q8") so that
+ * graphs sharing the same model share one cache, while different models
+ * (e.g. bge-m3 vs jina-code) get separate namespaces.
+ */
+export type EmbeddingCacheFactory = (modelFingerprint: string) => EmbeddingCache;
+
 export async function loadModel(
   model: ModelConfig, embedding: EmbeddingConfig, modelsDir: string, name = 'default',
-  cache?: EmbeddingCache,
+  cacheOrFactory?: EmbeddingCache | EmbeddingCacheFactory,
 ): Promise<void> {
   const maxChars = embedding.maxChars;
   const cacheSize = embedding.cacheSize ?? DEFAULT_CACHE_SIZE;
-  const embeddingCache = cache ?? new MemoryEmbeddingCache(cacheSize);
+  // Cache key by model identity — graphs sharing the same model share one cache
+  const modelFingerprint = `${model.name}|${model.dtype ?? 'default'}`;
+  const embeddingCache = typeof cacheOrFactory === 'function'
+    ? cacheOrFactory(modelFingerprint)
+    : cacheOrFactory ?? new MemoryEmbeddingCache(cacheSize);
 
   // Remote embedding: register proxy, skip ONNX loading
   if (embedding.remote) {

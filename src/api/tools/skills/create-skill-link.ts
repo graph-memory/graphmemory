@@ -12,11 +12,11 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
         'Creates a cross-graph relation from the skill to the target node. ' +
         'The kind is a free-form string, e.g. "references", "implements", "documents".',
       inputSchema: {
-        skillId:     z.string().max(500).describe('Source skill ID'),
-        targetId:    z.string().max(MAX_TARGET_NODE_ID_LEN).describe('Target node ID in the external graph (e.g. "src/auth.ts::login", "api.md::Setup", "my-note", "my-task")'),
+        skillId:     z.string().min(1).max(500).describe('Source skill ID'),
+        targetId:    z.string().min(1).max(MAX_TARGET_NODE_ID_LEN).describe('Target node ID in the external graph (e.g. "src/auth.ts::login", "api.md::Setup", "my-note", "my-task")'),
         targetGraph: z.enum(['docs', 'code', 'files', 'knowledge', 'tasks'])
           .describe('Which graph the target belongs to'),
-        kind:        z.string().max(MAX_LINK_KIND_LEN).describe('Relation type, e.g. "references", "implements", "documents"'),
+        kind:        z.string().min(1).max(MAX_LINK_KIND_LEN).describe('Relation type, e.g. "references", "implements", "documents"'),
         projectId:   z.string().max(MAX_PROJECT_ID_LEN).optional().describe('Project ID that the target node belongs to. Defaults to the current project.'),
       },
     },

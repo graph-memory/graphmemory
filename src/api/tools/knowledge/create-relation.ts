@@ -13,9 +13,9 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
         'e.g. "relates_to", "depends_on", "contradicts", "supports", "part_of", "references". ' +
         'Set targetGraph to "docs", "code", "files", or "tasks" to link to a doc chunk, code symbol, file/directory, or task.',
       inputSchema: {
-        fromId:      z.string().max(500).describe('Source note ID'),
-        toId:        z.string().max(500).describe('Target note ID, or target node ID in docs/code/files/tasks graph'),
-        kind:        z.string().max(MAX_LINK_KIND_LEN).describe('Relation type, e.g. "depends_on", "references"'),
+        fromId:      z.string().min(1).max(500).describe('Source note ID'),
+        toId:        z.string().min(1).max(500).describe('Target note ID, or target node ID in docs/code/files/tasks graph'),
+        kind:        z.string().min(1).max(MAX_LINK_KIND_LEN).describe('Relation type, e.g. "depends_on", "references"'),
         targetGraph: z.enum(['docs', 'code', 'files', 'tasks', 'skills']).optional()
           .describe('Set to "docs", "code", "files", "tasks", or "skills" to create a cross-graph link instead of note-to-note'),
         projectId:   z.string().max(MAX_PROJECT_ID_LEN).optional().describe('Project ID that the target node belongs to. Defaults to the current project.'),

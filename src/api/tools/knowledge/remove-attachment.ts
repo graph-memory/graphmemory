@@ -9,7 +9,7 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
       description:
         'Remove an attachment from a note. The file is deleted from disk.',
       inputSchema: {
-        noteId:   z.string().max(500).describe('ID of the note'),
+        noteId:   z.string().min(1).max(500).describe('ID of the note'),
         filename: z.string().min(1).max(255)
           .refine(s => !/[/\\]/.test(s), 'Filename must not contain path separators')
           .refine(s => !s.includes('..'), 'Filename must not contain ..')

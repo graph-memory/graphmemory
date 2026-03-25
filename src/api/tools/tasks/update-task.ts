@@ -15,7 +15,7 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
         'Use move_task for a simpler status-only change. ' +
         'Pass expectedVersion to enable optimistic locking.',
       inputSchema: {
-        taskId:          z.string().max(500).describe('Task ID to update'),
+        taskId:          z.string().min(1).max(500).describe('Task ID to update'),
         title:           z.string().max(MAX_TITLE_LEN).optional().describe('New title'),
         description:     z.string().max(MAX_DESCRIPTION_LEN).optional().describe('New description'),
         status:          z.enum(['backlog', 'todo', 'in_progress', 'review', 'done', 'cancelled']).optional()

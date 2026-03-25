@@ -19,7 +19,7 @@ export function register(server: McpServer, docMgr: DocGraphManager, codeMgr: Co
         'and examples (code blocks in docs that contain the symbol). ' +
         'This is the most comprehensive way to understand a symbol — combining source code, docs, and examples.',
       inputSchema: {
-        symbol: z.string().max(MAX_SEARCH_QUERY_LEN).describe('Symbol name to look up, e.g. "createUser", "AuthService"'),
+        symbol: z.string().min(1).max(MAX_SEARCH_QUERY_LEN).describe('Symbol name to look up, e.g. "createUser", "AuthService"'),
       },
     },
     async ({ symbol }) => {

@@ -347,12 +347,34 @@ export function createProjectIndexer(
     if (docGraph) {
       const docLinks = resolvePendingLinks(docGraph);
       if (docLinks > 0) process.stderr.write(`[indexer] Resolved ${docLinks} deferred doc cross-file link(s)\n`);
+      // Clean up any remaining unresolved pending links so they don't persist to disk
+      let docOrphans = 0;
+      docGraph.forEachNode((nid, nattrs) => {
+        if ((nattrs as any).pendingLinks) {
+          docGraph.setNodeAttribute(nid, 'pendingLinks', undefined);
+          docOrphans++;
+        }
+      });
+      if (docOrphans > 0) process.stderr.write(`[indexer] Cleared ${docOrphans} unresolvable doc pending link(s)\n`);
     }
     if (codeGraph) {
       const codeImports = resolvePendingImports(codeGraph);
       if (codeImports > 0) process.stderr.write(`[indexer] Resolved ${codeImports} deferred code import edge(s)\n`);
       const codeEdges = resolvePendingEdges(codeGraph);
       if (codeEdges > 0) process.stderr.write(`[indexer] Resolved ${codeEdges} deferred code extends/implements edge(s)\n`);
+      // Clean up any remaining unresolved pending edges/imports
+      let codeOrphans = 0;
+      codeGraph.forEachNode((nid, nattrs) => {
+        if ((nattrs as any).pendingEdges) {
+          codeGraph.setNodeAttribute(nid, 'pendingEdges', undefined);
+          codeOrphans++;
+        }
+        if ((nattrs as any).pendingImports) {
+          codeGraph.setNodeAttribute(nid, 'pendingImports', undefined);
+          codeOrphans++;
+        }
+      });
+      if (codeOrphans > 0) process.stderr.write(`[indexer] Cleared ${codeOrphans} unresolvable code pending edge(s)\n`);
     }
 
     const totalErrors = docsQueue.errors + codeQueue.errors + fileQueue.errors;

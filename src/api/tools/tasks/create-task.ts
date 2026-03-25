@@ -13,8 +13,8 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
         'Returns the generated taskId (slug from title). ' +
         'Use link_task to connect tasks, or create_task_link to link to docs/code/files/knowledge.',
       inputSchema: {
-        title:       z.string().max(MAX_TITLE_LEN).describe('Short title for the task, e.g. "Fix auth redirect loop"'),
-        description: z.string().max(MAX_DESCRIPTION_LEN).describe('Full description of the task (markdown)'),
+        title:       z.string().min(1).max(MAX_TITLE_LEN).describe('Short title for the task, e.g. "Fix auth redirect loop"'),
+        description: z.string().min(1).max(MAX_DESCRIPTION_LEN).describe('Full description of the task (markdown)'),
         priority:    z.enum(['critical', 'high', 'medium', 'low']).describe('Task priority'),
         status:      z.enum(['backlog', 'todo', 'in_progress', 'review', 'done', 'cancelled']).optional()
           .describe('Initial status (default "backlog")'),

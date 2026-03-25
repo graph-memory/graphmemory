@@ -10,7 +10,7 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
         'Delete a note from the knowledge graph. ' +
         'Also removes all relations (edges) connected to this note.',
       inputSchema: {
-        noteId: z.string().max(500).describe('ID of the note to delete'),
+        noteId: z.string().min(1).max(500).describe('ID of the note to delete'),
       },
     },
     async ({ noteId }) => {

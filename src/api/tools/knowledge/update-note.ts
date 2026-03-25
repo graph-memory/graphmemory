@@ -14,7 +14,7 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
         'Re-embeds automatically if title or content changes. ' +
         'Pass expectedVersion to enable optimistic locking.',
       inputSchema: {
-        noteId:          z.string().max(500).describe('ID of the note to update'),
+        noteId:          z.string().min(1).max(500).describe('ID of the note to update'),
         title:           z.string().max(MAX_TITLE_LEN).optional().describe('New title'),
         content:         z.string().max(MAX_NOTE_CONTENT_LEN).optional().describe('New content'),
         tags:            z.array(z.string().max(MAX_TAG_LEN)).max(MAX_TAGS_COUNT).optional().describe('New tags (replaces existing)'),

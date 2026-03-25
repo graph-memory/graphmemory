@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import express from 'express';
@@ -29,6 +30,7 @@ export interface RestAppOptions {
   serverConfig?: ServerConfig;
   users?: Record<string, UserConfig>;
   embeddingApiModelNames?: { default: string; code: string };
+  sessionStore?: import('@/lib/session-store').SessionStore;
 }
 
 /**
@@ -60,10 +62,26 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
   app.use(express.json({ limit: '10mb' }));
   app.use(cookieParser());
 
+  // Request ID tracking
+  app.use((_req, res, next) => {
+    const id = (_req.headers['x-request-id'] as string) || crypto.randomUUID();
+    res.setHeader('X-Request-ID', id);
+    (_req as any).requestId = id;
+    next();
+  });
+
   // Security headers
   app.use((_req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader(
+      'Content-Security-Policy',
+      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' ws: wss:; frame-ancestors 'none'",
+    );
+    if (serverConfig?.cookieSecure) {
+      res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
     next();
   });
 
@@ -201,7 +219,7 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
   });
 
   // --- OAuth 2.0 endpoints (before auth middleware — unauthenticated) ---
-  app.use('/', createOAuthRouter(users, serverConfig));
+  app.use('/', createOAuthRouter(users, serverConfig, options?.sessionStore));
 
   // --- Auth middleware: cookie JWT → Bearer apiKey → anonymous ---
   if (hasUsers) {

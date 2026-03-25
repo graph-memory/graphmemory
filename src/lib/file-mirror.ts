@@ -151,8 +151,10 @@ function _regenerateNoteSnapshot(
   if (attrs.updatedBy) fm.updatedBy = attrs.updatedBy;
   if (outgoing.length > 0) fm.relations = outgoing;
 
+  const safeId = sanitizeEntityId(noteId);
+  if (!safeId) return;
   const body = `# ${attrs.title}\n\n${attrs.content}`;
-  const entityDir = path.join(notesDir, noteId);
+  const entityDir = path.join(notesDir, safeId);
   fs.mkdirSync(entityDir, { recursive: true });
   atomicWriteFileSync(path.join(entityDir, 'note.md'), serializeMarkdown(fm, body));
 }
@@ -270,8 +272,10 @@ function _regenerateTaskSnapshot(
   if (attrs.updatedBy) fm.updatedBy = attrs.updatedBy;
   if (outgoing.length > 0) fm.relations = outgoing;
 
+  const safeId = sanitizeEntityId(taskId);
+  if (!safeId) return;
   const body = `# ${attrs.title}\n\n${attrs.description}`;
-  const entityDir = path.join(tasksDir, taskId);
+  const entityDir = path.join(tasksDir, safeId);
   fs.mkdirSync(entityDir, { recursive: true });
   atomicWriteFileSync(path.join(entityDir, 'task.md'), serializeMarkdown(fm, body));
 }
@@ -397,8 +401,10 @@ function _regenerateSkillSnapshot(
   const stepsBlock = attrs.steps.length > 0
     ? `\n\n## Steps\n${attrs.steps.map((s, i) => `${i + 1}. ${s}`).join('\n')}`
     : '';
+  const safeId = sanitizeEntityId(skillId);
+  if (!safeId) return;
   const body = `# ${attrs.title}\n\n${attrs.description}${stepsBlock}`;
-  const entityDir = path.join(skillsDir, skillId);
+  const entityDir = path.join(skillsDir, safeId);
   fs.mkdirSync(entityDir, { recursive: true });
   atomicWriteFileSync(path.join(entityDir, 'skill.md'), serializeMarkdown(fm, body));
 }
@@ -419,7 +425,9 @@ export function mirrorNoteRelation(
   graph?: string,
 ): void {
   try {
-    const entityDir = path.join(notesDir, noteId);
+    const safeId = sanitizeEntityId(noteId);
+    if (!safeId) return;
+    const entityDir = path.join(notesDir, safeId);
     const eventsPath = path.join(entityDir, 'events.jsonl');
     const event: Record<string, unknown> = { op: 'relation', action, kind, to };
     if (graph) event.graph = graph;
@@ -441,7 +449,9 @@ export function mirrorTaskRelation(
   graph?: string,
 ): void {
   try {
-    const entityDir = path.join(tasksDir, taskId);
+    const safeId = sanitizeEntityId(taskId);
+    if (!safeId) return;
+    const entityDir = path.join(tasksDir, safeId);
     const eventsPath = path.join(entityDir, 'events.jsonl');
     const event: Record<string, unknown> = { op: 'relation', action, kind, to };
     if (graph) event.graph = graph;
@@ -463,7 +473,9 @@ export function mirrorSkillRelation(
   graph?: string,
 ): void {
   try {
-    const entityDir = path.join(skillsDir, skillId);
+    const safeId = sanitizeEntityId(skillId);
+    if (!safeId) return;
+    const entityDir = path.join(skillsDir, safeId);
     const eventsPath = path.join(entityDir, 'events.jsonl');
     const event: Record<string, unknown> = { op: 'relation', action, kind, to };
     if (graph) event.graph = graph;

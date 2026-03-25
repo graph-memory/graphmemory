@@ -13,8 +13,8 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
         'Returns the generated noteId (slug from title). ' +
         'Use create_relation to link notes together.',
       inputSchema: {
-        title:   z.string().max(MAX_TITLE_LEN).describe('Short title for the note, e.g. "Auth uses JWT tokens"'),
-        content: z.string().max(MAX_NOTE_CONTENT_LEN).describe('Full text content of the note'),
+        title:   z.string().min(1).max(MAX_TITLE_LEN).describe('Short title for the note, e.g. "Auth uses JWT tokens"'),
+        content: z.string().min(1).max(MAX_NOTE_CONTENT_LEN).describe('Full text content of the note'),
         tags:    z.array(z.string().max(MAX_TAG_LEN)).max(MAX_TAGS_COUNT).optional().describe('Optional tags for filtering, e.g. ["architecture", "decision"]'),
       },
     },

@@ -17,8 +17,8 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
         'Returns the generated skillId (slug from title). ' +
         'Use link_skill to connect skills, or create_skill_link to link to docs/code/files/knowledge/tasks.',
       inputSchema: {
-        title:        z.string().max(MAX_TITLE_LEN).describe('Short title for the skill, e.g. "Deploy to staging"'),
-        description:  z.string().max(MAX_DESCRIPTION_LEN).describe('Full description of the skill (markdown)'),
+        title:        z.string().min(1).max(MAX_TITLE_LEN).describe('Short title for the skill, e.g. "Deploy to staging"'),
+        description:  z.string().min(1).max(MAX_DESCRIPTION_LEN).describe('Full description of the skill (markdown)'),
         steps:        z.array(z.string().max(MAX_SKILL_STEP_LEN)).max(MAX_SKILL_STEPS_COUNT).optional().describe('Ordered steps to execute this skill (default [])'),
         triggers:     z.array(z.string().max(MAX_SKILL_TRIGGER_LEN)).max(MAX_SKILL_TRIGGERS_COUNT).optional().describe('Conditions or cues that suggest using this skill (default [])'),
         inputHints:   z.array(z.string().max(500)).max(100).optional().describe('Expected inputs or prerequisites (default [])'),

@@ -11,7 +11,7 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
         'Returns an array of { fromId, toId, kind, targetGraph? }. ' +
         'Cross-graph links include targetGraph ("docs", "code", "files", or "tasks") and resolve the real node ID.',
       inputSchema: {
-        noteId: z.string().max(500).describe('Note ID to list relations for'),
+        noteId: z.string().min(1).max(500).describe('Note ID to list relations for'),
       },
     },
     async ({ noteId }) => {

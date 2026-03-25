@@ -9,7 +9,7 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
       description:
         'Remove an attachment from a task. The file is deleted from disk.',
       inputSchema: {
-        taskId:   z.string().max(500).describe('ID of the task'),
+        taskId:   z.string().min(1).max(500).describe('ID of the task'),
         filename: z.string().min(1).max(255)
           .refine(s => !/[/\\]/.test(s), 'Filename must not contain path separators')
           .refine(s => !s.includes('..'), 'Filename must not contain ..')

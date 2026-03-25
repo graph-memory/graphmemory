@@ -11,7 +11,7 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
         'Orphaned proxy nodes are cleaned up automatically. ' +
         'This action is irreversible.',
       inputSchema: {
-        taskId: z.string().max(500).describe('Task ID to delete'),
+        taskId: z.string().min(1).max(500).describe('Task ID to delete'),
       },
     },
     async ({ taskId }) => {

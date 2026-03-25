@@ -12,7 +12,7 @@ export function register(server: McpServer, mgr: FileIndexGraphManager): void {
         'For directories: returns filePath, kind, fileName, directory, fileCount, size (total of direct children). ' +
         'Use "." for the project root.',
       inputSchema: {
-        filePath: z.string().max(4096).describe('Relative file or directory path (e.g. "src/lib/config.ts" or "src/lib")'),
+        filePath: z.string().min(1).max(4096).describe('Relative file or directory path (e.g. "src/lib/config.ts" or "src/lib")'),
       },
     },
     async ({ filePath }) => {

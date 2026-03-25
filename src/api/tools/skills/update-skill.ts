@@ -17,7 +17,7 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
         'Re-embeds automatically when title or description changes. ' +
         'Pass expectedVersion to enable optimistic locking.',
       inputSchema: {
-        skillId:         z.string().max(500).describe('Skill ID to update'),
+        skillId:         z.string().min(1).max(500).describe('Skill ID to update'),
         title:           z.string().max(MAX_TITLE_LEN).optional().describe('New title'),
         description:     z.string().max(MAX_DESCRIPTION_LEN).optional().describe('New description'),
         steps:           z.array(z.string().max(MAX_SKILL_STEP_LEN)).max(MAX_SKILL_STEPS_COUNT).optional().describe('Replace steps array'),

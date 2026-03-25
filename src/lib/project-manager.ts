@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import { loadModel, embed, embedQuery } from '@/lib/embedder';
+import { loadModel, embed, embedQuery, type EmbeddingCacheFactory } from '@/lib/embedder';
 import { loadGraph, saveGraph, type DocGraph, DocGraphManager } from '@/graphs/docs';
 import { loadCodeGraph, saveCodeGraph, type CodeGraph, CodeGraphManager } from '@/graphs/code';
 import { loadKnowledgeGraph, saveKnowledgeGraph, KnowledgeGraphManager } from '@/graphs/knowledge';
@@ -85,9 +85,11 @@ export class ProjectManager extends EventEmitter {
   private projects = new Map<string, ProjectInstance>();
   private workspaces = new Map<string, WorkspaceInstance>();
   private autoSaveInterval: ReturnType<typeof setInterval> | undefined;
+  private cacheFactory?: EmbeddingCacheFactory;
 
-  constructor(private serverConfig: ServerConfig) {
+  constructor(private serverConfig: ServerConfig, cacheFactory?: EmbeddingCacheFactory) {
     super();
+    this.cacheFactory = cacheFactory;
   }
 
   // ---------------------------------------------------------------------------
@@ -179,9 +181,9 @@ export class ProjectManager extends EventEmitter {
     if (!ws) throw new Error(`Workspace "${id}" not found`);
 
     const gc = ws.config.graphConfigs;
-    await loadModel(gc.knowledge.model, gc.knowledge.embedding, this.serverConfig.modelsDir, `${id}:knowledge`);
-    await loadModel(gc.tasks.model, gc.tasks.embedding, this.serverConfig.modelsDir, `${id}:tasks`);
-    await loadModel(gc.skills.model, gc.skills.embedding, this.serverConfig.modelsDir, `${id}:skills`);
+    await loadModel(gc.knowledge.model, gc.knowledge.embedding, this.serverConfig.modelsDir, `${id}:knowledge`, this.cacheFactory);
+    await loadModel(gc.tasks.model, gc.tasks.embedding, this.serverConfig.modelsDir, `${id}:tasks`, this.cacheFactory);
+    await loadModel(gc.skills.model, gc.skills.embedding, this.serverConfig.modelsDir, `${id}:skills`, this.cacheFactory);
   }
 
   /**
@@ -341,7 +343,7 @@ export class ProjectManager extends EventEmitter {
     for (const gn of GRAPH_NAMES) {
       if (skipGraphs.has(gn)) continue;
       if (!gc[gn].enabled) continue;
-      await loadModel(gc[gn].model, gc[gn].embedding, this.serverConfig.modelsDir, `${id}:${gn}`);
+      await loadModel(gc[gn].model, gc[gn].embedding, this.serverConfig.modelsDir, `${id}:${gn}`, this.cacheFactory);
     }
   }
 
@@ -356,7 +358,11 @@ export class ProjectManager extends EventEmitter {
     // Three sequential phases
     for (const phase of ['docs', 'files', 'code'] as IndexPhase[]) {
       instance.indexer!.scan(phase);
-      await instance.indexer!.drain(phase);
+      try {
+        await instance.indexer!.drain(phase);
+      } catch (err) {
+        process.stderr.write(`[project-manager] Error draining phase "${phase}" for "${id}": ${err}\n`);
+      }
     }
 
     await this.finalizeIndexing(id);
@@ -417,7 +423,11 @@ export class ProjectManager extends EventEmitter {
     if (!instance.indexer) throw new Error(`Indexer not created for "${id}". Call ensureIndexer() first.`);
 
     // Full drain with finalize (rebuildDirectoryStats, resolvePendingLinks, etc.)
-    await instance.indexer.drain();
+    try {
+      await instance.indexer.drain();
+    } catch (err) {
+      process.stderr.write(`[project-manager] Error during finalize drain for "${id}": ${err}\n`);
+    }
 
     // Start watcher for live re-indexing
     if (!instance.watcher) {
@@ -474,7 +484,12 @@ export class ProjectManager extends EventEmitter {
           if (!graph) continue;
           const toRemove: string[] = [];
           graph.forEachNode((nodeId: string, attrs: any) => {
-            if (attrs.proxyFor?.projectId === id) toRemove.push(nodeId);
+            if (attrs.proxyFor?.projectId === id) {
+              toRemove.push(nodeId);
+            } else if (attrs.proxyFor && !attrs.proxyFor.projectId && graph.degree(nodeId) === 0) {
+              // Legacy proxy (no projectId) — clean up if orphaned (zero edges)
+              toRemove.push(nodeId);
+            }
           });
           for (const nodeId of toRemove) graph.dropNode(nodeId);
         }

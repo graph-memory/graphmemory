@@ -66,6 +66,7 @@ export const MAX_TARGET_NODE_ID_LEN = 500;
 export const MAX_LINK_KIND_LEN      = 100;
 export const MAX_PROJECT_ID_LEN     = 200;
 export const MAX_ATTACHMENT_FILENAME_LEN = 255;
+export const MIN_PASSWORD_LEN       = 8;
 export const MAX_PASSWORD_LEN       = 256;
 
 // ---------------------------------------------------------------------------

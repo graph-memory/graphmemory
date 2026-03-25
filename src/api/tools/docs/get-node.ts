@@ -14,7 +14,7 @@ export function register(server: McpServer, mgr: DocGraphManager): void {
         '"docs/auth.md::Overview" for a named section. ' +
         'Returns id, fileId, title, content, level, links, mtime, and crossLinks (notes/tasks linking to this node).',
       inputSchema: {
-        nodeId: z.string().max(500).describe('Node ID from search results or get_toc, e.g. "docs/auth.md" or "docs/auth.md::Overview"'),
+        nodeId: z.string().min(1).max(500).describe('Node ID from search results or get_toc, e.g. "docs/auth.md" or "docs/auth.md::Overview"'),
       },
     },
     async ({ nodeId }) => {

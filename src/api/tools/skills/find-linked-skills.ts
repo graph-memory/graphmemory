@@ -15,7 +15,7 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
       inputSchema: {
         targetGraph:  z.enum(['docs', 'code', 'files', 'knowledge', 'tasks'])
           .describe('Which graph the target belongs to'),
-        targetId:     z.string().max(MAX_TARGET_NODE_ID_LEN).describe('Target node ID in the external graph'),
+        targetId:     z.string().min(1).max(MAX_TARGET_NODE_ID_LEN).describe('Target node ID in the external graph'),
         kind:         z.string().max(MAX_LINK_KIND_LEN).optional().describe('Filter by relation kind. If omitted, returns all relations.'),
         projectId:    z.string().max(MAX_PROJECT_ID_LEN).optional().describe('Project ID that the target node belongs to. Defaults to the current project.'),
       },

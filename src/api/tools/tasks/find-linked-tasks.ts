@@ -13,7 +13,7 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
         'Returns an array of { taskId, title, kind, status, priority, tags }. ' +
         'Use tasks_get to fetch full content of a returned task.',
       inputSchema: {
-        targetId:    z.string().max(MAX_TARGET_NODE_ID_LEN).describe('Target node ID in the external graph'),
+        targetId:    z.string().min(1).max(MAX_TARGET_NODE_ID_LEN).describe('Target node ID in the external graph'),
         targetGraph: z.enum(['docs', 'code', 'files', 'knowledge', 'skills'])
           .describe('Which graph the target belongs to'),
         kind:        z.string().max(MAX_LINK_KIND_LEN).optional().describe('Filter by relation kind. If omitted, returns all relations.'),

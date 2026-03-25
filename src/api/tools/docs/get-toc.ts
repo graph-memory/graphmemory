@@ -12,7 +12,7 @@ export function register(server: McpServer, mgr: DocGraphManager): void {
         'Returns an array of { id, title, level } objects. ' +
         'The id field is a node ID you can pass directly to get_node to fetch full content.',
       inputSchema: {
-        fileId: z.string().max(500).describe('File path relative to docs dir, e.g. "docs/auth.md"'),
+        fileId: z.string().min(1).max(500).describe('File path relative to docs dir, e.g. "docs/auth.md"'),
       },
     },
     async ({ fileId }) => {

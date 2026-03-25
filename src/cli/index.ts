@@ -7,9 +7,12 @@ import readline from 'readline';
 import { loadMultiConfig, defaultConfig, type MultiConfig } from '@/lib/multi-config';
 import { hashPassword } from '@/lib/jwt';
 import { ProjectManager } from '@/lib/project-manager';
-import { loadModel } from '@/lib/embedder';
+import { loadModel, RedisEmbeddingCache, type EmbeddingCacheFactory } from '@/lib/embedder';
 import { startMultiProjectHttpServer, setDebugMode } from '@/api/index';
-import { GRACEFUL_SHUTDOWN_TIMEOUT_MS, MAX_PASSWORD_LEN } from '@/lib/defaults';
+import { GRACEFUL_SHUTDOWN_TIMEOUT_MS, MIN_PASSWORD_LEN, MAX_PASSWORD_LEN } from '@/lib/defaults';
+import { getRedisClient, closeRedis, parseRedisTtl } from '@/lib/redis';
+import { RedisSessionStore } from '@/lib/session-store';
+import type { SessionStore } from '@/lib/session-store';
 
 const program = new Command();
 
@@ -167,7 +170,34 @@ program
 
     if (opts.debug) setDebugMode(true);
 
-    const manager = new ProjectManager(mc.server);
+    // Connect to Redis if configured
+    let sessionStore: SessionStore | undefined;
+    let cacheFactory: EmbeddingCacheFactory | undefined;
+    const redisConfig = mc.server.redis;
+    if (redisConfig?.enabled) {
+      try {
+        const client = await getRedisClient(redisConfig);
+        sessionStore = new RedisSessionStore(client, `${redisConfig.prefix}session:`);
+        const ttlSeconds = parseRedisTtl(redisConfig.embeddingCacheTtl);
+        // Per-model cache: same model shares one cache, different models get separate Redis key prefixes
+        const cacheInstances = new Map<string, RedisEmbeddingCache>();
+        cacheFactory = (modelFingerprint: string) => {
+          let cache = cacheInstances.get(modelFingerprint);
+          if (!cache) {
+            // Sanitize fingerprint for use as Redis key segment
+            const safeKey = modelFingerprint.replace(/[^a-zA-Z0-9_.-]/g, '_');
+            cache = new RedisEmbeddingCache(client, `${redisConfig.prefix}emb:${safeKey}:`, ttlSeconds);
+            cacheInstances.set(modelFingerprint, cache);
+          }
+          return cache;
+        };
+        process.stderr.write(`[serve] Redis enabled: session store + embedding cache (TTL: ${redisConfig.embeddingCacheTtl})\n`);
+      } catch (err: unknown) {
+        process.stderr.write(`[serve] Redis connection failed, falling back to in-memory: ${err}\n`);
+      }
+    }
+
+    const manager = new ProjectManager(mc.server, cacheFactory);
 
     // Build workspace membership lookup
     const projectWorkspace = new Map<string, string>();
@@ -195,9 +225,9 @@ program
     // Load embedding API models if enabled (default + code)
     if (embeddingApiModelNames) {
       try {
-        await loadModel(mc.server.model, mc.server.embedding, mc.server.modelsDir, embeddingApiModelNames.default);
+        await loadModel(mc.server.model, mc.server.embedding, mc.server.modelsDir, embeddingApiModelNames.default, cacheFactory);
         const codeModel = mc.server.codeModel ?? mc.server.model;
-        await loadModel(codeModel, mc.server.embedding, mc.server.modelsDir, embeddingApiModelNames.code);
+        await loadModel(codeModel, mc.server.embedding, mc.server.modelsDir, embeddingApiModelNames.code, cacheFactory);
         process.stderr.write(`[serve] Embedding API models ready (default + code)\n`);
       } catch (err: unknown) {
         process.stderr.write(`[serve] Failed to load embedding API model: ${err}\n`);
@@ -268,6 +298,7 @@ program
       serverConfig: mc.server,
       users: mc.users,
       embeddingApiModelNames,
+      sessionStore,
     });
 
     // Track open connections for graceful shutdown
@@ -298,6 +329,7 @@ program
         }
         openSockets.clear();
         await manager.shutdown();
+        await closeRedis();
       } catch { /* ignore */ }
       clearTimeout(forceTimer);
       // Let event loop drain naturally — avoids ONNX global thread pool destructor crash on macOS
@@ -386,7 +418,8 @@ usersCmd
 
       // Validate inputs
       if (/[\x00-\x1f\x7f]/.test(name)) { process.stderr.write('Name contains invalid characters\n'); process.exit(1); }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { process.stderr.write('Invalid email format\n'); process.exit(1); }
+      if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { process.stderr.write('Invalid email format\n'); process.exit(1); }
+      if (password.length < MIN_PASSWORD_LEN) { process.stderr.write(`Password too short (min ${MIN_PASSWORD_LEN} characters)\n`); process.exit(1); }
       if (password.length > MAX_PASSWORD_LEN) { process.stderr.write(`Password too long (max ${MAX_PASSWORD_LEN})\n`); process.exit(1); }
 
       const pwHash = await hashPassword(password);

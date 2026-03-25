@@ -10,7 +10,7 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
         'Return the full content of a note by its ID. ' +
         'Returns id, title, content, tags, createdAt, updatedAt, and relations (including cross-graph links from/to tasks, docs, code, files).',
       inputSchema: {
-        noteId: z.string().max(500).describe('Note ID, e.g. "auth-uses-jwt-tokens"'),
+        noteId: z.string().min(1).max(500).describe('Note ID, e.g. "auth-uses-jwt-tokens"'),
       },
     },
     async ({ noteId }) => {

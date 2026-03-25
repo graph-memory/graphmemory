@@ -14,7 +14,7 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
         'Returns an array of { noteId, title, kind, tags }. ' +
         'Use notes_get to fetch full content of a returned note.',
       inputSchema: {
-        targetId:    z.string().max(MAX_TARGET_NODE_ID_LEN).describe('Target node ID in the external graph (e.g. "src/config.ts", "src/auth.ts::login", "docs/api.md::Setup")'),
+        targetId:    z.string().min(1).max(MAX_TARGET_NODE_ID_LEN).describe('Target node ID in the external graph (e.g. "src/config.ts", "src/auth.ts::login", "docs/api.md::Setup")'),
         targetGraph: z.enum(['docs', 'code', 'files', 'tasks', 'skills']).describe('Which graph the target belongs to'),
         kind:        z.string().max(MAX_LINK_KIND_LEN).optional().describe('Filter by relation kind (e.g. "references", "depends_on"). If omitted, returns all relations.'),
         projectId:   z.string().max(MAX_PROJECT_ID_LEN).optional().describe('Project ID that the target node belongs to. Defaults to the current project.'),

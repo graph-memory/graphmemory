@@ -5,7 +5,9 @@ import { Box, Card, CardContent, TextField, Button, Typography, Alert } from '@m
 export default function SignInPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const returnUrl = searchParams.get('returnUrl') || '/';
+  // Only allow relative paths to prevent open redirect attacks
+  const rawReturn = searchParams.get('returnUrl') || '/';
+  const returnUrl = rawReturn.startsWith('/') && !rawReturn.startsWith('//') ? rawReturn : '/';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

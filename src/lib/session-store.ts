@@ -8,6 +8,8 @@ export interface SessionStore {
   set(key: string, value: string, ttlSeconds: number): Promise<void>;
   get(key: string): Promise<string | null>;
   delete(key: string): Promise<boolean>;
+  /** Atomically get and delete a key (single-use codes). */
+  getAndDelete(key: string): Promise<string | null>;
 }
 
 // ---------------------------------------------------------------------------
@@ -40,6 +42,14 @@ export class MemorySessionStore implements SessionStore {
     this.store.delete(key);
     return true;
   }
+
+  async getAndDelete(key: string): Promise<string | null> {
+    const entry = this.store.get(key);
+    if (!entry) return null;
+    clearTimeout(entry.timer);
+    this.store.delete(key);
+    return entry.value;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -63,5 +73,9 @@ export class RedisSessionStore implements SessionStore {
   async delete(key: string): Promise<boolean> {
     const count = await this.client.del(`${this.prefix}${key}`);
     return count > 0;
+  }
+
+  async getAndDelete(key: string): Promise<string | null> {
+    return this.client.getDel(`${this.prefix}${key}`);
   }
 }

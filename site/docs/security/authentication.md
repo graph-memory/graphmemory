@@ -179,9 +179,9 @@ For browser-based OAuth clients (including Claude.ai), Graph Memory also support
 
 Flow:
 
-1. The client redirects to `GET /oauth/authorize` with `response_type=code`, `client_id`, `code_challenge`, and `code_challenge_method=S256`
-2. If the user has an active UI session they are shown a **consent page** at `/ui/auth/authorize` where they can approve the request; otherwise they are redirected to the login page first
-3. After approval, the server redirects back to the client's `redirect_uri` with an authorization code
+1. The client opens `GET /ui/auth/authorize` with `response_type=code`, `client_id`, `redirect_uri`, `code_challenge`, and `code_challenge_method=S256` as query parameters
+2. If the user has an active UI session they see a **consent page** where they can approve the request; otherwise they sign in first
+3. After approval, the frontend posts to `POST /api/oauth/authorize` and receives a `{ redirectUrl }` JSON response, then redirects the browser to the client's `redirect_uri` with an authorization code
 4. The client exchanges the code at `POST /oauth/token` with `grant_type=authorization_code` and the `code_verifier`
 5. The server returns an access token (type `oauth_access`) and a refresh token (type `oauth_refresh`)
 6. The client can refresh the access token via `POST /oauth/token` with `grant_type=refresh_token`

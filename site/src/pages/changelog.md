@@ -11,12 +11,12 @@ description: Graph Memory release history and version changes.
 
 ### New
 
-- **OAuth 2.0 Authorization Code + PKCE** — full browser-based OAuth flow with PKCE (`S256`) support. Clients redirect to `GET /oauth/authorize`; authenticated users see a **consent page** at `/ui/auth/authorize` and can approve without re-entering credentials. Unauthenticated users are redirected to the login page at `/ui/auth/signin` first.
-- **Frontend consent page** — new UI page at `/ui/auth/authorize` for reviewing and approving OAuth authorization requests. Displays client name, requested scopes, and redirect URI.
-- **Frontend login page** — new dedicated login page at `/ui/auth/signin` for the OAuth redirect flow, separate from the main UI login gate.
+- **OAuth 2.0 Authorization Code + PKCE** — full browser-based OAuth flow with PKCE (`S256`) support. Discovery manifest points clients to `/ui/auth/authorize`; authenticated users see a **consent page** and can approve without re-entering credentials. Unauthenticated users sign in first at `/ui/auth/signin`.
+- **Frontend consent page** — new UI page at `/ui/auth/authorize` for reviewing and approving OAuth authorization requests. Displays the requesting service's hostname from `redirect_uri`.
+- **Frontend login page** — new dedicated login page at `/ui/auth/signin` with `returnUrl` redirect, separate from the main UI auth gate.
 - **Refresh token support** — `POST /oauth/token` with `grant_type=refresh_token` issues a new access token using a previously issued refresh token (JWT type `oauth_refresh`). Enables long-lived sessions without re-authentication.
 - **`oauth_refresh` JWT type** — refresh tokens are self-contained signed JWTs with `type: "oauth_refresh"`. They are only accepted at `POST /oauth/token`; presenting one as a Bearer token for API/MCP access returns 401.
-- **New OAuth endpoints** — `GET /oauth/userinfo` (RFC 7662 user info), `POST /oauth/introspect` (RFC 7662 token introspection), `POST /oauth/revoke` (RFC 7009 token revocation), `GET /oauth/end-session` (session termination).
+- **New OAuth endpoints** — `GET /api/oauth/userinfo` (user info), `POST /api/oauth/introspect` (RFC 7662 token introspection), `POST /api/oauth/revoke` (RFC 7009 token revocation), `POST /api/oauth/end-session` (session termination).
 - **Redis session store** — session store is now pluggable. Set `server.redis.url` to use Redis for MCP HTTP sessions instead of the default in-memory store. Enables horizontal scaling and survives server restarts.
 - **Redis embedding cache** — embedding cache can be backed by Redis (`server.redis.url`). Embeddings computed once are reused across restarts and shared between server instances.
 - **Session store abstraction** — internal `SessionStore` interface with `Memory` and `Redis` implementations. Selecting the backend is done via config; no code changes required.
@@ -33,7 +33,7 @@ description: Graph Memory release history and version changes.
 
 ### New
 
-- **OAuth 2.0 Authorization Code + PKCE** — Claude.ai and other browser-based OAuth clients can now authenticate via the full Authorization Code flow with PKCE (`S256`). Endpoint `GET /authorize` redirects to the session-aware `GET /api/oauth/authorize`; if the user has an active UI session they are immediately redirected back with an authorization code. If not logged in, redirects to `/ui`.
+- **OAuth 2.0 Authorization Code + PKCE** — Claude.ai and other browser-based OAuth clients can now authenticate via the full Authorization Code flow with PKCE (`S256`). The consent page at `/ui/auth/authorize` handles user approval; `POST /api/oauth/authorize` issues authorization codes for authenticated sessions.
 - **Refresh tokens** — `POST /oauth/token` now supports `grant_type=refresh_token`. Tokens are self-contained signed JWTs using the configured `refreshTokenTtl` (default `7d`). Access and refresh tokens use the configured `accessTokenTtl`/`refreshTokenTtl` from `graph-memory.yaml`.
 - **Updated OAuth discovery** — `/.well-known/oauth-authorization-server` now includes `authorization_endpoint`, `response_types_supported: ["code"]`, `code_challenge_methods_supported: ["S256"]`, and `refresh_token` in `grant_types_supported`.
 

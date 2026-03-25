@@ -8,6 +8,9 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   const [state, setState] = useState<'loading' | 'ok' | 'login'>('loading');
   const location = useLocation();
 
+  // Auth pages are accessible without authentication
+  const isAuthPage = location.pathname.startsWith('/auth/');
+
   const check = useCallback(async () => {
     try {
       const status = await checkAuthStatus();
@@ -28,6 +31,9 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     onAuthFailure(() => setState('login'));
   }, []);
+
+  // Always render auth pages directly, bypassing the gate
+  if (isAuthPage) return <>{children}</>;
 
   if (state === 'loading') {
     return (

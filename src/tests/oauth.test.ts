@@ -942,6 +942,102 @@ describe('POST /api/oauth/end-session', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Additional coverage: client_credentials has no refresh_token
+// ---------------------------------------------------------------------------
+
+describe('POST /oauth/token — client_credentials does not return refresh_token', () => {
+  const app = buildApp(USERS, SERVER_CONFIG);
+
+  it('response has no refresh_token or refresh_token_expires_in', async () => {
+    const res = await request(app)
+      .post('/oauth/token')
+      .type('form')
+      .send({ grant_type: 'client_credentials', client_id: 'alice', client_secret: 'mgm-key-alice' })
+      .expect(200);
+
+    expect(res.body.refresh_token).toBeUndefined();
+    expect(res.body.refresh_token_expires_in).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Additional coverage: authorization_code missing individual params
+// ---------------------------------------------------------------------------
+
+describe('POST /oauth/token — authorization_code missing individual params', () => {
+  const app = buildApp(USERS, SERVER_CONFIG);
+
+  it('returns invalid_request when client_id is missing', async () => {
+    const res = await request(app)
+      .post('/oauth/token')
+      .type('form')
+      .send({ grant_type: 'authorization_code', code: 'x', redirect_uri: 'https://example.com/cb', code_verifier: 'x' })
+      .expect(400);
+    expect(res.body.error).toBe('invalid_request');
+  });
+
+  it('returns invalid_request when redirect_uri is missing', async () => {
+    const res = await request(app)
+      .post('/oauth/token')
+      .type('form')
+      .send({ grant_type: 'authorization_code', code: 'x', client_id: 'alice', code_verifier: 'x' })
+      .expect(400);
+    expect(res.body.error).toBe('invalid_request');
+  });
+
+  it('returns invalid_request when code_verifier is missing', async () => {
+    const res = await request(app)
+      .post('/oauth/token')
+      .type('form')
+      .send({ grant_type: 'authorization_code', code: 'x', client_id: 'alice', redirect_uri: 'https://example.com/cb' })
+      .expect(400);
+    expect(res.body.error).toBe('invalid_request');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Additional coverage: introspect with oauth_refresh token
+// ---------------------------------------------------------------------------
+
+describe('POST /api/oauth/introspect — oauth_refresh token', () => {
+  const app = buildApp(USERS, SERVER_CONFIG);
+
+  it('returns active:true with token_type oauth_refresh for refresh token', async () => {
+    const token = signOAuthRefreshToken('alice', SECRET, '7d');
+    const res = await request(app)
+      .post('/api/oauth/introspect')
+      .send({ token })
+      .expect(200);
+
+    expect(res.body.active).toBe(true);
+    expect(res.body.sub).toBe('alice');
+    expect(res.body.token_type).toBe('oauth_refresh');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Additional coverage: userinfo and introspect with no jwtSecret
+// ---------------------------------------------------------------------------
+
+describe('Endpoints when jwtSecret is not configured', () => {
+  const app = buildApp(USERS, undefined);
+
+  it('GET /api/oauth/userinfo returns 500', async () => {
+    await request(app)
+      .get('/api/oauth/userinfo')
+      .set('Authorization', 'Bearer any-token')
+      .expect(500);
+  });
+
+  it('POST /api/oauth/introspect returns 500', async () => {
+    await request(app)
+      .post('/api/oauth/introspect')
+      .send({ token: 'any-token' })
+      .expect(500);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // GET /authorize — removed (should 404)
 // ---------------------------------------------------------------------------
 

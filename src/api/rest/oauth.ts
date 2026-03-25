@@ -222,13 +222,12 @@ export function createOAuthRouter(
         return;
       }
 
-      // Get and delete from session store (single use)
-      const raw = await store.get(`authcode:${code}`);
+      // Atomically get and delete from session store (single use)
+      const raw = await store.getAndDelete(`authcode:${code}`);
       if (!raw) {
         res.status(400).json({ error: 'invalid_grant', error_description: 'Unknown or expired authorization code' });
         return;
       }
-      await store.delete(`authcode:${code}`);
 
       const entry = JSON.parse(raw) as { userId: string; redirectUri: string; codeChallenge: string };
 

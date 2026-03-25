@@ -45,6 +45,17 @@ describe('MemorySessionStore', () => {
     }
   });
 
+  it('getAndDelete returns value and removes key atomically', async () => {
+    await store.set('key1', 'value1', 60);
+    const result = await store.getAndDelete('key1');
+    expect(result).toBe('value1');
+    expect(await store.get('key1')).toBeNull();
+  });
+
+  it('getAndDelete returns null for missing key', async () => {
+    expect(await store.getAndDelete('missing')).toBeNull();
+  });
+
   it('stores multiple keys independently', async () => {
     await store.set('a', '1', 60);
     await store.set('b', '2', 60);
@@ -95,5 +106,17 @@ describe('RedisSessionStore', () => {
   it('delete returns false when key not found', async () => {
     mockClient.del.mockResolvedValue(0);
     expect(await store.delete('missing')).toBe(false);
+  });
+
+  it('getAndDelete calls redis GETDEL with prefix', async () => {
+    mockClient.getDel = jest.fn().mockResolvedValue('value1');
+    const result = await store.getAndDelete('key1');
+    expect(mockClient.getDel).toHaveBeenCalledWith('mgm:session:key1');
+    expect(result).toBe('value1');
+  });
+
+  it('getAndDelete returns null when key not found', async () => {
+    mockClient.getDel = jest.fn().mockResolvedValue(null);
+    expect(await store.getAndDelete('missing')).toBeNull();
   });
 });

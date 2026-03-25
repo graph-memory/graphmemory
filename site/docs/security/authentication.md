@@ -43,7 +43,7 @@ users:
   alice:
     name: "Alice"
     email: "alice@example.com"
-    passwordHash: "$scrypt$16384$8$1$<salt>$<hash>"
+    passwordHash: "$scrypt$65536$8$1$<salt>$<hash>"
     apiKey: "mgm-abc123..."
 ```
 
@@ -168,7 +168,7 @@ The client credentials map to your user config:
 
 Flow:
 
-1. The client posts to `POST /oauth/token` with `grant_type=client_credentials`, client ID, and client secret
+1. The client posts to `POST /api/oauth/token` with `grant_type=client_credentials`, client ID, and client secret
 2. The server validates the credentials and returns a short-lived access token (JWT, type `oauth_access`)
 3. The client uses the token as a `Bearer` value in the `Authorization` header for all MCP requests
 4. When the token expires, the server responds with `WWW-Authenticate: Bearer` on a `401` response; the client fetches a new token automatically and retries
@@ -182,9 +182,9 @@ Flow:
 1. The client opens `GET /ui/auth/authorize` with `response_type=code`, `client_id`, `redirect_uri`, `code_challenge`, and `code_challenge_method=S256` as query parameters
 2. If the user has an active UI session they see a **consent page** where they can approve the request; otherwise they sign in first
 3. After approval, the frontend posts to `POST /api/oauth/authorize` and receives a `{ redirectUrl }` JSON response, then redirects the browser to the client's `redirect_uri` with an authorization code
-4. The client exchanges the code at `POST /oauth/token` with `grant_type=authorization_code` and the `code_verifier`
+4. The client exchanges the code at `POST /api/oauth/token` with `grant_type=authorization_code` and the `code_verifier`
 5. The server returns an access token (type `oauth_access`) and a refresh token (type `oauth_refresh`)
-6. The client can refresh the access token via `POST /oauth/token` with `grant_type=refresh_token`
+6. The client can refresh the access token via `POST /api/oauth/token` with `grant_type=refresh_token`
 
 The OAuth discovery document at `GET /.well-known/oauth-authorization-server` advertises both flows.
 
@@ -241,7 +241,7 @@ When a request arrives, the server checks credentials in this order:
 
 The first successful match determines the user identity for the request.
 
-Note: OAuth refresh tokens (type `oauth_refresh`) are only accepted at `POST /oauth/token`. They cannot be used as Bearer tokens for API or MCP requests.
+Note: OAuth refresh tokens (type `oauth_refresh`) are only accepted at `POST /api/oauth/token`. They cannot be used as Bearer tokens for API or MCP requests.
 
 ## Password security
 

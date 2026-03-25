@@ -99,7 +99,7 @@ workspaces:
 | `jwtSecret` | — | Required when users are defined |
 | `cookieSecure` | auto | Set cookie `Secure` flag. Defaults to `true` unless `NODE_ENV=development` |
 | `modelsDir` | `~/.graph-memory/models` | Model cache directory |
-| `sessionTimeout` | `1800` | MCP session timeout (seconds) |
+| `sessionTimeout` | `3600` | MCP session timeout (seconds) |
 | `corsOrigins` | `*` (all) | Allowed CORS origins |
 | `accessTokenTtl` | `15m` | JWT access token lifetime |
 | `refreshTokenTtl` | `7d` | JWT refresh token lifetime |

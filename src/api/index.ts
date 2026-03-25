@@ -1,3 +1,4 @@
+import path from 'path';
 import http from 'http';
 import { randomUUID } from 'crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -222,8 +223,10 @@ export function createMcpServer(
 
   // Build instructions for MCP clients (workspace/project context)
   const instructions = sessionContext ? buildInstructions(sessionContext) : undefined;
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const pkgVersion: string = require(path.resolve(__dirname, '../../package.json')).version;
   const server = new McpServer(
-    { name: 'graphmemory', version: '1.2.0' },
+    { name: 'graphmemory', version: pkgVersion },
     instructions ? { instructions } : undefined,
   );
   // Debug logging wraps all tool handlers when --debug is active

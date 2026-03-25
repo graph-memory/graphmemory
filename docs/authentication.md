@@ -32,10 +32,10 @@ Uses Node.js `crypto.scrypt` (no external dependencies):
 
 ```
 $scrypt$N$r$p$salt$hash
-$scrypt$16384$8$1$<32-char-hex-salt>$<128-char-hex-hash>
+$scrypt$65536$8$1$<32-char-hex-salt>$<128-char-hex-hash>
 ```
 
-Parameters: N=16384, r=8, p=1, keylen=64. Verification uses `crypto.timingSafeEqual`.
+Parameters: N=65536, r=8, p=1, keylen=64. Verification uses `crypto.timingSafeEqual`.
 
 ### JWT tokens
 
@@ -74,7 +74,7 @@ If refresh fails → redirect to login page.
 
 ### jwtSecret
 
-**Required** when users are defined in config. User-provided string in `server.jwtSecret`. The server warns on startup if users are configured but `jwtSecret` is missing.
+**Required** when users are defined in config. User-provided string in `server.jwtSecret` (minimum 32 characters). The server warns on startup if users are configured but `jwtSecret` is missing.
 
 ## API key authentication
 
@@ -427,7 +427,7 @@ The response does **not** include the user's `apiKey` to prevent leaks in DevToo
 `GET /api/auth/apikey` — requires valid JWT cookie:
 
 ```json
-{ "apiKey": "gm_..." }
+{ "apiKey": "mgm-..." }
 ```
 
 The UI's Connect MCP dialog fetches the API key from this endpoint to pre-fill configuration snippets.

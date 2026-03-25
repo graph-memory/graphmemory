@@ -29,7 +29,7 @@ function issueTokenPair(userId: string, jwtSecret: string, accessTtl: string, re
  * Endpoints:
  *   GET  /.well-known/oauth-authorization-server  — RFC 8414 discovery
  *   POST /api/oauth/authorize                     — issue auth code (session cookie required)
- *   POST /oauth/token                             — client_credentials, authorization_code, refresh_token grants
+ *   POST /api/oauth/token                         — client_credentials, authorization_code, refresh_token grants
  *   GET  /api/oauth/userinfo                      — user info from Bearer token
  *   POST /api/oauth/introspect                    — RFC 7662 token introspection
  *   POST /api/oauth/revoke                        — token revocation (stub)
@@ -58,7 +58,7 @@ export function createOAuthRouter(
     res.json({
       issuer: base,
       authorization_endpoint: `${base}/ui/auth/authorize`,
-      token_endpoint: `${base}/oauth/token`,
+      token_endpoint: `${base}/api/oauth/token`,
       userinfo_endpoint: `${base}/api/oauth/userinfo`,
       introspection_endpoint: `${base}/api/oauth/introspect`,
       revocation_endpoint: `${base}/api/oauth/revoke`,
@@ -179,7 +179,7 @@ export function createOAuthRouter(
   });
 
   // Token endpoint — client_credentials, authorization_code, refresh_token grants
-  router.post('/oauth/token', async (req, res) => {
+  router.post('/api/oauth/token', async (req, res) => {
     if (!hasUsers || !jwtSecret) {
       res.status(400).json({ error: 'server_error', error_description: 'OAuth not configured: no users or jwtSecret missing' });
       return;

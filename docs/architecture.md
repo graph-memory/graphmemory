@@ -170,7 +170,7 @@ src/
       file-index/            # 3 MCP file index tools
       context/               # 1 MCP context tool
   tests/
-    *.test.ts                # Jest test suites (28 suites, 1240 tests)
+    *.test.ts                # Jest test suites (44 suites, 1706 tests)
     helpers.ts               # Test utilities (fakeEmbed, setupMcpClient)
     __mocks__/               # Jest mocks for ESM-only packages
     fixtures/                # Test fixtures (markdown, TypeScript)

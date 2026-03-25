@@ -45,6 +45,7 @@ When no `--config` is provided and `graph-memory.yaml` is not found, the current
 | `--host` | from config or `127.0.0.1` | Bind address |
 | `--port` | from config or `3000` | Port |
 | `--reindex` | `false` | Discard persisted graphs, re-index from scratch |
+| `--debug` | `false` | Log MCP tool calls and responses to stderr |
 
 ## `index` — one-shot scan
 

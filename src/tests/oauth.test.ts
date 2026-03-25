@@ -63,7 +63,7 @@ async function doAuthCodeFlow(app: express.Express, userId: string): Promise<{ b
   const code = new URL(redirectUrl).searchParams.get('code')!;
 
   const tokenRes = await request(app)
-    .post('/oauth/token')
+    .post('/api/oauth/token')
     .type('form')
     .send({
       grant_type: 'authorization_code',
@@ -187,18 +187,18 @@ describe('GET /.well-known/oauth-authorization-server', () => {
 
     expect(res.body).toMatchObject({
       issuer: expect.any(String),
-      token_endpoint: expect.stringContaining('/oauth/token'),
+      token_endpoint: expect.stringContaining('/api/oauth/token'),
       grant_types_supported: expect.arrayContaining(['client_credentials', 'authorization_code']),
       token_endpoint_auth_methods_supported: ['client_secret_post'],
     });
   });
 
-  it('token_endpoint URL is absolute and ends with /oauth/token', async () => {
+  it('token_endpoint URL is absolute and ends with /api/oauth/token', async () => {
     const res = await request(app)
       .get('/.well-known/oauth-authorization-server')
       .expect(200);
 
-    expect(res.body.token_endpoint).toMatch(/^https?:\/\/.+\/oauth\/token$/);
+    expect(res.body.token_endpoint).toMatch(/^https?:\/\/.+\/api\/oauth\/token$/);
   });
 
   it('issuer matches the request host', async () => {
@@ -256,15 +256,15 @@ describe('GET /.well-known/oauth-authorization-server', () => {
 });
 
 // ---------------------------------------------------------------------------
-// POST /oauth/token — client_credentials
+// POST /api/oauth/token — client_credentials
 // ---------------------------------------------------------------------------
 
-describe('POST /oauth/token — happy path', () => {
+describe('POST /api/oauth/token — happy path', () => {
   const app = buildApp(USERS, SERVER_CONFIG);
 
   it('returns 200 with access_token, token_type, expires_in', async () => {
     const res = await request(app)
-      .post('/oauth/token')
+      .post('/api/oauth/token')
       .type('form')
       .send({ grant_type: 'client_credentials', client_id: 'alice', client_secret: 'mgm-key-alice' })
       .expect(200);
@@ -278,7 +278,7 @@ describe('POST /oauth/token — happy path', () => {
 
   it('access_token is a valid JWT with type oauth_access', async () => {
     const res = await request(app)
-      .post('/oauth/token')
+      .post('/api/oauth/token')
       .type('form')
       .send({ grant_type: 'client_credentials', client_id: 'alice', client_secret: 'mgm-key-alice' })
       .expect(200);
@@ -289,7 +289,7 @@ describe('POST /oauth/token — happy path', () => {
 
   it('token is accepted by resolveUserFromBearer', async () => {
     const res = await request(app)
-      .post('/oauth/token')
+      .post('/api/oauth/token')
       .type('form')
       .send({ grant_type: 'client_credentials', client_id: 'bob', client_secret: 'mgm-key-bob' })
       .expect(200);
@@ -302,7 +302,7 @@ describe('POST /oauth/token — happy path', () => {
   it('works for all configured users', async () => {
     for (const [id, user] of Object.entries(USERS)) {
       const res = await request(app)
-        .post('/oauth/token')
+        .post('/api/oauth/token')
         .type('form')
         .send({ grant_type: 'client_credentials', client_id: id, client_secret: user.apiKey })
         .expect(200);
@@ -313,12 +313,12 @@ describe('POST /oauth/token — happy path', () => {
   });
 });
 
-describe('POST /oauth/token — error cases', () => {
+describe('POST /api/oauth/token — error cases', () => {
   const app = buildApp(USERS, SERVER_CONFIG);
 
   it('returns 400 for unsupported grant_type', async () => {
     const res = await request(app)
-      .post('/oauth/token')
+      .post('/api/oauth/token')
       .type('form')
       .send({ grant_type: 'implicit', client_id: 'alice', client_secret: 'mgm-key-alice' })
       .expect(400);
@@ -328,7 +328,7 @@ describe('POST /oauth/token — error cases', () => {
 
   it('returns 400 when grant_type is missing', async () => {
     const res = await request(app)
-      .post('/oauth/token')
+      .post('/api/oauth/token')
       .type('form')
       .send({ client_id: 'alice', client_secret: 'mgm-key-alice' })
       .expect(400);
@@ -338,7 +338,7 @@ describe('POST /oauth/token — error cases', () => {
 
   it('returns 400 when client_id is missing', async () => {
     const res = await request(app)
-      .post('/oauth/token')
+      .post('/api/oauth/token')
       .type('form')
       .send({ grant_type: 'client_credentials', client_secret: 'mgm-key-alice' })
       .expect(400);
@@ -348,7 +348,7 @@ describe('POST /oauth/token — error cases', () => {
 
   it('returns 400 when client_secret is missing', async () => {
     const res = await request(app)
-      .post('/oauth/token')
+      .post('/api/oauth/token')
       .type('form')
       .send({ grant_type: 'client_credentials', client_id: 'alice' })
       .expect(400);
@@ -358,7 +358,7 @@ describe('POST /oauth/token — error cases', () => {
 
   it('returns 401 for unknown client_id', async () => {
     const res = await request(app)
-      .post('/oauth/token')
+      .post('/api/oauth/token')
       .type('form')
       .send({ grant_type: 'client_credentials', client_id: 'nobody', client_secret: 'any-secret' })
       .expect(401);
@@ -368,7 +368,7 @@ describe('POST /oauth/token — error cases', () => {
 
   it('returns 401 for wrong client_secret', async () => {
     const res = await request(app)
-      .post('/oauth/token')
+      .post('/api/oauth/token')
       .type('form')
       .send({ grant_type: 'client_credentials', client_id: 'alice', client_secret: 'wrong-secret' })
       .expect(401);
@@ -379,7 +379,7 @@ describe('POST /oauth/token — error cases', () => {
   it('returns 400 server_error when no users configured', async () => {
     const emptyApp = buildApp({}, SERVER_CONFIG);
     const res = await request(emptyApp)
-      .post('/oauth/token')
+      .post('/api/oauth/token')
       .type('form')
       .send({ grant_type: 'client_credentials', client_id: 'alice', client_secret: 'mgm-key-alice' })
       .expect(400);
@@ -390,7 +390,7 @@ describe('POST /oauth/token — error cases', () => {
   it('returns 400 server_error when jwtSecret is not configured', async () => {
     const noSecretApp = buildApp(USERS, {} as any);
     const res = await request(noSecretApp)
-      .post('/oauth/token')
+      .post('/api/oauth/token')
       .type('form')
       .send({ grant_type: 'client_credentials', client_id: 'alice', client_secret: 'mgm-key-alice' })
       .expect(400);
@@ -401,7 +401,7 @@ describe('POST /oauth/token — error cases', () => {
   it('returns 400 server_error when serverConfig is undefined', async () => {
     const noConfigApp = buildApp(USERS, undefined);
     const res = await request(noConfigApp)
-      .post('/oauth/token')
+      .post('/api/oauth/token')
       .type('form')
       .send({ grant_type: 'client_credentials', client_id: 'alice', client_secret: 'mgm-key-alice' })
       .expect(400);
@@ -585,10 +585,10 @@ describe('POST /api/oauth/authorize — invalid params', () => {
 });
 
 // ---------------------------------------------------------------------------
-// POST /oauth/token — authorization_code grant
+// POST /api/oauth/token — authorization_code grant
 // ---------------------------------------------------------------------------
 
-describe('POST /oauth/token — authorization_code happy path', () => {
+describe('POST /api/oauth/token — authorization_code happy path', () => {
   const app = buildApp(USERS, SERVER_CONFIG);
 
   it('returns access_token, refresh_token, expires_in, refresh_token_expires_in', async () => {
@@ -638,18 +638,18 @@ describe('POST /oauth/token — authorization_code happy path', () => {
       code_verifier: codeVerifier,
     };
 
-    await request(app).post('/oauth/token').type('form').send(tokenPayload).expect(200);
-    const second = await request(app).post('/oauth/token').type('form').send(tokenPayload).expect(400);
+    await request(app).post('/api/oauth/token').type('form').send(tokenPayload).expect(200);
+    const second = await request(app).post('/api/oauth/token').type('form').send(tokenPayload).expect(400);
     expect(second.body.error).toBe('invalid_grant');
   });
 });
 
-describe('POST /oauth/token — authorization_code error cases', () => {
+describe('POST /api/oauth/token — authorization_code error cases', () => {
   const app = buildApp(USERS, SERVER_CONFIG);
 
   it('returns invalid_request when code is missing', async () => {
     const res = await request(app)
-      .post('/oauth/token')
+      .post('/api/oauth/token')
       .type('form')
       .send({ grant_type: 'authorization_code', client_id: 'alice', redirect_uri: 'https://claude.ai/api/mcp/auth_callback', code_verifier: 'x' })
       .expect(400);
@@ -659,7 +659,7 @@ describe('POST /oauth/token — authorization_code error cases', () => {
   it('returns invalid_grant for unknown code', async () => {
     const { codeVerifier } = makePkce();
     const res = await request(app)
-      .post('/oauth/token')
+      .post('/api/oauth/token')
       .type('form')
       .send({ grant_type: 'authorization_code', code: 'bogus-code', client_id: 'alice', redirect_uri: 'https://claude.ai/api/mcp/auth_callback', code_verifier: codeVerifier })
       .expect(400);
@@ -683,7 +683,7 @@ describe('POST /oauth/token — authorization_code error cases', () => {
 
     const code = new URL(authorizeRes.body.redirectUrl).searchParams.get('code')!;
     const res = await request(app)
-      .post('/oauth/token')
+      .post('/api/oauth/token')
       .type('form')
       .send({ grant_type: 'authorization_code', code, client_id: 'alice', redirect_uri: 'https://evil.com/callback', code_verifier: codeVerifier })
       .expect(400);
@@ -707,7 +707,7 @@ describe('POST /oauth/token — authorization_code error cases', () => {
 
     const code = new URL(authorizeRes.body.redirectUrl).searchParams.get('code')!;
     const res = await request(app)
-      .post('/oauth/token')
+      .post('/api/oauth/token')
       .type('form')
       .send({ grant_type: 'authorization_code', code, client_id: 'alice', redirect_uri: 'https://claude.ai/api/mcp/auth_callback', code_verifier: 'wrong-verifier' })
       .expect(400);
@@ -716,17 +716,17 @@ describe('POST /oauth/token — authorization_code error cases', () => {
 });
 
 // ---------------------------------------------------------------------------
-// POST /oauth/token — refresh_token grant
+// POST /api/oauth/token — refresh_token grant
 // ---------------------------------------------------------------------------
 
-describe('POST /oauth/token — refresh_token happy path', () => {
+describe('POST /api/oauth/token — refresh_token happy path', () => {
   const app = buildApp(USERS, SERVER_CONFIG);
 
   it('returns new access_token and refresh_token', async () => {
     const { body: first } = await doAuthCodeFlow(app, 'alice');
 
     const res = await request(app)
-      .post('/oauth/token')
+      .post('/api/oauth/token')
       .type('form')
       .send({ grant_type: 'refresh_token', refresh_token: first.refresh_token })
       .expect(200);
@@ -743,7 +743,7 @@ describe('POST /oauth/token — refresh_token happy path', () => {
     const { body: first } = await doAuthCodeFlow(app, 'alice');
 
     const res = await request(app)
-      .post('/oauth/token')
+      .post('/api/oauth/token')
       .type('form')
       .send({ grant_type: 'refresh_token', refresh_token: first.refresh_token })
       .expect(200);
@@ -753,12 +753,12 @@ describe('POST /oauth/token — refresh_token happy path', () => {
   });
 });
 
-describe('POST /oauth/token — refresh_token error cases', () => {
+describe('POST /api/oauth/token — refresh_token error cases', () => {
   const app = buildApp(USERS, SERVER_CONFIG);
 
   it('returns invalid_request when refresh_token is missing', async () => {
     const res = await request(app)
-      .post('/oauth/token')
+      .post('/api/oauth/token')
       .type('form')
       .send({ grant_type: 'refresh_token' })
       .expect(400);
@@ -767,7 +767,7 @@ describe('POST /oauth/token — refresh_token error cases', () => {
 
   it('returns invalid_grant for garbage refresh_token', async () => {
     const res = await request(app)
-      .post('/oauth/token')
+      .post('/api/oauth/token')
       .type('form')
       .send({ grant_type: 'refresh_token', refresh_token: 'not-a-jwt' })
       .expect(400);
@@ -777,7 +777,7 @@ describe('POST /oauth/token — refresh_token error cases', () => {
   it('returns invalid_grant when token type is access (not oauth_refresh)', async () => {
     const wrongTypeToken = signAccessToken('alice', SECRET, '7d');
     const res = await request(app)
-      .post('/oauth/token')
+      .post('/api/oauth/token')
       .type('form')
       .send({ grant_type: 'refresh_token', refresh_token: wrongTypeToken })
       .expect(400);
@@ -787,7 +787,7 @@ describe('POST /oauth/token — refresh_token error cases', () => {
   it('returns invalid_grant when token type is ui refresh (not oauth_refresh)', async () => {
     const uiRefresh = signRefreshToken('alice', SECRET, '7d');
     const res = await request(app)
-      .post('/oauth/token')
+      .post('/api/oauth/token')
       .type('form')
       .send({ grant_type: 'refresh_token', refresh_token: uiRefresh })
       .expect(400);
@@ -801,7 +801,7 @@ describe('POST /oauth/token — refresh_token error cases', () => {
       SECRET,
     );
     const res = await request(app)
-      .post('/oauth/token')
+      .post('/api/oauth/token')
       .type('form')
       .send({ grant_type: 'refresh_token', refresh_token: expired })
       .expect(400);
@@ -949,12 +949,12 @@ describe('POST /api/oauth/end-session', () => {
 // Additional coverage: client_credentials has no refresh_token
 // ---------------------------------------------------------------------------
 
-describe('POST /oauth/token — client_credentials does not return refresh_token', () => {
+describe('POST /api/oauth/token — client_credentials does not return refresh_token', () => {
   const app = buildApp(USERS, SERVER_CONFIG);
 
   it('response has no refresh_token or refresh_token_expires_in', async () => {
     const res = await request(app)
-      .post('/oauth/token')
+      .post('/api/oauth/token')
       .type('form')
       .send({ grant_type: 'client_credentials', client_id: 'alice', client_secret: 'mgm-key-alice' })
       .expect(200);
@@ -968,12 +968,12 @@ describe('POST /oauth/token — client_credentials does not return refresh_token
 // Additional coverage: authorization_code missing individual params
 // ---------------------------------------------------------------------------
 
-describe('POST /oauth/token — authorization_code missing individual params', () => {
+describe('POST /api/oauth/token — authorization_code missing individual params', () => {
   const app = buildApp(USERS, SERVER_CONFIG);
 
   it('returns invalid_request when client_id is missing', async () => {
     const res = await request(app)
-      .post('/oauth/token')
+      .post('/api/oauth/token')
       .type('form')
       .send({ grant_type: 'authorization_code', code: 'x', redirect_uri: 'https://example.com/cb', code_verifier: 'x' })
       .expect(400);
@@ -982,7 +982,7 @@ describe('POST /oauth/token — authorization_code missing individual params', (
 
   it('returns invalid_request when redirect_uri is missing', async () => {
     const res = await request(app)
-      .post('/oauth/token')
+      .post('/api/oauth/token')
       .type('form')
       .send({ grant_type: 'authorization_code', code: 'x', client_id: 'alice', code_verifier: 'x' })
       .expect(400);
@@ -991,7 +991,7 @@ describe('POST /oauth/token — authorization_code missing individual params', (
 
   it('returns invalid_request when code_verifier is missing', async () => {
     const res = await request(app)
-      .post('/oauth/token')
+      .post('/api/oauth/token')
       .type('form')
       .send({ grant_type: 'authorization_code', code: 'x', client_id: 'alice', redirect_uri: 'https://example.com/cb' })
       .expect(400);

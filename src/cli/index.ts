@@ -16,8 +16,8 @@ import type { SessionStore } from '@/lib/session-store';
 
 const program = new Command();
 
-const pkgJsonPath = path.resolve(__dirname, '../../package.json');
-const pkgVersion: string = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8')).version;
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const pkgVersion: string = require(path.resolve(__dirname, '../../package.json')).version;
 
 program
   .name('graphmemory')

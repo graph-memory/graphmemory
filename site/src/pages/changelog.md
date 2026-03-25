@@ -20,7 +20,7 @@ description: Graph Memory release history and version changes.
 
 - `GET /.well-known/oauth-authorization-server` — RFC 8414 OAuth discovery metadata
 - `POST /api/oauth/authorize` — issue authorization code (JSON request/response)
-- `POST /oauth/token` — token exchange for `client_credentials`, `authorization_code`, and `refresh_token` grants
+- `POST /api/oauth/token` — token exchange for `client_credentials`, `authorization_code`, and `refresh_token` grants
 - `GET /api/oauth/userinfo` — returns `{ sub, name, email }` from Bearer token
 - `POST /api/oauth/introspect` — RFC 7662 token introspection
 - `POST /api/oauth/revoke` — RFC 7009 token revocation
@@ -28,7 +28,7 @@ description: Graph Memory release history and version changes.
 
 ### OAuth
 
-- **`oauth_refresh` JWT type** — refresh tokens are self-contained signed JWTs with `type: "oauth_refresh"`, separate from UI `refresh` type. Only accepted at `POST /oauth/token`.
+- **`oauth_refresh` JWT type** — refresh tokens are self-contained signed JWTs with `type: "oauth_refresh"`, separate from UI `refresh` type. Only accepted at `POST /api/oauth/token`.
 - **Atomic auth code exchange** — `SessionStore.getAndDelete()` prevents TOCTOU race conditions on single-use authorization codes.
 - **PKCE S256** — code challenge verification required for all Authorization Code flows.
 - **Open redirect protection** — `returnUrl` on `/ui/auth/signin` validated to allow only relative paths.

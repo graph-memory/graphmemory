@@ -37,7 +37,7 @@
 server:
   # host: "127.0.0.1"                          # HTTP server bind address
   # port: 3000                                  # HTTP server port
-  # sessionTimeout: 1800                        # Idle session timeout (seconds)
+  # sessionTimeout: 3600                        # Idle session timeout (seconds)
   # modelsDir: "~/.graph-memory/models"         # Local model cache directory
   # corsOrigins:                                # Allowed CORS origins (default: all)
   #   - "http://localhost:5173"

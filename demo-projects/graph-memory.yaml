@@ -6,6 +6,11 @@ server:
   host: "127.0.0.1"
   port: 3000
   sessionTimeout: 1800
+  redis:
+    enabled: false
+    url: "redis://localhost:6379"
+    prefix: "mgm:"
+    embeddingCacheTtl: "30d"
   model:
     name: "Xenova/bge-m3"
     pooling: "cls"

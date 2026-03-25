@@ -35,10 +35,27 @@ services:
       - /path/to/my-app:/data/projects/my-app
       - models:/data/models
     restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
 
 volumes:
   models:
+  redis-data:
 ```
+
+> Redis is optional. Remove the `redis` service and `depends_on` if you don't need shared session store or embedding cache. See [configuration.md](configuration.md#redis) for the `server.redis` settings.
 
 ```bash
 docker compose up -d
@@ -70,6 +87,9 @@ server:
   host: "0.0.0.0"              # Bind to all interfaces (required in Docker)
   port: 3000
   modelsDir: "/data/models"     # Match the volume mount
+  redis:
+    enabled: true
+    url: "redis://redis:6379"   # Service name from docker-compose
 
 projects:
   my-app:
@@ -183,6 +203,24 @@ services:
       - /path/to/app1:/data/projects/app1
       - /path/to/app2:/data/projects/app2
       - models:/data/models
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+volumes:
+  models:
+  redis-data:
 ```
 
 Restart the container to apply config changes.

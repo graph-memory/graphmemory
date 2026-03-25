@@ -5,87 +5,66 @@ description: Graph Memory release history and version changes.
 
 # Changelog
 
-## v1.6.3
-
-**Released: March 2026**
-
-### New
-
-- **OAuth 2.0 Authorization Code + PKCE** — full browser-based OAuth flow with PKCE (`S256`) support. Discovery manifest points clients to `/ui/auth/authorize`; authenticated users see a **consent page** and can approve without re-entering credentials. Unauthenticated users sign in first at `/ui/auth/signin`.
-- **Frontend consent page** — new UI page at `/ui/auth/authorize` for reviewing and approving OAuth authorization requests. Displays the requesting service's hostname from `redirect_uri`.
-- **Frontend login page** — new dedicated login page at `/ui/auth/signin` with `returnUrl` redirect, separate from the main UI auth gate.
-- **Refresh token support** — `POST /oauth/token` with `grant_type=refresh_token` issues a new access token using a previously issued refresh token (JWT type `oauth_refresh`). Enables long-lived sessions without re-authentication.
-- **`oauth_refresh` JWT type** — refresh tokens are self-contained signed JWTs with `type: "oauth_refresh"`. They are only accepted at `POST /oauth/token`; presenting one as a Bearer token for API/MCP access returns 401.
-- **New OAuth endpoints** — `GET /api/oauth/userinfo` (user info), `POST /api/oauth/introspect` (RFC 7662 token introspection), `POST /api/oauth/revoke` (RFC 7009 token revocation), `POST /api/oauth/end-session` (session termination).
-- **Redis session store** — session store is now pluggable. Set `server.redis.url` to use Redis for MCP HTTP sessions instead of the default in-memory store. Enables horizontal scaling and survives server restarts.
-- **Redis embedding cache** — embedding cache can be backed by Redis (`server.redis.url`). Embeddings computed once are reused across restarts and shared between server instances.
-- **Session store abstraction** — internal `SessionStore` interface with `Memory` and `Redis` implementations. Selecting the backend is done via config; no code changes required.
-
-### Updated OAuth discovery
-
-`GET /.well-known/oauth-authorization-server` now includes `authorization_endpoint`, `token_endpoint`, `userinfo_endpoint`, `introspection_endpoint`, `revocation_endpoint`, `end_session_endpoint`, `response_types_supported: ["code"]`, `code_challenge_methods_supported: ["S256"]`, and `refresh_token` in `grant_types_supported`.
-
----
-
-## v1.6.2
-
-**Released: March 2026**
-
-### New
-
-- **OAuth 2.0 Authorization Code + PKCE** — Claude.ai and other browser-based OAuth clients can now authenticate via the full Authorization Code flow with PKCE (`S256`). The consent page at `/ui/auth/authorize` handles user approval; `POST /api/oauth/authorize` issues authorization codes for authenticated sessions.
-- **Refresh tokens** — `POST /oauth/token` now supports `grant_type=refresh_token`. Tokens are self-contained signed JWTs using the configured `refreshTokenTtl` (default `7d`). Access and refresh tokens use the configured `accessTokenTtl`/`refreshTokenTtl` from `graph-memory.yaml`.
-- **Updated OAuth discovery** — `/.well-known/oauth-authorization-server` now includes `authorization_endpoint`, `response_types_supported: ["code"]`, `code_challenge_methods_supported: ["S256"]`, and `refresh_token` in `grant_types_supported`.
-
----
-
-## v1.6.1
-
-**Released: March 2026**
-
-### Fixes
-
-- **Express `trust proxy`** — enabled `trust proxy` so that `X-Forwarded-For` and `X-Forwarded-Proto` headers from reverse proxies (nginx, etc.) are correctly trusted. Fixes real IP detection for rate limiting and `Secure` cookie behavior behind HTTPS proxies.
-
----
-
-## v1.6.0
+## v1.7.0
 
 **Released: March 2026**
 
 ### Highlights
 
-- **OAuth 2.0 for AI chat clients** — Graph Memory now implements the OAuth 2.0 `client_credentials` flow. AI chat clients that support OAuth connectors (Claude.ai, etc.) can authenticate automatically — no manual API key headers required. Client ID = `userId`, Client Secret = `apiKey` from config.
+- **Full OAuth 2.0 support** — both `client_credentials` and Authorization Code + PKCE (`S256`) grant types. AI chat clients (Claude.ai, etc.) authenticate via the browser-based consent flow; programmatic clients use client credentials. Discovery at `GET /.well-known/oauth-authorization-server`.
+- **Frontend auth pages** — consent page at `/ui/auth/authorize` (shows requesting service hostname, inline login if needed), standalone login page at `/ui/auth/signin` with `returnUrl` redirect.
+- **Redis backend** — optional Redis support (`server.redis`) for session store (auth codes, OAuth sessions) and embedding cache. Enables horizontal scaling and survives server restarts. In-memory fallback when disabled.
 - **Tool naming consistency** — all 58 MCP tools audited and renamed to consistent `graph_verb_noun` prefixes. Parameter names, defaults, and descriptions aligned across MCP tools and REST endpoints.
-- **Array syntax for `include` patterns** — the `include` field in graph config now accepts a YAML array in addition to a single glob string, matching the existing `exclude` behavior.
-- **Cleaner MCP responses** — internal graph fields (`fileEmbedding`, `pendingLinks`, `pendingImports`, `pendingEdges`, `version`), null values, and empty arrays stripped from all MCP tool responses to reduce noise and token usage.
 
 ### New Endpoints
 
 - `GET /.well-known/oauth-authorization-server` — RFC 8414 OAuth discovery metadata
-- `POST /oauth/token` — OAuth 2.0 `client_credentials` grant; returns a short-lived Bearer JWT (1 hour, type `oauth_access`)
+- `POST /api/oauth/authorize` — issue authorization code (JSON request/response)
+- `POST /oauth/token` — token exchange for `client_credentials`, `authorization_code`, and `refresh_token` grants
+- `GET /api/oauth/userinfo` — returns `{ sub, name, email }` from Bearer token
+- `POST /api/oauth/introspect` — RFC 7662 token introspection
+- `POST /api/oauth/revoke` — RFC 7009 token revocation
+- `POST /api/oauth/end-session` — session termination
+
+### OAuth
+
+- **`oauth_refresh` JWT type** — refresh tokens are self-contained signed JWTs with `type: "oauth_refresh"`, separate from UI `refresh` type. Only accepted at `POST /oauth/token`.
+- **Atomic auth code exchange** — `SessionStore.getAndDelete()` prevents TOCTOU race conditions on single-use authorization codes.
+- **PKCE S256** — code challenge verification required for all Authorization Code flows.
+- **Open redirect protection** — `returnUrl` on `/ui/auth/signin` validated to allow only relative paths.
 
 ### Security
 
-- **Auth before project lookup** — MCP handler now checks authentication before resolving the project, preventing unauthenticated callers from enumerating which project IDs exist via 404 vs 401 responses
-- **`WWW-Authenticate: Bearer` on 401** — MCP endpoints include the RFC 6750 required header on all 401 responses, enabling OAuth clients to trigger automatic re-authentication
+- **Auth before project lookup** — MCP handler checks authentication before resolving the project, preventing project ID enumeration
+- **`WWW-Authenticate: Bearer` on 401** — RFC 6750 header on all MCP 401 responses
+- **Express `trust proxy`** — `X-Forwarded-For` and `X-Forwarded-Proto` correctly trusted behind reverse proxies
+
+### Configuration
+
+- New `server.redis` section: `enabled`, `url`, `prefix`, `embeddingCacheTtl`
+- Docker Compose includes Redis service with healthcheck
+- `include` field accepts YAML array in addition to single glob string
 
 ### Fixes
 
+- **Cleaner MCP responses** — internal fields (`fileEmbedding`, `pendingLinks`, `pendingImports`, `pendingEdges`, `version`), null values, and empty arrays stripped
 - `docs_get_node` — removed `fileEmbedding`, `pendingLinks`, `mtime` from response
 - `code_get_symbol` — removed `fileEmbedding`, `pendingImports`, `pendingEdges` from response
 - `notes_get`, `tasks_get`, `skills_get` — removed `version`; null fields and empty arrays stripped
-- `notes_list` — removed content preview field (not in tool description)
 
 ### Tests
 
-- 33 new tests in `oauth.test.ts`: unit tests for `signOAuthToken` and `resolveUserFromBearer`, supertest coverage of discovery and token endpoints, integration tests against a real HTTP server for `WWW-Authenticate` header behavior
+- 1700 tests across 44 suites
+- Full OAuth endpoint coverage: discovery, authorize, token (all 3 grants), userinfo, introspect, revoke, end-session
+- Session store unit tests (Memory + Redis mock)
+- Embedding cache unit tests (Memory LRU + Redis mock)
 
 ### Documentation
 
-- `docs/authentication.md` — added OAuth 2.0 section with endpoint reference and token format
-- `site/docs/security/authentication.md` — new OAuth 2.0 subsection and "Connecting Claude.ai" guide
-- `site/docs/guides/mcp-clients.md` — new Claude.ai section with connector setup instructions
+- Updated all auth docs: `docs/authentication.md`, `docs/security.md`, `docs/api-rest.md`, `docs/configuration.md`
+- Updated site docs: `security/authentication.md`, `guides/mcp-clients.md`, `getting-started/configuration.md`
+- Updated `README.md` with OAuth and Redis overview
+- Updated `docs/docker.md` with Redis compose example
 
 ---
 

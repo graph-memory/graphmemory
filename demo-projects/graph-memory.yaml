@@ -5,17 +5,11 @@ author:
 server:
   host: "127.0.0.1"
   port: 3000
-  sessionTimeout: 1800
-  redis:
-    enabled: false
-    url: "redis://localhost:6379"
-    prefix: "mgm:"
-    embeddingCacheTtl: "30d"
-  model:
-    name: "Xenova/bge-m3"
-    pooling: "cls"
-    normalize: true
-    dtype: "q8"
+  defaultAccess: deny
+  jwtSecret: "some-random-secret-string-32-plus-characters"
+  accessTokenTtl: "1m"
+  access:
+    demo: rw
 
 projects:
   api-gateway:
@@ -88,3 +82,11 @@ workspaces:
     author:
       name: Frontend Team
       email: frontend@shopflow.dev
+
+users:
+  demo:
+    name: "demo"
+    email: "demo@example.com"
+    apiKey: "mgm-qXux_Vmb2YubgZgTvvAWervmH_Z6cKS_"
+    # password: "demo@example.com"
+    passwordHash: "$scrypt$65536$8$1$b5ad43a54504c8210e0c6da2cecae24f$3abdfef23de5af4cf3953b5f6203c75276527e2451e480ddf4c4d62638e5b4db0321a50b70eb3a6e441b51ac68d98727571fc2768fb48791e622e8ddce4a3747"

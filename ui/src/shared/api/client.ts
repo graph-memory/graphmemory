@@ -5,6 +5,11 @@ let _onAuthFailure: (() => void) | null = null;
 /** Register a callback for when auth fails (refresh exhausted). Called by AuthGate. */
 export function onAuthFailure(cb: () => void) { _onAuthFailure = cb; }
 
+/** Trigger the registered auth failure handler (used by WebSocket reconnect). */
+export function triggerAuthFailure(): void {
+  if (_onAuthFailure) _onAuthFailure();
+}
+
 let _refreshPromise: Promise<boolean> | null = null;
 
 export async function tryRefresh(): Promise<boolean> {

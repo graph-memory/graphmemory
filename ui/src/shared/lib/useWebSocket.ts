@@ -1,6 +1,6 @@
 import { useEffect, useRef, createContext, useContext, type ReactNode } from 'react';
 import { createElement } from 'react';
-import { tryRefresh } from '@/shared/api/client.ts';
+import { triggerAuthFailure } from '@/shared/api/client.ts';
 
 export interface WsEvent {
   projectId: string;
@@ -18,10 +18,8 @@ interface WsManager {
   disconnect: () => void;
 }
 
-let _wsAuthFailure: (() => void) | null = null;
-
-/** Register a callback for when WebSocket auth fails (refresh exhausted). */
-export function onWsAuthFailure(cb: () => void) { _wsAuthFailure = cb; }
+const RECONNECT_BASE_MS = 3000;
+const RECONNECT_MAX_MS = 30000;
 
 function createWsManager(): WsManager {
   const handlers = new Set<Handler>();
@@ -29,6 +27,7 @@ function createWsManager(): WsManager {
   let currentProjectId: string | null = null;
   let disposed = false;
   let reconnectTimer: ReturnType<typeof setTimeout>;
+  let reconnectDelay = RECONNECT_BASE_MS;
 
   function doConnect() {
     if (disposed || !currentProjectId) return;
@@ -38,6 +37,7 @@ function createWsManager(): WsManager {
 
     ws.onopen = () => {
       console.log('[ws] connected to', url);
+      reconnectDelay = RECONNECT_BASE_MS;
     };
 
     ws.onmessage = (e) => {
@@ -56,15 +56,25 @@ function createWsManager(): WsManager {
       if (!disposed && currentProjectId) {
         reconnectTimer = setTimeout(async () => {
           if (disposed) return;
-          const refreshed = await tryRefresh();
-          if (disposed) return;
-          if (refreshed) {
-            doConnect();
-          } else {
-            console.log('[ws] refresh failed, stopping reconnect');
-            if (_wsAuthFailure) _wsAuthFailure();
+          try {
+            // Try refresh — distinguish network errors from auth rejection
+            const res = await fetch('/api/auth/refresh', { method: 'POST', credentials: 'include' });
+            if (disposed) return;
+            if (res.ok) {
+              doConnect();
+              return;
+            }
+            // Server responded but rejected → real auth failure
+            console.log('[ws] refresh rejected, auth failure');
+            triggerAuthFailure();
+          } catch {
+            // Network error (server down) — retry with backoff
+            if (disposed) return;
+            console.log(`[ws] server unreachable, retry in ${reconnectDelay / 1000}s`);
+            reconnectDelay = Math.min(reconnectDelay * 2, RECONNECT_MAX_MS);
+            reconnectTimer = setTimeout(() => { if (!disposed) doConnect(); }, reconnectDelay);
           }
-        }, 3000);
+        }, reconnectDelay);
       }
     };
   }

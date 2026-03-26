@@ -114,14 +114,14 @@ export function verifyToken(token: string, secret: string): JwtPayload | null {
 const ACCESS_COOKIE = 'mgm_access';
 const REFRESH_COOKIE = 'mgm_refresh';
 
-export function setAuthCookies(res: Response, accessToken: string, refreshToken: string, accessTtl: string, refreshTtl: string, secureCookie?: boolean): void {
+export function setAuthCookies(res: Response, accessToken: string, refreshToken: string, refreshTtl: string, secureCookie?: boolean): void {
   const secure = secureCookie ?? process.env.NODE_ENV !== 'development';
   res.cookie(ACCESS_COOKIE, accessToken, {
     httpOnly: true,
     secure,
     sameSite: 'strict',
     path: '/api',
-    maxAge: parseTtl(accessTtl) * 1000,
+    maxAge: parseTtl(refreshTtl) * 1000,
   });
   res.cookie(REFRESH_COOKIE, refreshToken, {
     httpOnly: true,

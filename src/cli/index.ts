@@ -366,11 +366,11 @@ usersCmd
     // Validate config loads
     const mc = loadMultiConfig(configPath);
 
-    const rl = readline.createInterface({ input: process.stdin, output: process.stderr });
+    let rl = readline.createInterface({ input: process.stdin, output: process.stderr });
     const ask = (q: string): Promise<string> => new Promise(resolve => rl.question(q, resolve));
     const askHidden = (q: string): Promise<string> => new Promise(resolve => {
-      // Pause readline so it doesn't echo characters while we read in raw mode
-      rl.pause();
+      // Close readline completely so it cannot echo characters
+      rl.close();
       process.stderr.write(q);
       const stdin = process.stdin;
       const wasRaw = stdin.isRaw;
@@ -383,7 +383,8 @@ usersCmd
           if (stdin.isTTY) stdin.setRawMode(wasRaw ?? false);
           stdin.removeListener('data', onData);
           process.stderr.write('\n');
-          rl.resume();
+          // Recreate readline for any subsequent ask() calls
+          rl = readline.createInterface({ input: process.stdin, output: process.stderr });
           resolve(input);
         } else if (c === '\u0003') {
           // Ctrl+C

@@ -95,7 +95,7 @@ describe('setAuthCookies secureCookie parameter', () => {
     const accessToken = signAccessToken('alice', 'test-secret-key-16+', '15m');
     const refreshToken = signRefreshToken('alice', 'test-secret-key-16+', '7d');
 
-    setAuthCookies(fakeRes, accessToken, refreshToken, '15m', '7d', false);
+    setAuthCookies(fakeRes, accessToken, refreshToken, '7d', false);
 
     expect(cookies).toHaveLength(2);
     expect(cookies[0].options.secure).toBe(false);
@@ -113,7 +113,7 @@ describe('setAuthCookies secureCookie parameter', () => {
     const accessToken = signAccessToken('alice', 'test-secret-key-16+', '15m');
     const refreshToken = signRefreshToken('alice', 'test-secret-key-16+', '7d');
 
-    setAuthCookies(fakeRes, accessToken, refreshToken, '15m', '7d', true);
+    setAuthCookies(fakeRes, accessToken, refreshToken, '7d', true);
 
     expect(cookies).toHaveLength(2);
     expect(cookies[0].options.secure).toBe(true);
@@ -131,7 +131,7 @@ describe('setAuthCookies secureCookie parameter', () => {
     const accessToken = signAccessToken('alice', 'test-secret-key-16+', '15m');
     const refreshToken = signRefreshToken('alice', 'test-secret-key-16+', '7d');
 
-    setAuthCookies(fakeRes, accessToken, refreshToken, '15m', '7d');
+    setAuthCookies(fakeRes, accessToken, refreshToken, '7d');
 
     expect(cookies).toHaveLength(2);
     // In test environment, NODE_ENV is 'test' (not 'development'), so secure defaults to true

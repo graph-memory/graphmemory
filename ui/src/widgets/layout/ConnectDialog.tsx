@@ -9,6 +9,8 @@ import CheckIcon from '@mui/icons-material/Check'
 import TerminalIcon from '@mui/icons-material/Terminal'
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile'
 import { useState, useCallback } from 'react'
+import { checkAuthStatus } from '@/entities/project/api.ts'
+import { request } from '@/shared/api/client.ts'
 
 interface ConnectDialogProps {
   open: boolean
@@ -102,14 +104,11 @@ export function ConnectDialog({ open, onClose, projectId }: ConnectDialogProps) 
 
   useEffect(() => {
     if (!open) return
-    fetch('/api/auth/status', { credentials: 'include' })
-      .then(r => r.json())
+    checkAuthStatus()
       .then(data => {
         setAuthRequired(data.required === true)
         if (data.authenticated) {
-          // Fetch API key from dedicated endpoint (not exposed in /status)
-          fetch('/api/auth/apikey', { credentials: 'include' })
-            .then(r => r.ok ? r.json() : null)
+          request<{ apiKey: string | null }>('/auth/apikey')
             .then(d => { if (d?.apiKey) setApiKey(d.apiKey) })
             .catch(() => {})
         }

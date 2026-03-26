@@ -1,4 +1,4 @@
-import { request, unwrapList, type ListResponse } from '@/shared/api/client.ts';
+import { request, tryRefresh, unwrapList, type ListResponse } from '@/shared/api/client.ts';
 
 export interface GraphInfo {
   enabled: boolean;
@@ -59,5 +59,13 @@ export interface AuthStatus {
 
 export async function checkAuthStatus(): Promise<AuthStatus> {
   const res = await fetch('/api/auth/status', { credentials: 'include' });
-  return res.json();
+  const data: AuthStatus = await res.json();
+  if (data.required && !data.authenticated) {
+    const refreshed = await tryRefresh();
+    if (refreshed) {
+      const res2 = await fetch('/api/auth/status', { credentials: 'include' });
+      return res2.json();
+    }
+  }
+  return data;
 }

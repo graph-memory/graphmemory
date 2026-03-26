@@ -1,4 +1,4 @@
-import { request, qs, unwrapList, type ListResponse } from '@/shared/api/client.ts';
+import { request, requestUpload, qs, unwrapList, type ListResponse } from '@/shared/api/client.ts';
 
 export type TaskStatus = 'backlog' | 'todo' | 'in_progress' | 'review' | 'done' | 'cancelled';
 export type TaskPriority = 'critical' | 'high' | 'medium' | 'low';
@@ -106,16 +106,7 @@ export function listTaskAttachments(projectId: string, taskId: string) {
 export async function uploadTaskAttachment(projectId: string, taskId: string, file: File): Promise<AttachmentMeta> {
   const form = new FormData();
   form.append('file', file);
-  const res = await fetch(`/api/projects/${projectId}/tasks/${taskId}/attachments`, {
-    method: 'POST',
-    credentials: 'include',
-    body: form,
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(body.error || res.statusText);
-  }
-  return res.json();
+  return requestUpload<AttachmentMeta>(`/projects/${projectId}/tasks/${taskId}/attachments`, form);
 }
 
 export function deleteTaskAttachment(projectId: string, taskId: string, filename: string) {

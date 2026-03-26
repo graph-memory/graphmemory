@@ -1,4 +1,4 @@
-import { request, qs, unwrapList, type ListResponse } from '@/shared/api/client.ts';
+import { request, requestUpload, qs, unwrapList, type ListResponse } from '@/shared/api/client.ts';
 
 export interface AttachmentMeta {
   filename: string;
@@ -133,16 +133,7 @@ export function listSkillAttachments(projectId: string, skillId: string) {
 export async function uploadSkillAttachment(projectId: string, skillId: string, file: File): Promise<AttachmentMeta> {
   const form = new FormData();
   form.append('file', file);
-  const res = await fetch(`/api/projects/${projectId}/skills/${skillId}/attachments`, {
-    method: 'POST',
-    credentials: 'include',
-    body: form,
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(body.error || res.statusText);
-  }
-  return res.json();
+  return requestUpload<AttachmentMeta>(`/projects/${projectId}/skills/${skillId}/attachments`, form);
 }
 
 export function deleteSkillAttachment(projectId: string, skillId: string, filename: string) {

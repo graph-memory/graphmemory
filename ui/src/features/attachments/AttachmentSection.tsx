@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Box, Typography, IconButton, Tooltip, CircularProgress,
   ImageList, ImageListItem, ImageListItemBar,
@@ -10,6 +10,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import { ConfirmDialog } from '@/shared/ui/index.ts';
+import { tryRefresh } from '@/shared/api/client.ts';
 
 export interface AttachmentMeta {
   filename: string;
@@ -34,6 +35,68 @@ function formatSize(bytes: number): string {
 
 function isImage(mimeType: string): boolean {
   return mimeType.startsWith('image/');
+}
+
+/** Fetch an authenticated URL as a blob URL, with 401→refresh→retry. */
+function useAuthBlobUrl(url: string): string | null {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const objectUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    let revoked = false;
+
+    async function load() {
+      let res = await fetch(url, { credentials: 'include' });
+      if (res.status === 401) {
+        const ok = await tryRefresh();
+        if (ok) res = await fetch(url, { credentials: 'include' });
+      }
+      if (!res.ok || revoked) return;
+      const blob = await res.blob();
+      if (revoked) return;
+      const newUrl = URL.createObjectURL(blob);
+      objectUrlRef.current = newUrl;
+      setBlobUrl(newUrl);
+    }
+
+    load();
+    return () => {
+      revoked = true;
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = null;
+      }
+    };
+  }, [url]);
+
+  return blobUrl;
+}
+
+function AuthImage({ src, alt, style }: { src: string; alt: string; style?: React.CSSProperties }) {
+  const blobUrl = useAuthBlobUrl(src);
+  if (!blobUrl) {
+    return (
+      <Box sx={{ width: '100%', height: 140, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <CircularProgress size={20} />
+      </Box>
+    );
+  }
+  return <img src={blobUrl} alt={alt} style={style} />;
+}
+
+async function authDownload(url: string, filename: string) {
+  let res = await fetch(url, { credentials: 'include' });
+  if (res.status === 401) {
+    const ok = await tryRefresh();
+    if (ok) res = await fetch(url, { credentials: 'include' });
+  }
+  if (!res.ok) throw new Error('Download failed');
+  const blob = await res.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 export function AttachmentSection({ attachments, getUrl, onUpload, onDelete, readOnly }: AttachmentSectionProps) {
@@ -90,14 +153,11 @@ export function AttachmentSection({ attachments, getUrl, onUpload, onDelete, rea
         <ImageList cols={3} gap={8} sx={{ mb: 2 }}>
           {images.map(img => (
             <ImageListItem key={img.filename} sx={{ borderRadius: 1, overflow: 'hidden', border: `1px solid ${palette.divider}` }}>
-              <a href={getUrl(img.filename)} target="_blank" rel="noopener noreferrer">
-                <img
-                  src={getUrl(img.filename)}
-                  alt={img.filename}
-                  loading="lazy"
-                  style={{ width: '100%', height: 140, objectFit: 'cover', display: 'block' }}
-                />
-              </a>
+              <AuthImage
+                src={getUrl(img.filename)}
+                alt={img.filename}
+                style={{ width: '100%', height: 140, objectFit: 'cover', display: 'block', cursor: 'pointer' }}
+              />
               <ImageListItemBar
                 title={img.filename}
                 subtitle={formatSize(img.size)}
@@ -128,7 +188,7 @@ export function AttachmentSection({ attachments, getUrl, onUpload, onDelete, rea
               />
               <ListItemSecondaryAction>
                 <Tooltip title="Download">
-                  <IconButton size="small" href={getUrl(f.filename)} download={f.filename}>
+                  <IconButton size="small" onClick={() => authDownload(getUrl(f.filename), f.filename)}>
                     <DownloadIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>

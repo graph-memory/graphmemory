@@ -4,6 +4,7 @@ import {
   Box, Card, CardContent, TextField, Button, Typography, Alert,
   CircularProgress, Divider,
 } from '@mui/material';
+import { checkAuthStatus } from '@/entities/project/api.ts';
 
 type Stage = 'checking' | 'login' | 'consent' | 'connecting' | 'error';
 
@@ -31,9 +32,7 @@ export default function AuthorizePage() {
 
   const checkSession = useCallback(async () => {
     try {
-      const res = await fetch('/api/auth/status', { credentials: 'include' });
-      if (!res.ok) { setStage('login'); return; }
-      const data = await res.json();
+      const data = await checkAuthStatus();
       if (data.authenticated) {
         setStage('consent');
       } else {

@@ -188,7 +188,7 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
 
     const accessToken = signAccessToken(result.userId, jwtSecret, accessTokenTtl);
     const refreshToken = signRefreshToken(result.userId, jwtSecret, refreshTokenTtl);
-    setAuthCookies(res, accessToken, refreshToken, accessTokenTtl, refreshTokenTtl, cookieSecure);
+    setAuthCookies(res, accessToken, refreshToken, refreshTokenTtl, cookieSecure);
 
     res.json({ userId: result.userId, name: result.user.name });
   });
@@ -217,7 +217,7 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
 
     const newAccessToken = signAccessToken(payload.userId, jwtSecret, accessTokenTtl);
     const newRefreshToken = signRefreshToken(payload.userId, jwtSecret, refreshTokenTtl);
-    setAuthCookies(res, newAccessToken, newRefreshToken, accessTokenTtl, refreshTokenTtl, cookieSecure);
+    setAuthCookies(res, newAccessToken, newRefreshToken, refreshTokenTtl, cookieSecure);
 
     res.json({ userId: payload.userId, name: users[payload.userId].name });
   });
@@ -237,6 +237,7 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
   if (hasUsers) {
     app.use('/api/', (req, _res, next) => {
       // 1. Cookie JWT (from UI login)
+      let hasExpiredCookie = false;
       if (jwtSecret) {
         const accessToken = getAccessToken(req);
         if (accessToken) {
@@ -246,7 +247,8 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
             (req as any).user = users[payload.userId];
             return next();
           }
-          // Invalid/expired JWT cookie — don't reject, fall through to Bearer
+          // Invalid/expired JWT cookie — try Bearer, otherwise 401
+          hasExpiredCookie = true;
         }
       }
 
@@ -264,7 +266,12 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
         return _res.status(401).json({ error: 'Invalid API key' });
       }
 
-      // 3. No auth = anonymous (uses defaultAccess)
+      // 3. Expired cookie without Bearer = 401 (triggers client-side refresh)
+      if (hasExpiredCookie) {
+        return _res.status(401).json({ error: 'Token expired' });
+      }
+
+      // 4. No auth = anonymous (uses defaultAccess)
       next();
     });
   }

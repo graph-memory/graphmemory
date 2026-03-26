@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { Box, CircularProgress } from '@mui/material';
 import { Navigate, useLocation } from 'react-router-dom';
 import { onAuthFailure } from '@/shared/api/client.ts';
+import { onWsAuthFailure } from '@/shared/lib/useWebSocket.ts';
 import { checkAuthStatus } from '@/entities/project/api.ts';
 
 export default function AuthGate({ children }: { children: ReactNode }) {
@@ -27,9 +28,10 @@ export default function AuthGate({ children }: { children: ReactNode }) {
 
   useEffect(() => { check(); }, [check]);
 
-  // Register auth failure handler — when refresh token expires, redirect to login
+  // Register auth failure handlers — when refresh token expires, redirect to login
   useEffect(() => {
     onAuthFailure(() => setState('login'));
+    onWsAuthFailure(() => setState('login'));
   }, []);
 
   // Always render auth pages directly, bypassing the gate

@@ -1,5 +1,6 @@
 import { useEffect, useRef, createContext, useContext, type ReactNode } from 'react';
 import { createElement } from 'react';
+import { tryRefresh } from '@/shared/api/client.ts';
 
 export interface WsEvent {
   projectId: string;
@@ -16,6 +17,11 @@ interface WsManager {
   connect: (projectId: string) => void;
   disconnect: () => void;
 }
+
+let _wsAuthFailure: (() => void) | null = null;
+
+/** Register a callback for when WebSocket auth fails (refresh exhausted). */
+export function onWsAuthFailure(cb: () => void) { _wsAuthFailure = cb; }
 
 function createWsManager(): WsManager {
   const handlers = new Set<Handler>();
@@ -48,7 +54,17 @@ function createWsManager(): WsManager {
     ws.onclose = (e) => {
       console.log('[ws] closed, code:', e.code, 'reason:', e.reason);
       if (!disposed && currentProjectId) {
-        reconnectTimer = setTimeout(doConnect, 3000);
+        reconnectTimer = setTimeout(async () => {
+          if (disposed) return;
+          const refreshed = await tryRefresh();
+          if (disposed) return;
+          if (refreshed) {
+            doConnect();
+          } else {
+            console.log('[ws] refresh failed, stopping reconnect');
+            if (_wsAuthFailure) _wsAuthFailure();
+          }
+        }, 3000);
       }
     };
   }

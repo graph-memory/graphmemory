@@ -18,6 +18,10 @@ export function useGraphAccess(graphName: string): { enabled: boolean; readonly:
   return { enabled: info?.enabled ?? true, readonly: info?.readonly ?? false, access: info?.access ?? 'rw', loading };
 }
 
+export function useAccess(): AccessContextValue {
+  return useContext(AccessContext);
+}
+
 export function useCanWrite(graphName: string): boolean {
   const { access, readonly } = useGraphAccess(graphName);
   return access === 'rw' && !readonly;

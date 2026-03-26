@@ -179,7 +179,8 @@ export default function Layout() {
         {NAV_ITEMS.filter(({ path }) => {
           const gn = NAV_GRAPH_MAP[path];
           if (!gn || !currentProject?.graphs) return true;
-          return currentProject.graphs[gn]?.enabled !== false;
+          const g = currentProject.graphs[gn];
+          return g?.enabled !== false && g?.access !== 'deny';
         }).map(({ label, icon, path }) => {
           const currentPage = location.pathname.split('/').filter(Boolean)[1] || '';
           const active = currentPage === path;

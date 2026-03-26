@@ -5,13 +5,15 @@ let _onAuthFailure: (() => void) | null = null;
 /** Register a callback for when auth fails (refresh exhausted). Called by AuthGate. */
 export function onAuthFailure(cb: () => void) { _onAuthFailure = cb; }
 
+let _refreshPromise: Promise<boolean> | null = null;
+
 async function tryRefresh(): Promise<boolean> {
-  try {
-    const res = await fetch(`${BASE}/auth/refresh`, { method: 'POST', credentials: 'include' });
-    return res.ok;
-  } catch {
-    return false;
-  }
+  if (_refreshPromise) return _refreshPromise;
+  _refreshPromise = fetch(`${BASE}/auth/refresh`, { method: 'POST', credentials: 'include' })
+    .then(res => res.ok)
+    .catch(() => false)
+    .finally(() => { _refreshPromise = null; });
+  return _refreshPromise;
 }
 
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {

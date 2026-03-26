@@ -18,6 +18,7 @@ import { listTasks, type Task } from '@/entities/task/index.ts';
 import { useWebSocket } from '@/shared/lib/useWebSocket.ts';
 import { PageTopBar, Section, StatusBadge } from '@/shared/ui/index.ts';
 import { STATUS_BADGE_COLOR, statusLabel } from '@/entities/task/index.ts';
+import { useAccess } from '@/shared/lib/AccessContext.tsx';
 
 interface StatCard {
   label: string;
@@ -25,12 +26,19 @@ interface StatCard {
   icon: React.ReactNode;
   path: string;
   color: string;
+  graph: string;
 }
 
 export default function DashboardPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const { palette } = useTheme();
+  const { graphs } = useAccess();
+
+  const canReadGraph = (gn: string) => {
+    const g = graphs[gn];
+    return g?.enabled !== false && g?.access !== 'deny' && g?.access !== null;
+  };
 
   const [stats, setStats] = useState<ProjectDetailedStats | null>(null);
   const [recentNotes, setRecentNotes] = useState<Note[]>([]);
@@ -69,21 +77,22 @@ export default function DashboardPage() {
     return <Alert severity="error">{error}</Alert>;
   }
 
-  const statCards: StatCard[] = [
-    { label: 'Notes', value: stats?.knowledge?.nodes ?? 0, icon: <LightbulbIcon />, path: 'knowledge', color: palette.warning.main },
-    { label: 'Tasks', value: stats?.tasks?.nodes ?? 0, icon: <ViewKanbanIcon />, path: 'tasks', color: palette.primary.main },
-    { label: 'Skills', value: (stats as Record<string, any>)?.skills?.nodes ?? 0, icon: <PsychologyIcon />, path: 'skills', color: '#9c27b0' },
-    { label: 'Docs', value: stats?.docs?.nodes ?? 0, icon: <DescriptionIcon />, path: 'docs', color: palette.secondary.main },
-    { label: 'Code Symbols', value: stats?.code?.nodes ?? 0, icon: <CodeIcon />, path: 'search', color: palette.error.main },
-    { label: 'Files', value: stats?.fileIndex?.nodes ?? 0, icon: <FolderIcon />, path: 'files', color: palette.success.main },
+  const allStatCards: StatCard[] = [
+    { label: 'Notes', value: stats?.knowledge?.nodes ?? 0, icon: <LightbulbIcon />, path: 'knowledge', graph: 'knowledge', color: palette.warning.main },
+    { label: 'Tasks', value: stats?.tasks?.nodes ?? 0, icon: <ViewKanbanIcon />, path: 'tasks', graph: 'tasks', color: palette.primary.main },
+    { label: 'Skills', value: (stats as Record<string, any>)?.skills?.nodes ?? 0, icon: <PsychologyIcon />, path: 'skills', graph: 'skills', color: '#9c27b0' },
+    { label: 'Docs', value: stats?.docs?.nodes ?? 0, icon: <DescriptionIcon />, path: 'docs', graph: 'docs', color: palette.secondary.main },
+    { label: 'Code Symbols', value: stats?.code?.nodes ?? 0, icon: <CodeIcon />, path: 'search', graph: 'code', color: palette.error.main },
+    { label: 'Files', value: stats?.fileIndex?.nodes ?? 0, icon: <FolderIcon />, path: 'files', graph: 'files', color: palette.success.main },
   ];
+  const statCards = allStatCards.filter(c => canReadGraph(c.graph));
 
   return (
     <Box>
       <PageTopBar breadcrumbs={[{ label: 'Dashboard' }]} />
 
       {/* Stat cards */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(6, 1fr)' }, gap: 2, mb: 3 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: `repeat(${Math.min(statCards.length, 6)}, 1fr)` }, gap: 2, mb: 3 }}>
         {statCards.map(card => (
           <Card
             key={card.label}
@@ -107,76 +116,80 @@ export default function DashboardPage() {
       {/* Main area: recent notes + recent tasks */}
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
         {/* Recent Notes */}
-        <Section
-          title="Recent Notes"
-          action={
-            <Button size="small" endIcon={<ArrowForwardIcon />} onClick={() => navigate(`/${projectId}/knowledge`)}>
-              View all
-            </Button>
-          }
-        >
-          {recentNotes.length === 0 ? (
-            <Typography variant="body2" sx={{ color: palette.custom.textMuted }}>No notes yet</Typography>
-          ) : (
-            <List dense disablePadding>
-              {recentNotes.map(note => (
-                <ListItemButton
-                  key={note.id}
-                  onClick={() => navigate(`/${projectId}/knowledge/${note.id}`)}
-                  sx={{ borderRadius: 1, py: 0.5 }}
-                >
-                  <ListItemIcon sx={{ minWidth: 32 }}>
-                    <LightbulbIcon fontSize="small" sx={{ color: palette.warning.main }} />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={<Typography variant="body2" fontWeight={500}>{note.title}</Typography>}
-                    secondary={note.content ? note.content.slice(0, 60) + (note.content.length > 60 ? '...' : '') : undefined}
-                  />
-                </ListItemButton>
-              ))}
-            </List>
-          )}
-          <Box sx={{ mt: 1.5 }}>
-            <Button size="small" startIcon={<AddIcon />} onClick={() => navigate(`/${projectId}/knowledge/new`)}>
-              New Note
-            </Button>
-          </Box>
-        </Section>
+        {canReadGraph('knowledge') && (
+          <Section
+            title="Recent Notes"
+            action={
+              <Button size="small" endIcon={<ArrowForwardIcon />} onClick={() => navigate(`/${projectId}/knowledge`)}>
+                View all
+              </Button>
+            }
+          >
+            {recentNotes.length === 0 ? (
+              <Typography variant="body2" sx={{ color: palette.custom.textMuted }}>No notes yet</Typography>
+            ) : (
+              <List dense disablePadding>
+                {recentNotes.map(note => (
+                  <ListItemButton
+                    key={note.id}
+                    onClick={() => navigate(`/${projectId}/knowledge/${note.id}`)}
+                    sx={{ borderRadius: 1, py: 0.5 }}
+                  >
+                    <ListItemIcon sx={{ minWidth: 32 }}>
+                      <LightbulbIcon fontSize="small" sx={{ color: palette.warning.main }} />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={<Typography variant="body2" fontWeight={500}>{note.title}</Typography>}
+                      secondary={note.content ? note.content.slice(0, 60) + (note.content.length > 60 ? '...' : '') : undefined}
+                    />
+                  </ListItemButton>
+                ))}
+              </List>
+            )}
+            <Box sx={{ mt: 1.5 }}>
+              <Button size="small" startIcon={<AddIcon />} onClick={() => navigate(`/${projectId}/knowledge/new`)}>
+                New Note
+              </Button>
+            </Box>
+          </Section>
+        )}
 
         {/* Recent Tasks */}
-        <Section
-          title="Recent Tasks"
-          action={
-            <Button size="small" endIcon={<ArrowForwardIcon />} onClick={() => navigate(`/${projectId}/tasks`)}>
-              View all
-            </Button>
-          }
-        >
-          {recentTasks.length === 0 ? (
-            <Typography variant="body2" sx={{ color: palette.custom.textMuted }}>No tasks yet</Typography>
-          ) : (
-            <List dense disablePadding>
-              {recentTasks.map(task => (
-                <ListItemButton
-                  key={task.id}
-                  onClick={() => navigate(`/${projectId}/tasks/${task.id}`)}
-                  sx={{ borderRadius: 1, py: 0.75, px: 1.5 }}
-                >
-                  <ListItemText
-                    primary={<Typography variant="body2" fontWeight={500} noWrap>{task.title}</Typography>}
-                    sx={{ mr: 2 }}
-                  />
-                  <StatusBadge label={statusLabel(task.status)} color={STATUS_BADGE_COLOR[task.status]} size="small" />
-                </ListItemButton>
-              ))}
-            </List>
-          )}
-          <Box sx={{ mt: 1.5 }}>
-            <Button size="small" startIcon={<AddIcon />} onClick={() => navigate(`/${projectId}/tasks/new`)}>
-              New Task
-            </Button>
-          </Box>
-        </Section>
+        {canReadGraph('tasks') && (
+          <Section
+            title="Recent Tasks"
+            action={
+              <Button size="small" endIcon={<ArrowForwardIcon />} onClick={() => navigate(`/${projectId}/tasks`)}>
+                View all
+              </Button>
+            }
+          >
+            {recentTasks.length === 0 ? (
+              <Typography variant="body2" sx={{ color: palette.custom.textMuted }}>No tasks yet</Typography>
+            ) : (
+              <List dense disablePadding>
+                {recentTasks.map(task => (
+                  <ListItemButton
+                    key={task.id}
+                    onClick={() => navigate(`/${projectId}/tasks/${task.id}`)}
+                    sx={{ borderRadius: 1, py: 0.75, px: 1.5 }}
+                  >
+                    <ListItemText
+                      primary={<Typography variant="body2" fontWeight={500} noWrap>{task.title}</Typography>}
+                      sx={{ mr: 2 }}
+                    />
+                    <StatusBadge label={statusLabel(task.status)} color={STATUS_BADGE_COLOR[task.status]} size="small" />
+                  </ListItemButton>
+                ))}
+              </List>
+            )}
+            <Box sx={{ mt: 1.5 }}>
+              <Button size="small" startIcon={<AddIcon />} onClick={() => navigate(`/${projectId}/tasks/new`)}>
+                New Task
+              </Button>
+            </Box>
+          </Section>
+        )}
       </Box>
     </Box>
   );

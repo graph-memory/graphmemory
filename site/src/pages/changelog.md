@@ -5,6 +5,20 @@ description: Graph Memory release history and version changes.
 
 # Changelog
 
+## v1.8.1
+
+**March 2026**
+
+### Fixes
+
+- **ACL enforcement on project/workspace listing** — `GET /api/projects` now hides projects where the user has no read access to any graph; previously all projects were returned to all users
+- **ACL enforcement on stats endpoints** — `GET /api/projects/:id/stats` returns `null` for graphs the user cannot read; `GET /api/projects` stats zeroed for denied graphs
+- **Workspace listing filtered by access** — `GET /api/workspaces` only returns workspaces (and projects within) that the user can access
+- **Concurrent token refresh deduplication** — multiple parallel 401 responses now share a single refresh request instead of firing one per failed call
+- **UI respects graph access** — navigation sidebar, dashboard stat cards, and Recent Notes/Tasks sections hidden for denied graphs
+
+---
+
 ## v1.8.0
 
 **March 2026**

@@ -926,6 +926,261 @@ describe('REST API — Auth & ACL', () => {
 });
 
 // ---------------------------------------------------------------------------
+// ACL filtering tests — projects, stats, workspaces
+// ---------------------------------------------------------------------------
+
+describe('REST API — ACL filtering', () => {
+  const serverBase = {
+    host: '127.0.0.1' as const, port: 3000, sessionTimeout: 1800,
+    modelsDir: '/tmp/models',
+    model: { ...TEST_MODEL },
+    embedding: { ...TEST_EMBEDDING },
+    accessTokenTtl: '15m', refreshTokenTtl: '7d',
+    rateLimit: { global: 0, search: 0, auth: 0 }, maxFileSize: 1048576, exclude: [] as string[],
+    redis: { enabled: false, url: 'redis://localhost:6379', prefix: 'mgm:', embeddingCacheTtl: '30d' },
+    oauth: { enabled: true, accessTokenTtl: '1h', refreshTokenTtl: '7d', authCodeTtl: '10m' },
+  };
+
+  const users = {
+    alice: { name: 'Alice', email: 'alice@test.com', apiKey: 'key-alice' },
+    bob: { name: 'Bob', email: 'bob@test.com', apiKey: 'key-bob' },
+  };
+
+  function makeProjectWithAccess(access?: Record<string, string>): ProjectInstance {
+    const p = createTestProject();
+    if (access) (p.config as any).access = access;
+    return p;
+  }
+
+  describe('GET /api/projects — hides denied projects', () => {
+    it('user with access sees the project', async () => {
+      const project = makeProjectWithAccess({ alice: 'rw' });
+      const manager = {
+        getProject: (id: string) => id === 'test' ? project : undefined,
+        listProjects: () => ['test'],
+        listWorkspaces: () => [],
+        getWorkspace: () => undefined,
+      } as unknown as ProjectManager;
+
+      const app = createRestApp(manager, {
+        serverConfig: { ...serverBase, defaultAccess: 'deny' as const },
+        users,
+      });
+
+      const res = await request(app).get('/api/projects').set('Authorization', 'Bearer key-alice');
+      expect(res.status).toBe(200);
+      expect(res.body.results).toHaveLength(1);
+      expect(res.body.results[0].id).toBe('test');
+    });
+
+    it('user without access does not see the project', async () => {
+      const project = makeProjectWithAccess({ alice: 'rw' });
+      const manager = {
+        getProject: (id: string) => id === 'test' ? project : undefined,
+        listProjects: () => ['test'],
+        listWorkspaces: () => [],
+        getWorkspace: () => undefined,
+      } as unknown as ProjectManager;
+
+      const app = createRestApp(manager, {
+        serverConfig: { ...serverBase, defaultAccess: 'deny' as const },
+        users,
+      });
+
+      const res = await request(app).get('/api/projects').set('Authorization', 'Bearer key-bob');
+      expect(res.status).toBe(200);
+      expect(res.body.results).toHaveLength(0);
+    });
+
+    it('anonymous with defaultAccess=deny sees no projects', async () => {
+      const project = makeProjectWithAccess({ alice: 'rw' });
+      const manager = {
+        getProject: (id: string) => id === 'test' ? project : undefined,
+        listProjects: () => ['test'],
+        listWorkspaces: () => [],
+        getWorkspace: () => undefined,
+      } as unknown as ProjectManager;
+
+      const app = createRestApp(manager, {
+        serverConfig: { ...serverBase, defaultAccess: 'deny' as const },
+        users,
+      });
+
+      const res = await request(app).get('/api/projects');
+      expect(res.status).toBe(200);
+      expect(res.body.results).toHaveLength(0);
+    });
+  });
+
+  describe('GET /api/projects — stats respect per-graph ACL', () => {
+    it('stats are 0 for denied graphs, populated for allowed graphs', async () => {
+      const project = makeProjectWithAccess();
+      // Give alice rw on knowledge only via graph-level access
+      (project.config.graphConfigs as any).knowledge.access = { alice: 'rw' };
+      // Add a note to knowledge graph so count > 0
+      await project.knowledgeManager!.createNote('Test', 'data');
+
+      const manager = {
+        getProject: (id: string) => id === 'test' ? project : undefined,
+        listProjects: () => ['test'],
+        listWorkspaces: () => [],
+        getWorkspace: () => undefined,
+      } as unknown as ProjectManager;
+
+      const app = createRestApp(manager, {
+        serverConfig: { ...serverBase, defaultAccess: 'deny' as const },
+        users,
+      });
+
+      const res = await request(app).get('/api/projects').set('Authorization', 'Bearer key-alice');
+      expect(res.status).toBe(200);
+      expect(res.body.results).toHaveLength(1);
+      const proj = res.body.results[0];
+      // Knowledge graph has access — stats should be > 0
+      expect(proj.stats.knowledge).toBeGreaterThan(0);
+      expect(proj.graphs.knowledge.access).toBe('rw');
+      // Other graphs are denied — stats should be 0
+      expect(proj.stats.tasks).toBe(0);
+      expect(proj.graphs.tasks.access).toBe('deny');
+    });
+  });
+
+  describe('GET /api/projects/:id/stats — hides denied graphs', () => {
+    it('returns null for graphs the user cannot read', async () => {
+      const project = makeProjectWithAccess();
+      (project.config.graphConfigs as any).knowledge.access = { alice: 'rw' };
+
+      const manager = {
+        getProject: (id: string) => id === 'test' ? project : undefined,
+        listProjects: () => ['test'],
+        listWorkspaces: () => [],
+        getWorkspace: () => undefined,
+      } as unknown as ProjectManager;
+
+      const app = createRestApp(manager, {
+        serverConfig: { ...serverBase, defaultAccess: 'deny' as const },
+        users,
+      });
+
+      const res = await request(app).get('/api/projects/test/stats').set('Authorization', 'Bearer key-alice');
+      expect(res.status).toBe(200);
+      // Knowledge is allowed — should have stats object
+      expect(res.body.knowledge).toBeDefined();
+      expect(res.body.knowledge).not.toBeNull();
+      // Tasks/docs/code/skills/fileIndex are denied — should be null
+      expect(res.body.tasks).toBeNull();
+      expect(res.body.docs).toBeNull();
+      expect(res.body.code).toBeNull();
+      expect(res.body.skills).toBeNull();
+      expect(res.body.fileIndex).toBeNull();
+    });
+
+    it('returns all stats when user has full access', async () => {
+      const project = makeProjectWithAccess({ alice: 'rw' });
+      const manager = {
+        getProject: (id: string) => id === 'test' ? project : undefined,
+        listProjects: () => ['test'],
+        listWorkspaces: () => [],
+        getWorkspace: () => undefined,
+      } as unknown as ProjectManager;
+
+      const app = createRestApp(manager, {
+        serverConfig: { ...serverBase, defaultAccess: 'deny' as const },
+        users,
+      });
+
+      const res = await request(app).get('/api/projects/test/stats').set('Authorization', 'Bearer key-alice');
+      expect(res.status).toBe(200);
+      expect(res.body.knowledge).not.toBeNull();
+      expect(res.body.tasks).not.toBeNull();
+    });
+  });
+
+  describe('GET /api/workspaces — filters by access', () => {
+    it('hides workspaces where user has no accessible projects', async () => {
+      const project = makeProjectWithAccess({ alice: 'rw' });
+      (project as any).workspaceId = 'ws1';
+      const wsConfig = {
+        projects: ['test'],
+        graphMemory: '/tmp/ws',
+        mirrorDir: '/tmp/ws',
+        model: { ...TEST_MODEL },
+        embedding: { ...TEST_EMBEDDING },
+        graphConfigs: Object.fromEntries(
+          ['knowledge', 'tasks', 'skills'].map(g => [g, { enabled: true, readonly: false }]),
+        ),
+        author: { name: '', email: '' },
+      } as any;
+
+      const manager = {
+        getProject: (id: string) => id === 'test' ? project : undefined,
+        listProjects: () => ['test'],
+        listWorkspaces: () => ['ws1'],
+        getWorkspace: (id: string) => id === 'ws1' ? { id: 'ws1', config: wsConfig } : undefined,
+      } as unknown as ProjectManager;
+
+      const app = createRestApp(manager, {
+        serverConfig: { ...serverBase, defaultAccess: 'deny' as const },
+        users,
+      });
+
+      // Alice has access — sees workspace
+      const res1 = await request(app).get('/api/workspaces').set('Authorization', 'Bearer key-alice');
+      expect(res1.status).toBe(200);
+      expect(res1.body.results).toHaveLength(1);
+      expect(res1.body.results[0].id).toBe('ws1');
+      expect(res1.body.results[0].projects).toContain('test');
+
+      // Bob has no access — workspace hidden
+      const res2 = await request(app).get('/api/workspaces').set('Authorization', 'Bearer key-bob');
+      expect(res2.status).toBe(200);
+      expect(res2.body.results).toHaveLength(0);
+    });
+
+    it('filters projects within workspace by access', async () => {
+      const project1 = makeProjectWithAccess({ alice: 'rw' });
+      (project1 as any).workspaceId = 'ws1';
+      (project1 as any).id = 'proj1';
+
+      const project2 = makeProjectWithAccess({ bob: 'rw' });
+      (project2 as any).workspaceId = 'ws1';
+      (project2 as any).id = 'proj2';
+
+      const wsConfig = {
+        projects: ['proj1', 'proj2'],
+        graphMemory: '/tmp/ws',
+        mirrorDir: '/tmp/ws',
+        model: { ...TEST_MODEL },
+        embedding: { ...TEST_EMBEDDING },
+        graphConfigs: Object.fromEntries(
+          ['knowledge', 'tasks', 'skills'].map(g => [g, { enabled: true, readonly: false }]),
+        ),
+        author: { name: '', email: '' },
+      } as any;
+
+      const projects: Record<string, ProjectInstance> = { proj1: project1, proj2: project2 };
+      const manager = {
+        getProject: (id: string) => projects[id],
+        listProjects: () => ['proj1', 'proj2'],
+        listWorkspaces: () => ['ws1'],
+        getWorkspace: (id: string) => id === 'ws1' ? { id: 'ws1', config: wsConfig } : undefined,
+      } as unknown as ProjectManager;
+
+      const app = createRestApp(manager, {
+        serverConfig: { ...serverBase, defaultAccess: 'deny' as const },
+        users,
+      });
+
+      // Alice sees only proj1 in workspace
+      const res = await request(app).get('/api/workspaces').set('Authorization', 'Bearer key-alice');
+      expect(res.status).toBe(200);
+      expect(res.body.results).toHaveLength(1);
+      expect(res.body.results[0].projects).toEqual(['proj1']);
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Embedding API tests
 // ---------------------------------------------------------------------------
 

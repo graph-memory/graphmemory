@@ -288,56 +288,96 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
       const ws = p.workspaceId ? projectManager.getWorkspace(p.workspaceId) : undefined;
 
       // Per-graph info: enabled, readonly, access level for current user
+      // Hide graphs the user cannot read — don't leak enabled/readonly/stats
       const graphs: Record<string, { enabled: boolean; readonly: boolean; access: string | null }> = {};
+      const stats: Record<string, number> = {};
+      const graphInstances: Record<string, any> = {
+        docs: p.docGraph, code: p.codeGraph, knowledge: p.knowledgeGraph,
+        files: p.fileIndexGraph, tasks: p.taskGraph, skills: p.skillGraph,
+      };
       for (const gn of GRAPH_NAMES) {
         let access: string | null = serverConfig
           ? resolveAccess(userId, gn, p.config, serverConfig, ws?.config)
           : 'rw';
         // Cap access for readonly graphs
         if (access === 'rw' && gc[gn].readonly) access = 'r';
-        graphs[gn] = { enabled: gc[gn].enabled, readonly: gc[gn].readonly, access: gc[gn].enabled ? access : null };
+        if (!gc[gn].enabled) {
+          graphs[gn] = { enabled: false, readonly: gc[gn].readonly, access: null };
+          stats[gn] = 0;
+        } else if (canRead(access as any)) {
+          graphs[gn] = { enabled: true, readonly: gc[gn].readonly, access };
+          stats[gn] = graphInstances[gn] ? realNodeCount(graphInstances[gn]) : 0;
+        } else {
+          graphs[gn] = { enabled: true, readonly: gc[gn].readonly, access: 'deny' };
+          stats[gn] = 0;
+        }
       }
 
       return {
         id,
         workspaceId: p.workspaceId ?? null,
         graphs,
-        stats: {
-          docs:      p.docGraph      ? realNodeCount(p.docGraph)      : 0,
-          code:      p.codeGraph     ? realNodeCount(p.codeGraph)     : 0,
-          knowledge: p.knowledgeGraph ? realNodeCount(p.knowledgeGraph) : 0,
-          files:     p.fileIndexGraph ? realNodeCount(p.fileIndexGraph) : 0,
-          tasks:     p.taskGraph     ? realNodeCount(p.taskGraph)     : 0,
-          skills:    p.skillGraph    ? realNodeCount(p.skillGraph)    : 0,
-        },
+        stats,
       };
+    }).filter(p => {
+      // Hide projects where the user has no read access to any enabled graph
+      return GRAPH_NAMES.some(gn => {
+        const g = p.graphs[gn];
+        return g && g.access !== null && canRead(g.access as any);
+      });
     });
     res.json({ results: projects });
   });
 
-  // List workspaces
+  // List workspaces — only return workspaces where the user has access to at least one project
   app.get('/api/workspaces', (_req, res) => {
+    const userId = (_req as any).userId as string | undefined;
     const workspaces = projectManager.listWorkspaces().map(id => {
       const ws = projectManager.getWorkspace(id)!;
-      return {
-        id,
-        projects: ws.config.projects,
-      };
-    });
+      // Filter projects within workspace by user access
+      const accessibleProjects = ws.config.projects.filter(projectId => {
+        const p = projectManager.getProject(projectId);
+        if (!p) return false;
+        return GRAPH_NAMES.some(gn => {
+          const access = serverConfig
+            ? resolveAccess(userId, gn, p.config, serverConfig, ws.config)
+            : 'rw';
+          return canRead(access);
+        });
+      });
+      return { id, projects: accessibleProjects };
+    }).filter(ws => ws.projects.length > 0);
     res.json({ results: workspaces });
   });
 
-  // Project stats
+  // Project stats — only return stats for graphs the user can read
   app.get('/api/projects/:projectId/stats', (req, res) => {
     const p = (req as any).project;
-    res.json({
-      docs:      p.docGraph      ? { nodes: realNodeCount(p.docGraph),      edges: p.docGraph.size }      : null,
-      code:      p.codeGraph     ? { nodes: realNodeCount(p.codeGraph),     edges: p.codeGraph.size }     : null,
-      knowledge: p.knowledgeGraph ? { nodes: realNodeCount(p.knowledgeGraph), edges: p.knowledgeGraph.size } : null,
-      fileIndex: p.fileIndexGraph ? { nodes: realNodeCount(p.fileIndexGraph), edges: p.fileIndexGraph.size } : null,
-      tasks:     p.taskGraph     ? { nodes: realNodeCount(p.taskGraph),      edges: p.taskGraph.size }     : null,
-      skills:    p.skillGraph    ? { nodes: realNodeCount(p.skillGraph),     edges: p.skillGraph.size }    : null,
-    });
+    const userId = (req as any).userId as string | undefined;
+    const ws = p.workspaceId ? projectManager.getWorkspace(p.workspaceId) : undefined;
+
+    const graphData: Record<string, { graph: any; key: string }> = {
+      docs:      { graph: p.docGraph,       key: 'docs' },
+      code:      { graph: p.codeGraph,      key: 'code' },
+      knowledge: { graph: p.knowledgeGraph, key: 'knowledge' },
+      fileIndex: { graph: p.fileIndexGraph, key: 'files' },
+      tasks:     { graph: p.taskGraph,      key: 'tasks' },
+      skills:    { graph: p.skillGraph,     key: 'skills' },
+    };
+
+    const result: Record<string, { nodes: number; edges: number } | null> = {};
+    for (const [outKey, { graph, key: graphName }] of Object.entries(graphData)) {
+      const access = serverConfig
+        ? resolveAccess(userId, graphName as any, p.config, serverConfig, ws?.config)
+        : 'rw';
+      if (!canRead(access)) {
+        result[outKey] = null;
+      } else {
+        result[outKey] = graph ? { nodes: realNodeCount(graph), edges: graph.size } : null;
+      }
+    }
+
+    res.json(result);
   });
 
   // Team members (workspace: shared .team/ in mirrorDir; standalone: .team/ in projectDir)

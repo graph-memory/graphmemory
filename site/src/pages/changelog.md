@@ -5,6 +5,19 @@ description: Graph Memory release history and version changes.
 
 # Changelog
 
+## v1.8.2
+
+**March 2026**
+
+### Fixes
+
+- **Session expiry — 403 instead of 401** — access cookie `maxAge` now matches refresh token TTL so the browser delivers expired JWT cookies to the server; auth middleware returns 401 (triggering client-side refresh) instead of falling through to anonymous 403
+- **Client-side session refresh** — `checkAuthStatus()`, file uploads, attachment images/downloads, and WebSocket reconnect all handle 401→refresh→retry; previously only `request()` wrapper did
+- **WebSocket reconnect on server restart** — WS reconnect now distinguishes network errors (server down → exponential backoff retry) from auth rejection (→ redirect to login); previously any failure kicked to login
+- **CLI password input visibility** — `users add` command no longer echoes password to terminal
+
+---
+
 ## v1.8.1
 
 **March 2026**

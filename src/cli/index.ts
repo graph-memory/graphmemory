@@ -369,10 +369,13 @@ usersCmd
     const rl = readline.createInterface({ input: process.stdin, output: process.stderr });
     const ask = (q: string): Promise<string> => new Promise(resolve => rl.question(q, resolve));
     const askHidden = (q: string): Promise<string> => new Promise(resolve => {
+      // Pause readline so it doesn't echo characters while we read in raw mode
+      rl.pause();
       process.stderr.write(q);
       const stdin = process.stdin;
       const wasRaw = stdin.isRaw;
       if (stdin.isTTY) stdin.setRawMode(true);
+      stdin.resume();
       let input = '';
       const onData = (ch: Buffer) => {
         const c = ch.toString();
@@ -380,6 +383,7 @@ usersCmd
           if (stdin.isTTY) stdin.setRawMode(wasRaw ?? false);
           stdin.removeListener('data', onData);
           process.stderr.write('\n');
+          rl.resume();
           resolve(input);
         } else if (c === '\u0003') {
           // Ctrl+C

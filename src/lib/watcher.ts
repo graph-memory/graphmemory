@@ -78,9 +78,9 @@ export function startWatcher(
     resolveReady();
   });
 
-  watcher.on('error', (err: NodeJS.ErrnoException) => {
+  watcher.on('error', (err: unknown) => {
     // Silently ignore symlink loops — nothing useful to watch there
-    if (err.code === 'ELOOP') return;
+    if (err instanceof Error && (err as NodeJS.ErrnoException).code === 'ELOOP') return;
     process.stderr.write(`[watcher] Watch error: ${err}\n`);
   });
 

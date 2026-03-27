@@ -93,7 +93,7 @@ export const createTaskSchema = z.object({
   dueDate:     z.number().nullable().optional(),
   estimate:    z.number().nullable().optional(),
   assignee:    z.string().max(MAX_ASSIGNEE_LEN).nullable().optional(),
-  order:       z.number().int().min(0).optional(),
+  order:       z.number().int().optional(),
 });
 
 export const updateTaskSchema = z.object({
@@ -102,7 +102,7 @@ export const updateTaskSchema = z.object({
   status:      z.enum(['backlog', 'todo', 'in_progress', 'review', 'done', 'cancelled']).optional(),
   priority:    z.enum(['critical', 'high', 'medium', 'low']).optional(),
   tags:        z.array(z.string().max(MAX_TAG_LEN)).max(MAX_TAGS_COUNT).optional(),
-  order:       z.number().int().min(0).optional(),
+  order:       z.number().int().optional(),
   dueDate:     z.number().nullable().optional(),
   estimate:    z.number().nullable().optional(),
   assignee:    z.string().max(MAX_ASSIGNEE_LEN).nullable().optional(),
@@ -116,7 +116,7 @@ export const moveTaskSchema = z.object({
 });
 
 export const reorderTaskSchema = z.object({
-  order:  z.number().int().min(0),
+  order:  z.number().int(),
   status: z.enum(['backlog', 'todo', 'in_progress', 'review', 'done', 'cancelled']).optional(),
 });
 

@@ -12,7 +12,7 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
         'Returns the updated task summary.',
       inputSchema: {
         taskId: z.string().min(1).max(500).describe('Task ID to reorder'),
-        order:  z.number().int().min(0).describe('New order position (integer, lower = higher in list)'),
+        order:  z.number().int().describe('New order position (integer, lower = higher in list)'),
         status: z.enum(['backlog', 'todo', 'in_progress', 'review', 'done', 'cancelled']).optional()
           .describe('Optionally move to a different status at the same time'),
       },

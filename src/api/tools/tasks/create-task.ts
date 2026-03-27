@@ -22,7 +22,7 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
         dueDate:     z.number().optional().describe('Due date as Unix timestamp in milliseconds, e.g. 1735689600000'),
         estimate:    z.number().optional().describe('Estimated effort in hours, e.g. 4'),
         assignee:    z.string().max(MAX_ASSIGNEE_LEN).optional().describe('Team member ID to assign the task to'),
-        order:       z.number().int().min(0).optional().describe('Position within status group (integer, lower = higher). Auto-assigned if omitted.'),
+        order:       z.number().int().optional().describe('Position within status group (integer, lower = higher). Auto-assigned if omitted.'),
       },
     },
     async ({ title, description, priority, status, tags, dueDate, estimate, assignee, order }) => {

@@ -666,9 +666,9 @@ export default function TaskListPage() {
                       indeterminate={selected.size > 0 && selected.size < totalFiltered} onChange={toggleSelectAll} />
                   </TableCell>}
                   <TableCell><TableSortLabel active={sortField === 'title'} direction={sortField === 'title' ? sortDir : 'asc'} onClick={() => handleSort('title')}>Title</TableSortLabel></TableCell>
-                  <TableCell width={130}>Status</TableCell>
-                  <TableCell width={120}><TableSortLabel active={sortField === 'priority'} direction={sortField === 'priority' ? sortDir : 'asc'} onClick={() => handleSort('priority')}>Priority</TableSortLabel></TableCell>
-                  <TableCell width={120}><TableSortLabel active={sortField === 'assignee'} direction={sortField === 'assignee' ? sortDir : 'asc'} onClick={() => handleSort('assignee')}>Assignee</TableSortLabel></TableCell>
+                  <TableCell width={90}>Status</TableCell>
+                  <TableCell width={110}><TableSortLabel active={sortField === 'priority'} direction={sortField === 'priority' ? sortDir : 'asc'} onClick={() => handleSort('priority')}>Priority</TableSortLabel></TableCell>
+                  <TableCell width={150}><TableSortLabel active={sortField === 'assignee'} direction={sortField === 'assignee' ? sortDir : 'asc'} onClick={() => handleSort('assignee')}>Assignee</TableSortLabel></TableCell>
                   <TableCell width={80}><TableSortLabel active={sortField === 'estimate'} direction={sortField === 'estimate' ? sortDir : 'asc'} onClick={() => handleSort('estimate')}>Est.</TableSortLabel></TableCell>
                 </TableRow>
               </TableHead>

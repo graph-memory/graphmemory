@@ -77,11 +77,11 @@ function computeOrderAt(items: Task[], index: number): number {
 
 function DroppableGroupHeader({
   status, label, color, count, isCollapsed, canWrite, groupSelected, groupTotal,
-  onToggleCollapse, onToggleSelectGroup, palette,
+  onToggleCollapse, onToggleSelectGroup,
 }: {
   status: TaskStatus; label: string; color: string; count: number;
   isCollapsed: boolean; canWrite: boolean; groupSelected: number; groupTotal: number;
-  onToggleCollapse: () => void; onToggleSelectGroup: () => void; palette: any;
+  onToggleCollapse: () => void; onToggleSelectGroup: () => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `group-${status}` });
   return (
@@ -111,7 +111,11 @@ function DroppableGroupHeader({
           {isCollapsed ? <ExpandMore fontSize="small" /> : <ExpandLess fontSize="small" />}
           <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: color, flexShrink: 0 }} />
           <Typography variant="subtitle2" fontWeight={700}>{label}</Typography>
-          <Typography variant="caption" sx={{ color: palette.custom.textMuted }}>{count}</Typography>
+          <Box sx={{
+            bgcolor: alpha(color, 0.2), color, borderRadius: '10px',
+            px: 0.8, py: 0.1, fontSize: '0.7rem', fontWeight: 700,
+            lineHeight: 1.4, minWidth: 20, textAlign: 'center',
+          }}>{count}</Box>
         </Box>
       </TableCell>
     </TableRow>
@@ -495,7 +499,14 @@ export default function TaskListPage() {
           <Select name="filter-priority" value={filterPriority} onChange={e => setFilterPriority(e.target.value as TaskPriority | '')} displayEmpty
             renderValue={v => v ? priorityLabel(v as TaskPriority) : 'Priority'} sx={{ color: filterPriority ? undefined : palette.custom.textMuted }}>
             <MenuItem value="">All priorities</MenuItem>
-            {PRIORITY_OPTIONS.map(p => <MenuItem key={p} value={p}>{priorityLabel(p)}</MenuItem>)}
+            {PRIORITY_OPTIONS.map(p => (
+              <MenuItem key={p} value={p}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: PRIORITY_COLORS[p] }} />
+                  {priorityLabel(p)}
+                </Box>
+              </MenuItem>
+            ))}
           </Select>
         </FormControl>
         {allTags.length > 0 && (
@@ -526,12 +537,26 @@ export default function TaskListPage() {
           <Typography variant="body2" fontWeight={600}>{selected.size} selected</Typography>
           <FormControl size="small" sx={{ minWidth: 100 }}>
             <Select name="bulk-move" value="" displayEmpty renderValue={() => 'Move to...'} onChange={e => handleBulkMove(e.target.value as TaskStatus)} sx={{ fontSize: '0.85rem' }}>
-              {STATUS_OPTIONS.map(s => <MenuItem key={s} value={s}>{statusLabel(s)}</MenuItem>)}
+              {STATUS_OPTIONS.map(s => (
+                <MenuItem key={s} value={s}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: STATUS_COLOR[s] }} />
+                    {statusLabel(s)}
+                  </Box>
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
           <FormControl size="small" sx={{ minWidth: 100 }}>
             <Select name="bulk-priority" value="" displayEmpty renderValue={() => 'Priority...'} onChange={e => handleBulkPriority(e.target.value as TaskPriority)} sx={{ fontSize: '0.85rem' }}>
-              {PRIORITY_OPTIONS.map(p => <MenuItem key={p} value={p}>{priorityLabel(p)}</MenuItem>)}
+              {PRIORITY_OPTIONS.map(p => (
+                <MenuItem key={p} value={p}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: PRIORITY_COLORS[p] }} />
+                    {priorityLabel(p)}
+                  </Box>
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
           <Tooltip title="Delete selected">
@@ -589,7 +614,6 @@ export default function TaskListPage() {
                         groupSelected={groupSelected} groupTotal={groupTasks.length}
                         onToggleCollapse={() => toggleCollapse(status)}
                         onToggleSelectGroup={() => toggleSelectGroup(status)}
-                        palette={palette}
                       />
                       {!isCollapsed && groupTasks.map(task => (
                         <DraggableTaskRow

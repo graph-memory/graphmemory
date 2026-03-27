@@ -24,7 +24,7 @@ import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
 import { PageTopBar, StatusBadge, Tags, ConfirmDialog } from '@/shared/ui/index.ts';
 import {
   listTasks, reorderTask, createTask, deleteTask,
-  COLUMNS, PRIORITY_BADGE_COLOR, priorityLabel,
+  COLUMNS, PRIORITY_COLORS, PRIORITY_BADGE_COLOR, priorityLabel,
   type Task, type TaskStatus, type TaskPriority,
 } from '@/entities/task/index.ts';
 import { listTeam, type TeamMember } from '@/entities/project/api.ts';
@@ -416,7 +416,7 @@ export default function TaskBoardPage() {
               })}
             </Box>
             {canWrite && (
-              <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('../tasks/new', { relative: 'path' })}>
+              <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate(`/${projectId}/tasks/new`)}>
                 New Task
               </Button>
             )}
@@ -456,10 +456,14 @@ export default function TaskBoardPage() {
             sx={{ color: filterPriority ? undefined : palette.custom.textMuted }}
           >
             <MenuItem value="">All priorities</MenuItem>
-            <MenuItem value="critical">Critical</MenuItem>
-            <MenuItem value="high">High</MenuItem>
-            <MenuItem value="medium">Medium</MenuItem>
-            <MenuItem value="low">Low</MenuItem>
+            {(['critical', 'high', 'medium', 'low'] as const).map(p => (
+              <MenuItem key={p} value={p}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: PRIORITY_COLORS[p] }} />
+                  {priorityLabel(p)}
+                </Box>
+              </MenuItem>
+            ))}
           </Select>
         </FormControl>
         {allTags.length > 0 && (
@@ -512,7 +516,7 @@ export default function TaskBoardPage() {
             {canWrite ? 'Create your first task to get started' : 'No tasks yet'}
           </Typography>
           {canWrite && (
-            <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('../tasks/new', { relative: 'path' })}>
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate(`/${projectId}/tasks/new`)}>
               New Task
             </Button>
           )}
@@ -547,9 +551,11 @@ export default function TaskBoardPage() {
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 1.5, pt: 1.5, pb: 1 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                       <Typography variant="subtitle2" fontWeight={700}>{label}</Typography>
-                      <Typography variant="caption" sx={{ color: palette.custom.textMuted }}>
-                        {columnTasks.length}
-                      </Typography>
+                      <Box sx={{
+                        bgcolor: alpha(color, 0.2), color, borderRadius: '10px',
+                        px: 0.8, py: 0.1, fontSize: '0.7rem', fontWeight: 700,
+                        lineHeight: 1.4, minWidth: 20, textAlign: 'center',
+                      }}>{columnTasks.length}</Box>
                     </Box>
                     {canWrite && (
                       <IconButton
@@ -597,8 +603,8 @@ export default function TaskBoardPage() {
                           task={task}
                           team={team}
                           canWrite={canWrite}
-                          onNavigate={(id) => navigate(`../tasks/${id}`, { relative: 'path' })}
-                          onEdit={(id) => navigate(`../tasks/${id}/edit`, { relative: 'path' })}
+                          onNavigate={(id) => navigate(`/${projectId}/tasks/${id}`)}
+                          onEdit={(id) => navigate(`/${projectId}/tasks/${id}/edit`)}
                           onDelete={setDeleteTarget}
                           palette={palette}
                         />

@@ -146,7 +146,12 @@ export default function TaskDetailPage() {
                 <InputLabel>Move to</InputLabel>
                 <Select value="" label="Move to" onChange={e => handleMove(e.target.value as TaskStatus)}>
                   {COLUMNS.filter(c => c.status !== task.status).map(c => (
-                    <MenuItem key={c.status} value={c.status}>{c.label}</MenuItem>
+                    <MenuItem key={c.status} value={c.status}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: c.color }} />
+                        {c.label}
+                      </Box>
+                    </MenuItem>
                   ))}
                 </Select>
               </FormControl>

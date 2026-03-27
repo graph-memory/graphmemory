@@ -5,7 +5,15 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { Section, FormGrid, FormField, FieldLabel, Tags, MarkdownEditor } from '@/shared/ui/index.ts';
-import { COLUMNS, type Task, type TaskStatus, type TaskPriority } from '@/entities/task/index.ts';
+import { COLUMNS, PRIORITY_COLORS, type Task, type TaskStatus, type TaskPriority } from '@/entities/task/index.ts';
+
+const STATUS_COLOR: Record<TaskStatus, string> = Object.fromEntries(COLUMNS.map(c => [c.status, c.color])) as Record<TaskStatus, string>;
+const PRIORITY_OPTIONS: { value: TaskPriority; label: string }[] = [
+  { value: 'critical', label: 'Critical' },
+  { value: 'high', label: 'High' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'low', label: 'Low' },
+];
 import { listTeam, type TeamMember } from '@/entities/project/api.ts';
 
 interface TaskFormProps {
@@ -95,17 +103,44 @@ export function TaskForm({ task, onSubmit, onCancel, submitLabel = 'Save' }: Tas
         <FormGrid>
           <FormField>
             <FieldLabel>Status</FieldLabel>
-            <Select fullWidth value={status} onChange={e => setStatus(e.target.value as TaskStatus)}>
-              {COLUMNS.map(c => <MenuItem key={c.status} value={c.status}>{c.label}</MenuItem>)}
+            <Select
+              fullWidth value={status}
+              onChange={e => setStatus(e.target.value as TaskStatus)}
+              renderValue={v => {
+                const c = STATUS_COLOR[v as TaskStatus];
+                const label = COLUMNS.find(col => col.status === v)?.label ?? v;
+                return <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: c }} />{label}</Box>;
+              }}
+              sx={{ '& .MuiSelect-select': { display: 'flex', alignItems: 'center' } }}
+            >
+              {COLUMNS.map(c => (
+                <MenuItem key={c.status} value={c.status}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: c.color }} />{c.label}
+                  </Box>
+                </MenuItem>
+              ))}
             </Select>
           </FormField>
           <FormField>
             <FieldLabel>Priority</FieldLabel>
-            <Select fullWidth value={priority} onChange={e => setPriority(e.target.value as TaskPriority)}>
-              <MenuItem value="critical">Critical</MenuItem>
-              <MenuItem value="high">High</MenuItem>
-              <MenuItem value="medium">Medium</MenuItem>
-              <MenuItem value="low">Low</MenuItem>
+            <Select
+              fullWidth value={priority}
+              onChange={e => setPriority(e.target.value as TaskPriority)}
+              renderValue={v => {
+                const c = PRIORITY_COLORS[v as TaskPriority];
+                const label = PRIORITY_OPTIONS.find(p => p.value === v)?.label ?? v;
+                return <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: c }} />{label}</Box>;
+              }}
+              sx={{ '& .MuiSelect-select': { display: 'flex', alignItems: 'center' } }}
+            >
+              {PRIORITY_OPTIONS.map(p => (
+                <MenuItem key={p.value} value={p.value}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: PRIORITY_COLORS[p.value] }} />{p.label}
+                  </Box>
+                </MenuItem>
+              ))}
             </Select>
           </FormField>
           <FormField>

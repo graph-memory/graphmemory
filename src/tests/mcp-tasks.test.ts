@@ -727,3 +727,60 @@ describe('Reverse-side cross-graph link deletion', () => {
     expect(rTaskGraph.hasNode('@knowledge::rev-note-2')).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Same-graph task-to-task links via tasks_create_link / tasks_delete_link
+// ---------------------------------------------------------------------------
+
+describe('Same-graph task links via tasks_create_link/tasks_delete_link', () => {
+  const sgTaskGraph = createTaskGraph();
+  const sgFakeEmbed = createFakeEmbed([['task', 10]]);
+  let sgCtx: McpTestContext;
+  let sgCall: McpTestContext['call'];
+
+  beforeAll(async () => {
+    sgCtx = await setupMcpClient({
+      taskGraph: sgTaskGraph,
+      embedFn: sgFakeEmbed,
+    });
+    sgCall = sgCtx.call;
+
+    await sgCall('tasks_create', { title: 'Parent Task', description: 'parent', priority: 'high' });
+    await sgCall('tasks_create', { title: 'Child Task', description: 'child', priority: 'medium' });
+  });
+
+  afterAll(async () => {
+    await sgCtx.close();
+  });
+
+  it('tasks_create_link without targetGraph creates same-graph link', async () => {
+    const res = json<{ taskId: string; targetId: string; kind: string; created: boolean }>(
+      await sgCall('tasks_create_link', {
+        taskId: 'parent-task',
+        targetId: 'child-task',
+        kind: 'related_to',
+      }),
+    );
+    expect(res.created).toBe(true);
+    expect(res.taskId).toBe('parent-task');
+    expect(res.targetId).toBe('child-task');
+  });
+
+  it('same-graph link appears in task graph', () => {
+    expect(sgTaskGraph.hasEdge('parent-task', 'child-task')).toBe(true);
+  });
+
+  it('tasks_delete_link without targetGraph removes same-graph link', async () => {
+    const res = json<{ taskId: string; targetId: string; deleted: boolean }>(
+      await sgCall('tasks_delete_link', {
+        taskId: 'parent-task',
+        targetId: 'child-task',
+      }),
+    );
+    expect(res.deleted).toBe(true);
+  });
+
+  it('after deletion, link no longer exists in graph', () => {
+    expect(sgTaskGraph.hasEdge('parent-task', 'child-task')).toBe(false);
+  });
+});

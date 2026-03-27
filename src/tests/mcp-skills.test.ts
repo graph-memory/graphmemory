@@ -521,3 +521,56 @@ describe('Reverse-side cross-graph link deletion (skills)', () => {
     expect(rSkillGraph.hasNode('@knowledge::test::rev-note')).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Same-graph skill-to-skill links via skills_create_link / skills_delete_link
+// ---------------------------------------------------------------------------
+
+describe('Same-graph skill links via skills_create_link/skills_delete_link', () => {
+  const sgSkillGraph = createSkillGraph();
+  const sgFakeEmbed = createFakeEmbed([['skill', 10]]);
+  let sgCtx: McpTestContext;
+  let sgCall: McpTestContext['call'];
+
+  beforeAll(async () => {
+    sgCtx = await setupMcpClient({
+      skillGraph: sgSkillGraph,
+      embedFn: sgFakeEmbed,
+    });
+    sgCall = sgCtx.call;
+
+    await sgCall('skills_create', { title: 'Skill A', description: 'First skill' });
+    await sgCall('skills_create', { title: 'Skill B', description: 'Second skill' });
+  });
+
+  afterAll(async () => {
+    await sgCtx.close();
+  });
+
+  it('skills_create_link without targetGraph creates same-graph link', async () => {
+    const res = json<{ skillId: string; targetId: string; kind: string; created: boolean }>(
+      await sgCall('skills_create_link', {
+        skillId: 'skill-a',
+        targetId: 'skill-b',
+        kind: 'depends_on',
+      }),
+    );
+    expect(res.created).toBe(true);
+    expect(res.skillId).toBe('skill-a');
+    expect(res.targetId).toBe('skill-b');
+  });
+
+  it('skills_delete_link without targetGraph removes same-graph link', async () => {
+    const res = json<{ skillId: string; targetId: string; deleted: boolean }>(
+      await sgCall('skills_delete_link', {
+        skillId: 'skill-a',
+        targetId: 'skill-b',
+      }),
+    );
+    expect(res.deleted).toBe(true);
+  });
+
+  it('after deletion, link no longer exists', () => {
+    expect(sgSkillGraph.hasEdge('skill-a', 'skill-b')).toBe(false);
+  });
+});

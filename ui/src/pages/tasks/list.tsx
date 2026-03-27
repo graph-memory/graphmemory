@@ -32,6 +32,7 @@ import { listTeam, type TeamMember } from '@/entities/project/api.ts';
 import { listEpics, listEpicTasks, type Epic } from '@/entities/epic/index.ts';
 import FlagIcon from '@mui/icons-material/Flag';
 import { useColumnVisibility } from './useColumnVisibility.ts';
+import { QuickCreateDialog } from '@/features/task-crud/QuickCreateDialog.tsx';
 
 const STATUS_OPTIONS = COLUMNS.map(c => c.status);
 const PRIORITY_OPTIONS: TaskPriority[] = ['critical', 'high', 'medium', 'low'];
@@ -455,8 +456,9 @@ export default function TaskListPage() {
     } catch { refresh(); }
   };
 
+  const [quickCreateOpen, setQuickCreateOpen] = useState(false);
+
   const goToTask = (taskId: string) => navigate(`/${projectId}/tasks/${taskId}`);
-  const goToNew = () => navigate(`/${projectId}/tasks/new`);
 
   const hasFilters = searchQuery || filterPriority || filterTag || assigneeFilter || epicFilter;
   const totalFiltered = filteredTasks.length;
@@ -493,7 +495,7 @@ export default function TaskListPage() {
               })}
             </Box>
             {canWrite && (
-              <Button variant="contained" startIcon={<AddIcon />} onClick={goToNew}>New Task</Button>
+              <Button variant="contained" startIcon={<AddIcon />} onClick={() => setQuickCreateOpen(true)}>New Task</Button>
             )}
           </>
         }
@@ -619,7 +621,7 @@ export default function TaskListPage() {
           <Typography variant="body2" sx={{ color: palette.custom.textMuted, mb: 2 }}>
             {canWrite ? 'Create your first task to get started' : 'No tasks yet'}
           </Typography>
-          {canWrite && <Button variant="contained" startIcon={<AddIcon />} onClick={goToNew}>New Task</Button>}
+          {canWrite && <Button variant="contained" startIcon={<AddIcon />} onClick={() => setQuickCreateOpen(true)}>New Task</Button>}
         </Box>
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
@@ -696,6 +698,12 @@ export default function TaskListPage() {
         message={`Are you sure you want to delete ${deleteTarget?.label}? This action cannot be undone.`}
         confirmLabel="Delete" confirmColor="error"
         onConfirm={handleBulkDelete} onCancel={() => setDeleteTarget(null)} loading={deleting}
+      />
+
+      <QuickCreateDialog
+        open={quickCreateOpen}
+        onClose={() => setQuickCreateOpen(false)}
+        onCreated={refresh}
       />
     </Box>
   );

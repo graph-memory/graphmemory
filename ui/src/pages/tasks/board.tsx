@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Button, Paper, Stack, Chip,
@@ -24,13 +24,14 @@ import { useWebSocket } from '@/shared/lib/useWebSocket.ts';
 import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
 import { PageTopBar, StatusBadge, Tags, ConfirmDialog } from '@/shared/ui/index.ts';
 import {
-  listTasks, reorderTask, createTask, deleteTask,
+  listTasks, reorderTask, deleteTask,
   COLUMNS, PRIORITY_COLORS, PRIORITY_BADGE_COLOR, priorityLabel,
   type Task, type TaskStatus, type TaskPriority,
 } from '@/entities/task/index.ts';
 import { listTeam, type TeamMember } from '@/entities/project/api.ts';
 import { listEpics, listEpicTasks, type Epic } from '@/entities/epic/index.ts';
 import { useColumnVisibility } from './useColumnVisibility.ts';
+import { QuickCreateDialog } from '@/features/task-crud/QuickCreateDialog.tsx';
 
 const DONE_STATUSES: TaskStatus[] = ['done', 'cancelled'];
 const DAY_MS = 86_400_000;
@@ -202,10 +203,9 @@ export default function TaskBoardPage() {
   const [filterPriority, setFilterPriority] = useState<TaskPriority | ''>('');
   const [filterTag, setFilterTag] = useState('');
 
-  // Inline create
-  const [inlineCreateColumn, setInlineCreateColumn] = useState<TaskStatus | null>(null);
-  const [inlineCreateTitle, setInlineCreateTitle] = useState('');
-  const inlineInputRef = useRef<HTMLInputElement>(null);
+  // Quick create dialog
+  const [quickCreateOpen, setQuickCreateOpen] = useState(false);
+  const [quickCreateStatus, setQuickCreateStatus] = useState<TaskStatus | undefined>(undefined);
 
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
@@ -244,12 +244,6 @@ export default function TaskBoardPage() {
   useWebSocket(projectId ?? null, useCallback((event) => {
     if (event.type.startsWith('task:')) refresh();
   }, [refresh]));
-
-  useEffect(() => {
-    if (inlineCreateColumn) {
-      setTimeout(() => inlineInputRef.current?.focus(), 50);
-    }
-  }, [inlineCreateColumn]);
 
   // --- DnD handlers ---
   const handleDragStart = (event: DragStartEvent) => {
@@ -319,18 +313,6 @@ export default function TaskBoardPage() {
     } catch {
       refresh();
     }
-  };
-
-  // --- Inline create ---
-  const handleInlineCreate = async (status: TaskStatus) => {
-    const title = inlineCreateTitle.trim();
-    if (!title || !projectId) return;
-    setInlineCreateTitle('');
-    setInlineCreateColumn(null);
-    try {
-      await createTask(projectId, { title, status });
-      refresh();
-    } catch { /* refresh will sync */ }
   };
 
   // --- Delete ---
@@ -430,7 +412,7 @@ export default function TaskBoardPage() {
               })}
             </Box>
             {canWrite && (
-              <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate(`/${projectId}/tasks/new`)}>
+              <Button variant="contained" startIcon={<AddIcon />} onClick={() => { setQuickCreateStatus(undefined); setQuickCreateOpen(true); }}>
                 New Task
               </Button>
             )}
@@ -600,35 +582,13 @@ export default function TaskBoardPage() {
                     {canWrite && (
                       <IconButton
                         size="small"
-                        onClick={() => { setInlineCreateColumn(status); setInlineCreateTitle(''); }}
+                        onClick={() => { setQuickCreateStatus(status); setQuickCreateOpen(true); }}
                         sx={{ p: 0.25, color: palette.custom.textMuted }}
                       >
                         <AddIcon sx={{ fontSize: 18 }} />
                       </IconButton>
                     )}
                   </Box>
-
-                  {/* Inline create */}
-                  {inlineCreateColumn === status && (
-                    <Box sx={{ display: 'flex', gap: 0.5, px: 1.5, pb: 1 }}>
-                      <TextField
-                        inputRef={inlineInputRef}
-                        size="small"
-                        placeholder="Task title..."
-                        value={inlineCreateTitle}
-                        onChange={e => setInlineCreateTitle(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') handleInlineCreate(status);
-                          if (e.key === 'Escape') { setInlineCreateColumn(null); setInlineCreateTitle(''); }
-                        }}
-                        fullWidth
-                        sx={{ '& .MuiInputBase-root': { fontSize: '0.85rem' } }}
-                      />
-                      <IconButton size="small" onClick={() => { setInlineCreateColumn(null); setInlineCreateTitle(''); }}>
-                        <CloseIcon fontSize="small" />
-                      </IconButton>
-                    </Box>
-                  )}
 
                   {/* Column body with sortable context */}
                   <SortableContext items={columnTasks.map(t => t.id)} strategy={verticalListSortingStrategy} id={status}>
@@ -679,6 +639,13 @@ export default function TaskBoardPage() {
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
         loading={deleting}
+      />
+
+      <QuickCreateDialog
+        open={quickCreateOpen}
+        onClose={() => setQuickCreateOpen(false)}
+        onCreated={refresh}
+        defaultStatus={quickCreateStatus}
       />
     </Box>
   );

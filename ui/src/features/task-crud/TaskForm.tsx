@@ -16,14 +16,23 @@ const PRIORITY_OPTIONS: { value: TaskPriority; label: string }[] = [
 ];
 import { listTeam, type TeamMember } from '@/entities/project/api.ts';
 
+interface TaskFormDefaults {
+  title?: string;
+  status?: TaskStatus;
+  priority?: TaskPriority;
+  assignee?: string;
+  tags?: string[];
+}
+
 interface TaskFormProps {
   task?: Task;
+  defaults?: TaskFormDefaults;
   onSubmit: (data: { title: string; description: string; status: TaskStatus; priority: TaskPriority; tags: string[]; dueDate?: number | null; estimate?: number | null; assignee?: string | null }) => Promise<void>;
   onCancel: () => void;
   submitLabel?: string;
 }
 
-export function TaskForm({ task, onSubmit, onCancel, submitLabel = 'Save' }: TaskFormProps) {
+export function TaskForm({ task, defaults, onSubmit, onCancel, submitLabel = 'Save' }: TaskFormProps) {
   const { projectId } = useParams<{ projectId: string }>();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -47,6 +56,12 @@ export function TaskForm({ task, onSubmit, onCancel, submitLabel = 'Save' }: Tas
       setDueDate(task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '');
       setEstimate(task.estimate != null ? String(task.estimate) : '');
       setAssignee(task.assignee ?? '');
+    } else if (defaults) {
+      if (defaults.title) setTitle(defaults.title);
+      if (defaults.status) setStatus(defaults.status);
+      if (defaults.priority) setPriority(defaults.priority);
+      if (defaults.assignee) setAssignee(defaults.assignee);
+      if (defaults.tags) setTags(defaults.tags);
     }
   }, [task]);
 

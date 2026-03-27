@@ -121,6 +121,26 @@ function DroppableGroupHeader({
 }
 
 // ---------------------------------------------------------------------------
+// Tail drop zone — invisible row after last task in group for "drop to end"
+// ---------------------------------------------------------------------------
+
+function TailDropZone({ status, color }: { status: TaskStatus; color: string }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `tail-${status}` });
+  return (
+    <TableRow ref={setNodeRef}>
+      <TableCell
+        colSpan={99}
+        sx={{
+          p: 0, height: isOver ? 4 : 2, border: 'none',
+          bgcolor: isOver ? color : 'transparent',
+          transition: 'height 0.1s, background-color 0.1s',
+        }}
+      />
+    </TableRow>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Draggable + droppable task row
 // ---------------------------------------------------------------------------
 
@@ -445,6 +465,7 @@ export default function TaskListPage() {
     if (!over) { setOverGroupStatus(null); return; }
     const overId = over.id as string;
     if (overId.startsWith('group-')) { setOverGroupStatus(overId.replace('group-', '') as TaskStatus); return; }
+    if (overId.startsWith('tail-')) { setOverGroupStatus(overId.replace('tail-', '') as TaskStatus); return; }
     const overTask = tasks.find(t => t.id === overId);
     if (overTask) { setOverGroupStatus(overTask.status); return; }
     setOverGroupStatus(null);
@@ -463,8 +484,12 @@ export default function TaskListPage() {
 
     // Determine target status
     let targetStatus: TaskStatus = activeTask.status;
-    if (overId.startsWith('group-')) {
+    const isGroupDrop = overId.startsWith('group-');
+    const isTailDrop = overId.startsWith('tail-');
+    if (isGroupDrop) {
       targetStatus = overId.replace('group-', '') as TaskStatus;
+    } else if (isTailDrop) {
+      targetStatus = overId.replace('tail-', '') as TaskStatus;
     } else {
       const overTask = tasks.find(t => t.id === overId);
       if (overTask) targetStatus = overTask.status;
@@ -475,7 +500,7 @@ export default function TaskListPage() {
       .sort((a, b) => a.order - b.order);
 
     let newOrder: number;
-    if (overId.startsWith('group-')) {
+    if (isGroupDrop || isTailDrop) {
       newOrder = columnTasks.length > 0 ? columnTasks[columnTasks.length - 1].order + 1000 : 0;
     } else {
       const overIdx = columnTasks.findIndex(t => t.id === overId);
@@ -709,6 +734,7 @@ export default function TaskListPage() {
                           onEpicClick={setEpicFilter}
                         />
                       ))}
+                      <TailDropZone status={status} color={color} />
                     </Fragment>
                   );
                 })}

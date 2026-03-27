@@ -3,11 +3,12 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Button, TextField, Select, MenuItem, Box, IconButton,
-  FormControl, useTheme,
+  FormControl, Typography, useTheme,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import FlagIcon from '@mui/icons-material/Flag';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import AddIcon from '@mui/icons-material/Add';
 import {
   createTask, COLUMNS, PRIORITY_COLORS, priorityLabel,
   type TaskStatus, type TaskPriority,
@@ -32,6 +33,7 @@ export function QuickCreateDialog({ open, onClose, onCreated, defaultStatus }: Q
   const titleRef = useRef<HTMLInputElement>(null);
 
   const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [status, setStatus] = useState<TaskStatus>(defaultStatus ?? 'todo');
   const [priority, setPriority] = useState<TaskPriority>('medium');
   const [assignee, setAssignee] = useState('');
@@ -41,15 +43,20 @@ export function QuickCreateDialog({ open, onClose, onCreated, defaultStatus }: Q
   const [epics, setEpics] = useState<Epic[]>([]);
   const [saving, setSaving] = useState(false);
 
+  const resetForm = () => {
+    setTitle('');
+    setDescription('');
+    setStatus(defaultStatus ?? 'todo');
+    setPriority('medium');
+    setAssignee('');
+    setEpicId('');
+    setTags([]);
+    setTimeout(() => titleRef.current?.focus(), 100);
+  };
+
   useEffect(() => {
     if (open) {
-      setTitle('');
-      setStatus(defaultStatus ?? 'todo');
-      setPriority('medium');
-      setAssignee('');
-      setEpicId('');
-      setTags([]);
-      setTimeout(() => titleRef.current?.focus(), 100);
+      resetForm();
       if (projectId) {
         listTeam(projectId).then(setTeam).catch(() => {});
         listEpics(projectId).then(list => setEpics(list.filter(e => e.status === 'open' || e.status === 'in_progress'))).catch(() => {});
@@ -57,12 +64,13 @@ export function QuickCreateDialog({ open, onClose, onCreated, defaultStatus }: Q
     }
   }, [open, defaultStatus, projectId]);
 
-  const handleSubmit = async () => {
-    if (!title.trim() || !projectId) return;
+  const doCreate = async (): Promise<boolean> => {
+    if (!title.trim() || !projectId) return false;
     setSaving(true);
     try {
       const task = await createTask(projectId, {
         title: title.trim(),
+        description: description.trim() || undefined,
         status,
         priority,
         tags,
@@ -72,10 +80,18 @@ export function QuickCreateDialog({ open, onClose, onCreated, defaultStatus }: Q
         await linkTaskToEpic(projectId, epicId, task.id).catch(() => {});
       }
       onCreated?.();
-      onClose();
+      return true;
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleCreate = async () => {
+    if (await doCreate()) onClose();
+  };
+
+  const handleCreateAnother = async () => {
+    if (await doCreate()) resetForm();
   };
 
   const handleMoreOptions = () => {
@@ -91,117 +107,133 @@ export function QuickCreateDialog({ open, onClose, onCreated, defaultStatus }: Q
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
         Quick Create Task
         <IconButton size="small" onClick={onClose}><CloseIcon /></IconButton>
       </DialogTitle>
-      <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '8px !important' }}>
-        <TextField
-          inputRef={titleRef}
-          fullWidth
-          label="Title"
-          value={title}
-          onChange={e => setTitle(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter' && title.trim()) handleSubmit(); }}
-          autoComplete="off"
-          size="small"
-        />
+      <DialogContent sx={{ pt: '8px !important' }}>
+        <Box sx={{ display: 'flex', gap: 3 }}>
+          {/* Left column: title + description */}
+          <Box sx={{ flex: 1.2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <TextField
+              inputRef={titleRef}
+              fullWidth
+              label="Title"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && title.trim()) handleCreate(); }}
+              autoComplete="off"
+              size="small"
+            />
+            <TextField
+              fullWidth
+              label="Description"
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              multiline
+              minRows={4}
+              maxRows={8}
+              size="small"
+              placeholder="Optional markdown description..."
+            />
+          </Box>
 
-        <Box sx={{ display: 'flex', gap: 1.5 }}>
-          <FormControl size="small" sx={{ flex: 1 }}>
-            <Select
-              name="qc-status"
-              value={status}
-              onChange={e => setStatus(e.target.value as TaskStatus)}
-              renderValue={v => {
-                const c = STATUS_COLOR[v as TaskStatus];
-                const label = COLUMNS.find(col => col.status === v)?.label ?? v;
-                return <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: c }} />{label}</Box>;
-              }}
-            >
-              {COLUMNS.map(c => (
-                <MenuItem key={c.status} value={c.status}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: c.color }} />{c.label}
-                  </Box>
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <FormControl size="small" sx={{ flex: 1 }}>
-            <Select
-              name="qc-priority"
-              value={priority}
-              onChange={e => setPriority(e.target.value as TaskPriority)}
-              renderValue={v => {
-                const c = PRIORITY_COLORS[v as TaskPriority];
-                return <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: c }} />{priorityLabel(v as TaskPriority)}</Box>;
-              }}
-            >
-              {(['critical', 'high', 'medium', 'low'] as const).map(p => (
-                <MenuItem key={p} value={p}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: PRIORITY_COLORS[p] }} />{priorityLabel(p)}
-                  </Box>
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Box>
-
-        <Box sx={{ display: 'flex', gap: 1.5 }}>
-          {team.length > 0 && (
-            <FormControl size="small" sx={{ flex: 1 }}>
+          {/* Right column: properties */}
+          <Box sx={{ flex: 0.8, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            <Typography variant="caption" fontWeight={600} sx={{ color: palette.custom.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Properties
+            </Typography>
+            <FormControl size="small" fullWidth>
               <Select
-                name="qc-assignee"
-                value={assignee}
-                onChange={e => setAssignee(e.target.value)}
-                displayEmpty
+                name="qc-status"
+                value={status}
+                onChange={e => setStatus(e.target.value as TaskStatus)}
                 renderValue={v => {
-                  if (!v) return <Box sx={{ color: palette.custom.textMuted }}>Assignee</Box>;
-                  const m = team.find(t => t.id === v);
-                  return m?.name || v;
+                  const c = STATUS_COLOR[v as TaskStatus];
+                  const label = COLUMNS.find(col => col.status === v)?.label ?? v;
+                  return <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: c }} />{label}</Box>;
                 }}
               >
-                <MenuItem value="">Unassigned</MenuItem>
-                {team.map(m => <MenuItem key={m.id} value={m.id}>{m.name || m.id}</MenuItem>)}
-              </Select>
-            </FormControl>
-          )}
-          {epics.length > 0 && (
-            <FormControl size="small" sx={{ flex: 1 }}>
-              <Select
-                name="qc-epic"
-                value={epicId}
-                onChange={e => setEpicId(e.target.value)}
-                displayEmpty
-                renderValue={v => {
-                  if (!v) return <Box sx={{ color: palette.custom.textMuted }}>Epic</Box>;
-                  const ep = epics.find(e => e.id === v);
-                  return <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}><FlagIcon sx={{ fontSize: 14 }} />{ep?.title || v}</Box>;
-                }}
-              >
-                <MenuItem value="">No epic</MenuItem>
-                {epics.map(e => (
-                  <MenuItem key={e.id} value={e.id}>
+                {COLUMNS.map(c => (
+                  <MenuItem key={c.status} value={c.status}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <FlagIcon sx={{ fontSize: 14, color: e.status === 'open' ? '#1976d2' : '#f57c00' }} />
-                      {e.title}
+                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: c.color }} />{c.label}
                     </Box>
                   </MenuItem>
                 ))}
               </Select>
             </FormControl>
-          )}
+            <FormControl size="small" fullWidth>
+              <Select
+                name="qc-priority"
+                value={priority}
+                onChange={e => setPriority(e.target.value as TaskPriority)}
+                renderValue={v => {
+                  const c = PRIORITY_COLORS[v as TaskPriority];
+                  return <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: c }} />{priorityLabel(v as TaskPriority)}</Box>;
+                }}
+              >
+                {(['critical', 'high', 'medium', 'low'] as const).map(p => (
+                  <MenuItem key={p} value={p}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: PRIORITY_COLORS[p] }} />{priorityLabel(p)}
+                    </Box>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            {team.length > 0 && (
+              <FormControl size="small" fullWidth>
+                <Select
+                  name="qc-assignee"
+                  value={assignee}
+                  onChange={e => setAssignee(e.target.value)}
+                  displayEmpty
+                  renderValue={v => {
+                    if (!v) return <Box sx={{ color: palette.custom.textMuted }}>Assignee</Box>;
+                    const m = team.find(t => t.id === v);
+                    return m?.name || v;
+                  }}
+                >
+                  <MenuItem value="">Unassigned</MenuItem>
+                  {team.map(m => <MenuItem key={m.id} value={m.id}>{m.name || m.id}</MenuItem>)}
+                </Select>
+              </FormControl>
+            )}
+            {epics.length > 0 && (
+              <FormControl size="small" fullWidth>
+                <Select
+                  name="qc-epic"
+                  value={epicId}
+                  onChange={e => setEpicId(e.target.value)}
+                  displayEmpty
+                  renderValue={v => {
+                    if (!v) return <Box sx={{ color: palette.custom.textMuted }}>Epic</Box>;
+                    const ep = epics.find(e => e.id === v);
+                    return <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}><FlagIcon sx={{ fontSize: 14 }} />{ep?.title || v}</Box>;
+                  }}
+                >
+                  <MenuItem value="">No epic</MenuItem>
+                  {epics.map(e => (
+                    <MenuItem key={e.id} value={e.id}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <FlagIcon sx={{ fontSize: 14, color: e.status === 'open' ? '#1976d2' : '#f57c00' }} />
+                        {e.title}
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+            <Tags
+              tags={tags}
+              editable
+              onAdd={tag => setTags(prev => prev.includes(tag) ? prev : [...prev, tag])}
+              onRemove={tag => setTags(prev => prev.filter(t => t !== tag))}
+            />
+          </Box>
         </Box>
-
-        <Tags
-          tags={tags}
-          editable
-          onAdd={tag => setTags(prev => prev.includes(tag) ? prev : [...prev, tag])}
-          onRemove={tag => setTags(prev => prev.filter(t => t !== tag))}
-        />
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2, justifyContent: 'space-between' }}>
         <Button size="small" startIcon={<OpenInNewIcon />} onClick={handleMoreOptions} sx={{ textTransform: 'none' }}>
@@ -209,7 +241,16 @@ export function QuickCreateDialog({ open, onClose, onCreated, defaultStatus }: Q
         </Button>
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Button onClick={onClose}>Cancel</Button>
-          <Button variant="contained" onClick={handleSubmit} disabled={saving || !title.trim()}>
+          <Button
+            variant="outlined"
+            startIcon={<AddIcon />}
+            onClick={handleCreateAnother}
+            disabled={saving || !title.trim()}
+            sx={{ textTransform: 'none' }}
+          >
+            Create & New
+          </Button>
+          <Button variant="contained" onClick={handleCreate} disabled={saving || !title.trim()}>
             Create
           </Button>
         </Box>

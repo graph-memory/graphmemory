@@ -377,7 +377,7 @@ export default function TaskBoardPage() {
       filtered = filtered.filter(t => epicTaskIds.has(t.id));
     }
     return filtered;
-  }, [tasks, searchQuery, filterPriority, filterTag, assigneeFilter]);
+  }, [tasks, searchQuery, filterPriority, filterTag, assigneeFilter, epicTaskIds]);
 
   const grouped = useMemo(() => {
     const map = new Map<TaskStatus, Task[]>();

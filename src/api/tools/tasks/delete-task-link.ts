@@ -12,10 +12,10 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
         'Omit targetGraph for same-graph task-to-task links; set it for cross-graph links. ' +
         'Orphaned proxy nodes are cleaned up automatically.',
       inputSchema: {
-        taskId:      z.string().min(1).max(500).describe('Source task ID'),
-        targetId:    z.string().min(1).max(MAX_TARGET_NODE_ID_LEN).describe('Target task ID (same-graph) or target node ID in external graph (cross-graph)'),
+        taskId:      z.string().min(1).max(500).describe('Source task ID (slug)'),
+        targetId:    z.string().min(1).max(MAX_TARGET_NODE_ID_LEN).describe('Target task ID (same-graph) or target node ID in external graph'),
         targetGraph: z.enum(['docs', 'code', 'files', 'knowledge', 'skills']).optional()
-          .describe('Which graph the target belongs to. Omit for task-to-task links.'),
+          .describe('Target graph: "docs", "code", "files", "knowledge", or "skills". Omit for task-to-task links.'),
         projectId:   z.string().max(MAX_PROJECT_ID_LEN).optional().describe('Project ID that the target node belongs to. Defaults to the current project.'),
       },
     },

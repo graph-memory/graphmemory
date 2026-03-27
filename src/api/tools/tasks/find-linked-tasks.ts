@@ -13,9 +13,9 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
         'Returns an array of { taskId, title, kind, status, priority, tags }. ' +
         'Use tasks_get to fetch full content of a returned task.',
       inputSchema: {
-        targetId:    z.string().min(1).max(MAX_TARGET_NODE_ID_LEN).describe('Target node ID in the external graph'),
+        targetId:    z.string().min(1).max(MAX_TARGET_NODE_ID_LEN).describe('Target node ID in the external graph, e.g. "src/auth.ts" or "guide.md::Setup"'),
         targetGraph: z.enum(['docs', 'code', 'files', 'knowledge', 'skills'])
-          .describe('Which graph the target belongs to'),
+          .describe('Which graph the target belongs to: "docs", "code", "files", "knowledge", or "skills"'),
         kind:        z.string().max(MAX_LINK_KIND_LEN).optional().describe('Filter by relation kind. If omitted, returns all relations.'),
         projectId:   z.string().max(MAX_PROJECT_ID_LEN).optional().describe('Project ID that the target node belongs to. Defaults to the current project.'),
       },

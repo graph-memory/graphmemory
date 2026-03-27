@@ -19,7 +19,7 @@ export function register(server: McpServer, mgr: DocGraphManager): void {
         fileId:   z.string().max(500).optional().describe('Filter by file, e.g. "docs/auth.md"'),
         filter:   z.string().max(500).optional().describe('Case-insensitive substring match on content'),
         language: z.string().max(100).optional().describe('Filter by language, e.g. "typescript"'),
-        limit:    z.number().int().min(1).max(1000).optional().describe('Max results to return'),
+        limit:    z.number().int().min(1).max(1000).optional().describe('Max results to return (default 10)'),
       },
     },
     async ({ fileId, filter, language, limit = LIST_LIMIT_SMALL }) => {

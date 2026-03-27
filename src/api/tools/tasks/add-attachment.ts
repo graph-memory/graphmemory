@@ -14,7 +14,7 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
         'The file is copied into the task directory (.tasks/{taskId}/). ' +
         'Returns attachment metadata (filename, mimeType, size).',
       inputSchema: {
-        taskId:   z.string().min(1).max(500).describe('ID of the task to attach the file to'),
+        taskId:   z.string().min(1).max(500).describe('Task ID to attach the file to (slug)'),
         filePath: z.string().min(1).max(4096).describe('Absolute path to the file on disk'),
       },
     },

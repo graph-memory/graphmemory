@@ -17,7 +17,7 @@ export function register(server: McpServer, mgr: DocGraphManager): void {
         'Returns matching code block nodes with id, fileId, language, symbols, content, and the parent section context.',
       inputSchema: {
         symbol: z.string().max(MAX_SEARCH_QUERY_LEN).describe('Symbol name to search for, e.g. "createUser", "UserService"'),
-        limit:  z.number().optional().describe('Max results to return'),
+        limit:  z.number().optional().describe('Max results to return (default 10)'),
       },
     },
     async ({ symbol, limit = LIST_LIMIT_SMALL }) => {

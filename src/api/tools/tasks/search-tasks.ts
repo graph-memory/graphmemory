@@ -21,7 +21,7 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
         maxResults: z.number().min(1).max(500).optional().describe('Maximum number of results to return'),
         minScore:   z.number().min(0).max(1).optional().describe('Minimum relevance score 0–1 (default 0.5)'),
         bfsDecay:   z.number().min(0).max(1).optional().describe('Score multiplier per hop (default 0.8)'),
-        searchMode: z.enum(['hybrid', 'vector', 'keyword']).optional().describe('Search mode: hybrid (default, BM25 + vector), vector (embedding only), keyword (BM25 only)'),
+        searchMode: z.enum(['hybrid', 'vector', 'keyword']).optional().describe('Search mode: "hybrid" (default, BM25 + vector), "vector" (embedding only), or "keyword" (BM25 only)'),
       },
     },
     async ({ query, topK, bfsDepth, maxResults, minScore, bfsDecay, searchMode }) => {

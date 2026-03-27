@@ -25,7 +25,7 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
         inputHints:      z.array(z.string().max(500)).max(100).optional().describe('Replace inputHints array'),
         filePatterns:    z.array(z.string().max(500)).max(100).optional().describe('Replace filePatterns array'),
         tags:            z.array(z.string().max(MAX_TAG_LEN)).max(MAX_TAGS_COUNT).optional().describe('Replace tags array'),
-        source:          z.enum(['user', 'learned']).optional().describe('New source'),
+        source:          z.enum(['user', 'learned']).optional().describe('New source: "user" or "learned"'),
         confidence:      z.number().min(0).max(1).optional().describe('New confidence score 0–1'),
         expectedVersion: z.number().int().positive().optional().describe('Current version for optimistic locking — request fails with version_conflict if the skill has been updated since'),
       },

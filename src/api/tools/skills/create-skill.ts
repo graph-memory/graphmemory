@@ -24,7 +24,7 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
         inputHints:   z.array(z.string().max(500)).max(100).optional().describe('Expected inputs or prerequisites (default [])'),
         filePatterns: z.array(z.string().max(500)).max(100).optional().describe('Glob patterns for files this skill applies to (default [])'),
         tags:         z.array(z.string().max(MAX_TAG_LEN)).max(MAX_TAGS_COUNT).optional().describe('Optional tags for filtering, e.g. ["deploy", "ci"]'),
-        source:       z.enum(['user', 'learned']).optional().describe('How this skill was created (default "user")'),
+        source:       z.enum(['user', 'learned']).optional().describe('Source: "user" (default) or "learned" (AI-discovered)'),
         confidence:   z.number().min(0).max(1).optional().describe('Confidence score 0–1 (default 1)'),
       },
     },

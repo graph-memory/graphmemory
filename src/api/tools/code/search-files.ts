@@ -16,8 +16,8 @@ export function register(server: McpServer, mgr: CodeGraphManager): void {
         'Use this to discover which source files are relevant before diving into symbols with get_file_symbols or search_code.',
       inputSchema: {
         query:    z.string().max(MAX_SEARCH_QUERY_LEN).describe('Natural language or path search query, e.g. "graph persistence" or "search module"'),
-        limit:    z.number().min(1).max(500).optional().describe('Maximum number of results to return'),
-        minScore: z.number().min(0).max(1).optional().describe('Minimum relevance score 0–1'),
+        limit:    z.number().min(1).max(500).optional().describe('Maximum number of results to return (default 10)'),
+        minScore: z.number().min(0).max(1).optional().describe('Minimum relevance score 0–1 (default 0.3)'),
       },
     },
     async ({ query, limit = FILE_SEARCH_TOP_K, minScore = SEARCH_MIN_SCORE_FILES }) => {

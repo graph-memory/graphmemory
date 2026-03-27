@@ -14,8 +14,8 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
         'Use skills_get to fetch full content of a returned skill.',
       inputSchema: {
         targetGraph:  z.enum(['docs', 'code', 'files', 'knowledge', 'tasks'])
-          .describe('Which graph the target belongs to'),
-        targetId:     z.string().min(1).max(MAX_TARGET_NODE_ID_LEN).describe('Target node ID in the external graph'),
+          .describe('Which graph the target belongs to: "docs", "code", "files", "knowledge", or "tasks"'),
+        targetId:     z.string().min(1).max(MAX_TARGET_NODE_ID_LEN).describe('Target node ID in the external graph, e.g. "src/auth.ts" or "guide.md::Setup"'),
         kind:         z.string().max(MAX_LINK_KIND_LEN).optional().describe('Filter by relation kind. If omitted, returns all relations.'),
         projectId:    z.string().max(MAX_PROJECT_ID_LEN).optional().describe('Project ID that the target node belongs to. Defaults to the current project.'),
       },

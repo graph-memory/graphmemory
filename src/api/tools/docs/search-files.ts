@@ -16,8 +16,8 @@ export function register(server: McpServer, mgr: DocGraphManager): void {
         'Use this to discover which doc files are relevant before diving into content with search or get_toc.',
       inputSchema: {
         query:    z.string().max(MAX_SEARCH_QUERY_LEN).describe('Natural language search query, e.g. "authentication setup" or "API endpoints"'),
-        limit:    z.number().min(1).max(500).optional().describe('Maximum number of results to return'),
-        minScore: z.number().min(0).max(1).optional().describe('Minimum relevance score 0–1'),
+        limit:    z.number().min(1).max(500).optional().describe('Maximum number of results to return (default 10)'),
+        minScore: z.number().min(0).max(1).optional().describe('Minimum relevance score 0–1 (default 0.3)'),
       },
     },
     async ({ query, limit = FILE_SEARCH_TOP_K, minScore = SEARCH_MIN_SCORE_FILES }) => {

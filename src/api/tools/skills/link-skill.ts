@@ -14,7 +14,7 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
       inputSchema: {
         fromId: z.string().min(1).max(500).describe('Source skill ID'),
         toId:   z.string().min(1).max(500).describe('Target skill ID'),
-        kind:   z.enum(['depends_on', 'related_to', 'variant_of']).describe('Relation type'),
+        kind:   z.enum(['depends_on', 'related_to', 'variant_of']).describe('Relation type: "depends_on", "related_to", or "variant_of"'),
       },
     },
     async ({ fromId, toId, kind }) => {

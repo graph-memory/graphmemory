@@ -12,7 +12,7 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
         'Returns an array of { id, title, description, tags, source, confidence, usageCount, lastUsedAt, createdAt, updatedAt }. ' +
         'Use search_skills for semantic search.',
       inputSchema: {
-        source: z.enum(['user', 'learned']).optional().describe('Filter by source'),
+        source: z.enum(['user', 'learned']).optional().describe('Filter by source: "user" or "learned"'),
         tag:    z.string().max(MAX_TAG_LEN).optional().describe('Filter by tag (exact match, case-insensitive)'),
         filter: z.string().max(500).optional().describe('Substring match on title or ID'),
         limit:  z.number().int().min(1).max(1000).optional().describe('Max results (default 50)'),

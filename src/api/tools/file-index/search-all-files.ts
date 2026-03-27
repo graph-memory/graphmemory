@@ -15,11 +15,11 @@ export function register(server: McpServer, mgr: FileIndexGraphManager): void {
         'filePath, fileName, extension, language, size, score. ' +
         'Use this to discover which project files are relevant to a topic.',
       inputSchema: {
-        query: z.string().max(MAX_SEARCH_QUERY_LEN).describe('Search query'),
+        query: z.string().max(MAX_SEARCH_QUERY_LEN).describe('Natural language or path search query, e.g. "database config" or "test helpers"'),
         limit: z.number().min(1).max(500).optional()
-          .describe('Max results'),
+          .describe('Maximum number of results to return (default 10)'),
         minScore: z.number().min(0).max(1).optional()
-          .describe('Minimum cosine similarity score'),
+          .describe('Minimum relevance score 0–1 (default 0.3)'),
       },
     },
     async ({ query, limit = FILE_SEARCH_TOP_K, minScore = SEARCH_MIN_SCORE_FILES }) => {

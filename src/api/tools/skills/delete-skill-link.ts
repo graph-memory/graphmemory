@@ -15,7 +15,7 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
         skillId:     z.string().min(1).max(500).describe('Source skill ID'),
         targetId:    z.string().min(1).max(MAX_TARGET_NODE_ID_LEN).describe('Target skill ID (same-graph) or target node ID in external graph (cross-graph)'),
         targetGraph: z.enum(['docs', 'code', 'files', 'knowledge', 'tasks']).optional()
-          .describe('Which graph the target belongs to. Omit for skill-to-skill links.'),
+          .describe('Target graph: "docs", "code", "files", "knowledge", or "tasks". Omit for skill-to-skill links.'),
         projectId:   z.string().max(MAX_PROJECT_ID_LEN).optional().describe('Project ID that the target node belongs to. Defaults to the current project.'),
       },
     },

@@ -15,15 +15,15 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
         'Use move_task for a simpler status-only change. ' +
         'Pass expectedVersion to enable optimistic locking.',
       inputSchema: {
-        taskId:          z.string().min(1).max(500).describe('Task ID to update'),
+        taskId:          z.string().min(1).max(500).describe('Task ID to update (slug, e.g. "fix-auth-redirect-loop")'),
         title:           z.string().max(MAX_TITLE_LEN).optional().describe('New title'),
-        description:     z.string().max(MAX_DESCRIPTION_LEN).optional().describe('New description'),
+        description:     z.string().max(MAX_DESCRIPTION_LEN).optional().describe('New description (markdown)'),
         status:          z.enum(['backlog', 'todo', 'in_progress', 'review', 'done', 'cancelled']).optional()
-          .describe('New status'),
-        priority:        z.enum(['critical', 'high', 'medium', 'low']).optional().describe('New priority'),
-        tags:            z.array(z.string().max(MAX_TAG_LEN)).max(MAX_TAGS_COUNT).optional().describe('Replace tags array'),
-        dueDate:         z.number().nullable().optional().describe('New due date (ms timestamp) or null to clear'),
-        estimate:        z.number().nullable().optional().describe('New estimate (hours) or null to clear'),
+          .describe('New status: "backlog", "todo", "in_progress", "review", "done", or "cancelled"'),
+        priority:        z.enum(['critical', 'high', 'medium', 'low']).optional().describe('New priority: "critical", "high", "medium", or "low"'),
+        tags:            z.array(z.string().max(MAX_TAG_LEN)).max(MAX_TAGS_COUNT).optional().describe('Replace entire tags array — include all tags you want to keep'),
+        dueDate:         z.number().nullable().optional().describe('Due date as Unix timestamp in ms, or null to clear'),
+        estimate:        z.number().nullable().optional().describe('Effort estimate in hours, or null to clear'),
         assignee:        z.string().max(MAX_ASSIGNEE_LEN).nullable().optional().describe('Team member ID to assign, or null to unassign'),
         expectedVersion: z.number().int().positive().optional().describe('Current version for optimistic locking — request fails with version_conflict if the task has been updated since'),
       },

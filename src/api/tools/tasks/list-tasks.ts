@@ -14,9 +14,9 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
         'Use search_tasks for semantic search.',
       inputSchema: {
         status:   z.enum(['backlog', 'todo', 'in_progress', 'review', 'done', 'cancelled']).optional()
-          .describe('Filter by status'),
+          .describe('Filter by status: "backlog", "todo", "in_progress", "review", "done", or "cancelled"'),
         priority: z.enum(['critical', 'high', 'medium', 'low']).optional()
-          .describe('Filter by priority'),
+          .describe('Filter by priority: "critical", "high", "medium", or "low"'),
         tag:      z.string().max(MAX_TAG_LEN).optional().describe('Filter by tag (exact match, case-insensitive)'),
         filter:   z.string().max(500).optional().describe('Substring match on title or ID'),
         assignee: z.string().max(MAX_ASSIGNEE_LEN).optional().describe('Filter by assignee (team member ID)'),

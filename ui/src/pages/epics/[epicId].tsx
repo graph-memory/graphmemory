@@ -7,6 +7,7 @@ import {
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import ViewListIcon from '@mui/icons-material/ViewList';
 import { getEpic, deleteEpic, listEpicTasks, type Epic } from '@/entities/epic/index.ts';
 import type { Task } from '@/entities/task/index.ts';
 import { PRIORITY_BADGE_COLOR, priorityLabel, statusLabel } from '@/entities/task/index.ts';
@@ -143,7 +144,14 @@ export default function EpicDetailPage() {
         </Section>
       )}
 
-      <Section title={`Tasks (${tasks.length})`}>
+      <Section
+        title={`Tasks (${tasks.length})`}
+        action={tasks.length > 0 ? (
+          <Button size="small" startIcon={<ViewListIcon />} onClick={() => navigate(`/${projectId}/tasks/list?epic=${epicId}`)}>
+            View in list
+          </Button>
+        ) : undefined}
+      >
         {tasks.length === 0 ? (
           <Typography variant="body2" sx={{ color: palette.custom.textMuted, py: 2 }}>
             No tasks linked to this epic yet.

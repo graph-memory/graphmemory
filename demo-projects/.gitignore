@@ -8,4 +8,5 @@
 */.notes/
 */.tasks/
 */.skills/
-*.team/
+*/.team/
+*/.epics/

@@ -1,5 +1,5 @@
 import { Fragment, useState, useEffect, useCallback, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Box, Typography, Button, Paper, Chip, Alert, CircularProgress,
   useTheme, alpha, IconButton, Checkbox, Tooltip,
@@ -29,6 +29,8 @@ import {
   type Task, type TaskStatus, type TaskPriority,
 } from '@/entities/task/index.ts';
 import { listTeam, type TeamMember } from '@/entities/project/api.ts';
+import { listEpics, listEpicTasks, type Epic } from '@/entities/epic/index.ts';
+import FlagIcon from '@mui/icons-material/Flag';
 import { useColumnVisibility } from './useColumnVisibility.ts';
 
 const STATUS_OPTIONS = COLUMNS.map(c => c.status);
@@ -274,6 +276,10 @@ export default function TaskListPage() {
   const [filterPriority, setFilterPriority] = useState<TaskPriority | ''>('');
   const [filterTag, setFilterTag] = useState('');
   const [assigneeFilter, setAssigneeFilter] = useState<string>('');
+  const [searchParams] = useSearchParams();
+  const [epicFilter, setEpicFilter] = useState<string>(searchParams.get('epic') ?? '');
+  const [epics, setEpics] = useState<Epic[]>([]);
+  const [epicTaskIds, setEpicTaskIds] = useState<Set<string> | null>(null);
   const [sortField, setSortField] = useState<SortField>('order');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [collapsed, setCollapsed] = useState<Set<TaskStatus>>(new Set());
@@ -298,7 +304,15 @@ export default function TaskListPage() {
   }, [projectId]);
 
   useEffect(() => { refresh(); }, [refresh]);
-  useEffect(() => { if (projectId) listTeam(projectId).then(setTeam).catch(() => {}); }, [projectId]);
+  useEffect(() => {
+    if (!projectId) return;
+    listTeam(projectId).then(setTeam).catch(() => {});
+    listEpics(projectId).then(setEpics).catch(() => {});
+  }, [projectId]);
+  useEffect(() => {
+    if (!projectId || !epicFilter) { setEpicTaskIds(null); return; }
+    listEpicTasks(projectId, epicFilter).then(tasks => setEpicTaskIds(new Set(tasks.map(t => t.id)))).catch(() => setEpicTaskIds(null));
+  }, [projectId, epicFilter]);
   useWebSocket(projectId ?? null, useCallback((event) => { if (event.type.startsWith('task:')) refresh(); }, [refresh]));
 
   const allTags = useMemo(() => {
@@ -316,8 +330,9 @@ export default function TaskListPage() {
     if (filterPriority) filtered = filtered.filter(t => t.priority === filterPriority);
     if (filterTag) filtered = filtered.filter(t => t.tags?.includes(filterTag));
     if (assigneeFilter) filtered = filtered.filter(t => t.assignee === assigneeFilter);
+    if (epicTaskIds) filtered = filtered.filter(t => epicTaskIds.has(t.id));
     return filtered;
-  }, [tasks, searchQuery, filterPriority, filterTag, assigneeFilter]);
+  }, [tasks, searchQuery, filterPriority, filterTag, assigneeFilter, epicTaskIds]);
 
   const compareTasks = useCallback((a: Task, b: Task): number => {
     let cmp = 0;
@@ -443,7 +458,7 @@ export default function TaskListPage() {
   const goToTask = (taskId: string) => navigate(`/${projectId}/tasks/${taskId}`);
   const goToNew = () => navigate(`/${projectId}/tasks/new`);
 
-  const hasFilters = searchQuery || filterPriority || filterTag || assigneeFilter;
+  const hasFilters = searchQuery || filterPriority || filterTag || assigneeFilter || epicFilter;
   const totalFiltered = filteredTasks.length;
   const activeTask = activeId ? tasks.find(t => t.id === activeId) : null;
 
@@ -528,7 +543,33 @@ export default function TaskListPage() {
             </Select>
           </FormControl>
         )}
-        {hasFilters && <Button size="small" onClick={() => { setSearchQuery(''); setFilterPriority(''); setFilterTag(''); setAssigneeFilter(''); }}>Clear</Button>}
+        {epics.length > 0 && (
+          <FormControl size="small" sx={{ minWidth: 120 }}>
+            <Select
+              name="filter-epic"
+              value={epicFilter}
+              onChange={e => setEpicFilter(e.target.value)}
+              displayEmpty
+              renderValue={v => {
+                if (!v) return 'Epic';
+                const ep = epics.find(e => e.id === v);
+                return ep?.title || v;
+              }}
+              sx={{ color: epicFilter ? undefined : palette.custom.textMuted }}
+            >
+              <MenuItem value="">All epics</MenuItem>
+              {epics.map(e => (
+                <MenuItem key={e.id} value={e.id}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <FlagIcon sx={{ fontSize: 14, color: e.status === 'open' ? '#1976d2' : e.status === 'in_progress' ? '#f57c00' : e.status === 'done' ? '#388e3c' : '#d32f2f' }} />
+                    {e.title}
+                  </Box>
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        )}
+        {hasFilters && <Button size="small" onClick={() => { setSearchQuery(''); setFilterPriority(''); setFilterTag(''); setAssigneeFilter(''); setEpicFilter(''); }}>Clear</Button>}
       </Box>
 
       {/* Bulk actions bar */}

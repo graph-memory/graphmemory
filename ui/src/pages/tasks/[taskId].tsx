@@ -1,11 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Box, Typography, Button, Alert, CircularProgress, Link,
+  Box, Typography, Button, Alert, CircularProgress, Link, IconButton,
   FormControl, InputLabel, Select, MenuItem, Stack,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import FlagIcon from '@mui/icons-material/Flag';
+import LinkOffIcon from '@mui/icons-material/LinkOff';
+import { listEpics, linkTaskToEpic, unlinkTaskFromEpic, type Epic } from '@/entities/epic/index.ts';
 import {
   getTask, deleteTask, moveTask, listTaskRelations,
   listTaskAttachments, uploadTaskAttachment, deleteTaskAttachment, taskAttachmentUrl,
@@ -36,6 +39,7 @@ export default function TaskDetailPage() {
   const [relations, setRelations] = useState<TaskRelation[]>([]);
   const [attachments, setAttachments] = useState<AttachmentMeta[]>([]);
   const [team, setTeam] = useState<TeamMember[]>([]);
+  const [epics, setEpics] = useState<Epic[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -43,16 +47,18 @@ export default function TaskDetailPage() {
   const load = useCallback(async () => {
     if (!projectId || !taskId) return;
     try {
-      const [t, rels, atts, members] = await Promise.all([
+      const [t, rels, atts, members, allEpics] = await Promise.all([
         getTask(projectId, taskId) as Promise<TaskDetail>,
         listTaskRelations(projectId, taskId),
         listTaskAttachments(projectId, taskId),
         listTeam(projectId).catch(() => [] as TeamMember[]),
+        listEpics(projectId).catch(() => [] as Epic[]),
       ]);
       setTask(t);
       setRelations(rels);
       setAttachments(atts);
       setTeam(members);
+      setEpics(allEpics);
       setError(null);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
@@ -163,6 +169,57 @@ export default function TaskDetailPage() {
         </FieldRow>
         <FieldRow label="Tags">
           {task.tags.length > 0 ? <Tags tags={task.tags} /> : <Typography variant="body2" color="text.secondary">—</Typography>}
+        </FieldRow>
+        <FieldRow label="Epics">
+          {(() => {
+            const linkedEpicIds = relations.filter(r => r.kind === 'belongs_to').map(r => r.toId);
+            const linkedEpics = epics.filter(e => linkedEpicIds.includes(e.id));
+            const availableEpics = epics.filter(e => !linkedEpicIds.includes(e.id) && (e.status === 'open' || e.status === 'in_progress'));
+            return (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                {linkedEpics.map(e => (
+                  <Box key={e.id} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <FlagIcon sx={{ fontSize: 16, color: e.status === 'open' ? '#1976d2' : e.status === 'in_progress' ? '#f57c00' : '#388e3c' }} />
+                    <Link component="button" variant="body2" onClick={() => navigate(`/${projectId}/epics/${e.id}`)}>
+                      {e.title}
+                    </Link>
+                    {canWrite && (
+                      <IconButton size="small" sx={{ p: 0.25 }} onClick={async () => {
+                        await unlinkTaskFromEpic(projectId!, e.id, taskId!);
+                        load();
+                      }}>
+                        <LinkOffIcon sx={{ fontSize: 14 }} />
+                      </IconButton>
+                    )}
+                  </Box>
+                ))}
+                {linkedEpics.length === 0 && !canWrite && <Typography variant="body2" color="text.secondary">—</Typography>}
+                {canWrite && availableEpics.length > 0 && (
+                  <FormControl size="small" sx={{ minWidth: 160, mt: 0.5 }}>
+                    <Select
+                      value=""
+                      displayEmpty
+                      renderValue={() => 'Add to epic...'}
+                      onChange={async (e) => {
+                        await linkTaskToEpic(projectId!, e.target.value as string, taskId!);
+                        load();
+                      }}
+                      sx={{ fontSize: '0.85rem' }}
+                    >
+                      {availableEpics.map(e => (
+                        <MenuItem key={e.id} value={e.id}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <FlagIcon sx={{ fontSize: 14, color: e.status === 'open' ? '#1976d2' : '#f57c00' }} />
+                            {e.title}
+                          </Box>
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                )}
+              </Box>
+            );
+          })()}
         </FieldRow>
         {task.dueDate != null && (
           <FieldRow label="Due Date">

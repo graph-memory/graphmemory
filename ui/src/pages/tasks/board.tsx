@@ -62,11 +62,11 @@ function computeOrderAt(items: Task[], index: number): number {
 // ---------------------------------------------------------------------------
 
 function SortableTaskCard({
-  task, team, canWrite, onNavigate, onEdit, onDelete, palette,
+  task, team, canWrite, onNavigate, onEdit, onDelete, palette, taskEpics,
 }: {
   task: Task; team: TeamMember[]; canWrite: boolean;
   onNavigate: (id: string) => void; onEdit: (id: string) => void; onDelete: (t: Task) => void;
-  palette: any;
+  palette: any; taskEpics?: Epic[];
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
   const style = {
@@ -164,11 +164,23 @@ function SortableTaskCard({
           {task.description.length > 80 ? task.description.slice(0, 80) + '...' : task.description}
         </Typography>
       )}
-      {task.tags?.length > 0 && (
+      {taskEpics && taskEpics.length > 0 ? (
+        <Box sx={{ mt: 0.5, display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+          {taskEpics.map(e => (
+            <Chip
+              key={e.id}
+              icon={<FlagIcon sx={{ fontSize: '14px !important' }} />}
+              label={e.title}
+              size="small"
+              sx={{ height: 20, '& .MuiChip-label': { px: 0.5, fontSize: '0.7rem' }, '& .MuiChip-icon': { ml: 0.5, color: e.status === 'open' ? '#1976d2' : '#f57c00' } }}
+            />
+          ))}
+        </Box>
+      ) : task.tags?.length > 0 ? (
         <Box sx={{ mt: 0.5 }}>
           <Tags tags={task.tags} />
         </Box>
-      )}
+      ) : null}
     </Paper>
   );
 }
@@ -190,6 +202,7 @@ export default function TaskBoardPage() {
   const [epicFilter, setEpicFilter] = useState<string>('');
   const [epics, setEpics] = useState<Epic[]>([]);
   const [epicTaskIds, setEpicTaskIds] = useState<Set<string> | null>(null);
+  const [taskEpicMap, setTaskEpicMap] = useState<Map<string, Epic[]>>(new Map());
 
   // DnD state
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -233,7 +246,20 @@ export default function TaskBoardPage() {
   useEffect(() => {
     if (!projectId) return;
     listTeam(projectId).then(setTeam).catch(() => {});
-    listEpics(projectId).then(setEpics).catch(() => {});
+    listEpics(projectId).then(async (list) => {
+      setEpics(list);
+      // Build taskId → epic[] map
+      const map = new Map<string, Epic[]>();
+      await Promise.all(list.map(async (epic) => {
+        const tasks = await listEpicTasks(projectId, epic.id).catch(() => []);
+        for (const t of tasks) {
+          const arr = map.get(t.id) ?? [];
+          arr.push(epic);
+          map.set(t.id, arr);
+        }
+      }));
+      setTaskEpicMap(map);
+    }).catch(() => {});
   }, [projectId]);
 
   useEffect(() => {
@@ -607,6 +633,7 @@ export default function TaskBoardPage() {
                           onEdit={(id) => navigate(`/${projectId}/tasks/${id}/edit`)}
                           onDelete={setDeleteTarget}
                           palette={palette}
+                          taskEpics={taskEpicMap.get(task.id)}
                         />
                       ))}
                     </Stack>

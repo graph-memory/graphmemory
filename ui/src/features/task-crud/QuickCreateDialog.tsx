@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Button, TextField, Select, MenuItem, Box, IconButton,
-  FormControl, Typography, useTheme,
+  FormControl, useTheme,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import FlagIcon from '@mui/icons-material/Flag';
@@ -113,7 +113,7 @@ export function QuickCreateDialog({ open, onClose, onCreated, defaultStatus }: Q
         <IconButton size="small" onClick={onClose}><CloseIcon /></IconButton>
       </DialogTitle>
       <DialogContent sx={{ pt: '8px !important' }}>
-        <Box sx={{ display: 'flex', gap: 3 }}>
+        <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', sm: 'row' } }}>
           {/* Left column: title + description */}
           <Box sx={{ flex: 1.2, display: 'flex', flexDirection: 'column', gap: 2 }}>
             <TextField
@@ -128,23 +128,20 @@ export function QuickCreateDialog({ open, onClose, onCreated, defaultStatus }: Q
             />
             <TextField
               fullWidth
-              label="Description"
+              label="Description (markdown)"
               value={description}
               onChange={e => setDescription(e.target.value)}
               multiline
-              minRows={4}
-              maxRows={8}
+              minRows={7}
+              maxRows={14}
               size="small"
-              placeholder="Optional markdown description..."
             />
           </Box>
 
           {/* Right column: properties */}
           <Box sx={{ flex: 0.8, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-            <Typography variant="caption" fontWeight={600} sx={{ color: palette.custom.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Properties
-            </Typography>
-            <FormControl size="small" fullWidth>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+            <FormControl size="small" sx={{ flex: 1 }}>
               <Select
                 name="qc-status"
                 value={status}
@@ -164,7 +161,7 @@ export function QuickCreateDialog({ open, onClose, onCreated, defaultStatus }: Q
                 ))}
               </Select>
             </FormControl>
-            <FormControl size="small" fullWidth>
+            <FormControl size="small" sx={{ flex: 1 }}>
               <Select
                 name="qc-priority"
                 value={priority}
@@ -183,6 +180,7 @@ export function QuickCreateDialog({ open, onClose, onCreated, defaultStatus }: Q
                 ))}
               </Select>
             </FormControl>
+            </Box>
             {team.length > 0 && (
               <FormControl size="small" fullWidth>
                 <Select

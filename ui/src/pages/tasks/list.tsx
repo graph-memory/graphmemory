@@ -131,12 +131,12 @@ function DroppableGroupHeader({
 
 function DraggableTaskRow({
   task, team, canWrite, selected, onToggleSelect, onNavigate, palette,
-  onInlineStatus, onInlinePriority, isBeingDragged, groupColor,
+  onInlineStatus, onInlinePriority, isBeingDragged, groupColor, taskEpics,
 }: {
   task: Task; team: TeamMember[]; canWrite: boolean; selected: boolean;
   onToggleSelect: () => void; onNavigate: () => void; palette: any;
   onInlineStatus: (status: TaskStatus) => void; onInlinePriority: (priority: TaskPriority) => void;
-  isBeingDragged: boolean; groupColor: string;
+  isBeingDragged: boolean; groupColor: string; taskEpics?: Epic[];
 }) {
   const { attributes, listeners, setNodeRef: setDragRef } = useDraggable({ id: task.id });
   const { setNodeRef: setDropRef, isOver } = useDroppable({ id: task.id });
@@ -251,7 +251,19 @@ function DraggableTaskRow({
         )}
       </TableCell>
       <TableCell>
-        {task.tags?.length > 0 && <Tags tags={task.tags} />}
+        {taskEpics && taskEpics.length > 0 ? (
+          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+            {taskEpics.map(e => (
+              <Chip
+                key={e.id}
+                icon={<FlagIcon sx={{ fontSize: '14px !important' }} />}
+                label={e.title}
+                size="small"
+                sx={{ height: 20, '& .MuiChip-label': { px: 0.5, fontSize: '0.7rem' }, '& .MuiChip-icon': { ml: 0.5, color: e.status === 'open' ? '#1976d2' : '#f57c00' } }}
+              />
+            ))}
+          </Box>
+        ) : task.tags?.length > 0 ? <Tags tags={task.tags} /> : null}
       </TableCell>
     </TableRow>
   );
@@ -281,6 +293,7 @@ export default function TaskListPage() {
   const [epicFilter, setEpicFilter] = useState<string>(searchParams.get('epic') ?? '');
   const [epics, setEpics] = useState<Epic[]>([]);
   const [epicTaskIds, setEpicTaskIds] = useState<Set<string> | null>(null);
+  const [taskEpicMap, setTaskEpicMap] = useState<Map<string, Epic[]>>(new Map());
   const [sortField, setSortField] = useState<SortField>('order');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [collapsed, setCollapsed] = useState<Set<TaskStatus>>(new Set());
@@ -308,7 +321,19 @@ export default function TaskListPage() {
   useEffect(() => {
     if (!projectId) return;
     listTeam(projectId).then(setTeam).catch(() => {});
-    listEpics(projectId).then(setEpics).catch(() => {});
+    listEpics(projectId).then(async (list) => {
+      setEpics(list);
+      const map = new Map<string, Epic[]>();
+      await Promise.all(list.map(async (epic) => {
+        const tasks = await listEpicTasks(projectId, epic.id).catch(() => []);
+        for (const t of tasks) {
+          const arr = map.get(t.id) ?? [];
+          arr.push(epic);
+          map.set(t.id, arr);
+        }
+      }));
+      setTaskEpicMap(map);
+    }).catch(() => {});
   }, [projectId]);
   useEffect(() => {
     if (!projectId || !epicFilter) { setEpicTaskIds(null); return; }
@@ -639,7 +664,7 @@ export default function TaskListPage() {
                   <TableCell width={120}><TableSortLabel active={sortField === 'assignee'} direction={sortField === 'assignee' ? sortDir : 'asc'} onClick={() => handleSort('assignee')}>Assignee</TableSortLabel></TableCell>
                   <TableCell width={120}><TableSortLabel active={sortField === 'dueDate'} direction={sortField === 'dueDate' ? sortDir : 'asc'} onClick={() => handleSort('dueDate')}>Due Date</TableSortLabel></TableCell>
                   <TableCell width={80}><TableSortLabel active={sortField === 'estimate'} direction={sortField === 'estimate' ? sortDir : 'asc'} onClick={() => handleSort('estimate')}>Est.</TableSortLabel></TableCell>
-                  <TableCell>Tags</TableCell>
+                  <TableCell>Epic / Tags</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -672,6 +697,7 @@ export default function TaskListPage() {
                           onInlineStatus={s => handleInlineStatus(task, s)}
                           onInlinePriority={p => handleInlinePriority(task, p)}
                           palette={palette}
+                          taskEpics={taskEpicMap.get(task.id)}
                         />
                       ))}
                     </Fragment>

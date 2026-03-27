@@ -22,7 +22,7 @@ import {
 } from '@dnd-kit/core';
 import { useWebSocket } from '@/shared/lib/useWebSocket.ts';
 import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
-import { PageTopBar, StatusBadge, Tags, ConfirmDialog } from '@/shared/ui/index.ts';
+import { PageTopBar, StatusBadge, ConfirmDialog } from '@/shared/ui/index.ts';
 import {
   listTasks, updateTask, reorderTask, bulkMoveTasks, bulkUpdatePriority, bulkDeleteTasks,
   COLUMNS, PRIORITY_COLORS, PRIORITY_BADGE_COLOR, priorityLabel, statusLabel,
@@ -59,11 +59,6 @@ type SortDir = 'asc' | 'desc';
 
 const PRIORITY_ORDER: Record<TaskPriority, number> = { critical: 0, high: 1, medium: 2, low: 3 };
 
-function formatDate(ts: number | null): string {
-  if (!ts) return '';
-  const d = new Date(ts);
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-}
 
 function computeOrderAt(items: Task[], index: number): number {
   if (items.length === 0) return 0;
@@ -109,7 +104,7 @@ function DroppableGroupHeader({
           />
         </TableCell>
       )}
-      <TableCell colSpan={7}>
+      <TableCell colSpan={5}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           {isCollapsed ? <ExpandMore fontSize="small" /> : <ExpandLess fontSize="small" />}
           <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: color, flexShrink: 0 }} />
@@ -131,12 +126,12 @@ function DroppableGroupHeader({
 
 function DraggableTaskRow({
   task, team, canWrite, selected, onToggleSelect, onNavigate, palette,
-  onInlineStatus, onInlinePriority, isBeingDragged, groupColor, taskEpics,
+  onInlineStatus, onInlinePriority, isBeingDragged, groupColor, taskEpics, onTagClick, activeTag, onAssigneeClick,
 }: {
   task: Task; team: TeamMember[]; canWrite: boolean; selected: boolean;
   onToggleSelect: () => void; onNavigate: () => void; palette: any;
   onInlineStatus: (status: TaskStatus) => void; onInlinePriority: (priority: TaskPriority) => void;
-  isBeingDragged: boolean; groupColor: string; taskEpics?: Epic[];
+  isBeingDragged: boolean; groupColor: string; taskEpics?: Epic[]; onTagClick: (tag: string) => void; activeTag?: string; onAssigneeClick: (id: string) => void;
 }) {
   const { attributes, listeners, setNodeRef: setDragRef } = useDraggable({ id: task.id });
   const { setNodeRef: setDropRef, isOver } = useDroppable({ id: task.id });
@@ -172,6 +167,30 @@ function DraggableTaskRow({
         <Typography variant="body2" fontWeight={500} noWrap sx={{ maxWidth: 400 }}>
           {task.title}
         </Typography>
+        {(taskEpics?.length || task.tags?.length) ? (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap', mt: 0.25 }}>
+            {taskEpics?.map(e => (
+              <Chip
+                key={e.id}
+                icon={<FlagIcon sx={{ fontSize: '14px !important' }} />}
+                label={e.title}
+                size="small"
+                sx={{ height: 20, '& .MuiChip-label': { px: 0.5, fontSize: '0.7rem' }, '& .MuiChip-icon': { ml: 0.5, color: e.status === 'open' ? '#1976d2' : '#f57c00' } }}
+              />
+            ))}
+            {task.tags?.map(t => (
+              <Typography
+                key={t}
+                variant="caption"
+                component="span"
+                onClick={(e: React.MouseEvent) => { e.stopPropagation(); onTagClick(t); }}
+                sx={{ color: palette.primary.main, cursor: 'pointer', fontWeight: t === activeTag ? 700 : 400, '&:hover': { textDecoration: 'underline' } }}
+              >
+                #{t}
+              </Typography>
+            ))}
+          </Box>
+        ) : null}
       </TableCell>
       <TableCell onClick={e => e.stopPropagation()}>
         {canWrite ? (
@@ -230,14 +249,16 @@ function DraggableTaskRow({
         )}
       </TableCell>
       <TableCell>
-        <Typography variant="body2" sx={{ color: palette.custom.textMuted }}>
-          {task.assignee ? `@${team.find(m => m.id === task.assignee)?.name ?? task.assignee}` : ''}
-        </Typography>
-      </TableCell>
-      <TableCell>
-        <Typography variant="body2" sx={{ color: palette.custom.textMuted }}>
-          {formatDate(task.dueDate)}
-        </Typography>
+        {task.assignee && (
+          <Typography
+            variant="body2"
+            component="span"
+            onClick={(e: React.MouseEvent) => { e.stopPropagation(); onAssigneeClick(task.assignee!); }}
+            sx={{ color: palette.custom.textMuted, cursor: 'pointer', '&:hover': { textDecoration: 'underline', color: palette.text.primary } }}
+          >
+            @{team.find(m => m.id === task.assignee)?.name ?? task.assignee}
+          </Typography>
+        )}
       </TableCell>
       <TableCell>
         {task.estimate != null && (
@@ -249,21 +270,6 @@ function DraggableTaskRow({
             sx={{ height: 22, '& .MuiChip-label': { px: 0.5, fontSize: '0.75rem' }, '& .MuiChip-icon': { ml: 0.5 } }}
           />
         )}
-      </TableCell>
-      <TableCell>
-        {taskEpics && taskEpics.length > 0 ? (
-          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-            {taskEpics.map(e => (
-              <Chip
-                key={e.id}
-                icon={<FlagIcon sx={{ fontSize: '14px !important' }} />}
-                label={e.title}
-                size="small"
-                sx={{ height: 20, '& .MuiChip-label': { px: 0.5, fontSize: '0.7rem' }, '& .MuiChip-icon': { ml: 0.5, color: e.status === 'open' ? '#1976d2' : '#f57c00' } }}
-              />
-            ))}
-          </Box>
-        ) : task.tags?.length > 0 ? <Tags tags={task.tags} /> : null}
       </TableCell>
     </TableRow>
   );
@@ -662,9 +668,7 @@ export default function TaskListPage() {
                   <TableCell width={130}>Status</TableCell>
                   <TableCell width={120}><TableSortLabel active={sortField === 'priority'} direction={sortField === 'priority' ? sortDir : 'asc'} onClick={() => handleSort('priority')}>Priority</TableSortLabel></TableCell>
                   <TableCell width={120}><TableSortLabel active={sortField === 'assignee'} direction={sortField === 'assignee' ? sortDir : 'asc'} onClick={() => handleSort('assignee')}>Assignee</TableSortLabel></TableCell>
-                  <TableCell width={120}><TableSortLabel active={sortField === 'dueDate'} direction={sortField === 'dueDate' ? sortDir : 'asc'} onClick={() => handleSort('dueDate')}>Due Date</TableSortLabel></TableCell>
                   <TableCell width={80}><TableSortLabel active={sortField === 'estimate'} direction={sortField === 'estimate' ? sortDir : 'asc'} onClick={() => handleSort('estimate')}>Est.</TableSortLabel></TableCell>
-                  <TableCell>Epic / Tags</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -698,6 +702,9 @@ export default function TaskListPage() {
                           onInlinePriority={p => handleInlinePriority(task, p)}
                           palette={palette}
                           taskEpics={taskEpicMap.get(task.id)}
+                          onTagClick={setFilterTag}
+                          activeTag={filterTag}
+                          onAssigneeClick={setAssigneeFilter}
                         />
                       ))}
                     </Fragment>

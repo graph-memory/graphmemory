@@ -22,9 +22,9 @@ import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-
 import { CSS } from '@dnd-kit/utilities';
 import { useWebSocket } from '@/shared/lib/useWebSocket.ts';
 import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
-import { PageTopBar, StatusBadge, Tags, ConfirmDialog } from '@/shared/ui/index.ts';
+import { PageTopBar, StatusBadge, ConfirmDialog } from '@/shared/ui/index.ts';
 import {
-  listTasks, reorderTask, deleteTask,
+  listTasks, reorderTask, updateTask, deleteTask,
   COLUMNS, PRIORITY_COLORS, PRIORITY_BADGE_COLOR, priorityLabel,
   type Task, type TaskStatus, type TaskPriority,
 } from '@/entities/task/index.ts';
@@ -62,11 +62,11 @@ function computeOrderAt(items: Task[], index: number): number {
 // ---------------------------------------------------------------------------
 
 function SortableTaskCard({
-  task, team, canWrite, onNavigate, onEdit, onDelete, palette, taskEpics,
+  task, team, canWrite, onNavigate, onEdit, onDelete, palette, taskEpics, onTagClick, activeTag, onAssigneeClick, onPriorityChange,
 }: {
   task: Task; team: TeamMember[]; canWrite: boolean;
   onNavigate: (id: string) => void; onEdit: (id: string) => void; onDelete: (t: Task) => void;
-  palette: any; taskEpics?: Epic[];
+  palette: any; taskEpics?: Epic[]; onTagClick: (tag: string) => void; activeTag?: string; onAssigneeClick: (id: string) => void; onPriorityChange: (p: TaskPriority) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
   const style = {
@@ -121,25 +121,51 @@ function SortableTaskCard({
         )}
       </Box>
 
-      {/* Title + assignee */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5, pr: 3 }}>
-        <Typography variant="body2" fontWeight={600} sx={{ flex: 1 }}>
-          {task.title}
-        </Typography>
-      </Box>
-      {task.assignee && (
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-          @{team.find(m => m.id === task.assignee)?.name ?? task.assignee}
-        </Typography>
-      )}
+      {/* Title */}
+      <Typography variant="body2" fontWeight={600} sx={{ mb: 0.5, pr: 3 }}>
+        {task.title}
+      </Typography>
 
-      {/* Badges row: priority, estimate, due date */}
-      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: task.description ? 0.5 : 0 }}>
-        <StatusBadge
-          label={priorityLabel(task.priority)}
-          color={PRIORITY_BADGE_COLOR[task.priority]}
+      {/* Badges row: priority, assignee, estimate, due date */}
+      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', alignItems: 'center', mb: task.description ? 0.5 : 0 }}>
+        <Select
           size="small"
-        />
+          name={`bp-${task.id}`}
+          value={task.priority}
+          onChange={e => { e.stopPropagation(); onPriorityChange(e.target.value as TaskPriority); }}
+          variant="standard"
+          disableUnderline
+          onClick={e => e.stopPropagation()}
+          sx={{
+            bgcolor: alpha(PRIORITY_COLORS[task.priority], 0.12),
+            color: PRIORITY_COLORS[task.priority],
+            fontWeight: 600, fontSize: '0.75rem', borderRadius: '999px',
+            border: `1px solid ${alpha(PRIORITY_COLORS[task.priority], 0.3)}`,
+            height: 24, minWidth: 60,
+            '& .MuiSelect-select': { py: '2px', px: 1, display: 'flex', alignItems: 'center' },
+            '& .MuiSelect-icon': { fontSize: '0.9rem', color: PRIORITY_COLORS[task.priority], right: 2 },
+            '&:before, &:after': { display: 'none' },
+          }}
+        >
+          {(['critical', 'high', 'medium', 'low'] as const).map(p => (
+            <MenuItem key={p} value={p}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: PRIORITY_COLORS[p] }} />
+                {priorityLabel(p)}
+              </Box>
+            </MenuItem>
+          ))}
+        </Select>
+        {task.assignee && (
+          <Typography
+            variant="caption"
+            component="span"
+            onClick={(e: React.MouseEvent) => { e.stopPropagation(); onAssigneeClick(task.assignee!); }}
+            sx={{ color: palette.custom.textMuted, cursor: 'pointer', '&:hover': { textDecoration: 'underline', color: palette.text.primary } }}
+          >
+            @{team.find(m => m.id === task.assignee)?.name ?? task.assignee}
+          </Typography>
+        )}
         {task.estimate != null && (
           <Chip
             icon={<ScheduleIcon sx={{ fontSize: '14px !important' }} />}
@@ -164,9 +190,9 @@ function SortableTaskCard({
           {task.description.length > 80 ? task.description.slice(0, 80) + '...' : task.description}
         </Typography>
       )}
-      {taskEpics && taskEpics.length > 0 ? (
-        <Box sx={{ mt: 0.5, display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-          {taskEpics.map(e => (
+      {(taskEpics?.length || task.tags?.length) ? (
+        <Box sx={{ mt: 0.5, display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
+          {taskEpics?.map(e => (
             <Chip
               key={e.id}
               icon={<FlagIcon sx={{ fontSize: '14px !important' }} />}
@@ -175,10 +201,17 @@ function SortableTaskCard({
               sx={{ height: 20, '& .MuiChip-label': { px: 0.5, fontSize: '0.7rem' }, '& .MuiChip-icon': { ml: 0.5, color: e.status === 'open' ? '#1976d2' : '#f57c00' } }}
             />
           ))}
-        </Box>
-      ) : task.tags?.length > 0 ? (
-        <Box sx={{ mt: 0.5 }}>
-          <Tags tags={task.tags} />
+          {task.tags?.map(t => (
+            <Typography
+              key={t}
+              variant="caption"
+              component="span"
+              onClick={(e: React.MouseEvent) => { e.stopPropagation(); onTagClick(t); }}
+              sx={{ color: palette.primary.main, cursor: 'pointer', fontWeight: t === activeTag ? 700 : 400, '&:hover': { textDecoration: 'underline' } }}
+            >
+              #{t}
+            </Typography>
+          ))}
         </Box>
       ) : null}
     </Paper>
@@ -634,6 +667,13 @@ export default function TaskBoardPage() {
                           onDelete={setDeleteTarget}
                           palette={palette}
                           taskEpics={taskEpicMap.get(task.id)}
+                          onTagClick={setFilterTag}
+                          activeTag={filterTag}
+                          onAssigneeClick={setAssigneeFilter}
+                          onPriorityChange={async (p) => {
+                            setTasks(prev => prev.map(t => t.id === task.id ? { ...t, priority: p } : t));
+                            try { await updateTask(projectId!, task.id, { priority: p }); } catch { refresh(); }
+                          }}
                         />
                       ))}
                     </Stack>

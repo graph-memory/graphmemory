@@ -446,3 +446,78 @@ describe('MCP Skill Tools', () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Reverse-side deletion: delete skill↔knowledge link from the other side
+// ---------------------------------------------------------------------------
+
+describe('Reverse-side cross-graph link deletion (skills)', () => {
+  const rSkillGraph = createSkillGraph();
+  const rKnowledgeGraph = createKnowledgeGraph();
+  const rFakeEmbed = createFakeEmbed([['skill', 10], ['note', 11]]);
+  let rCtx: McpTestContext;
+  let rCall: McpTestContext['call'];
+
+  beforeAll(async () => {
+    rCtx = await setupMcpClient({
+      knowledgeGraph: rKnowledgeGraph,
+      skillGraph: rSkillGraph,
+      embedFn: rFakeEmbed,
+    });
+    rCall = rCtx.call;
+  });
+
+  afterAll(async () => {
+    await rCtx.close();
+  });
+
+  it('skill→knowledge link can be deleted from knowledge (note) side', async () => {
+    // Create skill and note
+    await rCall('skills_create', { title: 'Rev Skill', description: 'A skill for reverse test', source: 'user', confidence: 0.9 });
+    await rCall('notes_create', { title: 'Rev Note', content: 'note for skill reverse test' });
+
+    // Create link from skill to knowledge
+    const link = json<CrossLinkResult>(await rCall('skills_create_link', {
+      skillId: 'rev-skill',
+      targetId: 'rev-note',
+      targetGraph: 'knowledge',
+      kind: 'documents',
+      projectId: 'test',
+    }));
+    expect(link.created).toBe(true);
+
+    // Verify mirror proxy exists in KnowledgeGraph (project-scoped)
+    expect(rKnowledgeGraph.hasNode('@skills::test::rev-skill')).toBe(true);
+
+    // Delete from knowledge side
+    const del = json<{ deleted: boolean }>(await rCall('notes_delete_link', {
+      fromId: 'rev-note',
+      toId: 'rev-skill',
+      targetGraph: 'skills',
+      projectId: 'test',
+    }));
+    expect(del.deleted).toBe(true);
+  });
+
+  it('after knowledge-side deletion, mirror proxy is cleaned up in KnowledgeGraph', () => {
+    expect(rKnowledgeGraph.hasNode('@skills::test::rev-skill')).toBe(false);
+    expect(rKnowledgeGraph.hasNode('@skills::rev-skill')).toBe(false);
+  });
+
+  it('after knowledge-side deletion, original proxy in SkillGraph is left (no bidirectional mirror from knowledge→skill)', () => {
+    // Knowledge→skill doesn't create a mirror in SkillGraph, so the original edge remains
+    // The skill-side proxy is still there because only the knowledge-side mirror was removed
+    expect(rSkillGraph.hasNode('@knowledge::test::rev-note')).toBe(true);
+  });
+
+  it('skill-side can then clean up remaining cross-graph link', async () => {
+    const del = json<CrossDeleteResult>(await rCall('skills_delete_link', {
+      skillId: 'rev-skill',
+      targetId: 'rev-note',
+      targetGraph: 'knowledge',
+      projectId: 'test',
+    }));
+    expect(del.deleted).toBe(true);
+    expect(rSkillGraph.hasNode('@knowledge::test::rev-note')).toBe(false);
+  });
+});

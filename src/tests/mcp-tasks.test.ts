@@ -626,3 +626,104 @@ describe('Cross-graph proxy cleanup on entity deletion', () => {
     expect(cgKnowledgeGraph.hasNode('@tasks::test::another-task')).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Reverse-side deletion: delete cross-graph link from target side
+// ---------------------------------------------------------------------------
+
+describe('Reverse-side cross-graph link deletion', () => {
+  const rTaskGraph = createTaskGraph();
+  const rKnowledgeGraph = createKnowledgeGraph();
+  const rFakeEmbed = createFakeEmbed([['task', 10], ['note', 11]]);
+  let rCtx: McpTestContext;
+  let rCall: McpTestContext['call'];
+
+  beforeAll(async () => {
+    rCtx = await setupMcpClient({
+      knowledgeGraph: rKnowledgeGraph,
+      taskGraph: rTaskGraph,
+      embedFn: rFakeEmbed,
+    });
+    rCall = rCtx.call;
+  });
+
+  afterAll(async () => {
+    await rCtx.close();
+  });
+
+  it('note→task link can be deleted from task side', async () => {
+    // Create note and task
+    await rCall('notes_create', { title: 'Rev Note', content: 'note for reverse test' });
+    await rCall('tasks_create', { title: 'Rev Task', description: 'task for reverse test', priority: 'medium' });
+
+    // Create link from note to task
+    const link = json<{ created: boolean }>(await rCall('notes_create_link', {
+      fromId: 'rev-note',
+      toId: 'rev-task',
+      kind: 'tracks',
+      targetGraph: 'tasks',
+      projectId: 'test',
+    }));
+    expect(link.created).toBe(true);
+
+    // Verify mirror proxy exists in TaskGraph (project-scoped)
+    expect(rTaskGraph.hasNode('@knowledge::test::rev-note')).toBe(true);
+
+    // Delete from task side
+    const del = json<CrossDeleteResult>(await rCall('tasks_delete_link', {
+      taskId: 'rev-task',
+      targetId: 'rev-note',
+      targetGraph: 'knowledge',
+      projectId: 'test',
+    }));
+    expect(del.deleted).toBe(true);
+  });
+
+  it('after reverse-side deletion, mirror proxy is cleaned up in TaskGraph', () => {
+    expect(rTaskGraph.hasNode('@knowledge::test::rev-note')).toBe(false);
+    expect(rTaskGraph.hasNode('@knowledge::rev-note')).toBe(false);
+  });
+
+  it('after reverse-side deletion, original proxy is cleaned up in KnowledgeGraph', () => {
+    expect(rKnowledgeGraph.hasNode('@tasks::test::rev-task')).toBe(false);
+    expect(rKnowledgeGraph.hasNode('@tasks::rev-task')).toBe(false);
+  });
+
+  it('task→note link can be deleted from note side', async () => {
+    // Create new note and task
+    await rCall('notes_create', { title: 'Rev Note 2', content: 'another note' });
+    await rCall('tasks_create', { title: 'Rev Task 2', description: 'another task', priority: 'low' });
+
+    // Create link from task to note
+    const link = json<{ created: boolean }>(await rCall('tasks_create_link', {
+      taskId: 'rev-task-2',
+      targetId: 'rev-note-2',
+      targetGraph: 'knowledge',
+      kind: 'references',
+      projectId: 'test',
+    }));
+    expect(link.created).toBe(true);
+
+    // Verify mirror proxy exists in KnowledgeGraph (project-scoped)
+    expect(rKnowledgeGraph.hasNode('@tasks::test::rev-task-2')).toBe(true);
+
+    // Delete from note side
+    const del = json<{ deleted: boolean }>(await rCall('notes_delete_link', {
+      fromId: 'rev-note-2',
+      toId: 'rev-task-2',
+      targetGraph: 'tasks',
+      projectId: 'test',
+    }));
+    expect(del.deleted).toBe(true);
+  });
+
+  it('after note-side deletion, mirror proxy is cleaned up in KnowledgeGraph', () => {
+    expect(rKnowledgeGraph.hasNode('@tasks::test::rev-task-2')).toBe(false);
+    expect(rKnowledgeGraph.hasNode('@tasks::rev-task-2')).toBe(false);
+  });
+
+  it('after note-side deletion, original proxy is cleaned up in TaskGraph', () => {
+    expect(rTaskGraph.hasNode('@knowledge::test::rev-note-2')).toBe(false);
+    expect(rTaskGraph.hasNode('@knowledge::rev-note-2')).toBe(false);
+  });
+});

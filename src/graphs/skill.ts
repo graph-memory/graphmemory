@@ -677,8 +677,9 @@ function createMirrorInKnowledgeGraph(
   skillId: string,
   noteId: string,
   kind: string,
+  projectId?: string,
 ): void {
-  const mirrorProxyId = `@skills::${skillId}`;
+  const mirrorProxyId = projectId ? `@skills::${projectId}::${skillId}` : `@skills::${skillId}`;
   if (!knowledgeGraph.hasNode(mirrorProxyId)) {
     knowledgeGraph.addNode(mirrorProxyId, {
       title: '',
@@ -689,7 +690,7 @@ function createMirrorInKnowledgeGraph(
       createdAt: 0,
       updatedAt: 0,
       version: 0,
-      proxyFor: { graph: 'skills', nodeId: skillId },
+      proxyFor: { graph: 'skills', nodeId: skillId, ...(projectId ? { projectId } : {}) },
     });
   }
   if (!knowledgeGraph.hasNode(noteId)) return;
@@ -703,16 +704,21 @@ function deleteMirrorFromKnowledgeGraph(
   knowledgeGraph: DirectedGraph,
   skillId: string,
   noteId: string,
+  projectId?: string,
 ): void {
-  const mirrorProxyId = `@skills::${skillId}`;
-  const edgeKey = `${mirrorProxyId}→${noteId}`;
-  if (knowledgeGraph.hasEdge(edgeKey)) {
-    knowledgeGraph.dropEdge(edgeKey);
-  }
-  if (knowledgeGraph.hasNode(mirrorProxyId)) {
-    const proxyFor = knowledgeGraph.getNodeAttribute(mirrorProxyId, 'proxyFor');
-    if (proxyFor && knowledgeGraph.degree(mirrorProxyId) === 0) {
-      knowledgeGraph.dropNode(mirrorProxyId);
+  const candidates = projectId
+    ? [`@skills::${projectId}::${skillId}`, `@skills::${skillId}`]
+    : [`@skills::${skillId}`];
+  for (const mirrorProxyId of candidates) {
+    const edgeKey = `${mirrorProxyId}→${noteId}`;
+    if (knowledgeGraph.hasEdge(edgeKey)) {
+      knowledgeGraph.dropEdge(edgeKey);
+    }
+    if (knowledgeGraph.hasNode(mirrorProxyId)) {
+      const proxyFor = knowledgeGraph.getNodeAttribute(mirrorProxyId, 'proxyFor');
+      if (proxyFor && knowledgeGraph.degree(mirrorProxyId) === 0) {
+        knowledgeGraph.dropNode(mirrorProxyId);
+      }
     }
   }
 }
@@ -725,8 +731,9 @@ function createMirrorInTaskGraph(
   skillId: string,
   taskId: string,
   kind: string,
+  projectId?: string,
 ): void {
-  const mirrorProxyId = `@skills::${skillId}`;
+  const mirrorProxyId = projectId ? `@skills::${projectId}::${skillId}` : `@skills::${skillId}`;
   if (!taskGraph.hasNode(mirrorProxyId)) {
     taskGraph.addNode(mirrorProxyId, {
       title: '',
@@ -743,7 +750,7 @@ function createMirrorInTaskGraph(
       createdAt: 0,
       updatedAt: 0,
       version: 0,
-      proxyFor: { graph: 'skills', nodeId: skillId },
+      proxyFor: { graph: 'skills', nodeId: skillId, ...(projectId ? { projectId } : {}) },
     });
   }
   if (!taskGraph.hasNode(taskId)) return;
@@ -757,16 +764,21 @@ function deleteMirrorFromTaskGraph(
   taskGraph: DirectedGraph,
   skillId: string,
   taskId: string,
+  projectId?: string,
 ): void {
-  const mirrorProxyId = `@skills::${skillId}`;
-  const edgeKey = `${mirrorProxyId}→${taskId}`;
-  if (taskGraph.hasEdge(edgeKey)) {
-    taskGraph.dropEdge(edgeKey);
-  }
-  if (taskGraph.hasNode(mirrorProxyId)) {
-    const proxyFor = taskGraph.getNodeAttribute(mirrorProxyId, 'proxyFor');
-    if (proxyFor && taskGraph.degree(mirrorProxyId) === 0) {
-      taskGraph.dropNode(mirrorProxyId);
+  const candidates = projectId
+    ? [`@skills::${projectId}::${skillId}`, `@skills::${skillId}`]
+    : [`@skills::${skillId}`];
+  for (const mirrorProxyId of candidates) {
+    const edgeKey = `${mirrorProxyId}→${taskId}`;
+    if (taskGraph.hasEdge(edgeKey)) {
+      taskGraph.dropEdge(edgeKey);
+    }
+    if (taskGraph.hasNode(mirrorProxyId)) {
+      const proxyFor = taskGraph.getNodeAttribute(mirrorProxyId, 'proxyFor');
+      if (proxyFor && taskGraph.degree(mirrorProxyId) === 0) {
+        taskGraph.dropNode(mirrorProxyId);
+      }
     }
   }
 }
@@ -949,11 +961,11 @@ export class SkillGraphManager {
     const ok = createCrossRelation(this._graph, skillId, targetGraph, targetId, kind, extGraph, pid);
     // Bidirectional: create mirror proxy in KnowledgeGraph
     if (ok && targetGraph === 'knowledge' && this.knowledgeGraph) {
-      createMirrorInKnowledgeGraph(this.knowledgeGraph, skillId, targetId, kind);
+      createMirrorInKnowledgeGraph(this.knowledgeGraph, skillId, targetId, kind, pid);
     }
     // Bidirectional: create mirror proxy in TaskGraph
     if (ok && targetGraph === 'tasks' && this.taskGraph) {
-      createMirrorInTaskGraph(this.taskGraph, skillId, targetId, kind);
+      createMirrorInTaskGraph(this.taskGraph, skillId, targetId, kind, pid);
     }
     if (ok) {
       this.ctx.markDirty();
@@ -990,36 +1002,44 @@ export class SkillGraphManager {
     const ok = deleteCrossRelation(this._graph, skillId, targetGraph, targetId, pid);
     if (ok && targetGraph === 'knowledge' && this.knowledgeGraph) {
       // Remove mirror/original edge from KnowledgeGraph in both directions
-      deleteMirrorFromKnowledgeGraph(this.knowledgeGraph, skillId, targetId);
+      deleteMirrorFromKnowledgeGraph(this.knowledgeGraph, skillId, targetId, pid);
       // Also try removing original edge if link was created from knowledge side
       for (const [noteCandidate, skillCandidate] of [[targetId, skillId], [skillId, targetId]]) {
-        const skillProxy = `@skills::${skillCandidate}`;
-        if (this.knowledgeGraph.hasNode(skillProxy)) {
-          if (this.knowledgeGraph.hasEdge(noteCandidate, skillProxy)) {
-            this.knowledgeGraph.dropEdge(noteCandidate, skillProxy);
-            if (this.knowledgeGraph.degree(skillProxy) === 0) this.knowledgeGraph.dropNode(skillProxy);
-          }
-          if (this.knowledgeGraph.hasEdge(skillProxy, noteCandidate)) {
-            this.knowledgeGraph.dropEdge(skillProxy, noteCandidate);
-            if (this.knowledgeGraph.degree(skillProxy) === 0) this.knowledgeGraph.dropNode(skillProxy);
+        const proxyCandidates = pid
+          ? [`@skills::${pid}::${skillCandidate}`, `@skills::${skillCandidate}`]
+          : [`@skills::${skillCandidate}`];
+        for (const skillProxy of proxyCandidates) {
+          if (this.knowledgeGraph.hasNode(skillProxy)) {
+            if (this.knowledgeGraph.hasEdge(noteCandidate, skillProxy)) {
+              this.knowledgeGraph.dropEdge(noteCandidate, skillProxy);
+              if (this.knowledgeGraph.degree(skillProxy) === 0) this.knowledgeGraph.dropNode(skillProxy);
+            }
+            if (this.knowledgeGraph.hasEdge(skillProxy, noteCandidate)) {
+              this.knowledgeGraph.dropEdge(skillProxy, noteCandidate);
+              if (this.knowledgeGraph.degree(skillProxy) === 0) this.knowledgeGraph.dropNode(skillProxy);
+            }
           }
         }
       }
     }
     if (ok && targetGraph === 'tasks' && this.taskGraph) {
       // Remove mirror/original edge from TaskGraph in both directions
-      deleteMirrorFromTaskGraph(this.taskGraph, skillId, targetId);
+      deleteMirrorFromTaskGraph(this.taskGraph, skillId, targetId, pid);
       // Also try removing original edge if link was created from task side
       for (const [taskCandidate, skillCandidate] of [[targetId, skillId], [skillId, targetId]]) {
-        const skillProxy = `@skills::${skillCandidate}`;
-        if (this.taskGraph.hasNode(skillProxy)) {
-          if (this.taskGraph.hasEdge(taskCandidate, skillProxy)) {
-            this.taskGraph.dropEdge(taskCandidate, skillProxy);
-            if (this.taskGraph.degree(skillProxy) === 0) this.taskGraph.dropNode(skillProxy);
-          }
-          if (this.taskGraph.hasEdge(skillProxy, taskCandidate)) {
-            this.taskGraph.dropEdge(skillProxy, taskCandidate);
-            if (this.taskGraph.degree(skillProxy) === 0) this.taskGraph.dropNode(skillProxy);
+        const proxyCandidates = pid
+          ? [`@skills::${pid}::${skillCandidate}`, `@skills::${skillCandidate}`]
+          : [`@skills::${skillCandidate}`];
+        for (const skillProxy of proxyCandidates) {
+          if (this.taskGraph.hasNode(skillProxy)) {
+            if (this.taskGraph.hasEdge(taskCandidate, skillProxy)) {
+              this.taskGraph.dropEdge(taskCandidate, skillProxy);
+              if (this.taskGraph.degree(skillProxy) === 0) this.taskGraph.dropNode(skillProxy);
+            }
+            if (this.taskGraph.hasEdge(skillProxy, taskCandidate)) {
+              this.taskGraph.dropEdge(skillProxy, taskCandidate);
+              if (this.taskGraph.degree(skillProxy) === 0) this.taskGraph.dropNode(skillProxy);
+            }
           }
         }
       }

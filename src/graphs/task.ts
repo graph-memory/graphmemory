@@ -701,8 +701,9 @@ function createMirrorInKnowledgeGraph(
   taskId: string,
   noteId: string,
   kind: string,
+  projectId?: string,
 ): void {
-  const mirrorProxyId = `@tasks::${taskId}`;
+  const mirrorProxyId = projectId ? `@tasks::${projectId}::${taskId}` : `@tasks::${taskId}`;
   if (!knowledgeGraph.hasNode(mirrorProxyId)) {
     knowledgeGraph.addNode(mirrorProxyId, {
       title: '',
@@ -713,7 +714,7 @@ function createMirrorInKnowledgeGraph(
       createdAt: 0,
       updatedAt: 0,
       version: 0,
-      proxyFor: { graph: 'tasks', nodeId: taskId },
+      proxyFor: { graph: 'tasks', nodeId: taskId, ...(projectId ? { projectId } : {}) },
     });
   }
   if (!knowledgeGraph.hasNode(noteId)) return;
@@ -730,17 +731,22 @@ function deleteMirrorFromKnowledgeGraph(
   knowledgeGraph: DirectedGraph,
   taskId: string,
   noteId: string,
+  projectId?: string,
 ): void {
-  const mirrorProxyId = `@tasks::${taskId}`;
-  const edgeKey = `${mirrorProxyId}→${noteId}`;
-  if (knowledgeGraph.hasEdge(edgeKey)) {
-    knowledgeGraph.dropEdge(edgeKey);
-  }
-  // Cleanup orphan proxy
-  if (knowledgeGraph.hasNode(mirrorProxyId)) {
-    const proxyFor = knowledgeGraph.getNodeAttribute(mirrorProxyId, 'proxyFor');
-    if (proxyFor && knowledgeGraph.degree(mirrorProxyId) === 0) {
-      knowledgeGraph.dropNode(mirrorProxyId);
+  const candidates = projectId
+    ? [`@tasks::${projectId}::${taskId}`, `@tasks::${taskId}`]
+    : [`@tasks::${taskId}`];
+  for (const mirrorProxyId of candidates) {
+    const edgeKey = `${mirrorProxyId}→${noteId}`;
+    if (knowledgeGraph.hasEdge(edgeKey)) {
+      knowledgeGraph.dropEdge(edgeKey);
+    }
+    // Cleanup orphan proxy
+    if (knowledgeGraph.hasNode(mirrorProxyId)) {
+      const proxyFor = knowledgeGraph.getNodeAttribute(mirrorProxyId, 'proxyFor');
+      if (proxyFor && knowledgeGraph.degree(mirrorProxyId) === 0) {
+        knowledgeGraph.dropNode(mirrorProxyId);
+      }
     }
   }
 }
@@ -914,7 +920,7 @@ export class TaskGraphManager {
     const ok = createCrossRelation(this._graph, taskId, targetGraph, targetId, kind, extGraph, pid);
     // Bidirectional: create mirror proxy in KnowledgeGraph
     if (ok && targetGraph === 'knowledge' && this.knowledgeGraph) {
-      createMirrorInKnowledgeGraph(this.knowledgeGraph, taskId, targetId, kind);
+      createMirrorInKnowledgeGraph(this.knowledgeGraph, taskId, targetId, kind, pid);
     }
     if (ok) {
       this.ctx.markDirty();
@@ -952,24 +958,28 @@ export class TaskGraphManager {
     if (ok && targetGraph === 'knowledge' && this.knowledgeGraph) {
       // Remove mirror/original edge from KnowledgeGraph in both directions.
       // Case 1: task created the link → mirror is @tasks::taskId → noteId
-      deleteMirrorFromKnowledgeGraph(this.knowledgeGraph, taskId, targetId);
+      deleteMirrorFromKnowledgeGraph(this.knowledgeGraph, taskId, targetId, pid);
       // Case 2: note created the link → original is noteId → @tasks::taskId (or targetId → @tasks::taskId)
       // Try both ID interpretations since resolveEntry may have swapped them
       for (const [noteCandidate, taskCandidate] of [[targetId, taskId], [taskId, targetId]]) {
-        const taskProxy = `@tasks::${taskCandidate}`;
-        if (this.knowledgeGraph.hasNode(taskProxy)) {
-          // noteId → @tasks::taskId
-          if (this.knowledgeGraph.hasEdge(noteCandidate, taskProxy)) {
-            this.knowledgeGraph.dropEdge(noteCandidate, taskProxy);
-            if (this.knowledgeGraph.degree(taskProxy) === 0) {
-              this.knowledgeGraph.dropNode(taskProxy);
+        const proxyCandidates = pid
+          ? [`@tasks::${pid}::${taskCandidate}`, `@tasks::${taskCandidate}`]
+          : [`@tasks::${taskCandidate}`];
+        for (const taskProxy of proxyCandidates) {
+          if (this.knowledgeGraph.hasNode(taskProxy)) {
+            // noteId → @tasks::taskId
+            if (this.knowledgeGraph.hasEdge(noteCandidate, taskProxy)) {
+              this.knowledgeGraph.dropEdge(noteCandidate, taskProxy);
+              if (this.knowledgeGraph.degree(taskProxy) === 0) {
+                this.knowledgeGraph.dropNode(taskProxy);
+              }
             }
-          }
-          // @tasks::taskId → noteId (mirror direction)
-          if (this.knowledgeGraph.hasEdge(taskProxy, noteCandidate)) {
-            this.knowledgeGraph.dropEdge(taskProxy, noteCandidate);
-            if (this.knowledgeGraph.degree(taskProxy) === 0) {
-              this.knowledgeGraph.dropNode(taskProxy);
+            // @tasks::taskId → noteId (mirror direction)
+            if (this.knowledgeGraph.hasEdge(taskProxy, noteCandidate)) {
+              this.knowledgeGraph.dropEdge(taskProxy, noteCandidate);
+              if (this.knowledgeGraph.degree(taskProxy) === 0) {
+                this.knowledgeGraph.dropNode(taskProxy);
+              }
             }
           }
         }

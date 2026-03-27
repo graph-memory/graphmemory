@@ -61,6 +61,7 @@ import * as getTask from '@/api/tools/tasks/get-task';
 import * as listTasksTool from '@/api/tools/tasks/list-tasks';
 import * as searchTasksTool from '@/api/tools/tasks/search-tasks';
 import * as moveTask from '@/api/tools/tasks/move-task';
+import * as reorderTaskTool from '@/api/tools/tasks/reorder-task';
 import * as linkTask from '@/api/tools/tasks/link-task';
 import * as createTaskLink from '@/api/tools/tasks/create-task-link';
 import * as deleteTaskLink from '@/api/tools/tasks/delete-task-link';
@@ -335,6 +336,7 @@ export function createMcpServer(
       updateTask.register(mutServer, taskMgr);
       deleteTask.register(mutServer, taskMgr);
       moveTask.register(mutServer, taskMgr);
+      reorderTaskTool.register(mutServer, taskMgr);
       linkTask.register(mutServer, taskMgr);
       createTaskLink.register(mutServer, taskMgr);
       deleteTaskLink.register(mutServer, taskMgr);

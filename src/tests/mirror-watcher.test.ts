@@ -302,6 +302,7 @@ describe('round-trip task create → parseTaskDir → importFromFile', () => {
       status: 'in_progress',
       priority: 'high',
       tags: ['rt'],
+      order: 0,
       dueDate: 1700000000000,
       estimate: 8,
       completedAt: null,

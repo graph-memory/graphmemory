@@ -146,6 +146,7 @@ describe('file-mirror', () => {
         status: 'in_progress' as const,
         priority: 'high' as const,
         tags: ['auth'],
+        order: 0,
         dueDate: 1710100000000,
         estimate: 4,
         completedAt: null,

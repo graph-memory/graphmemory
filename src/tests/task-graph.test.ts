@@ -25,7 +25,7 @@ describe('slugify (shared with tasks)', () => {
   it('dedup: returns ::2 when base exists', () => {
     graph.addNode('fix-auth-bug', {
       title: 'Fix Auth Bug', description: '', status: 'backlog', priority: 'medium',
-      tags: [], dueDate: null, estimate: null, completedAt: null, assignee: null,
+      tags: [], order: 0, dueDate: null, estimate: null, completedAt: null, assignee: null,
       version: 1, embedding: [], attachments: [], createdAt: 0, updatedAt: 0,
     });
     expect(slugify('Fix Auth Bug', graph)).toBe('fix-auth-bug::2');
@@ -641,7 +641,7 @@ describe('Cross-graph relations (tasks)', () => {
       const mirrorProxyId = '@knowledge::some-note';
       tg.addNode(mirrorProxyId, {
         title: '', description: '', status: 'backlog', priority: 'low',
-        tags: [], dueDate: null, estimate: null, completedAt: null, assignee: null,
+        tags: [], order: 0, dueDate: null, estimate: null, completedAt: null, assignee: null,
         version: 0, embedding: [], attachments: [], createdAt: 0, updatedAt: 0,
         proxyFor: { graph: 'knowledge', nodeId: 'some-note' },
       });
@@ -658,7 +658,7 @@ describe('Cross-graph relations (tasks)', () => {
       const mirrorProxyId = `@knowledge::${noteId}`;
       tg.addNode(mirrorProxyId, {
         title: '', description: '', status: 'backlog', priority: 'low',
-        tags: [], dueDate: null, estimate: null, completedAt: null, assignee: null,
+        tags: [], order: 0, dueDate: null, estimate: null, completedAt: null, assignee: null,
         version: 0, embedding: [], attachments: [], createdAt: 0, updatedAt: 0,
         proxyFor: { graph: 'knowledge', nodeId: noteId },
       });

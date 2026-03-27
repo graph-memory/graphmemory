@@ -3,7 +3,7 @@ import mime from 'mime';
 import { Router } from 'express';
 import multer from 'multer';
 import type { ProjectInstance } from '@/lib/project-manager';
-import { validateBody, validateQuery, createTaskSchema, updateTaskSchema, moveTaskSchema, createTaskLinkSchema, taskSearchSchema, taskListSchema, linkedQuerySchema, attachmentFilenameSchema } from '@/api/rest/validation';
+import { validateBody, validateQuery, createTaskSchema, updateTaskSchema, moveTaskSchema, reorderTaskSchema, createTaskLinkSchema, taskSearchSchema, taskListSchema, linkedQuerySchema, attachmentFilenameSchema } from '@/api/rest/validation';
 import { requireWriteAccess } from '@/api/rest/index';
 import { VersionConflictError } from '@/graphs/manager-types';
 import { MAX_UPLOAD_SIZE } from '@/lib/defaults';
@@ -69,9 +69,9 @@ export function createTasksRouter(): Router {
   router.post('/', requireWriteAccess, validateBody(createTaskSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
-      const { title, description, status, priority, tags, dueDate, estimate, assignee } = req.body;
+      const { title, description, status, priority, tags, dueDate, estimate, assignee, order } = req.body;
       const created = await p.mutationQueue.enqueue(async () => {
-        const taskId = await p.taskManager.createTask(title, description, status, priority, tags, dueDate, estimate, assignee ?? null);
+        const taskId = await p.taskManager.createTask(title, description, status, priority, tags, dueDate, estimate, assignee ?? null, order);
         return p.taskManager.getTask(taskId);
       });
       res.status(201).json(created);
@@ -104,9 +104,9 @@ export function createTasksRouter(): Router {
     try {
       const p = getProject(req);
       const taskId = req.params.taskId as string;
-      const { status, version } = req.body;
+      const { status, version, order } = req.body;
       const result = await p.mutationQueue.enqueue(async () => {
-        const ok = p.taskManager.moveTask(taskId, status, version);
+        const ok = p.taskManager.moveTask(taskId, status, version, order);
         if (!ok) return null;
         return p.taskManager.getTask(taskId);
       });
@@ -118,6 +118,22 @@ export function createTasksRouter(): Router {
       }
       next(err);
     }
+  });
+
+  // Reorder task (change position, optionally status)
+  router.post('/:taskId/reorder', requireWriteAccess, validateBody(reorderTaskSchema), async (req, res, next) => {
+    try {
+      const p = getProject(req);
+      const taskId = req.params.taskId as string;
+      const { order, status } = req.body;
+      const result = await p.mutationQueue.enqueue(async () => {
+        const ok = p.taskManager.reorderTask(taskId, order, status);
+        if (!ok) return null;
+        return p.taskManager.getTask(taskId);
+      });
+      if (!result) return res.status(404).json({ error: 'Task not found' });
+      res.json(result);
+    } catch (err) { next(err); }
   });
 
   // Delete task

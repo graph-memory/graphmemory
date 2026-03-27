@@ -47,6 +47,7 @@ function ensureProxyNode(graph: TaskGraph, targetGraph: TaskCrossGraphType, node
       status: 'backlog',
       priority: 'low',
       tags: [],
+      order: 0,
       dueDate: null,
       estimate: null,
       completedAt: null,
@@ -96,10 +97,85 @@ export function cleanupProxies(
 }
 
 // ---------------------------------------------------------------------------
+// Order helpers
+// ---------------------------------------------------------------------------
+
+const ORDER_GAP = 1000;
+
+/** Compute the next order value for a given status group. */
+export function nextOrderForStatus(graph: TaskGraph, status: TaskStatus): number {
+  let max = -ORDER_GAP;
+  graph.forEachNode((_id, attrs: TaskNodeAttributes) => {
+    if (attrs.proxyFor) return;
+    if (attrs.status === status && (attrs.order ?? 0) > max) {
+      max = attrs.order ?? 0;
+    }
+  });
+  return max + ORDER_GAP;
+}
+
+/** Rebalance order values for all tasks in a status group to multiples of ORDER_GAP. */
+export function rebalanceOrders(graph: TaskGraph, status: TaskStatus): void {
+  const nodes: Array<{ id: string; order: number }> = [];
+  graph.forEachNode((id, attrs: TaskNodeAttributes) => {
+    if (attrs.proxyFor) return;
+    if (attrs.status === status) {
+      nodes.push({ id, order: attrs.order ?? 0 });
+    }
+  });
+  nodes.sort((a, b) => a.order - b.order);
+  for (let i = 0; i < nodes.length; i++) {
+    graph.setNodeAttribute(nodes[i].id, 'order', i * ORDER_GAP);
+  }
+}
+
+/** Reorder a task: set new order (and optionally new status). Rebalances if gap is too small. */
+export function reorderTask(
+  graph: TaskGraph,
+  taskId: string,
+  newOrder: number,
+  newStatus?: TaskStatus,
+): boolean {
+  if (!graph.hasNode(taskId)) return false;
+  if (isProxy(graph, taskId)) return false;
+
+  const oldStatus = graph.getNodeAttribute(taskId, 'status');
+  const targetStatus = newStatus ?? oldStatus;
+
+  if (newStatus !== undefined && newStatus !== oldStatus) {
+    // Handle status change with completedAt auto-logic
+    graph.setNodeAttribute(taskId, 'status', newStatus);
+    if ((newStatus === 'done' || newStatus === 'cancelled') && oldStatus !== 'done' && oldStatus !== 'cancelled') {
+      graph.setNodeAttribute(taskId, 'completedAt', Date.now());
+    } else if (newStatus !== 'done' && newStatus !== 'cancelled' && (oldStatus === 'done' || oldStatus === 'cancelled')) {
+      graph.setNodeAttribute(taskId, 'completedAt', null);
+    }
+  }
+
+  graph.setNodeAttribute(taskId, 'order', newOrder);
+  graph.setNodeAttribute(taskId, 'version', graph.getNodeAttribute(taskId, 'version') + 1);
+  graph.setNodeAttribute(taskId, 'updatedAt', Date.now());
+
+  // Check if rebalance needed: look for collisions in the target status group
+  let needsRebalance = false;
+  graph.forEachNode((id, attrs: TaskNodeAttributes) => {
+    if (id === taskId || attrs.proxyFor) return;
+    if (attrs.status === targetStatus && attrs.order === newOrder) {
+      needsRebalance = true;
+    }
+  });
+  if (needsRebalance) {
+    rebalanceOrders(graph, targetStatus);
+  }
+
+  return true;
+}
+
+// ---------------------------------------------------------------------------
 // CRUD — Tasks
 // ---------------------------------------------------------------------------
 
-/** Create a task, return its slug ID. */
+/** Create a task, return its UUID ID. */
 export function createTask(
   graph: TaskGraph,
   title: string,
@@ -112,15 +188,18 @@ export function createTask(
   estimate: number | null = null,
   author = '',
   assignee: string | null = null,
+  order?: number,
 ): string {
   const id = generateId();
   const now = Date.now();
+  const effectiveOrder = order ?? nextOrderForStatus(graph, status);
   graph.addNode(id, {
     title,
     description,
     status,
     priority,
     tags,
+    order: effectiveOrder,
     dueDate,
     estimate,
     completedAt: null,
@@ -146,6 +225,7 @@ export function updateTask(
     status?: TaskStatus;
     priority?: TaskPriority;
     tags?: string[];
+    order?: number;
     dueDate?: number | null;
     estimate?: number | null;
     assignee?: string | null;
@@ -166,6 +246,7 @@ export function updateTask(
   if (patch.description !== undefined) graph.setNodeAttribute(taskId, 'description', patch.description);
   if (patch.priority !== undefined)    graph.setNodeAttribute(taskId, 'priority', patch.priority);
   if (patch.tags !== undefined)        graph.setNodeAttribute(taskId, 'tags', patch.tags);
+  if (patch.order !== undefined)       graph.setNodeAttribute(taskId, 'order', patch.order);
   if (patch.dueDate !== undefined)     graph.setNodeAttribute(taskId, 'dueDate', patch.dueDate);
   if (patch.estimate !== undefined)    graph.setNodeAttribute(taskId, 'estimate', patch.estimate);
   if (patch.assignee !== undefined)    graph.setNodeAttribute(taskId, 'assignee', patch.assignee);
@@ -194,6 +275,7 @@ export function moveTask(
   taskId: string,
   newStatus: TaskStatus,
   expectedVersion?: number,
+  targetOrder?: number,
 ): boolean {
   if (!graph.hasNode(taskId)) return false;
   if (isProxy(graph, taskId)) return false;
@@ -211,6 +293,10 @@ export function moveTask(
   } else if (newStatus !== 'done' && newStatus !== 'cancelled' && (oldStatus === 'done' || oldStatus === 'cancelled')) {
     graph.setNodeAttribute(taskId, 'completedAt', null);
   }
+
+  // Update order: use provided targetOrder, or append to end of new status group
+  const effectiveOrder = targetOrder ?? (oldStatus !== newStatus ? nextOrderForStatus(graph, newStatus) : graph.getNodeAttribute(taskId, 'order'));
+  graph.setNodeAttribute(taskId, 'order', effectiveOrder);
 
   graph.setNodeAttribute(taskId, 'version', graph.getNodeAttribute(taskId, 'version') + 1);
   graph.setNodeAttribute(taskId, 'updatedAt', Date.now());
@@ -243,6 +329,7 @@ export interface TaskEntry {
   status: TaskStatus;
   priority: TaskPriority;
   tags: string[];
+  order: number;
   dueDate: number | null;
   estimate: number | null;
   completedAt: number | null;
@@ -341,6 +428,7 @@ export function getTask(
     status: attrs.status,
     priority: attrs.priority,
     tags: attrs.tags,
+    order: attrs.order ?? 0,
     dueDate: attrs.dueDate,
     estimate: attrs.estimate,
     completedAt: attrs.completedAt,
@@ -393,6 +481,7 @@ export function listTasks(
       status: attrs.status,
       priority: attrs.priority,
       tags: attrs.tags,
+      order: attrs.order ?? 0,
       dueDate: attrs.dueDate,
       estimate: attrs.estimate,
       completedAt: attrs.completedAt,
@@ -406,9 +495,11 @@ export function listTasks(
 
   return results
     .sort((a, b) => {
-      // Sort by priority (critical first), then dueDate (earliest first, nulls last)
+      // Sort by priority (critical first), then order (ascending), then dueDate (earliest first, nulls last)
       const pDiff = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
       if (pDiff !== 0) return pDiff;
+      const oDiff = a.order - b.order;
+      if (oDiff !== 0) return oDiff;
       if (a.dueDate === null && b.dueDate === null) return 0;
       if (a.dueDate === null) return 1;
       if (b.dueDate === null) return -1;
@@ -772,9 +863,36 @@ export class TaskGraphManager {
     this._bm25Index = new BM25Index<TaskNodeAttributes>(
       (attrs) => `${attrs.title} ${attrs.description} ${attrs.tags.join(' ')}`,
     );
+    // Migration: assign order to existing nodes that don't have it
+    this._migrateOrderField();
     this._graph.forEachNode((id, attrs) => {
       if (!attrs.proxyFor) this._bm25Index.addDocument(id, attrs);
     });
+  }
+
+  /** One-time migration: assign order to nodes that lack it (pre-order-field data). */
+  private _migrateOrderField(): void {
+    const byStatus = new Map<TaskStatus, Array<{ id: string; priority: number; dueDate: number | null }>>();
+    this._graph.forEachNode((id, attrs: TaskNodeAttributes) => {
+      if (attrs.proxyFor) return;
+      if (attrs.order !== undefined && attrs.order !== null) return;
+      let arr = byStatus.get(attrs.status);
+      if (!arr) { arr = []; byStatus.set(attrs.status, arr); }
+      arr.push({ id, priority: PRIORITY_ORDER[attrs.priority] ?? 3, dueDate: attrs.dueDate });
+    });
+    for (const [, nodes] of byStatus) {
+      nodes.sort((a, b) => {
+        const pDiff = a.priority - b.priority;
+        if (pDiff !== 0) return pDiff;
+        if (a.dueDate === null && b.dueDate === null) return 0;
+        if (a.dueDate === null) return 1;
+        if (b.dueDate === null) return -1;
+        return a.dueDate - b.dueDate;
+      });
+      for (let i = 0; i < nodes.length; i++) {
+        this._graph.setNodeAttribute(nodes[i].id, 'order', i * 1000);
+      }
+    }
   }
 
   get graph(): TaskGraph { return this._graph; }
@@ -823,9 +941,10 @@ export class TaskGraphManager {
     dueDate: number | null = null,
     estimate: number | null = null,
     assignee: string | null = null,
+    order?: number,
   ): Promise<string> {
     const embedding = await this.embedFns.document(`${title} ${description}`);
-    const taskId = createTask(this._graph, title, description, status, priority, tags, embedding, dueDate, estimate, this.ctx.author, assignee);
+    const taskId = createTask(this._graph, title, description, status, priority, tags, embedding, dueDate, estimate, this.ctx.author, assignee, order);
     this._bm25Index.addDocument(taskId, this._graph.getNodeAttributes(taskId));
     this.ctx.markDirty();
     this.ctx.emit('task:created', { projectId: this.ctx.projectId, taskId });
@@ -884,8 +1003,8 @@ export class TaskGraphManager {
     return true;
   }
 
-  moveTask(taskId: string, status: TaskStatus, expectedVersion?: number): boolean {
-    const ok = moveTask(this._graph, taskId, status, expectedVersion);
+  moveTask(taskId: string, status: TaskStatus, expectedVersion?: number, targetOrder?: number): boolean {
+    const ok = moveTask(this._graph, taskId, status, expectedVersion, targetOrder);
     if (!ok) return false;
     this.ctx.markDirty();
     this.ctx.emit('task:moved', { projectId: this.ctx.projectId, taskId, status });
@@ -894,6 +1013,21 @@ export class TaskGraphManager {
       const attrs = this._graph.getNodeAttributes(taskId);
       const relations = listTaskRelations(this._graph, taskId, this.ext);
       mirrorTaskUpdate(dir, taskId, { status, completedAt: attrs.completedAt, by: this.ctx.author }, attrs, relations);
+      this.recordMirrorWrites(taskId);
+    }
+    return true;
+  }
+
+  reorderTask(taskId: string, order: number, status?: TaskStatus): boolean {
+    const ok = reorderTask(this._graph, taskId, order, status);
+    if (!ok) return false;
+    this.ctx.markDirty();
+    this.ctx.emit('task:reordered', { projectId: this.ctx.projectId, taskId });
+    const dir = this.tasksDir;
+    if (dir) {
+      const attrs = this._graph.getNodeAttributes(taskId);
+      const relations = listTaskRelations(this._graph, taskId, this.ext);
+      mirrorTaskUpdate(dir, taskId, { order, ...(status ? { status, completedAt: attrs.completedAt } : {}), by: this.ctx.author }, attrs, relations);
       this.recordMirrorWrites(taskId);
     }
     return true;
@@ -1115,6 +1249,7 @@ export class TaskGraphManager {
         status: parsed.status,
         priority: parsed.priority,
         tags: parsed.tags,
+        order: (parsed as any).order ?? existing.order,
         dueDate: parsed.dueDate,
         estimate: parsed.estimate,
         completedAt: parsed.completedAt,
@@ -1134,6 +1269,7 @@ export class TaskGraphManager {
         status: parsed.status,
         priority: parsed.priority,
         tags: parsed.tags,
+        order: (parsed as any).order ?? nextOrderForStatus(this._graph, parsed.status),
         dueDate: parsed.dueDate,
         estimate: parsed.estimate,
         completedAt: parsed.completedAt,

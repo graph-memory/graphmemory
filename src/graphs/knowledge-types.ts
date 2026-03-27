@@ -30,9 +30,11 @@ export function createKnowledgeGraph(): KnowledgeGraph {
   });
 }
 
+import { randomUUID } from 'crypto';
+
 /**
- * Generate a slug ID from a title: lowercase, spaces → hyphens, strip non-alphanumeric.
- * Dedup with ::2, ::3, etc. if the ID already exists in the graph.
+ * Generate a UUID v4 entity ID.
+ * @deprecated Use generateId() for new entities. Legacy slug-based IDs remain valid.
  */
 export function slugify(title: string, graph: { hasNode(id: string): boolean }): string {
   const base = title
@@ -50,4 +52,9 @@ export function slugify(title: string, graph: { hasNode(id: string): boolean }):
   let n = 2;
   while (graph.hasNode(`${base}::${n}`)) n++;
   return `${base}::${n}`;
+}
+
+/** Generate a UUID v4 entity ID. */
+export function generateId(): string {
+  return randomUUID();
 }

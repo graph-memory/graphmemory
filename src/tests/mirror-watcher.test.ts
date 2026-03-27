@@ -90,8 +90,8 @@ describe('KnowledgeGraphManager.importFromFile', () => {
     const mgr = new KnowledgeGraphManager(graph, embedFnPair(fakeEmbed), noopContext());
 
     // Create initial note
-    await mgr.createNote('Existing Note', 'Old content', ['old']);
-    const noteId = 'existing-note';
+    const noteId = await mgr.createNote('Existing Note', 'Old content', ['old']);
+    expect(noteId).toMatch(/^[0-9a-f]{8}-/);
     expect(graph.hasNode(noteId)).toBe(true);
     const originalCreatedAt = graph.getNodeAttribute(noteId, 'createdAt');
 
@@ -123,12 +123,12 @@ describe('KnowledgeGraphManager.importFromFile', () => {
     const mgr = new KnowledgeGraphManager(graph, embedFnPair(fakeEmbed), noopContext());
 
     // Create two notes
-    await mgr.createNote('Note A', 'Content A', []);
-    await mgr.createNote('Note B', 'Content B', []);
+    const noteAId = await mgr.createNote('Note A', 'Content A', []);
+    const noteBId = await mgr.createNote('Note B', 'Content B', []);
 
-    // Import note-a with relation to note-b
+    // Import noteA with relation to noteB
     await mgr.importFromFile({
-      id: 'note-a',
+      id: noteAId,
       title: 'Note A',
       content: 'Updated A',
       tags: [],
@@ -137,12 +137,12 @@ describe('KnowledgeGraphManager.importFromFile', () => {
       createdBy: null,
       updatedBy: null,
       version: null,
-      relations: [{ to: 'note-b', kind: 'depends_on' }],
+      relations: [{ to: noteBId, kind: 'depends_on' }],
       attachments: [],
     });
 
-    expect(graph.hasEdge('note-a', 'note-b')).toBe(true);
-    expect(graph.getEdgeAttribute('note-a', 'note-b', 'kind')).toBe('depends_on');
+    expect(graph.hasEdge(noteAId, noteBId)).toBe(true);
+    expect(graph.getEdgeAttribute(noteAId, noteBId, 'kind')).toBe('depends_on');
   });
 });
 
@@ -151,11 +151,11 @@ describe('KnowledgeGraphManager.deleteFromFile', () => {
     const graph = createKnowledgeGraph();
     const mgr = new KnowledgeGraphManager(graph, embedFnPair(fakeEmbed), noopContext());
 
-    await mgr.createNote('To Delete', 'Content', []);
-    expect(graph.hasNode('to-delete')).toBe(true);
+    const noteId = await mgr.createNote('To Delete', 'Content', []);
+    expect(graph.hasNode(noteId)).toBe(true);
 
-    mgr.deleteFromFile('to-delete');
-    expect(graph.hasNode('to-delete')).toBe(false);
+    mgr.deleteFromFile(noteId);
+    expect(graph.hasNode(noteId)).toBe(false);
   });
 
   it('ignores non-existent note', () => {
@@ -208,11 +208,11 @@ describe('TaskGraphManager.importFromFile', () => {
     const graph = createTaskGraph();
     const mgr = new TaskGraphManager(graph, embedFnPair(fakeEmbed), noopContext());
 
-    await mgr.createTask('My Task', 'Desc', 'todo', 'medium', []);
+    const taskId = await mgr.createTask('My Task', 'Desc', 'todo', 'medium', []);
 
     // Import as done with explicit completedAt
     await mgr.importFromFile({
-      id: 'my-task',
+      id: taskId,
       title: 'My Task Updated',
       description: 'Updated desc',
       status: 'done',
@@ -231,7 +231,7 @@ describe('TaskGraphManager.importFromFile', () => {
       attachments: [],
     });
 
-    const attrs = graph.getNodeAttributes('my-task');
+    const attrs = graph.getNodeAttributes(taskId);
     expect(attrs.title).toBe('My Task Updated');
     expect(attrs.status).toBe('done');
     expect(attrs.completedAt).toBe(1700000005000); // from file, not auto-set
@@ -243,11 +243,11 @@ describe('TaskGraphManager.deleteFromFile', () => {
     const graph = createTaskGraph();
     const mgr = new TaskGraphManager(graph, embedFnPair(fakeEmbed), noopContext());
 
-    await mgr.createTask('Delete Me', 'Desc', 'todo', 'medium', []);
-    expect(graph.hasNode('delete-me')).toBe(true);
+    const taskId = await mgr.createTask('Delete Me', 'Desc', 'todo', 'medium', []);
+    expect(graph.hasNode(taskId)).toBe(true);
 
-    mgr.deleteFromFile('delete-me');
-    expect(graph.hasNode('delete-me')).toBe(false);
+    mgr.deleteFromFile(taskId);
+    expect(graph.hasNode(taskId)).toBe(false);
   });
 });
 

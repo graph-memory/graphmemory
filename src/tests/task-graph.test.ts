@@ -39,9 +39,9 @@ describe('CRUD — Tasks', () => {
   let id3: string;
 
   describe('createTask', () => {
-    it('returns slug id', () => {
+    it('returns UUID id', () => {
       id1 = createTask(g, 'Fix auth redirect', 'The login redirect is broken.', 'todo', 'high', ['bug', 'auth'], unitVec(0));
-      expect(id1).toBe('fix-auth-redirect');
+      expect(id1).toMatch(/^[0-9a-f]{8}-/);
     });
 
     it('node exists', () => {
@@ -90,7 +90,7 @@ describe('CRUD — Tasks', () => {
 
     it('second task created', () => {
       id2 = createTask(g, 'Add file search', 'Implement search over files.', 'backlog', 'medium', ['feature'], unitVec(1), 1700000000000, 4);
-      expect(id2).toBe('add-file-search');
+      expect(id2).toMatch(/^[0-9a-f]{8}-/);
     });
 
     it('dueDate set via param', () => {
@@ -103,7 +103,7 @@ describe('CRUD — Tasks', () => {
 
     it('third task created', () => {
       id3 = createTask(g, 'Refactor config', 'Clean up config loading.', 'in_progress', 'low', ['refactor'], unitVec(2));
-      expect(id3).toBe('refactor-config');
+      expect(id3).toMatch(/^[0-9a-f]{8}-/);
     });
   });
 
@@ -381,7 +381,7 @@ describe('searchTasks', () => {
 
   it('exact match: auth task', () => {
     const hits = searchTasks(sg, unitVec(0), { topK: 1, bfsDepth: 0, minScore: 0.5 });
-    expect(hits[0].id).toBe('fix-auth');
+    expect(hits[0].id).toBe(sn1);
   });
 
   it('exact match: score 1.0', () => {
@@ -401,24 +401,24 @@ describe('searchTasks', () => {
 
   it('BFS depth=1 includes seed + neighbor', () => {
     const hits = searchTasks(sg, unitVec(0), { topK: 1, bfsDepth: 1 });
-    expect(hits.map(h => h.id)).toContain('fix-auth');
-    expect(hits.map(h => h.id)).toContain('add-database');
+    expect(hits.map(h => h.id)).toContain(sn1);
+    expect(hits.map(h => h.id)).toContain(sn2);
   });
 
   it('BFS depth=1 does NOT include depth-2 neighbor', () => {
     const hits = searchTasks(sg, unitVec(0), { topK: 1, bfsDepth: 1 });
-    expect(hits.map(h => h.id)).not.toContain('api-rate-limit');
+    expect(hits.map(h => h.id)).not.toContain(sn3);
   });
 
   it('BFS depth=2 includes rate-limit', () => {
     const hits = searchTasks(sg, unitVec(0), { topK: 1, bfsDepth: 2, minScore: 0 });
-    expect(hits.map(h => h.id)).toContain('api-rate-limit');
+    expect(hits.map(h => h.id)).toContain(sn3);
   });
 
   it('BFS score < seed score', () => {
     const hits = searchTasks(sg, unitVec(0), { topK: 1, bfsDepth: 1 });
-    const seedScore = hits.find(h => h.id === 'fix-auth')!.score;
-    const bfsScore = hits.find(h => h.id === 'add-database')!.score;
+    const seedScore = hits.find(h => h.id === sn1)!.score;
+    const bfsScore = hits.find(h => h.id === sn2)!.score;
     expect(bfsScore).toBeLessThan(seedScore);
   });
 
@@ -823,7 +823,7 @@ describe('persistence round-trip (tasks)', () => {
 
     // Verify a new task can be created via Manager on the loaded graph
     const t4 = await manager.createTask('New Task', 'Created after load', 'todo', 'medium', ['test']);
-    expect(t4).toBe('new-task');
+    expect(t4).toMatch(/^[0-9a-f]{8}-/);
     expect(listTasks(loaded)).toHaveLength(4);
     expect(manager.bm25Index.size).toBe(4);
   });

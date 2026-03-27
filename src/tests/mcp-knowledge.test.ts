@@ -64,7 +64,7 @@ describe('knowledge tools', () => {
       tags: ['auth', 'security'],
     }));
     expect(typeof note1.noteId).toBe('string');
-    expect(note1.noteId).toBe('auth-jwt-knowledge');
+    expect(note1.noteId).toMatch(/^[0-9a-f]{8}-/);
   });
 
   it('notes_create: second note', async () => {
@@ -73,7 +73,7 @@ describe('knowledge tools', () => {
       content: 'We use PostgreSQL 15 for persistence.',
       tags: ['infra'],
     }));
-    expect(note2.noteId).toBe('database-postgres');
+    expect(note2.noteId).toMatch(/^[0-9a-f]{8}-/);
   });
 
   it('notes_create: third note', async () => {
@@ -82,7 +82,7 @@ describe('knowledge tools', () => {
       content: 'API rate limited to 100 req/min.',
       tags: ['api'],
     }));
-    expect(note3.noteId).toBe('rate-limit-api');
+    expect(note3.noteId).toMatch(/^[0-9a-f]{8}-/);
   });
 
   // ── notes_get ──
@@ -372,7 +372,7 @@ describe('cross-graph relation tools', () => {
       tags: ['cross'],
     }));
     noteId = res.noteId;
-    expect(noteId).toBe('my-note-about-setup');
+    expect(noteId).toMatch(/^[0-9a-f]{8}-/);
   });
 
   it('notes_create_link to docs node', async () => {
@@ -486,6 +486,8 @@ describe('notes_find_linked', () => {
   const fFakeEmbed = createFakeEmbed([['note', 10]]);
   let fCtx: McpTestContext;
   let fCall: McpTestContext['call'];
+  let fNoteAId: string;
+  let fNoteBId: string;
 
   beforeAll(async () => {
     // Add doc node
@@ -525,13 +527,15 @@ describe('notes_find_linked', () => {
     fCall = fCtx.call;
 
     // Create two notes that link to the same doc node
-    await fCall('notes_create', { title: 'Note A', content: 'First note', tags: ['a'] });
-    await fCall('notes_create', { title: 'Note B', content: 'Second note', tags: ['b'] });
+    const resA = json<{ noteId: string }>(await fCall('notes_create', { title: 'Note A', content: 'First note', tags: ['a'] }));
+    const resB = json<{ noteId: string }>(await fCall('notes_create', { title: 'Note B', content: 'Second note', tags: ['b'] }));
     await fCall('notes_create', { title: 'Note C', content: 'Third note', tags: ['c'] });
+    fNoteAId = resA.noteId;
+    fNoteBId = resB.noteId;
 
-    await fCall('notes_create_link', { fromId: 'note-a', toId: 'api.md::Auth', kind: 'references', targetGraph: 'docs', projectId: 'test' });
-    await fCall('notes_create_link', { fromId: 'note-b', toId: 'api.md::Auth', kind: 'documents', targetGraph: 'docs', projectId: 'test' });
-    await fCall('notes_create_link', { fromId: 'note-a', toId: 'src/auth.ts::login', kind: 'depends_on', targetGraph: 'code', projectId: 'test' });
+    await fCall('notes_create_link', { fromId: fNoteAId, toId: 'api.md::Auth', kind: 'references', targetGraph: 'docs', projectId: 'test' });
+    await fCall('notes_create_link', { fromId: fNoteBId, toId: 'api.md::Auth', kind: 'documents', targetGraph: 'docs', projectId: 'test' });
+    await fCall('notes_create_link', { fromId: fNoteAId, toId: 'src/auth.ts::login', kind: 'depends_on', targetGraph: 'code', projectId: 'test' });
   });
 
   afterAll(async () => {
@@ -546,8 +550,8 @@ describe('notes_find_linked', () => {
     }));
     expect(results).toHaveLength(2);
     const ids = results.map(r => r.noteId);
-    expect(ids).toContain('note-a');
-    expect(ids).toContain('note-b');
+    expect(ids).toContain(fNoteAId);
+    expect(ids).toContain(fNoteBId);
   });
 
   it('finds note linked to a code node', async () => {
@@ -557,7 +561,7 @@ describe('notes_find_linked', () => {
       projectId: 'test',
     }));
     expect(results).toHaveLength(1);
-    expect(results[0].noteId).toBe('note-a');
+    expect(results[0].noteId).toBe(fNoteAId);
     expect(results[0].kind).toBe('depends_on');
     expect(results[0].tags).toEqual(['a']);
   });
@@ -570,7 +574,7 @@ describe('notes_find_linked', () => {
       projectId: 'test',
     }));
     expect(results).toHaveLength(1);
-    expect(results[0].noteId).toBe('note-a');
+    expect(results[0].noteId).toBe(fNoteAId);
   });
 
   it('returns message for unlinked target', async () => {

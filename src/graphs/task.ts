@@ -3,7 +3,7 @@ import path from 'path';
 import type { TaskGraph, TaskNodeAttributes, TaskEdgeAttributes, TaskCrossGraphType, TaskStatus, TaskPriority } from '@/graphs/task-types';
 import type { AttachmentMeta } from '@/graphs/attachment-types';
 import { createTaskGraph, PRIORITY_ORDER } from '@/graphs/task-types';
-import { slugify } from '@/graphs/knowledge-types';
+import { generateId } from '@/graphs/knowledge-types';
 import type { DirectedGraph } from 'graphology';
 import type { EmbedFns, GraphManagerContext, ExternalGraphs } from '@/graphs/manager-types';
 import { resolveExternalGraph, VersionConflictError } from '@/graphs/manager-types';
@@ -113,7 +113,7 @@ export function createTask(
   author = '',
   assignee: string | null = null,
 ): string {
-  const id = slugify(title, graph);
+  const id = generateId();
   const now = Date.now();
   graph.addNode(id, {
     title,

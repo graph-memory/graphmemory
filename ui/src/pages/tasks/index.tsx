@@ -30,10 +30,11 @@ const DAY_MS = 86_400_000;
 
 function dueDateInfo(dueDate: number | null, status: TaskStatus): { label: string; color: 'error' | 'warning' | 'default' } | null {
   if (!dueDate || DONE_STATUSES.includes(status)) return null;
-  const now = Date.now();
-  const diff = dueDate - now;
-  const days = Math.ceil(diff / DAY_MS);
+  const now = new Date(); now.setHours(0, 0, 0, 0);
+  const due = new Date(dueDate); due.setHours(0, 0, 0, 0);
+  const days = Math.round((due.getTime() - now.getTime()) / DAY_MS);
   if (days < 0) return { label: `Overdue ${Math.abs(days)}d`, color: 'error' };
+  if (days === 0) return { label: 'Due today', color: 'warning' };
   if (days <= 3) return { label: `Due in ${days}d`, color: 'warning' };
   return null;
 }

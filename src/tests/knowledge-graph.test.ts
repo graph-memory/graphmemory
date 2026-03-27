@@ -59,9 +59,9 @@ describe('CRUD — Notes', () => {
   let id3: string;
 
   describe('createNote', () => {
-    it('returns slug id', () => {
+    it('returns uuid id', () => {
       id1 = createNote(g, 'Auth uses JWT', 'The system authenticates via JWT tokens.', ['auth', 'security'], unitVec(0));
-      expect(id1).toBe('auth-uses-jwt');
+      expect(id1).toMatch(/^[0-9a-f]{8}-/);
     });
 
     it('node exists', () => {
@@ -94,12 +94,12 @@ describe('CRUD — Notes', () => {
 
     it('second note created', () => {
       id2 = createNote(g, 'Database is Postgres', 'We use PostgreSQL 15.', ['infra'], unitVec(1));
-      expect(id2).toBe('database-is-postgres');
+      expect(id2).toMatch(/^[0-9a-f]{8}-/);
     });
 
     it('third note created', () => {
       id3 = createNote(g, 'Rate limiting', 'API has 100 req/min limit.', ['api'], unitVec(2));
-      expect(id3).toBe('rate-limiting');
+      expect(id3).toMatch(/^[0-9a-f]{8}-/);
     });
   });
 
@@ -329,7 +329,7 @@ describe('searchKnowledge', () => {
 
   it('exact match: auth note', () => {
     const hits = searchKnowledge(sg, unitVec(0), { topK: 1, bfsDepth: 0, minScore: 0.5 });
-    expect(hits[0].id).toBe('auth-jwt');
+    expect(hits[0].id).toBe(sn1);
   });
 
   it('exact match: score 1.0', () => {
@@ -354,53 +354,53 @@ describe('searchKnowledge', () => {
 
   it('BFS depth=1 includes seed', () => {
     const hits = searchKnowledge(sg, unitVec(0), { topK: 1, bfsDepth: 1 });
-    expect(hits.map(h => h.id)).toContain('auth-jwt');
+    expect(hits.map(h => h.id)).toContain(sn1);
   });
 
   it('BFS depth=1 includes database via depends_on', () => {
     const hits = searchKnowledge(sg, unitVec(0), { topK: 1, bfsDepth: 1 });
-    expect(hits.map(h => h.id)).toContain('database');
+    expect(hits.map(h => h.id)).toContain(sn2);
   });
 
   it('BFS depth=1 does NOT include rate-limit (depth 2)', () => {
     const hits = searchKnowledge(sg, unitVec(0), { topK: 1, bfsDepth: 1 });
-    expect(hits.map(h => h.id)).not.toContain('api-rate-limit');
+    expect(hits.map(h => h.id)).not.toContain(sn3);
   });
 
   it('BFS depth=2 includes rate-limit', () => {
     const hits = searchKnowledge(sg, unitVec(0), { topK: 1, bfsDepth: 2, minScore: 0 });
-    expect(hits.map(h => h.id)).toContain('api-rate-limit');
+    expect(hits.map(h => h.id)).toContain(sn3);
   });
 
   it('BFS score < seed score', () => {
     const hits = searchKnowledge(sg, unitVec(0), { topK: 1, bfsDepth: 1 });
-    const seedScore = hits.find(h => h.id === 'auth-jwt')!.score;
-    const bfsScore = hits.find(h => h.id === 'database')!.score;
+    const seedScore = hits.find(h => h.id === sn1)!.score;
+    const bfsScore = hits.find(h => h.id === sn2)!.score;
     expect(bfsScore).toBeLessThan(seedScore);
   });
 
   it('BFS score = seed * 0.8', () => {
     const hits = searchKnowledge(sg, unitVec(0), { topK: 1, bfsDepth: 1 });
-    const seedScore = hits.find(h => h.id === 'auth-jwt')!.score;
-    const bfsScore = hits.find(h => h.id === 'database')!.score;
+    const seedScore = hits.find(h => h.id === sn1)!.score;
+    const bfsScore = hits.find(h => h.id === sn2)!.score;
     expect(Math.abs(bfsScore - seedScore * 0.8)).toBeLessThan(0.001);
   });
 
   it('minScore=0.9 returns only seed', () => {
     const hits = searchKnowledge(sg, unitVec(0), { topK: 1, bfsDepth: 1, minScore: 0.9 });
     expect(hits).toHaveLength(1);
-    expect(hits[0].id).toBe('auth-jwt');
+    expect(hits[0].id).toBe(sn1);
   });
 
   it('bfsDecay=1.0 keeps full score', () => {
     const hits = searchKnowledge(sg, unitVec(0), { topK: 1, bfsDepth: 1, bfsDecay: 1.0, minScore: 0.99 });
-    expect(hits.some(h => h.id === 'database')).toBe(true);
+    expect(hits.some(h => h.id === sn2)).toBe(true);
   });
 
   it('bfsDecay=0.0 filters BFS nodes', () => {
     const hits = searchKnowledge(sg, unitVec(0), { topK: 1, bfsDepth: 1, bfsDecay: 0.0, minScore: 0.01 });
     expect(hits).toHaveLength(1);
-    expect(hits[0].id).toBe('auth-jwt');
+    expect(hits[0].id).toBe(sn1);
   });
 
   it('maxResults=1 caps output', () => {
@@ -854,7 +854,7 @@ describe('persistence round-trip (knowledge)', () => {
 
     // Verify a new note can be created via Manager on the loaded graph
     const n4 = await manager.createNote('New Note', 'Created after load', ['test']);
-    expect(n4).toBe('new-note');
+    expect(n4).toMatch(/^[0-9a-f]{8}-/);
     expect(listNotes(loaded)).toHaveLength(4);
     expect(manager.bm25Index.size).toBe(4);
   });

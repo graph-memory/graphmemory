@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import type { KnowledgeGraph, KnowledgeNodeAttributes, KnowledgeEdgeAttributes, CrossGraphType } from '@/graphs/knowledge-types';
-import { createKnowledgeGraph, slugify } from '@/graphs/knowledge-types';
+import { createKnowledgeGraph, generateId } from '@/graphs/knowledge-types';
 import type { DirectedGraph } from 'graphology';
 import type { EmbedFns, GraphManagerContext, ExternalGraphs } from '@/graphs/manager-types';
 import { resolveExternalGraph, VersionConflictError } from '@/graphs/manager-types';
@@ -102,7 +102,7 @@ export function createNote(
   embedding: number[],
   author = '',
 ): string {
-  const id = slugify(title, graph);
+  const id = generateId();
   const now = Date.now();
   graph.addNode(id, {
     title,

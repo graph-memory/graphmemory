@@ -3,7 +3,7 @@ import path from 'path';
 import type { SkillGraph, SkillNodeAttributes, SkillEdgeAttributes, SkillCrossGraphType, SkillSource } from '@/graphs/skill-types';
 import type { AttachmentMeta } from '@/graphs/attachment-types';
 import { createSkillGraph } from '@/graphs/skill-types';
-import { slugify } from '@/graphs/knowledge-types';
+import { generateId } from '@/graphs/knowledge-types';
 import type { DirectedGraph } from 'graphology';
 import type { EmbedFns, GraphManagerContext, ExternalGraphs } from '@/graphs/manager-types';
 import { resolveExternalGraph, VersionConflictError } from '@/graphs/manager-types';
@@ -116,7 +116,7 @@ export function createSkill(
   embedding: number[],
   author = '',
 ): string {
-  const id = slugify(title, graph);
+  const id = generateId();
   const now = Date.now();
   graph.addNode(id, {
     title,

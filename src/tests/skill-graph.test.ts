@@ -40,9 +40,9 @@ describe('CRUD — Skills', () => {
   let id3: string;
 
   describe('createSkill', () => {
-    it('returns slug id', () => {
+    it('returns uuid id', () => {
       id1 = createSkill(g, 'Add REST Endpoint', 'How to add a new REST endpoint', ['Create route', 'Add Zod schema', 'Register in index.ts'], ['add endpoint', 'new route'], ['endpoint name'], ['src/api/rest/*.ts'], ['api', 'rest'], 'user', 1, unitVec(0));
-      expect(id1).toBe('add-rest-endpoint');
+      expect(id1).toMatch(/^[0-9a-f]{8}-/);
     });
 
     it('node exists', () => {
@@ -99,7 +99,7 @@ describe('CRUD — Skills', () => {
 
     it('second skill created', () => {
       id2 = createSkill(g, 'Debug Auth Issues', 'How to debug authentication', ['Check JWT', 'Verify tokens'], ['debug auth', 'auth problem'], [], [], ['auth', 'debug'], 'learned', 0.8, unitVec(1));
-      expect(id2).toBe('debug-auth-issues');
+      expect(id2).toMatch(/^[0-9a-f]{8}-/);
     });
 
     it('source is learned', () => {
@@ -112,7 +112,7 @@ describe('CRUD — Skills', () => {
 
     it('third skill created', () => {
       id3 = createSkill(g, 'Run Tests', 'How to run the test suite', ['npm test'], ['run tests'], [], [], ['testing'], 'user', 1, unitVec(2));
-      expect(id3).toBe('run-tests');
+      expect(id3).toMatch(/^[0-9a-f]{8}-/);
     });
   });
 
@@ -383,7 +383,7 @@ describe('searchSkills', () => {
 
   it('exact match: endpoint skill', () => {
     const hits = searchSkills(sg, unitVec(0), { topK: 1, bfsDepth: 0, minScore: 0.5 });
-    expect(hits[0].id).toBe('add-endpoint');
+    expect(hits[0].id).toBe(sn1);
   });
 
   it('exact match: score 1.0', () => {
@@ -403,24 +403,24 @@ describe('searchSkills', () => {
 
   it('BFS depth=1 includes seed + neighbor', () => {
     const hits = searchSkills(sg, unitVec(0), { topK: 1, bfsDepth: 1 });
-    expect(hits.map(h => h.id)).toContain('add-endpoint');
-    expect(hits.map(h => h.id)).toContain('debug-auth');
+    expect(hits.map(h => h.id)).toContain(sn1);
+    expect(hits.map(h => h.id)).toContain(sn2);
   });
 
   it('BFS depth=1 does NOT include depth-2 neighbor', () => {
     const hits = searchSkills(sg, unitVec(0), { topK: 1, bfsDepth: 1 });
-    expect(hits.map(h => h.id)).not.toContain('run-tests');
+    expect(hits.map(h => h.id)).not.toContain(sn3);
   });
 
   it('BFS depth=2 includes run-tests', () => {
     const hits = searchSkills(sg, unitVec(0), { topK: 1, bfsDepth: 2, minScore: 0 });
-    expect(hits.map(h => h.id)).toContain('run-tests');
+    expect(hits.map(h => h.id)).toContain(sn3);
   });
 
   it('BFS score < seed score', () => {
     const hits = searchSkills(sg, unitVec(0), { topK: 1, bfsDepth: 1 });
-    const seedScore = hits.find(h => h.id === 'add-endpoint')!.score;
-    const bfsScore = hits.find(h => h.id === 'debug-auth')!.score;
+    const seedScore = hits.find(h => h.id === sn1)!.score;
+    const bfsScore = hits.find(h => h.id === sn2)!.score;
     expect(bfsScore).toBeLessThan(seedScore);
   });
 
@@ -847,7 +847,7 @@ describe('persistence round-trip (skills)', () => {
 
     // Verify a new skill can be created via Manager on the loaded graph
     const s4 = await manager.createSkill('New Skill', 'Created after load', ['Step 1'], ['trigger'], [], [], ['test']);
-    expect(s4).toBe('new-skill');
+    expect(s4).toMatch(/^[0-9a-f]{8}-/);
     expect(listSkills(loaded)).toHaveLength(4);
     expect(manager.bm25Index.size).toBe(4);
   });

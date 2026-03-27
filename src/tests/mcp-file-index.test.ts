@@ -239,7 +239,7 @@ describe('cross-graph relation to files', () => {
       tags: ['config'],
     }));
     noteId = res.noteId;
-    expect(noteId).toBe('config-note');
+    expect(noteId).toMatch(/^[0-9a-f]{8}-/);
   });
 
   it('notes_create_link to file node', async () => {

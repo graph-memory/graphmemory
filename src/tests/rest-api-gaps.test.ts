@@ -127,8 +127,9 @@ describe('REST Skills', () => {
   });
 
   it('GET /:id returns skill', async () => {
-    await request(app).post(base).send({ title: 'My Skill', description: 'desc' });
-    const res = await request(app).get(`${base}/my-skill`);
+    const created = await request(app).post(base).send({ title: 'My Skill', description: 'desc' });
+    const id = created.body.id;
+    const res = await request(app).get(`${base}/${id}`);
     expect(res.status).toBe(200);
     expect(res.body.title).toBe('My Skill');
   });
@@ -139,24 +140,27 @@ describe('REST Skills', () => {
   });
 
   it('PUT /:id updates skill', async () => {
-    await request(app).post(base).send({ title: 'Update Me', description: 'old' });
-    const res = await request(app).put(`${base}/update-me`).send({ description: 'new' });
+    const created = await request(app).post(base).send({ title: 'Update Me', description: 'old' });
+    const id = created.body.id;
+    const res = await request(app).put(`${base}/${id}`).send({ description: 'new' });
     expect(res.status).toBe(200);
     expect(res.body.description).toBe('new');
   });
 
   it('POST /:id/bump increments usage', async () => {
-    await request(app).post(base).send({ title: 'Bump Skill', description: '' });
-    const res = await request(app).post(`${base}/bump-skill/bump`);
+    const created = await request(app).post(base).send({ title: 'Bump Skill', description: '' });
+    const id = created.body.id;
+    const res = await request(app).post(`${base}/${id}/bump`);
     expect(res.status).toBe(200);
     expect(res.body.usageCount).toBe(1);
   });
 
   it('DELETE /:id deletes skill', async () => {
-    await request(app).post(base).send({ title: 'Delete Me', description: '' });
-    const del = await request(app).delete(`${base}/delete-me`);
+    const created = await request(app).post(base).send({ title: 'Delete Me', description: '' });
+    const id = created.body.id;
+    const del = await request(app).delete(`${base}/${id}`);
     expect(del.status).toBe(204);
-    const get = await request(app).get(`${base}/delete-me`);
+    const get = await request(app).get(`${base}/${id}`);
     expect(get.status).toBe(404);
   });
 
@@ -175,51 +179,51 @@ describe('REST Skills', () => {
   });
 
   it('POST /links creates cross-graph link', async () => {
-    await request(app).post(base).send({ title: 'Linked Skill', description: '' });
-    await request(app).post('/api/projects/test/knowledge/notes').send({ title: 'Link Target', content: '' });
+    const createdSkill = await request(app).post(base).send({ title: 'Linked Skill', description: '' });
+    const createdNote = await request(app).post('/api/projects/test/knowledge/notes').send({ title: 'Link Target', content: '' });
     const res = await request(app).post(`${base}/links`).send({
-      fromId: 'linked-skill', toId: 'link-target', kind: 'references', targetGraph: 'knowledge', projectId: 'test',
+      fromId: createdSkill.body.id, toId: createdNote.body.id, kind: 'references', targetGraph: 'knowledge', projectId: 'test',
     });
     expect(res.status).toBe(201);
   });
 
   it('DELETE /links returns 404 when no link exists', async () => {
-    await request(app).post(base).send({ title: 'Unlink Skill', description: '' });
+    const created = await request(app).post(base).send({ title: 'Unlink Skill', description: '' });
     const del = await request(app).delete(`${base}/links`).set('Content-Type', 'application/json').send({
-      fromId: 'unlink-skill', toId: 'nonexistent', targetGraph: 'knowledge', projectId: 'test',
+      fromId: created.body.id, toId: 'nonexistent', targetGraph: 'knowledge', projectId: 'test',
     });
     expect(del.status).toBe(404);
   });
 
   it('POST /links + DELETE /links round-trip', async () => {
-    await request(app).post(base).send({ title: 'DSkill', description: '' });
-    await request(app).post('/api/projects/test/knowledge/notes').send({ title: 'DNote', content: '' });
+    const createdSkill = await request(app).post(base).send({ title: 'DSkill', description: '' });
+    const createdNote = await request(app).post('/api/projects/test/knowledge/notes').send({ title: 'DNote', content: '' });
     const cr = await request(app).post(`${base}/links`).send({
-      fromId: 'dskill', toId: 'dnote', kind: 'references', targetGraph: 'knowledge',
+      fromId: createdSkill.body.id, toId: createdNote.body.id, kind: 'references', targetGraph: 'knowledge',
     });
     expect(cr.status).toBe(201);
     // DELETE /links endpoint is reachable and returns proper error for non-matching link
     const del = await request(app).delete(`${base}/links`).set('Content-Type', 'application/json').send({
-      fromId: 'dskill', toId: 'nonexistent', targetGraph: 'knowledge',
+      fromId: createdSkill.body.id, toId: 'nonexistent', targetGraph: 'knowledge',
     });
     expect(del.status).toBe(404);
   });
 
   it('GET /linked finds linked skills', async () => {
-    await request(app).post(base).send({ title: 'Find Skill', description: '' });
-    await request(app).post('/api/projects/test/knowledge/notes').send({ title: 'Find Note', content: '' });
+    const createdSkill = await request(app).post(base).send({ title: 'Find Skill', description: '' });
+    const createdNote = await request(app).post('/api/projects/test/knowledge/notes').send({ title: 'Find Note', content: '' });
     await request(app).post(`${base}/links`).send({
-      fromId: 'find-skill', toId: 'find-note', kind: 'references', targetGraph: 'knowledge', projectId: 'test',
+      fromId: createdSkill.body.id, toId: createdNote.body.id, kind: 'references', targetGraph: 'knowledge', projectId: 'test',
     });
-    const res = await request(app).get(`${base}/linked?targetGraph=knowledge&targetNodeId=find-note`);
+    const res = await request(app).get(`${base}/linked?targetGraph=knowledge&targetNodeId=${createdNote.body.id}`);
     expect(res.status).toBe(200);
     expect(res.body.results.length).toBeGreaterThanOrEqual(1);
   });
 
   it('GET /:id/relations lists relations', async () => {
-    await request(app).post(base).send({ title: 'Rel Skill A', description: '' });
+    const createdA = await request(app).post(base).send({ title: 'Rel Skill A', description: '' });
     await request(app).post(base).send({ title: 'Rel Skill B', description: '' });
-    const res = await request(app).get(`${base}/rel-skill-a/relations`);
+    const res = await request(app).get(`${base}/${createdA.body.id}/relations`);
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.results)).toBe(true);
   });
@@ -417,24 +421,24 @@ describe('REST Knowledge gaps', () => {
   });
 
   it('DELETE /relations removes relation', async () => {
-    await request(app).post('/api/projects/test/knowledge/notes').send({ title: 'From', content: '' });
-    await request(app).post('/api/projects/test/knowledge/notes').send({ title: 'To', content: '' });
+    const fromNote = await request(app).post('/api/projects/test/knowledge/notes').send({ title: 'From', content: '' });
+    const toNote = await request(app).post('/api/projects/test/knowledge/notes').send({ title: 'To', content: '' });
     await request(app).post('/api/projects/test/knowledge/relations').send({
-      fromId: 'from', toId: 'to', kind: 'relates_to', projectId: 'test',
+      fromId: fromNote.body.id, toId: toNote.body.id, kind: 'relates_to', projectId: 'test',
     });
     const del = await request(app).delete('/api/projects/test/knowledge/relations').send({
-      fromId: 'from', toId: 'to',
+      fromId: fromNote.body.id, toId: toNote.body.id,
     });
     expect(del.status).toBe(204);
   });
 
   it('GET /linked returns linked notes', async () => {
-    await request(app).post('/api/projects/test/knowledge/notes').send({ title: 'KNote', content: '' });
-    await request(app).post('/api/projects/test/tasks').send({ title: 'KTask', description: '' });
+    const createdNote = await request(app).post('/api/projects/test/knowledge/notes').send({ title: 'KNote', content: '' });
+    const createdTask = await request(app).post('/api/projects/test/tasks').send({ title: 'KTask', description: '' });
     await request(app).post('/api/projects/test/knowledge/relations').send({
-      fromId: 'knote', toId: 'ktask', kind: 'tracks', targetGraph: 'tasks', projectId: 'test',
+      fromId: createdNote.body.id, toId: createdTask.body.id, kind: 'tracks', targetGraph: 'tasks', projectId: 'test',
     });
-    const res = await request(app).get('/api/projects/test/knowledge/linked?targetGraph=tasks&targetNodeId=ktask');
+    const res = await request(app).get(`/api/projects/test/knowledge/linked?targetGraph=tasks&targetNodeId=${createdTask.body.id}`);
     expect(res.status).toBe(200);
     expect(res.body.results.length).toBeGreaterThanOrEqual(1);
   });
@@ -453,8 +457,9 @@ describe('REST Tasks gaps', () => {
   });
 
   it('PUT /:id updates task', async () => {
-    await request(app).post('/api/projects/test/tasks').send({ title: 'Upd Task', description: 'old' });
-    const res = await request(app).put('/api/projects/test/tasks/upd-task').send({ description: 'new' });
+    const created = await request(app).post('/api/projects/test/tasks').send({ title: 'Upd Task', description: 'old' });
+    const id = created.body.id;
+    const res = await request(app).put(`/api/projects/test/tasks/${id}`).send({ description: 'new' });
     expect(res.status).toBe(200);
     expect(res.body.description).toBe('new');
   });
@@ -465,50 +470,50 @@ describe('REST Tasks gaps', () => {
   });
 
   it('POST /links creates cross-graph link', async () => {
-    await request(app).post('/api/projects/test/tasks').send({ title: 'Link Task', description: '' });
-    await request(app).post('/api/projects/test/knowledge/notes').send({ title: 'Link Note', content: '' });
+    const createdTask = await request(app).post('/api/projects/test/tasks').send({ title: 'Link Task', description: '' });
+    const createdNote = await request(app).post('/api/projects/test/knowledge/notes').send({ title: 'Link Note', content: '' });
     const res = await request(app).post('/api/projects/test/tasks/links').send({
-      fromId: 'link-task', toId: 'link-note', kind: 'references', targetGraph: 'knowledge', projectId: 'test',
+      fromId: createdTask.body.id, toId: createdNote.body.id, kind: 'references', targetGraph: 'knowledge', projectId: 'test',
     });
     expect(res.status).toBe(201);
   });
 
   it('DELETE /links returns 404 when no link exists', async () => {
-    await request(app).post('/api/projects/test/tasks').send({ title: 'Ul Task', description: '' });
+    const created = await request(app).post('/api/projects/test/tasks').send({ title: 'Ul Task', description: '' });
     const del = await request(app).delete('/api/projects/test/tasks/links').set('Content-Type', 'application/json').send({
-      fromId: 'ul-task', toId: 'nonexistent', targetGraph: 'knowledge',
+      fromId: created.body.id, toId: 'nonexistent', targetGraph: 'knowledge',
     });
     expect(del.status).toBe(404);
   });
 
   it('POST /links + DELETE /links round-trip', async () => {
-    await request(app).post('/api/projects/test/tasks').send({ title: 'DTask', description: '' });
-    await request(app).post('/api/projects/test/knowledge/notes').send({ title: 'DNote2', content: '' });
+    const createdTask = await request(app).post('/api/projects/test/tasks').send({ title: 'DTask', description: '' });
+    const createdNote = await request(app).post('/api/projects/test/knowledge/notes').send({ title: 'DNote2', content: '' });
     const cr = await request(app).post('/api/projects/test/tasks/links').send({
-      fromId: 'dtask', toId: 'dnote2', kind: 'references', targetGraph: 'knowledge',
+      fromId: createdTask.body.id, toId: createdNote.body.id, kind: 'references', targetGraph: 'knowledge',
     });
     expect(cr.status).toBe(201);
     // DELETE /links endpoint is reachable and returns proper error
     const del = await request(app).delete('/api/projects/test/tasks/links').set('Content-Type', 'application/json').send({
-      fromId: 'dtask', toId: 'nonexistent', targetGraph: 'knowledge',
+      fromId: createdTask.body.id, toId: 'nonexistent', targetGraph: 'knowledge',
     });
     expect(del.status).toBe(404);
   });
 
   it('GET /:id/relations lists relations', async () => {
-    await request(app).post('/api/projects/test/tasks').send({ title: 'Rel Task', description: '' });
-    const res = await request(app).get('/api/projects/test/tasks/rel-task/relations');
+    const created = await request(app).post('/api/projects/test/tasks').send({ title: 'Rel Task', description: '' });
+    const res = await request(app).get(`/api/projects/test/tasks/${created.body.id}/relations`);
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.results)).toBe(true);
   });
 
   it('GET /linked finds linked tasks', async () => {
-    await request(app).post('/api/projects/test/tasks').send({ title: 'FTask', description: '' });
-    await request(app).post('/api/projects/test/knowledge/notes').send({ title: 'FNote', content: '' });
+    const createdTask = await request(app).post('/api/projects/test/tasks').send({ title: 'FTask', description: '' });
+    const createdNote = await request(app).post('/api/projects/test/knowledge/notes').send({ title: 'FNote', content: '' });
     await request(app).post('/api/projects/test/tasks/links').send({
-      fromId: 'ftask', toId: 'fnote', kind: 'references', targetGraph: 'knowledge', projectId: 'test',
+      fromId: createdTask.body.id, toId: createdNote.body.id, kind: 'references', targetGraph: 'knowledge', projectId: 'test',
     });
-    const res = await request(app).get('/api/projects/test/tasks/linked?targetGraph=knowledge&targetNodeId=fnote');
+    const res = await request(app).get(`/api/projects/test/tasks/linked?targetGraph=knowledge&targetNodeId=${createdNote.body.id}`);
     expect(res.status).toBe(200);
     expect(res.body.results.length).toBeGreaterThanOrEqual(1);
   });

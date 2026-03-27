@@ -139,16 +139,18 @@ describe('REST API', () => {
         .post('/api/projects/test/knowledge/notes')
         .send({ title: 'Test Note', content: 'Some content', tags: ['test'] });
       expect(res.status).toBe(201);
-      expect(res.body.id).toBe('test-note');
+      expect(typeof res.body.id).toBe('string');
+      expect(res.body.id.length).toBeGreaterThan(0);
       expect(res.body.title).toBe('Test Note');
     });
 
     it('gets a note', async () => {
-      await request(app)
+      const created = await request(app)
         .post('/api/projects/test/knowledge/notes')
         .send({ title: 'My Note', content: 'Content here' });
+      const noteId = created.body.id;
 
-      const res = await request(app).get('/api/projects/test/knowledge/notes/my-note');
+      const res = await request(app).get(`/api/projects/test/knowledge/notes/${noteId}`);
       expect(res.status).toBe(200);
       expect(res.body.title).toBe('My Note');
       expect(res.body.content).toBe('Content here');
@@ -168,30 +170,32 @@ describe('REST API', () => {
     });
 
     it('updates a note', async () => {
-      await request(app)
+      const created = await request(app)
         .post('/api/projects/test/knowledge/notes')
         .send({ title: 'Original', content: 'Old' });
+      const noteId = created.body.id;
 
       const res = await request(app)
-        .put('/api/projects/test/knowledge/notes/original')
+        .put(`/api/projects/test/knowledge/notes/${noteId}`)
         .send({ content: 'Updated' });
       expect(res.status).toBe(200);
       expect(res.body.title).toBe('Original');
       expect(res.body.content).toBe('Updated');
 
-      const get = await request(app).get('/api/projects/test/knowledge/notes/original');
+      const get = await request(app).get(`/api/projects/test/knowledge/notes/${noteId}`);
       expect(get.body.content).toBe('Updated');
     });
 
     it('deletes a note with 204', async () => {
-      await request(app)
+      const created = await request(app)
         .post('/api/projects/test/knowledge/notes')
         .send({ title: 'To Delete', content: 'Gone' });
+      const noteId = created.body.id;
 
-      const res = await request(app).delete('/api/projects/test/knowledge/notes/to-delete');
+      const res = await request(app).delete(`/api/projects/test/knowledge/notes/${noteId}`);
       expect(res.status).toBe(204);
 
-      const get = await request(app).get('/api/projects/test/knowledge/notes/to-delete');
+      const get = await request(app).get(`/api/projects/test/knowledge/notes/${noteId}`);
       expect(get.status).toBe(404);
     });
 
@@ -218,21 +222,23 @@ describe('REST API', () => {
     });
 
     it('creates and lists relations', async () => {
-      await request(app)
+      const createdA = await request(app)
         .post('/api/projects/test/knowledge/notes')
         .send({ title: 'Note A', content: 'A' });
-      await request(app)
+      const noteAId = createdA.body.id;
+      const createdB = await request(app)
         .post('/api/projects/test/knowledge/notes')
         .send({ title: 'Note B', content: 'B' });
+      const noteBId = createdB.body.id;
 
       const rel = await request(app)
         .post('/api/projects/test/knowledge/relations')
-        .send({ fromId: 'note-a', toId: 'note-b', kind: 'relates_to', projectId: 'test' });
+        .send({ fromId: noteAId, toId: noteBId, kind: 'relates_to', projectId: 'test' });
       expect(rel.status).toBe(201);
-      expect(rel.body.fromId).toBe('note-a');
-      expect(rel.body.toId).toBe('note-b');
+      expect(rel.body.fromId).toBe(noteAId);
+      expect(rel.body.toId).toBe(noteBId);
 
-      const list = await request(app).get('/api/projects/test/knowledge/notes/note-a/relations');
+      const list = await request(app).get(`/api/projects/test/knowledge/notes/${noteAId}/relations`);
       expect(list.body.results.length).toBeGreaterThan(0);
     });
   });
@@ -243,16 +249,18 @@ describe('REST API', () => {
         .post('/api/projects/test/tasks')
         .send({ title: 'Fix Bug', description: 'Fix the login bug' });
       expect(res.status).toBe(201);
-      expect(res.body.id).toBe('fix-bug');
+      expect(typeof res.body.id).toBe('string');
+      expect(res.body.id.length).toBeGreaterThan(0);
       expect(res.body.title).toBe('Fix Bug');
     });
 
     it('gets a task', async () => {
-      await request(app)
+      const created = await request(app)
         .post('/api/projects/test/tasks')
         .send({ title: 'My Task', description: 'Do something' });
+      const taskId = created.body.id;
 
-      const res = await request(app).get('/api/projects/test/tasks/my-task');
+      const res = await request(app).get(`/api/projects/test/tasks/${taskId}`);
       expect(res.status).toBe(200);
       expect(res.body.title).toBe('My Task');
     });
@@ -271,28 +279,30 @@ describe('REST API', () => {
     });
 
     it('moves a task via POST', async () => {
-      await request(app)
+      const created = await request(app)
         .post('/api/projects/test/tasks')
         .send({ title: 'Move Me', description: '' });
+      const taskId = created.body.id;
 
       const res = await request(app)
-        .post('/api/projects/test/tasks/move-me/move')
+        .post(`/api/projects/test/tasks/${taskId}/move`)
         .send({ status: 'done' });
       expect(res.status).toBe(200);
 
-      const get = await request(app).get('/api/projects/test/tasks/move-me');
+      const get = await request(app).get(`/api/projects/test/tasks/${taskId}`);
       expect(get.body.status).toBe('done');
     });
 
     it('deletes a task with 204', async () => {
-      await request(app)
+      const created = await request(app)
         .post('/api/projects/test/tasks')
         .send({ title: 'Delete Me', description: '' });
+      const taskId = created.body.id;
 
-      const res = await request(app).delete('/api/projects/test/tasks/delete-me');
+      const res = await request(app).delete(`/api/projects/test/tasks/${taskId}`);
       expect(res.status).toBe(204);
 
-      const get = await request(app).get('/api/projects/test/tasks/delete-me');
+      const get = await request(app).get(`/api/projects/test/tasks/${taskId}`);
       expect(get.status).toBe(404);
     });
 
@@ -310,50 +320,54 @@ describe('REST API', () => {
   describe('Cross-graph proxy cleanup on delete', () => {
     it('delete note cleans up proxy in TaskGraph', async () => {
       // Create note and task
-      await request(app)
+      const createdNote = await request(app)
         .post('/api/projects/test/knowledge/notes')
         .send({ title: 'Linked Note', content: 'A note' });
-      await request(app)
+      const noteId = createdNote.body.id;
+      const createdTask = await request(app)
         .post('/api/projects/test/tasks')
         .send({ title: 'Linked Task', description: 'A task' });
+      const taskId = createdTask.body.id;
 
       // Link task → knowledge note
       await request(app)
         .post('/api/projects/test/tasks/links')
-        .send({ fromId: 'linked-task', toId: 'linked-note', kind: 'references', targetGraph: 'knowledge', projectId: 'test' });
+        .send({ fromId: taskId, toId: noteId, kind: 'references', targetGraph: 'knowledge', projectId: 'test' });
 
       // Verify proxy exists (project-scoped proxy ID)
-      expect(project.taskGraph!.hasNode('@knowledge::test::linked-note')).toBe(true);
+      expect(project.taskGraph!.hasNode(`@knowledge::test::${noteId}`)).toBe(true);
 
       // Delete note
-      await request(app).delete('/api/projects/test/knowledge/notes/linked-note');
+      await request(app).delete(`/api/projects/test/knowledge/notes/${noteId}`);
 
       // Proxy should be cleaned up
-      expect(project.taskGraph!.hasNode('@knowledge::test::linked-note')).toBe(false);
+      expect(project.taskGraph!.hasNode(`@knowledge::test::${noteId}`)).toBe(false);
     });
 
     it('delete task cleans up proxy in KnowledgeGraph', async () => {
       // Create note and task
-      await request(app)
+      const createdNote = await request(app)
         .post('/api/projects/test/knowledge/notes')
         .send({ title: 'Another Note', content: 'A note' });
-      await request(app)
+      const noteId = createdNote.body.id;
+      const createdTask = await request(app)
         .post('/api/projects/test/tasks')
         .send({ title: 'Another Task', description: 'A task' });
+      const taskId = createdTask.body.id;
 
       // Link note → task
       await request(app)
         .post('/api/projects/test/knowledge/relations')
-        .send({ fromId: 'another-note', toId: 'another-task', kind: 'tracks', targetGraph: 'tasks', projectId: 'test' });
+        .send({ fromId: noteId, toId: taskId, kind: 'tracks', targetGraph: 'tasks', projectId: 'test' });
 
       // Verify proxy exists (project-scoped proxy ID)
-      expect(project.knowledgeGraph!.hasNode('@tasks::test::another-task')).toBe(true);
+      expect(project.knowledgeGraph!.hasNode(`@tasks::test::${taskId}`)).toBe(true);
 
       // Delete task
-      await request(app).delete('/api/projects/test/tasks/another-task');
+      await request(app).delete(`/api/projects/test/tasks/${taskId}`);
 
       // Proxy should be cleaned up
-      expect(project.knowledgeGraph!.hasNode('@tasks::test::another-task')).toBe(false);
+      expect(project.knowledgeGraph!.hasNode(`@tasks::test::${taskId}`)).toBe(false);
     });
   });
 

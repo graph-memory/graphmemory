@@ -72,6 +72,11 @@ describe('Task CRUD tools', () => {
   let ctx: McpTestContext;
   let call: McpTestContext['call'];
 
+  // Captured IDs from creation
+  let fixAuthId: string;
+  let addSearchId: string;
+  let refactorConfigId: string;
+
   beforeAll(async () => {
     ctx = await setupMcpClient({ taskGraph, embedFn: fakeEmbed });
     call = ctx.call;
@@ -90,7 +95,8 @@ describe('Task CRUD tools', () => {
       priority: 'high',
       tags: ['bug', 'auth'],
     }));
-    expect(res.taskId).toBe('fix-auth-redirect');
+    expect(res.taskId).toMatch(/^[0-9a-f]{8}-/);
+    fixAuthId = res.taskId;
   });
 
   it('create_task with all optional fields', async () => {
@@ -103,7 +109,8 @@ describe('Task CRUD tools', () => {
       dueDate: 1700000000000,
       estimate: 8,
     }));
-    expect(res.taskId).toBe('add-search-feature');
+    expect(res.taskId).toMatch(/^[0-9a-f]{8}-/);
+    addSearchId = res.taskId;
   });
 
   it('create_task defaults to backlog', async () => {
@@ -112,15 +119,16 @@ describe('Task CRUD tools', () => {
       description: 'Clean up config loading.',
       priority: 'low',
     }));
-    expect(res.taskId).toBe('refactor-config');
-    const task = json<TaskResult>(await call('tasks_get', { taskId: 'refactor-config' }));
+    expect(res.taskId).toMatch(/^[0-9a-f]{8}-/);
+    refactorConfigId = res.taskId;
+    const task = json<TaskResult>(await call('tasks_get', { taskId: refactorConfigId }));
     expect(task.status).toBe('backlog');
   });
 
   // -- tasks_get --
 
   it('get_task returns full task', async () => {
-    const task = json<TaskResult>(await call('tasks_get', { taskId: 'fix-auth-redirect' }));
+    const task = json<TaskResult>(await call('tasks_get', { taskId: fixAuthId }));
     expect(task.title).toBe('Fix Auth Redirect');
     expect(task.status).toBe('backlog');
     expect(task.priority).toBe('high');
@@ -137,27 +145,27 @@ describe('Task CRUD tools', () => {
 
   it('update_task changes description', async () => {
     const res = json<UpdateResult>(await call('tasks_update', {
-      taskId: 'fix-auth-redirect',
+      taskId: fixAuthId,
       description: 'Updated: redirect loop on OAuth callback.',
     }));
     expect(res.updated).toBe(true);
   });
 
   it('update_task verifies change', async () => {
-    const task = json<TaskResult>(await call('tasks_get', { taskId: 'fix-auth-redirect' }));
+    const task = json<TaskResult>(await call('tasks_get', { taskId: fixAuthId }));
     expect(task.description).toContain('OAuth callback');
   });
 
   it('update_task status to done sets completedAt', async () => {
-    await call('tasks_update', { taskId: 'fix-auth-redirect', status: 'done' });
-    const task = json<TaskResult>(await call('tasks_get', { taskId: 'fix-auth-redirect' }));
+    await call('tasks_update', { taskId: fixAuthId, status: 'done' });
+    const task = json<TaskResult>(await call('tasks_get', { taskId: fixAuthId }));
     expect(task.status).toBe('done');
     expect(task.completedAt).toBeGreaterThan(0);
   });
 
   it('update_task reopen clears completedAt', async () => {
-    await call('tasks_update', { taskId: 'fix-auth-redirect', status: 'todo' });
-    const task = json<TaskResult>(await call('tasks_get', { taskId: 'fix-auth-redirect' }));
+    await call('tasks_update', { taskId: fixAuthId, status: 'todo' });
+    const task = json<TaskResult>(await call('tasks_get', { taskId: fixAuthId }));
     expect(task.status).toBe('todo');
     expect(task.completedAt).toBeUndefined();
   });
@@ -166,7 +174,7 @@ describe('Task CRUD tools', () => {
 
   it('move_task changes status', async () => {
     const res = json<MoveResult>(await call('tasks_move', {
-      taskId: 'add-search-feature',
+      taskId: addSearchId,
       status: 'in_progress',
     }));
     expect(res.status).toBe('in_progress');
@@ -175,7 +183,7 @@ describe('Task CRUD tools', () => {
 
   it('move_task to done sets completedAt', async () => {
     const res = json<MoveResult>(await call('tasks_move', {
-      taskId: 'add-search-feature',
+      taskId: addSearchId,
       status: 'done',
     }));
     expect(res.status).toBe('done');
@@ -184,7 +192,7 @@ describe('Task CRUD tools', () => {
 
   it('move_task reopen clears completedAt', async () => {
     const res = json<MoveResult>(await call('tasks_move', {
-      taskId: 'add-search-feature',
+      taskId: addSearchId,
       status: 'todo',
     }));
     expect(res.completedAt).toBeUndefined();
@@ -236,7 +244,7 @@ describe('Task CRUD tools', () => {
       searchMode: 'vector',
     }));
     expect(hits.length).toBeGreaterThan(0);
-    expect(hits[0].id).toBe('fix-auth-redirect');
+    expect(hits[0].id).toBe(fixAuthId);
     expect(hits[0].score).toBeGreaterThan(0.5);
   });
 
@@ -247,15 +255,15 @@ describe('Task CRUD tools', () => {
       searchMode: 'keyword',
     }));
     expect(hits.length).toBeGreaterThan(0);
-    expect(hits[0].id).toBe('fix-auth-redirect');
+    expect(hits[0].id).toBe(fixAuthId);
   });
 
   // -- tasks_link --
 
   it('link_task creates subtask_of', async () => {
     const res = json<LinkResult>(await call('tasks_link', {
-      fromId: 'refactor-config',
-      toId: 'fix-auth-redirect',
+      fromId: refactorConfigId,
+      toId: fixAuthId,
       kind: 'subtask_of',
     }));
     expect(res.created).toBe(true);
@@ -263,31 +271,31 @@ describe('Task CRUD tools', () => {
 
   it('link_task creates blocks', async () => {
     const res = json<LinkResult>(await call('tasks_link', {
-      fromId: 'fix-auth-redirect',
-      toId: 'add-search-feature',
+      fromId: fixAuthId,
+      toId: addSearchId,
       kind: 'blocks',
     }));
     expect(res.created).toBe(true);
   });
 
   it('get_task shows subtasks and blocks', async () => {
-    const task = json<TaskResult>(await call('tasks_get', { taskId: 'fix-auth-redirect' }));
+    const task = json<TaskResult>(await call('tasks_get', { taskId: fixAuthId }));
     expect(task.subtasks).toHaveLength(1);
-    expect(task.subtasks[0].id).toBe('refactor-config');
+    expect(task.subtasks[0].id).toBe(refactorConfigId);
     expect(task.blocks).toHaveLength(1);
-    expect(task.blocks[0].id).toBe('add-search-feature');
+    expect(task.blocks[0].id).toBe(addSearchId);
   });
 
   it('get_task shows blockedBy', async () => {
-    const task = json<TaskResult>(await call('tasks_get', { taskId: 'add-search-feature' }));
+    const task = json<TaskResult>(await call('tasks_get', { taskId: addSearchId }));
     expect(task.blockedBy).toHaveLength(1);
-    expect(task.blockedBy[0].id).toBe('fix-auth-redirect');
+    expect(task.blockedBy[0].id).toBe(fixAuthId);
   });
 
   it('link_task duplicate returns error', async () => {
     const res = await call('tasks_link', {
-      fromId: 'refactor-config',
-      toId: 'fix-auth-redirect',
+      fromId: refactorConfigId,
+      toId: fixAuthId,
       kind: 'subtask_of',
     });
     expect(res.isError).toBe(true);
@@ -296,12 +304,12 @@ describe('Task CRUD tools', () => {
   // -- tasks_delete --
 
   it('delete_task removes task', async () => {
-    const res = json<DeleteResult>(await call('tasks_delete', { taskId: 'refactor-config' }));
+    const res = json<DeleteResult>(await call('tasks_delete', { taskId: refactorConfigId }));
     expect(res.deleted).toBe(true);
   });
 
   it('deleted task no longer returned', async () => {
-    const res = await call('tasks_get', { taskId: 'refactor-config' });
+    const res = await call('tasks_get', { taskId: refactorConfigId });
     expect(res.isError).toBe(true);
   });
 
@@ -323,6 +331,7 @@ describe('Task cross-graph links', () => {
   const tFakeEmbed = createFakeEmbed([['task', 10]]);
   let tCtx: McpTestContext;
   let tCall: McpTestContext['call'];
+  let taskAId: string;
 
   beforeAll(async () => {
     // Add doc node
@@ -363,7 +372,8 @@ describe('Task cross-graph links', () => {
     tCall = tCtx.call;
 
     // Create tasks
-    await tCall('tasks_create', { title: 'Task A', description: 'First task', priority: 'high', tags: ['a'] });
+    const resA = json<CreateResult>(await tCall('tasks_create', { title: 'Task A', description: 'First task', priority: 'high', tags: ['a'] }));
+    taskAId = resA.taskId;
     await tCall('tasks_create', { title: 'Task B', description: 'Second task', priority: 'medium', tags: ['b'] });
   });
 
@@ -373,7 +383,7 @@ describe('Task cross-graph links', () => {
 
   it('create_task_link to docs', async () => {
     const res = json<CrossLinkResult>(await tCall('tasks_create_link', {
-      taskId: 'task-a',
+      taskId: taskAId,
       targetId: 'api.md::Auth',
       targetGraph: 'docs',
       kind: 'references',
@@ -384,7 +394,7 @@ describe('Task cross-graph links', () => {
 
   it('create_task_link to code', async () => {
     const res = json<CrossLinkResult>(await tCall('tasks_create_link', {
-      taskId: 'task-a',
+      taskId: taskAId,
       targetId: 'src/auth.ts::login',
       targetGraph: 'code',
       kind: 'fixes',
@@ -395,7 +405,7 @@ describe('Task cross-graph links', () => {
 
   it('create_task_link duplicate returns error', async () => {
     const res = await tCall('tasks_create_link', {
-      taskId: 'task-a',
+      taskId: taskAId,
       targetId: 'api.md::Auth',
       targetGraph: 'docs',
       kind: 'references',
@@ -406,7 +416,7 @@ describe('Task cross-graph links', () => {
 
   it('create_task_link invalid target returns error', async () => {
     const res = await tCall('tasks_create_link', {
-      taskId: 'task-a',
+      taskId: taskAId,
       targetId: 'nonexistent.md::Foo',
       targetGraph: 'docs',
       kind: 'references',
@@ -422,7 +432,7 @@ describe('Task cross-graph links', () => {
       projectId: 'test',
     }));
     expect(results).toHaveLength(1);
-    expect(results[0].taskId).toBe('task-a');
+    expect(results[0].taskId).toBe(taskAId);
     expect(results[0].kind).toBe('references');
   });
 
@@ -433,7 +443,7 @@ describe('Task cross-graph links', () => {
       projectId: 'test',
     }));
     expect(results).toHaveLength(1);
-    expect(results[0].taskId).toBe('task-a');
+    expect(results[0].taskId).toBe(taskAId);
     expect(results[0].kind).toBe('fixes');
   });
 
@@ -462,7 +472,7 @@ describe('Task cross-graph links', () => {
 
   it('delete_task_link removes cross-graph link', async () => {
     const res = json<CrossDeleteResult>(await tCall('tasks_delete_link', {
-      taskId: 'task-a',
+      taskId: taskAId,
       targetId: 'api.md::Auth',
       targetGraph: 'docs',
       projectId: 'test',
@@ -482,7 +492,7 @@ describe('Task cross-graph links', () => {
 
   it('delete_task cleans up remaining cross-graph proxy', async () => {
     // task-a still has a link to code node
-    const del = json<{ taskId: string; deleted: boolean }>(await tCall('tasks_delete', { taskId: 'task-a' }));
+    const del = json<{ taskId: string; deleted: boolean }>(await tCall('tasks_delete', { taskId: taskAId }));
     expect(del.deleted).toBe(true);
     // Proxy for code link should be cleaned up
     expect(tTaskGraph.hasNode('@code::src/auth.ts::login')).toBe(false);
@@ -499,6 +509,8 @@ describe('Knowledge to Task cross-graph links', () => {
   const kFakeEmbed = createFakeEmbed([['task', 10], ['note', 11]]);
   let kCtx: McpTestContext;
   let kCall: McpTestContext['call'];
+  let myTaskId: string;
+  let myNoteId: string;
 
   beforeAll(async () => {
     kCtx = await setupMcpClient({
@@ -509,8 +521,10 @@ describe('Knowledge to Task cross-graph links', () => {
     kCall = kCtx.call;
 
     // Create a task and a note
-    await kCall('tasks_create', { title: 'My Task', description: 'A task', priority: 'high' });
-    await kCall('notes_create', { title: 'My Note', content: 'A note about the task' });
+    const taskRes = json<CreateResult>(await kCall('tasks_create', { title: 'My Task', description: 'A task', priority: 'high' }));
+    myTaskId = taskRes.taskId;
+    const noteRes = json<{ noteId: string }>(await kCall('notes_create', { title: 'My Note', content: 'A note about the task' }));
+    myNoteId = noteRes.noteId;
   });
 
   afterAll(async () => {
@@ -519,8 +533,8 @@ describe('Knowledge to Task cross-graph links', () => {
 
   it('note can link to task via create_relation with targetGraph=tasks', async () => {
     const res = await kCall('notes_create_link', {
-      fromId: 'my-note',
-      toId: 'my-task',
+      fromId: myNoteId,
+      toId: myTaskId,
       kind: 'tracks',
       targetGraph: 'tasks',
       projectId: 'test',
@@ -532,19 +546,19 @@ describe('Knowledge to Task cross-graph links', () => {
 
   it('find_linked_notes with targetGraph=tasks finds the note', async () => {
     const results = json<Array<{ noteId: string; kind: string }>>(await kCall('notes_find_linked', {
-      targetId: 'my-task',
+      targetId: myTaskId,
       targetGraph: 'tasks',
       projectId: 'test',
     }));
     expect(results).toHaveLength(1);
-    expect(results[0].noteId).toBe('my-note');
+    expect(results[0].noteId).toBe(myNoteId);
     expect(results[0].kind).toBe('tracks');
   });
 
   it('delete_relation with targetGraph=tasks removes link', async () => {
     const res = await kCall('notes_delete_link', {
-      fromId: 'my-note',
-      toId: 'my-task',
+      fromId: myNoteId,
+      toId: myTaskId,
       targetGraph: 'tasks',
       projectId: 'test',
     });
@@ -554,7 +568,7 @@ describe('Knowledge to Task cross-graph links', () => {
   });
 
   it('proxy cleaned up after delete', async () => {
-    expect(kKnowledgeGraph.hasNode('@tasks::my-task')).toBe(false);
+    expect(kKnowledgeGraph.hasNode(`@tasks::${myTaskId}`)).toBe(false);
   });
 });
 
@@ -584,46 +598,50 @@ describe('Cross-graph proxy cleanup on entity deletion', () => {
 
   it('delete_note cleans up proxy in TaskGraph', async () => {
     // Create note and task, link task → knowledge note
-    await cgCall('notes_create', { title: 'Linked Note', content: 'A note', tags: [] });
-    await cgCall('tasks_create', { title: 'Linked Task', description: 'A task', priority: 'high' });
+    const noteRes = json<{ noteId: string }>(await cgCall('notes_create', { title: 'Linked Note', content: 'A note', tags: [] }));
+    const linkedNoteId = noteRes.noteId;
+    const taskRes = json<CreateResult>(await cgCall('tasks_create', { title: 'Linked Task', description: 'A task', priority: 'high' }));
+    const linkedTaskId = taskRes.taskId;
     await cgCall('tasks_create_link', {
-      taskId: 'linked-task',
-      targetId: 'linked-note',
+      taskId: linkedTaskId,
+      targetId: linkedNoteId,
       targetGraph: 'knowledge',
       kind: 'references',
       projectId: 'test',
     });
 
     // Verify proxy exists in TaskGraph (project-scoped proxy ID)
-    expect(cgTaskGraph.hasNode('@knowledge::test::linked-note')).toBe(true);
+    expect(cgTaskGraph.hasNode(`@knowledge::test::${linkedNoteId}`)).toBe(true);
 
     // Delete the note
-    await cgCall('notes_delete', { noteId: 'linked-note' });
+    await cgCall('notes_delete', { noteId: linkedNoteId });
 
     // Proxy in TaskGraph should be cleaned up
-    expect(cgTaskGraph.hasNode('@knowledge::test::linked-note')).toBe(false);
+    expect(cgTaskGraph.hasNode(`@knowledge::test::${linkedNoteId}`)).toBe(false);
   });
 
   it('delete_task cleans up proxy in KnowledgeGraph', async () => {
     // Create note and task, link note → task
-    await cgCall('notes_create', { title: 'Another Note', content: 'A note', tags: [] });
-    await cgCall('tasks_create', { title: 'Another Task', description: 'A task', priority: 'high' });
+    const noteRes = json<{ noteId: string }>(await cgCall('notes_create', { title: 'Another Note', content: 'A note', tags: [] }));
+    const anotherNoteId = noteRes.noteId;
+    const taskRes = json<CreateResult>(await cgCall('tasks_create', { title: 'Another Task', description: 'A task', priority: 'high' }));
+    const anotherTaskId = taskRes.taskId;
     await cgCall('notes_create_link', {
-      fromId: 'another-note',
-      toId: 'another-task',
+      fromId: anotherNoteId,
+      toId: anotherTaskId,
       kind: 'tracks',
       targetGraph: 'tasks',
       projectId: 'test',
     });
 
     // Verify proxy exists in KnowledgeGraph (project-scoped proxy ID)
-    expect(cgKnowledgeGraph.hasNode('@tasks::test::another-task')).toBe(true);
+    expect(cgKnowledgeGraph.hasNode(`@tasks::test::${anotherTaskId}`)).toBe(true);
 
     // Delete the task
-    await cgCall('tasks_delete', { taskId: 'another-task' });
+    await cgCall('tasks_delete', { taskId: anotherTaskId });
 
     // Proxy in KnowledgeGraph should be cleaned up
-    expect(cgKnowledgeGraph.hasNode('@tasks::test::another-task')).toBe(false);
+    expect(cgKnowledgeGraph.hasNode(`@tasks::test::${anotherTaskId}`)).toBe(false);
   });
 });
 
@@ -651,15 +669,22 @@ describe('Reverse-side cross-graph link deletion', () => {
     await rCtx.close();
   });
 
+  let revNoteId: string;
+  let revTaskId: string;
+  let revNote2Id: string;
+  let revTask2Id: string;
+
   it('note→task link can be deleted from task side', async () => {
     // Create note and task
-    await rCall('notes_create', { title: 'Rev Note', content: 'note for reverse test' });
-    await rCall('tasks_create', { title: 'Rev Task', description: 'task for reverse test', priority: 'medium' });
+    const noteRes = json<{ noteId: string }>(await rCall('notes_create', { title: 'Rev Note', content: 'note for reverse test' }));
+    revNoteId = noteRes.noteId;
+    const taskRes = json<CreateResult>(await rCall('tasks_create', { title: 'Rev Task', description: 'task for reverse test', priority: 'medium' }));
+    revTaskId = taskRes.taskId;
 
     // Create link from note to task
     const link = json<{ created: boolean }>(await rCall('notes_create_link', {
-      fromId: 'rev-note',
-      toId: 'rev-task',
+      fromId: revNoteId,
+      toId: revTaskId,
       kind: 'tracks',
       targetGraph: 'tasks',
       projectId: 'test',
@@ -667,12 +692,12 @@ describe('Reverse-side cross-graph link deletion', () => {
     expect(link.created).toBe(true);
 
     // Verify mirror proxy exists in TaskGraph (project-scoped)
-    expect(rTaskGraph.hasNode('@knowledge::test::rev-note')).toBe(true);
+    expect(rTaskGraph.hasNode(`@knowledge::test::${revNoteId}`)).toBe(true);
 
     // Delete from task side
     const del = json<CrossDeleteResult>(await rCall('tasks_delete_link', {
-      taskId: 'rev-task',
-      targetId: 'rev-note',
+      taskId: revTaskId,
+      targetId: revNoteId,
       targetGraph: 'knowledge',
       projectId: 'test',
     }));
@@ -680,24 +705,26 @@ describe('Reverse-side cross-graph link deletion', () => {
   });
 
   it('after reverse-side deletion, mirror proxy is cleaned up in TaskGraph', () => {
-    expect(rTaskGraph.hasNode('@knowledge::test::rev-note')).toBe(false);
-    expect(rTaskGraph.hasNode('@knowledge::rev-note')).toBe(false);
+    expect(rTaskGraph.hasNode(`@knowledge::test::${revNoteId}`)).toBe(false);
+    expect(rTaskGraph.hasNode(`@knowledge::${revNoteId}`)).toBe(false);
   });
 
   it('after reverse-side deletion, original proxy is cleaned up in KnowledgeGraph', () => {
-    expect(rKnowledgeGraph.hasNode('@tasks::test::rev-task')).toBe(false);
-    expect(rKnowledgeGraph.hasNode('@tasks::rev-task')).toBe(false);
+    expect(rKnowledgeGraph.hasNode(`@tasks::test::${revTaskId}`)).toBe(false);
+    expect(rKnowledgeGraph.hasNode(`@tasks::${revTaskId}`)).toBe(false);
   });
 
   it('task→note link can be deleted from note side', async () => {
     // Create new note and task
-    await rCall('notes_create', { title: 'Rev Note 2', content: 'another note' });
-    await rCall('tasks_create', { title: 'Rev Task 2', description: 'another task', priority: 'low' });
+    const noteRes = json<{ noteId: string }>(await rCall('notes_create', { title: 'Rev Note 2', content: 'another note' }));
+    revNote2Id = noteRes.noteId;
+    const taskRes = json<CreateResult>(await rCall('tasks_create', { title: 'Rev Task 2', description: 'another task', priority: 'low' }));
+    revTask2Id = taskRes.taskId;
 
     // Create link from task to note
     const link = json<{ created: boolean }>(await rCall('tasks_create_link', {
-      taskId: 'rev-task-2',
-      targetId: 'rev-note-2',
+      taskId: revTask2Id,
+      targetId: revNote2Id,
       targetGraph: 'knowledge',
       kind: 'references',
       projectId: 'test',
@@ -705,12 +732,12 @@ describe('Reverse-side cross-graph link deletion', () => {
     expect(link.created).toBe(true);
 
     // Verify mirror proxy exists in KnowledgeGraph (project-scoped)
-    expect(rKnowledgeGraph.hasNode('@tasks::test::rev-task-2')).toBe(true);
+    expect(rKnowledgeGraph.hasNode(`@tasks::test::${revTask2Id}`)).toBe(true);
 
     // Delete from note side
     const del = json<{ deleted: boolean }>(await rCall('notes_delete_link', {
-      fromId: 'rev-note-2',
-      toId: 'rev-task-2',
+      fromId: revNote2Id,
+      toId: revTask2Id,
       targetGraph: 'tasks',
       projectId: 'test',
     }));
@@ -718,13 +745,13 @@ describe('Reverse-side cross-graph link deletion', () => {
   });
 
   it('after note-side deletion, mirror proxy is cleaned up in KnowledgeGraph', () => {
-    expect(rKnowledgeGraph.hasNode('@tasks::test::rev-task-2')).toBe(false);
-    expect(rKnowledgeGraph.hasNode('@tasks::rev-task-2')).toBe(false);
+    expect(rKnowledgeGraph.hasNode(`@tasks::test::${revTask2Id}`)).toBe(false);
+    expect(rKnowledgeGraph.hasNode(`@tasks::${revTask2Id}`)).toBe(false);
   });
 
   it('after note-side deletion, original proxy is cleaned up in TaskGraph', () => {
-    expect(rTaskGraph.hasNode('@knowledge::test::rev-note-2')).toBe(false);
-    expect(rTaskGraph.hasNode('@knowledge::rev-note-2')).toBe(false);
+    expect(rTaskGraph.hasNode(`@knowledge::test::${revNote2Id}`)).toBe(false);
+    expect(rTaskGraph.hasNode(`@knowledge::${revNote2Id}`)).toBe(false);
   });
 });
 
@@ -737,6 +764,8 @@ describe('Same-graph task links via tasks_create_link/tasks_delete_link', () => 
   const sgFakeEmbed = createFakeEmbed([['task', 10]]);
   let sgCtx: McpTestContext;
   let sgCall: McpTestContext['call'];
+  let parentTaskId: string;
+  let childTaskId: string;
 
   beforeAll(async () => {
     sgCtx = await setupMcpClient({
@@ -745,8 +774,10 @@ describe('Same-graph task links via tasks_create_link/tasks_delete_link', () => 
     });
     sgCall = sgCtx.call;
 
-    await sgCall('tasks_create', { title: 'Parent Task', description: 'parent', priority: 'high' });
-    await sgCall('tasks_create', { title: 'Child Task', description: 'child', priority: 'medium' });
+    const p = json<CreateResult>(await sgCall('tasks_create', { title: 'Parent Task', description: 'parent', priority: 'high' }));
+    parentTaskId = p.taskId;
+    const c = json<CreateResult>(await sgCall('tasks_create', { title: 'Child Task', description: 'child', priority: 'medium' }));
+    childTaskId = c.taskId;
   });
 
   afterAll(async () => {
@@ -756,31 +787,31 @@ describe('Same-graph task links via tasks_create_link/tasks_delete_link', () => 
   it('tasks_create_link without targetGraph creates same-graph link', async () => {
     const res = json<{ taskId: string; targetId: string; kind: string; created: boolean }>(
       await sgCall('tasks_create_link', {
-        taskId: 'parent-task',
-        targetId: 'child-task',
+        taskId: parentTaskId,
+        targetId: childTaskId,
         kind: 'related_to',
       }),
     );
     expect(res.created).toBe(true);
-    expect(res.taskId).toBe('parent-task');
-    expect(res.targetId).toBe('child-task');
+    expect(res.taskId).toBe(parentTaskId);
+    expect(res.targetId).toBe(childTaskId);
   });
 
   it('same-graph link appears in task graph', () => {
-    expect(sgTaskGraph.hasEdge('parent-task', 'child-task')).toBe(true);
+    expect(sgTaskGraph.hasEdge(parentTaskId, childTaskId)).toBe(true);
   });
 
   it('tasks_delete_link without targetGraph removes same-graph link', async () => {
     const res = json<{ taskId: string; targetId: string; deleted: boolean }>(
       await sgCall('tasks_delete_link', {
-        taskId: 'parent-task',
-        targetId: 'child-task',
+        taskId: parentTaskId,
+        targetId: childTaskId,
       }),
     );
     expect(res.deleted).toBe(true);
   });
 
   it('after deletion, link no longer exists in graph', () => {
-    expect(sgTaskGraph.hasEdge('parent-task', 'child-task')).toBe(false);
+    expect(sgTaskGraph.hasEdge(parentTaskId, childTaskId)).toBe(false);
   });
 });

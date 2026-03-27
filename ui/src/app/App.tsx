@@ -17,6 +17,10 @@ const TaskListPage = lazy(() => import('@/pages/tasks/list.tsx'));
 const TaskDetailPage = lazy(() => import('@/pages/tasks/[taskId].tsx'));
 const TaskNewPage = lazy(() => import('@/pages/tasks/new.tsx'));
 const TaskEditPage = lazy(() => import('@/pages/tasks/edit.tsx'));
+const EpicsPage = lazy(() => import('@/pages/epics/index.tsx'));
+const EpicDetailPage = lazy(() => import('@/pages/epics/[epicId].tsx'));
+const EpicNewPage = lazy(() => import('@/pages/epics/new.tsx'));
+const EpicEditPage = lazy(() => import('@/pages/epics/edit.tsx'));
 const SkillsPage = lazy(() => import('@/pages/skills/index.tsx'));
 const SkillDetailPage = lazy(() => import('@/pages/skills/[skillId].tsx'));
 const SkillNewPage = lazy(() => import('@/pages/skills/new.tsx'));
@@ -63,6 +67,10 @@ export default function App() {
           <Route path="tasks/new" element={<TaskNewPage />} />
           <Route path="tasks/:taskId/edit" element={<TaskEditPage />} />
           <Route path="tasks/:taskId" element={<TaskDetailPage />} />
+          <Route path="epics" element={<EpicsPage />} />
+          <Route path="epics/new" element={<EpicNewPage />} />
+          <Route path="epics/:epicId/edit" element={<EpicEditPage />} />
+          <Route path="epics/:epicId" element={<EpicDetailPage />} />
           <Route path="skills" element={<SkillsPage />} />
           <Route path="skills/new" element={<SkillNewPage />} />
           <Route path="skills/:skillId/edit" element={<SkillEditPage />} />

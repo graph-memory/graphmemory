@@ -26,6 +26,7 @@ import CableIcon from '@mui/icons-material/Cable';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import AssignmentIcon from '@mui/icons-material/Assignment';
+import FlagIcon from '@mui/icons-material/Flag';
 import { useProjects, type WorkspaceInfo } from '@/entities/project/index.ts';
 import { useThemeMode } from '@/shared/lib/ThemeModeContext.tsx';
 import { WsProvider } from '@/shared/lib/useWebSocket.ts';
@@ -59,6 +60,7 @@ const NAV_ITEMS: NavItem[] = [
     children: [
       { label: 'Board', icon: <ViewKanbanIcon />, path: 'tasks/board' },
       { label: 'List', icon: <ViewListIcon />, path: 'tasks/list' },
+      { label: 'Epics', icon: <FlagIcon />, path: 'epics' },
     ],
   },
   { label: 'Skills', icon: <PsychologyIcon />, path: 'skills' },
@@ -75,6 +77,7 @@ const PAGE_TITLES: Record<string, string> = {
   dashboard: 'Dashboard',
   knowledge: 'Knowledge',
   tasks: 'Tasks',
+  epics: 'Epics',
   skills: 'Skills',
   docs: 'Docs',
   code: 'Code',

@@ -11,7 +11,8 @@ const KnowledgePage = lazy(() => import('@/pages/knowledge/index.tsx'));
 const NoteDetailPage = lazy(() => import('@/pages/knowledge/[noteId].tsx'));
 const NoteNewPage = lazy(() => import('@/pages/knowledge/new.tsx'));
 const NoteEditPage = lazy(() => import('@/pages/knowledge/edit.tsx'));
-const TasksPage = lazy(() => import('@/pages/tasks/index.tsx'));
+const TasksRedirect = lazy(() => import('@/pages/tasks/index.tsx'));
+const TaskBoardPage = lazy(() => import('@/pages/tasks/board.tsx'));
 const TaskDetailPage = lazy(() => import('@/pages/tasks/[taskId].tsx'));
 const TaskNewPage = lazy(() => import('@/pages/tasks/new.tsx'));
 const TaskEditPage = lazy(() => import('@/pages/tasks/edit.tsx'));
@@ -55,7 +56,8 @@ export default function App() {
           <Route path="knowledge/new" element={<NoteNewPage />} />
           <Route path="knowledge/:noteId/edit" element={<NoteEditPage />} />
           <Route path="knowledge/:noteId" element={<NoteDetailPage />} />
-          <Route path="tasks" element={<TasksPage />} />
+          <Route path="tasks" element={<TasksRedirect />} />
+          <Route path="tasks/board" element={<TaskBoardPage />} />
           <Route path="tasks/new" element={<TaskNewPage />} />
           <Route path="tasks/:taskId/edit" element={<TaskEditPage />} />
           <Route path="tasks/:taskId" element={<TaskDetailPage />} />

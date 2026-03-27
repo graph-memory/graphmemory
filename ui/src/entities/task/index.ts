@@ -1,5 +1,5 @@
 export {
-  listTasks, getTask, createTask, updateTask, moveTask, deleteTask, searchTasks,
+  listTasks, getTask, createTask, updateTask, moveTask, reorderTask, deleteTask, searchTasks,
   listTaskRelations, createTaskLink, deleteTaskLink, findLinkedTasks,
   listTaskAttachments, uploadTaskAttachment, deleteTaskAttachment, taskAttachmentUrl,
   type Task, type TaskStatus, type TaskPriority, type TaskRelation, type AttachmentMeta,

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation, useParams } from 'react-router-dom';
 import {
-  AppBar, Box, Button, Chip, Drawer, IconButton, List, ListItemButton, ListItemIcon,
+  AppBar, Box, Button, Chip, Collapse, Drawer, IconButton, List, ListItemButton, ListItemIcon,
   ListItemText, ListSubheader, Toolbar, Typography, Select, MenuItem,
   Divider, useTheme,
 } from '@mui/material';
@@ -10,6 +10,7 @@ import DarkModeIcon from '@mui/icons-material/DarkMode';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import LightbulbIcon from '@mui/icons-material/Lightbulb';
 import ViewKanbanIcon from '@mui/icons-material/ViewKanban';
+import ViewListIcon from '@mui/icons-material/ViewList';
 import FolderIcon from '@mui/icons-material/Folder';
 import DescriptionIcon from '@mui/icons-material/Description';
 import CodeIcon from '@mui/icons-material/Code';
@@ -22,6 +23,9 @@ import BuildIcon from '@mui/icons-material/Build';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import LogoutIcon from '@mui/icons-material/Logout';
 import CableIcon from '@mui/icons-material/Cable';
+import ExpandLess from '@mui/icons-material/ExpandLess';
+import ExpandMore from '@mui/icons-material/ExpandMore';
+import AssignmentIcon from '@mui/icons-material/Assignment';
 import { useProjects, type WorkspaceInfo } from '@/entities/project/index.ts';
 import { useThemeMode } from '@/shared/lib/ThemeModeContext.tsx';
 import { WsProvider } from '@/shared/lib/useWebSocket.ts';
@@ -40,10 +44,23 @@ const NAV_GRAPH_MAP: Record<string, string> = {
   files: 'files',
 };
 
-const NAV_ITEMS = [
+interface NavItem {
+  label: string;
+  icon: React.ReactNode;
+  path: string;
+  children?: Array<{ label: string; icon: React.ReactNode; path: string }>;
+}
+
+const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', icon: <DashboardIcon />, path: 'dashboard' },
   { label: 'Knowledge', icon: <LightbulbIcon />, path: 'knowledge' },
-  { label: 'Tasks', icon: <ViewKanbanIcon />, path: 'tasks' },
+  {
+    label: 'Tasks', icon: <AssignmentIcon />, path: 'tasks',
+    children: [
+      { label: 'Board', icon: <ViewKanbanIcon />, path: 'tasks/board' },
+      { label: 'List', icon: <ViewListIcon />, path: 'tasks/list' },
+    ],
+  },
   { label: 'Skills', icon: <PsychologyIcon />, path: 'skills' },
   { label: 'Docs', icon: <DescriptionIcon />, path: 'docs' },
   { label: 'Code', icon: <CodeIcon />, path: 'code' },
@@ -127,6 +144,7 @@ function buildGroupedItems(
 export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [connectOpen, setConnectOpen] = useState(false);
+  const [expandedNav, setExpandedNav] = useState<Set<string>>(new Set(['tasks']));
   const { projects, workspaces, loading } = useProjects();
   const navigate = useNavigate();
   const location = useLocation();
@@ -181,8 +199,66 @@ export default function Layout() {
           if (!gn || !currentProject?.graphs) return true;
           const g = currentProject.graphs[gn];
           return g?.enabled !== false && g?.access !== 'deny';
-        }).map(({ label, icon, path }) => {
-          const currentPage = location.pathname.split('/').filter(Boolean)[1] || '';
+        }).map((item) => {
+          const { label, icon, path, children } = item;
+          const segments = location.pathname.split('/').filter(Boolean);
+          const currentPage = segments[1] || '';
+          const currentSubPage = segments.slice(1).join('/');
+
+          if (children) {
+            const isExpanded = expandedNav.has(path);
+            return (
+              <Box key={path}>
+                <ListItemButton
+                  onClick={() => setExpandedNav(prev => {
+                    const next = new Set(prev);
+                    if (next.has(path)) next.delete(path); else next.add(path);
+                    return next;
+                  })}
+                  disabled={!projectId}
+                  sx={{ borderRadius: 1, mb: 0.5 }}
+                >
+                  <ListItemIcon sx={{ minWidth: 40 }}>{icon}</ListItemIcon>
+                  <ListItemText primary={label} />
+                  {isExpanded ? <ExpandLess /> : <ExpandMore />}
+                </ListItemButton>
+                <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+                  <List disablePadding>
+                    {children.map((child) => {
+                      const childActive = currentSubPage === child.path;
+                      return (
+                        <ListItemButton
+                          key={child.path}
+                          selected={childActive}
+                          onClick={() => navigate(`/${projectId}/${child.path}`)}
+                          disabled={!projectId}
+                          sx={{
+                            borderRadius: 1, mb: 0.25, pl: 4,
+                            ...(childActive && {
+                              bgcolor: 'primary.main',
+                              color: palette.custom.textOnPrimary,
+                              '&:hover': { bgcolor: 'primary.dark' },
+                              '&.Mui-selected': {
+                                bgcolor: 'primary.main',
+                                color: palette.custom.textOnPrimary,
+                                '&:hover': { bgcolor: 'primary.dark' },
+                              },
+                            }),
+                          }}
+                        >
+                          <ListItemIcon sx={{ minWidth: 32, color: childActive ? palette.custom.textOnPrimary : 'inherit' }}>
+                            {child.icon}
+                          </ListItemIcon>
+                          <ListItemText primary={child.label} primaryTypographyProps={{ variant: 'body2' }} />
+                        </ListItemButton>
+                      );
+                    })}
+                  </List>
+                </Collapse>
+              </Box>
+            );
+          }
+
           const active = currentPage === path;
           return (
             <ListItemButton
@@ -196,25 +272,16 @@ export default function Layout() {
                 ...(active && {
                   bgcolor: 'primary.main',
                   color: palette.custom.textOnPrimary,
-                  '&:hover': {
-                    bgcolor: 'primary.dark',
-                  },
+                  '&:hover': { bgcolor: 'primary.dark' },
                   '&.Mui-selected': {
                     bgcolor: 'primary.main',
                     color: palette.custom.textOnPrimary,
-                    '&:hover': {
-                      bgcolor: 'primary.dark',
-                    },
+                    '&:hover': { bgcolor: 'primary.dark' },
                   },
                 }),
               }}
             >
-              <ListItemIcon
-                sx={{
-                  minWidth: 40,
-                  color: active ? palette.custom.textOnPrimary : 'inherit',
-                }}
-              >
+              <ListItemIcon sx={{ minWidth: 40, color: active ? palette.custom.textOnPrimary : 'inherit' }}>
                 {icon}
               </ListItemIcon>
               <ListItemText primary={label} />

@@ -10,6 +10,7 @@ export interface Task {
   status: TaskStatus;
   priority: TaskPriority;
   tags: string[];
+  order: number;
   dueDate: number | null;
   estimate: number | null;
   completedAt: number | null;
@@ -43,10 +44,17 @@ export function updateTask(projectId: string, taskId: string, data: Partial<Pick
   });
 }
 
-export function moveTask(projectId: string, taskId: string, status: TaskStatus) {
+export function moveTask(projectId: string, taskId: string, status: TaskStatus, order?: number) {
   return request<Task>(`/projects/${projectId}/tasks/${taskId}/move`, {
     method: 'POST',
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({ status, ...(order !== undefined ? { order } : {}) }),
+  });
+}
+
+export function reorderTask(projectId: string, taskId: string, order: number, status?: TaskStatus) {
+  return request<Task>(`/projects/${projectId}/tasks/${taskId}/reorder`, {
+    method: 'POST',
+    body: JSON.stringify({ order, ...(status ? { status } : {}) }),
   });
 }
 

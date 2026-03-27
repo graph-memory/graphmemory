@@ -1,6 +1,6 @@
 # MCP Tools — Detailed Guide
 
-58 tools organized into 9 groups. Each tool is a separate module in `src/api/tools/`.
+67 tools organized into 10 groups. Each tool is a separate module in `src/api/tools/`.
 
 ## How tools work
 
@@ -17,7 +17,8 @@ Tools are conditionally registered based on which graphs are enabled:
 | Code | 5 | code graph enabled | no |
 | File index | 3 | file index enabled | no |
 | Knowledge | 12 | knowledge graph enabled | yes (mutations) |
-| Tasks | 13 | task graph enabled | yes (mutations) |
+| Tasks | 14 | task graph enabled | yes (mutations) |
+| Epics | 8 | task graph enabled | yes (mutations) |
 | Skills | 14 | skill graph enabled | yes (mutations) |
 
 ### Read vs mutation tools
@@ -386,9 +387,80 @@ Reverse lookup: find tasks linking to a specific node.
 
 **When to use**: Before modifying a file — "are there open tasks related to this code?"
 
+### `tasks_reorder`
+
+Reposition a task within its status column using gap-based ordering.
+
+**Input**: `taskId` (required), optional `beforeId`, `afterId`
+**Output**: `{ taskId, order }`
+
+**When to use**: When the user wants to reorder tasks within a column. Place a task between two others by specifying `beforeId` and/or `afterId`.
+
 ### `tasks_add_attachment` / `tasks_remove_attachment`
 
 File attachments on tasks.
+
+---
+
+## Epic tools
+
+Epics group related tasks into larger units of work. They live in the same TaskGraph using a `nodeType: "epic"` discriminator and connect to tasks via `belongs_to` edges.
+
+### `epics_create`
+
+**Input**: `title` (required) + optional `description`, `status`, `priority`, `tags`
+**Output**: `{ epicId }`
+
+### `epics_update`
+
+Partial update of epic fields.
+
+**Input**: `epicId` + optional `title`, `description`, `status`, `priority`, `tags`, `expectedVersion`
+**Output**: `{ epicId, updated }`
+
+### `epics_delete`
+
+Deletes the epic and its `belongs_to` edges. Linked tasks are not deleted.
+
+**Input**: `epicId`
+**Output**: `{ epicId, deleted }`
+
+### `epics_get`
+
+Returns the epic with its linked tasks list.
+
+**Input**: `epicId`
+**Output**: `{ id, title, description, status, priority, tags, tasks, createdAt, updatedAt }`
+
+### `epics_list`
+
+List epics with optional filters, sorted by priority then creation date.
+
+**Input**: optional `status`, `priority`, `tag`, `filter`, `limit`
+**Output**: `[{ id, title, description, status, priority, tags, taskCount, createdAt, updatedAt }]`
+
+### `epics_search`
+
+Semantic search over epics.
+
+**Input**: `query` + optional `topK`, `maxResults`, `minScore`, `searchMode`
+**Output**: `[{ id, title, description, status, priority, tags, score }]`
+
+### `epics_link_task`
+
+Link a task to an epic (creates a `belongs_to` edge from task to epic).
+
+**Input**: `epicId`, `taskId`
+**Output**: `{ epicId, taskId, linked }`
+
+**When to use**: Grouping tasks under a larger initiative.
+
+### `epics_unlink_task`
+
+Remove the `belongs_to` edge between a task and an epic.
+
+**Input**: `epicId`, `taskId`
+**Output**: `{ epicId, taskId, unlinked }`
 
 ---
 

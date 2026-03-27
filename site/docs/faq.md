@@ -73,6 +73,10 @@ Embedding models are loaded **lazily** — they are registered at startup but th
 
 Graph Memory detects changes automatically. Each graph stores a data version and embedding model fingerprint. When you change the model in `graph-memory.yaml`, upgrade to a new version with schema changes, or restart after any update that affects stored data, the affected graphs are automatically discarded and re-indexed. No manual `--reindex` is needed.
 
+## What is the difference between tasks and epics?
+
+**Tasks** are individual units of work with a kanban workflow (backlog, todo, in_progress, review, done, cancelled). **Epics** are larger initiatives that group multiple tasks together. An epic tracks progress automatically based on how many of its linked tasks are done. Use tasks for day-to-day work items and epics to organize them into bigger goals.
+
 ## Does it support other languages besides TypeScript?
 
 The code parser is built on [tree-sitter](https://tree-sitter.github.io/tree-sitter/) using WASM grammars. Currently, TypeScript, JavaScript, TSX, and JSX are supported with full AST parsing (functions, classes, interfaces, imports, exports).

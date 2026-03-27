@@ -105,7 +105,7 @@ export function createDefaultState(): MegaBuilderState {
       maxCodeTokens: 4000,
       maxDocTokens: 2000,
       maxKnowledgeTokens: 1000,
-      priorityOrder: ['code', 'docs', 'knowledge', 'tasks', 'skills', 'files'],
+      priorityOrder: ['code', 'docs', 'knowledge', 'tasks', 'skills', 'epics', 'files'],
       deduplication: 'fuzzy',
     },
 

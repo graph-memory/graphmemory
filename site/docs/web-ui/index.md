@@ -26,14 +26,15 @@ The UI is organized into dedicated pages, each accessible from the sidebar:
 |------|-------------|
 | **Dashboard** | Project stats at a glance plus recent activity feed |
 | **Knowledge** | Create, edit, and search notes with rich markdown and cross-graph relations |
-| **Tasks** | Kanban board with drag-and-drop, priorities, assignees, and due dates |
+| **Tasks** | Kanban board and list view with drag-and-drop, priorities, assignees, due dates, and manual ordering |
+| **Epics** | Epic management with progress tracking, task linking, and status overview |
 | **Skills** | Manage reusable recipes and procedures with steps and triggers |
 | **Docs** | Browse all indexed markdown documentation with rendered content |
 | **Code** | Browse indexed code symbols with navigable detail pages |
 | **Files** | Navigate the file index with metadata and directory hierarchy |
 | **Search** | Unified semantic search across all graphs in one query |
 | **Prompts** | Generate AI system prompts with scenario presets, roles, and graph selection |
-| **Tools** | Browse and live-test all 58 MCP tools from your browser |
+| **Tools** | Browse and live-test all 67 MCP tools from your browser |
 | **Help** | Built-in searchable documentation with getting-started guides and concept explanations |
 
 When authentication is configured, a **Login** page is shown before any other content. See [Authentication](/docs/security/authentication) for setup details.

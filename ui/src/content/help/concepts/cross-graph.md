@@ -4,7 +4,7 @@ One of Graph Memory's most powerful features is the ability to **link knowledge 
 
 ## How it works
 
-When you create a cross-graph link (via `notes_create_link`, `tasks_create_link`, or `skills_create_link`), the system creates a **proxy node** — a lightweight placeholder in the source graph that represents a node from another graph.
+When you create a cross-graph link (via `notes_create_link`, `tasks_create_link`, `skills_create_link`, or `epics_create_link`), the system creates a **proxy node** — a lightweight placeholder in the source graph that represents a node from another graph.
 
 Proxy node IDs follow the format `@{graph}::{nodeId}`:
 - `@docs::guide.md::Setup` — a doc section
@@ -13,6 +13,7 @@ Proxy node IDs follow the format `@{graph}::{nodeId}`:
 - `@tasks::fix-auth-bug` — a task
 - `@knowledge::auth-architecture` — a note
 - `@skills::add-rest-endpoint` — a skill
+- `@epics::auth-overhaul` — an epic
 
 ## Creating cross-graph links
 
@@ -59,21 +60,38 @@ skills_create_link({
 })
 ```
 
-Supported target graphs: `docs`, `code`, `files`, `knowledge`, `tasks`
+Supported target graphs: `docs`, `code`, `files`, `knowledge`, `tasks`, `epics`
+
+### From Epics
+
+Use `epics_create_link` with the optional `targetGraph` parameter (omit for epic-to-epic links):
+
+```
+epics_create_link({
+  epicId: "auth-overhaul",
+  targetId: "guide.md::Authentication",
+  kind: "relates_to",
+  targetGraph: "docs"
+})
+```
+
+Supported target graphs: `docs`, `code`, `files`, `knowledge`, `tasks`, `skills`
 
 ## Discovering cross-graph links
 
 - `notes_find_linked` — find all notes linked to a specific external node
 - `tasks_find_linked` — find all tasks linked to a specific external node
 - `skills_find_linked` — find all skills linked to a specific external node
+- `epics_find_linked` — find all epics linked to a specific external node
 - `notes_list_links` — list all relations for a note (including cross-graph)
 - `tasks_get` — returns enriched task data including all cross-graph links
 - `skills_get` — returns enriched skill data including all cross-graph links
+- `epics_get` — returns enriched epic data including all cross-graph links and linked tasks
 
 ## Proxy cleanup
 
 Proxy nodes are automatically cleaned up when:
-- The source note, task, or skill is deleted (orphaned proxies removed)
+- The source note, task, skill, or epic is deleted (orphaned proxies removed)
 - The relation/link is explicitly deleted
 - During indexing, if the target file no longer exists
 

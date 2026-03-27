@@ -2,13 +2,13 @@
 title: "MCP Tools Overview"
 sidebar_label: "Overview"
 sidebar_position: 1
-description: "Overview of Graph Memory's 58 MCP tools — transport, authentication, tool visibility, and a complete reference table grouped by category."
+description: "Overview of Graph Memory's 67 MCP tools — transport, authentication, tool visibility, and a complete reference table grouped by category."
 keywords: [MCP tools, Model Context Protocol, API, tool reference, graph memory]
 ---
 
 # MCP Tools Overview
 
-Graph Memory exposes **58 MCP tools** that let AI assistants read, search, and write to your project's knowledge base. These tools are the primary interface between your AI assistant and Graph Memory.
+Graph Memory exposes **67 MCP tools** that let AI assistants read, search, and write to your project's knowledge base. These tools are the primary interface between your AI assistant and Graph Memory.
 
 ![MCP Tools Explorer in Web UI](/img/screenshots/tools-dark.png)
 
@@ -38,7 +38,7 @@ Without users configured, MCP is open (no authentication required). See [Authent
 
 ## Tool visibility
 
-Not all 58 tools are always visible. The tools available in a given session depend on three factors:
+Not all 67 tools are always visible. The tools available in a given session depend on three factors:
 
 | Factor | Effect |
 |--------|--------|
@@ -67,7 +67,8 @@ Write operations (create, update, delete) are automatically serialized through a
 | **[Code](code.md)** | `code_list_files`, `code_get_file_symbols`, `code_search`, `code_get_symbol`, `code_search_files` | 5 | Code graph enabled |
 | **[File Index](file-index.md)** | `files_list`, `files_search`, `files_get_info` | 3 | File Index graph enabled |
 | **[Knowledge](knowledge.md)** | `notes_create`, `notes_update`, `notes_delete`, `notes_get`, `notes_list`, `notes_search`, `notes_create_link`, `notes_delete_link`, `notes_list_links`, `notes_find_linked`, `notes_add_attachment`, `notes_remove_attachment` | 12 | Knowledge graph enabled |
-| **[Tasks](tasks.md)** | `tasks_create`, `tasks_update`, `tasks_delete`, `tasks_get`, `tasks_list`, `tasks_search`, `tasks_move`, `tasks_link`, `tasks_create_link`, `tasks_delete_link`, `tasks_find_linked`, `tasks_add_attachment`, `tasks_remove_attachment` | 13 | Tasks graph enabled |
+| **[Tasks](tasks.md)** | `tasks_create`, `tasks_update`, `tasks_delete`, `tasks_get`, `tasks_list`, `tasks_search`, `tasks_move`, `tasks_reorder`, `tasks_link`, `tasks_create_link`, `tasks_delete_link`, `tasks_find_linked`, `tasks_add_attachment`, `tasks_remove_attachment` | 14 | Tasks graph enabled |
+| **[Epics](epics.md)** | `epics_create`, `epics_update`, `epics_delete`, `epics_get`, `epics_list`, `epics_search`, `epics_link_task`, `epics_unlink_task` | 8 | Tasks graph enabled |
 | **[Skills](skills.md)** | `skills_create`, `skills_update`, `skills_delete`, `skills_get`, `skills_list`, `skills_search`, `skills_recall`, `skills_bump_usage`, `skills_link`, `skills_create_link`, `skills_delete_link`, `skills_find_linked`, `skills_add_attachment`, `skills_remove_attachment` | 14 | Skills graph enabled |
 
-**Total: 58 tools**
+**Total: 67 tools**

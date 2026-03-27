@@ -1,6 +1,6 @@
 # Graph Structure
 
-Graph Memory organizes project knowledge into six interconnected graphs. Each graph is a set of **nodes** (entities) connected by **edges** (relationships).
+Graph Memory organizes project knowledge into seven interconnected graphs. Each graph is a set of **nodes** (entities) connected by **edges** (relationships).
 
 ## DocGraph
 
@@ -85,9 +85,28 @@ Stores reusable recipes and procedures. Also manually curated.
 
 **Persistence:** `skills.json` in the graphMemory directory, mirrored to `.skills/{id}/skill.md`.
 
+## EpicGraph
+
+Groups related tasks into milestone-level containers. Epics provide a higher-level view of work.
+
+**Nodes:**
+- **Epics** — title, description, status, tags, order, embedding
+
+**Edges:**
+- `belongs_to` — task → epic (a task belongs to an epic)
+- **Cross-graph links** — can link to docs, code, files, knowledge, tasks, or skills via proxy nodes
+
+**Node IDs:** slug from title (`"auth-overhaul"`), dedup with suffix (`"auth-overhaul::2"`).
+
+**Statuses:** `draft`, `active`, `completed`, `archived`
+
+**Persistence:** `epics.json` in the graphMemory directory.
+
+**nodeType discriminator:** Epic nodes use `nodeType: "epic"` to distinguish them from other graph node types.
+
 ## Cross-graph links
 
-KnowledgeGraph, TaskGraph, and SkillGraph can create edges to nodes in other graphs using **proxy nodes**. A proxy is a lightweight placeholder node (e.g., `@docs::guide.md::Setup`) that represents an external entity.
+KnowledgeGraph, TaskGraph, SkillGraph, and EpicGraph can create edges to nodes in other graphs using **proxy nodes**. A proxy is a lightweight placeholder node (e.g., `@docs::guide.md::Setup`) that represents an external entity.
 
 This lets you create connections like:
 - Note "Auth architecture" → links to `auth.ts::AuthService` in CodeGraph

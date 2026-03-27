@@ -15,10 +15,14 @@ Kanban-style task management with a status workflow, priorities, due dates, time
 - `subtask_of` — breaks large tasks into smaller pieces
 - `blocks` — indicates one task must complete before another can start
 - `related_to` — loose connection between related work items
+- `belongs_to` — task belongs to an epic (created via `epics_link_task`)
+
+**Ordering:** Tasks have an `order` field for explicit positioning within status columns. Use `tasks_reorder` to set display order after drag-and-drop or manual reordering.
 
 **Connections to other graphs (when enabled):**
 - Code Graph: link tasks to code they affect with `tasks_create_link`
 - Docs Graph: link tasks to documentation they update
 - Knowledge Graph: link notes that describe the context or decision
 - Skill Graph: use `skills_recall` to find procedures for completing the task
+- Epic Graph: tasks can belong to epics via `epics_link_task` for milestone-level tracking
 - File Index: attach files to tasks with `tasks_add_attachment`

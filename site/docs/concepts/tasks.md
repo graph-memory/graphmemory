@@ -221,3 +221,23 @@ Graph Memory tasks are not meant to replace full project management tools like J
 - **Semantically searchable** -- find tasks by meaning, not just keywords
 
 Think of them as **working memory** for AI-human collaboration -- a place to track what needs to happen and connect it to the relevant context.
+
+## Task ordering
+
+By default, tasks within a status column are sorted by priority (critical first) and then by due date (earliest first, nulls last). When this default ordering does not match your workflow, you can set a **manual display order** using the `tasks_reorder` tool. Manual order takes precedence over the default sort and is persisted across sessions.
+
+In the web UI, you can also drag tasks within a column to reorder them visually.
+
+## Epics
+
+Tasks can be grouped into **epics** -- larger initiatives that span multiple tasks. Epics live in the same task graph but use a different node type (`epic` vs `task`). They have their own set of statuses (`open`, `in_progress`, `done`, `cancelled`) and are managed through dedicated `epics_*` MCP tools.
+
+Each task can belong to at most one epic via a `belongs_to` edge. An epic's progress is calculated automatically from its linked tasks: the ratio of done tasks to total linked tasks.
+
+Epics are useful for:
+
+- **Grouping related tasks** under a shared goal (e.g., "Authentication overhaul")
+- **Tracking progress** at a higher level than individual tasks
+- **Filtering and reporting** on large bodies of work
+
+See [Epics](/docs/concepts/epics) for the full data model and workflow details.

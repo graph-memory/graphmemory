@@ -57,6 +57,8 @@ Selecting a project reloads all pages with that project's data.
 
 Each page has an icon and label in the sidebar. The active page is highlighted with a primary-color background. Pages for disabled graphs are automatically hidden.
 
+Some navigation items are expandable groups. For example, **Tasks** expands to show sub-items: **Board**, **List**, and **Epics**.
+
 ## Header bar (AppBar)
 
 The header bar sits above the main content area and contains the page title, theme toggle, Connect button, and logout button.

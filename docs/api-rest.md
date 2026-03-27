@@ -83,6 +83,10 @@ See [Authentication](authentication.md) for details on auth middleware.
 | PUT | `/api/projects/:id/tasks/:taskId` | Update task (partial) |
 | DELETE | `/api/projects/:id/tasks/:taskId` | Delete task (204) |
 | POST | `/api/projects/:id/tasks/:taskId/move` | Move task status (body: `status`) |
+| POST | `/api/projects/:id/tasks/:taskId/reorder` | Reorder task (body: `beforeId?`, `afterId?`) |
+| POST | `/api/projects/:id/tasks/bulk/move` | Bulk move tasks (body: `taskIds`, `status`) |
+| POST | `/api/projects/:id/tasks/bulk/priority` | Bulk set priority (body: `taskIds`, `priority`) |
+| POST | `/api/projects/:id/tasks/bulk/delete` | Bulk delete tasks (body: `taskIds`) |
 | GET | `/api/projects/:id/tasks/search?q=...` | Search tasks |
 | POST | `/api/projects/:id/tasks/links` | Create task link |
 | DELETE | `/api/projects/:id/tasks/links` | Delete task link |
@@ -92,6 +96,20 @@ See [Authentication](authentication.md) for details on auth middleware.
 | GET | `/api/projects/:id/tasks/:taskId/attachments` | List attachments |
 | GET | `/api/projects/:id/tasks/:taskId/attachments/:filename` | Download attachment |
 | DELETE | `/api/projects/:id/tasks/:taskId/attachments/:filename` | Delete attachment |
+
+## Epic endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/projects/:id/epics` | List epics (query: `status`, `priority`, `tag`, `filter`, `limit`) |
+| POST | `/api/projects/:id/epics` | Create epic (body: `title`, `description`, `priority`, `status`, `tags`) |
+| GET | `/api/projects/:id/epics/search?q=...` | Search epics |
+| GET | `/api/projects/:id/epics/:epicId` | Get epic (includes linked tasks) |
+| PUT | `/api/projects/:id/epics/:epicId` | Update epic (partial) |
+| DELETE | `/api/projects/:id/epics/:epicId` | Delete epic (204) |
+| POST | `/api/projects/:id/epics/:epicId/link` | Link task to epic (body: `taskId`) |
+| DELETE | `/api/projects/:id/epics/:epicId/link` | Unlink task from epic (body: `taskId`) |
+| GET | `/api/projects/:id/epics/:epicId/tasks` | List tasks belonging to epic |
 
 ## Skill endpoints
 

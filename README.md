@@ -7,7 +7,7 @@
 
 An MCP server that builds a **semantic graph memory** from a project directory.
 Indexes markdown docs, TypeScript/JavaScript source code, and all project files into graph structures,
-then exposes them as **58 MCP tools** + **REST API** + **Web UI**.
+then exposes them as **67 MCP tools** + **REST API** + **Web UI**.
 
 ![graphmemory dashboard](docs/img/dashboard-dark.png)
 
@@ -131,7 +131,7 @@ See [docs/docker.md](docs/docker.md) for details.
 | **Workspaces** | Share knowledge/tasks/skills across related projects |
 | **Auth & ACL** | Password login (JWT), API keys, OAuth 2.0 (PKCE), 4-level access control |
 
-## 58 MCP tools
+## 67 MCP tools
 
 | Group | Tools |
 |-------|-------|
@@ -140,7 +140,8 @@ See [docs/docker.md](docs/docker.md) for details.
 | **Code** | `code_list_files`, `code_get_file_symbols`, `code_search`, `code_get_symbol`, `code_search_files` |
 | **Files** | `files_list`, `files_search`, `files_get_info` |
 | **Knowledge** | `notes_create`, `notes_update`, `notes_delete`, `notes_get`, `notes_list`, `notes_search`, `notes_create_link`, `notes_delete_link`, `notes_list_links`, `notes_find_linked`, `notes_add_attachment`, `notes_remove_attachment` |
-| **Tasks** | `tasks_create`, `tasks_update`, `tasks_delete`, `tasks_get`, `tasks_list`, `tasks_search`, `tasks_move`, `tasks_link`, `tasks_create_link`, `tasks_delete_link`, `tasks_find_linked`, `tasks_add_attachment`, `tasks_remove_attachment` |
+| **Tasks** | `tasks_create`, `tasks_update`, `tasks_delete`, `tasks_get`, `tasks_list`, `tasks_search`, `tasks_move`, `tasks_reorder`, `tasks_link`, `tasks_create_link`, `tasks_delete_link`, `tasks_find_linked`, `tasks_add_attachment`, `tasks_remove_attachment` |
+| **Epics** | `epics_create`, `epics_update`, `epics_delete`, `epics_get`, `epics_list`, `epics_search`, `epics_link_task`, `epics_unlink_task` |
 | **Skills** | `skills_create`, `skills_update`, `skills_delete`, `skills_get`, `skills_list`, `skills_search`, `skills_recall`, `skills_bump_usage`, `skills_link`, `skills_create_link`, `skills_delete_link`, `skills_find_linked`, `skills_add_attachment`, `skills_remove_attachment` |
 
 ## Web UI

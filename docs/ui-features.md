@@ -6,7 +6,8 @@
 |------|-------------|
 | **Dashboard** | Project stats + recent activity |
 | **Knowledge** | Notes CRUD with semantic search |
-| **Tasks** | Kanban board with drag-drop |
+| **Tasks** | Kanban board with drag-drop + table view |
+| **Epics** | Epic management with task grouping |
 | **Skills** | Recipe/procedure management |
 | **Docs** | Browse indexed documentation |
 | **Code** | Code browser with symbol navigation |
@@ -34,18 +35,30 @@ Stats cards showing counts for each graph (notes, tasks, skills, docs, code, fil
 
 - **Configurable columns** — show/hide status columns (persisted in localStorage)
 - **Drag-drop** with drop-zone highlights for moving tasks between columns
+- **Manual ordering** — drag to reorder tasks within a column (gap-based positioning)
+- **Table/list view** — toggle between kanban board and table view
 - **Inline task creation** — create tasks directly in a column
-- **Filter bar** — search text, priority, tags, assignee
+- **Filter bar** — search text, priority, tags, assignee, epic
 - **Task cards** showing:
   - Title, priority badge (color-coded)
   - Due date badge (red when overdue)
   - Estimate badge
   - Assignee display (resolved from team member name)
   - Tag chips
+  - Epic badge (when assigned)
 - **Quick actions** on hover — move to next/previous status
+- **Bulk operations** — select multiple tasks for bulk move, priority change, or delete
 - **Scrollable columns** — independent scrolling per column
-- **Task detail** — full view with subtasks, blocked-by, blocks, related tasks
-- **Task edit** — form with all fields (status, priority, dueDate, estimate, assignee, tags)
+- **Task detail** — full view with subtasks, blocked-by, blocks, related tasks, epic
+- **Task edit** — form with all fields (status, priority, dueDate, estimate, assignee, tags, epic)
+
+## Epics
+
+- **Epic list** — browse all epics with status, priority, and task count
+- **Epic detail** — view linked tasks, progress summary
+- **Create/edit** — forms with title, description, status, priority, tags
+- **Task linking** — assign tasks to an epic from the epic detail page or task edit form
+- **QuickCreateDialog** — create epic or task from a single dialog accessible via sidebar
 
 ## Skills
 
@@ -100,7 +113,7 @@ Unified semantic search across all graphs:
 
 MCP tools explorer for testing and debugging:
 
-- **Tool list** — all 58 MCP tools grouped by category
+- **Tool list** — all 67 MCP tools grouped by category
 - **Tool details** — input schema, description
 - **Live execution** — fill in parameters and call tools from the browser
 - **Result display** — shows tool output + execution duration
@@ -128,7 +141,7 @@ Email + password login page:
 Persistent sidebar with:
 - **Graph Memory logo** and title
 - **Project selector** — dropdown grouped by workspace
-- **Navigation items** — icon + label for each page
+- **Navigation items** — icon + label for each page; Tasks group is expandable (Tasks + Epics)
 - **Active page highlighting** — primary color background
 - **Theme toggle** — light/dark mode
 - **Logout button** — clears JWT cookies and reloads

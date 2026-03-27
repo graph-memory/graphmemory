@@ -10,7 +10,7 @@ The system maintains multiple graph types, all built on **Graphology** (in-memor
 | **CodeGraph** | `code.json` | `CodeGraphManager` | AST symbols from TS/JS source |
 | **KnowledgeGraph** | `knowledge.json` | `KnowledgeGraphManager` | User/LLM-created notes and facts |
 | **FileIndexGraph** | `file-index.json` | `FileIndexGraphManager` | All project files and directories |
-| **TaskGraph** | `tasks.json` | `TaskGraphManager` | Tasks with kanban workflow |
+| **TaskGraph** | `tasks.json` | `TaskGraphManager` | Tasks and epics with kanban workflow |
 | **SkillGraph** | `skills.json` | `SkillGraphManager` | Reusable recipes and procedures |
 
 See individual graph pages for detailed documentation:
@@ -36,7 +36,7 @@ These graphs are populated automatically by the indexer scanning project files:
 These graphs are populated manually (by users or LLMs) via MCP tools or REST API:
 
 - **KnowledgeGraph** — notes, facts, decisions
-- **TaskGraph** — tasks, kanban boards
+- **TaskGraph** — tasks, epics, kanban boards
 - **SkillGraph** — recipes, procedures
 
 CRUD-only graphs also feature:
@@ -135,7 +135,7 @@ In workspaces, cross-graph links between projects use project-scoped proxy IDs:
 | CodeGraph | `"fileId"`, `"fileId::Symbol"`, `"fileId::Class::method"` | `"src/auth.ts"`, `"src/auth.ts::loginUser"` |
 | KnowledgeGraph | `"slug-from-title"`, `"slug::2"` | `"auth-uses-jwt"`, `"auth-uses-jwt::2"` |
 | FileIndexGraph | file path, dir path, `"."` | `"src/lib/config.ts"`, `"src/lib"`, `"."` |
-| TaskGraph | `"slug-from-title"`, `"slug::2"` | `"implement-auth"`, `"implement-auth::2"` |
+| TaskGraph | `"slug-from-title"`, `"slug::2"` (tasks and epics share IDs) | `"implement-auth"`, `"q4-auth-epic"` |
 | SkillGraph | `"slug-from-title"`, `"slug::2"` | `"add-rest-endpoint"`, `"add-rest-endpoint::2"` |
 
 Slug generation uses `slugify()` — lowercase, replace non-alphanumeric with hyphens, trim, deduplicate with `::2`, `::3`, etc.
@@ -147,6 +147,15 @@ Each graph manager maintains a BM25 keyword index alongside the vector embedding
 The tokenizer splits on whitespace, punctuation, and camelCase (`getUserById` → `[get, user, by, id]`).
 
 See [Search](search.md) for the hybrid search algorithm.
+
+## Epics in TaskGraph
+
+Epics are stored in the same TaskGraph alongside tasks, distinguished by a `nodeType` field:
+
+- **Tasks** have `nodeType: "task"` (default)
+- **Epics** have `nodeType: "epic"`
+
+Tasks are linked to epics via `belongs_to` edges. Epics support an `order` field for positioning, using gap-based integers for efficient reordering without renumbering siblings. This shared-graph approach avoids a separate persistence file while keeping epics and tasks queryable together.
 
 ## Enabled/disabled graphs
 

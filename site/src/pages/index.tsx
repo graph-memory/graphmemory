@@ -25,7 +25,8 @@ const toolGroups = [
   {group: 'Code', count: 5, color: '#f57c00', href: '/docs/mcp-tools/code'},
   {group: 'File Index', count: 3, color: '#388e3c', href: '/docs/mcp-tools/file-index'},
   {group: 'Knowledge', count: 12, color: '#f9a825', href: '/docs/mcp-tools/knowledge'},
-  {group: 'Tasks', count: 13, color: '#1976d2', href: '/docs/mcp-tools/tasks'},
+  {group: 'Tasks', count: 14, color: '#1976d2', href: '/docs/mcp-tools/tasks'},
+  {group: 'Epics', count: 8, color: '#0288d1', href: '/docs/mcp-tools/epics'},
   {group: 'Skills', count: 14, color: '#9c27b0', href: '/docs/mcp-tools/skills'},
 ];
 
@@ -98,7 +99,7 @@ function Hero() {
         <p className={s.heroSub}>
           Semantic graph memory for AI&#8209;powered development.<br />
           Index docs, code, and files into six interconnected graphs.<br />
-          Query with 58 MCP tools or the built&#8209;in Web UI.
+          Query with 67 MCP tools or the built&#8209;in Web UI.
         </p>
         <div className={s.terminal} onClick={copy} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); copy(); } }}>
           <div className={s.termHeader}>
@@ -210,7 +211,7 @@ function Tools() {
   return (
     <section className={s.secAlt}>
       <div className="container">
-        <Heading as="h2" className={s.h2}>58 MCP Tools</Heading>
+        <Heading as="h2" className={s.h2}>67 MCP Tools</Heading>
         <p className={s.lead}>Search, create, link, and manage — all from your AI assistant.</p>
         <div className={s.pills}>
           {toolGroups.map(({group, count, color, href}) => (
@@ -318,7 +319,7 @@ function PromptBuilder() {
               {title: '14 Scenarios', desc: 'Onboarding, Code Review, Architecture, Incident Response, and more'},
               {title: '8 Roles & 6 Styles', desc: 'Developer, Architect, Reviewer, Tech Writer — Proactive, Reactive, Read-only...'},
               {title: '9 Tech Domains', desc: 'Languages, Frontend, Backend, Mobile, Data, DevOps, Testing, AI/ML, Project'},
-              {title: 'Per-Tool Control', desc: 'Set priority for each of 57 tools: Always, Prefer, Available, Avoid, Disabled'},
+              {title: 'Per-Tool Control', desc: 'Set priority for each of 67 tools: Always, Prefer, Available, Avoid, Disabled'},
               {title: 'Live Preview', desc: 'See your prompt update in real time with token estimation'},
             ].map(({title, desc}) => (
               <div key={title} className={s.pbItem}>
@@ -456,7 +457,7 @@ function FinalCTA() {
 export default function Home(): React.JSX.Element {
   const {siteConfig} = useDocusaurusContext();
   return (
-    <Layout title={siteConfig.tagline} description="MCP server that builds semantic graph memory from project directories. 58 MCP tools, Web UI, hybrid search.">
+    <Layout title={siteConfig.tagline} description="MCP server that builds semantic graph memory from project directories. 67 MCP tools, Web UI, hybrid search.">
       <Hero />
       <main>
         <Why />

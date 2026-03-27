@@ -1,6 +1,6 @@
 # Getting Started with Graph Memory
 
-Graph Memory is an MCP server that builds a **semantic graph** from your project directory. It indexes markdown documentation, TypeScript/JavaScript source code, and all project files — then exposes 58 tools for searching, navigating, and enriching that knowledge.
+Graph Memory is an MCP server that builds a **semantic graph** from your project directory. It indexes markdown documentation, TypeScript/JavaScript source code, and all project files — then exposes 67 tools for searching, navigating, and enriching that knowledge.
 
 ## What does it do?
 
@@ -11,6 +11,7 @@ Imagine having a smart assistant that has read every file in your project and ca
 - **Track knowledge and decisions** in a persistent note graph
 - **Manage tasks** with a full kanban workflow
 - **Store reusable skills** — recipes, procedures, and troubleshooting guides
+- **Organize work into epics** — group related tasks under milestone-level containers
 - **Cross-reference** code definitions with documentation examples
 
 ## The Graphs
@@ -25,6 +26,7 @@ Graph Memory maintains separate but interconnected graphs:
 | **KnowledgeGraph** | User-created notes, facts, decisions | Manual creation via tools |
 | **TaskGraph** | Tasks with status, priority, dependencies | Manual creation via tools |
 | **SkillGraph** | Reusable recipes, procedures, triggers | Manual creation via tools |
+| **EpicGraph** | Epics grouping related tasks | Manual creation via tools |
 
 ## How search works
 

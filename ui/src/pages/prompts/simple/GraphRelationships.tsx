@@ -31,6 +31,7 @@ const GRAPH_META: Record<GraphName, { label: string; abbr: string }> = {
   knowledge: { label: 'Knowledge', abbr: 'K' },
   tasks: { label: 'Tasks', abbr: 'T' },
   skills: { label: 'Skills', abbr: 'S' },
+  epics: { label: 'Epics', abbr: 'E' },
 };
 
 // Position nodes in a hexagonal layout (fits 240x180 + 40px node size)
@@ -41,6 +42,7 @@ const NODE_POSITIONS: Record<GraphName, { x: number; y: number }> = {
   knowledge: { x: 155, y: 140 },
   tasks:     { x: 55,  y: 140 },
   skills:    { x: 10,  y: 75 },
+  epics:     { x: 105, y: 75 },
 };
 
 interface GraphRelationshipsProps {

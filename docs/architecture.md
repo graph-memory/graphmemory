@@ -57,7 +57,7 @@
      ┌────────┐   ┌──────────┐   ┌──────────┐
      │  MCP   │   │ REST API │   │    UI    │
      │ Tools  │   │ Express  │   │  React   │
-     │ (58)   │   │ + WS     │   │  + Vite  │
+     │ (67)   │   │ + WS     │   │  + Vite  │
      └────────┘   └──────────┘   └──────────┘
 ```
 
@@ -91,7 +91,7 @@ Entry point: `src/cli/index.ts` (Commander.js). Three main commands (`index`, `m
 
 Three interfaces to the graph layer:
 
-- **MCP Tools** (`src/api/tools/`) — 58 tools exposed via MCP protocol (HTTP)
+- **MCP Tools** (`src/api/tools/`) — 67 tools exposed via MCP protocol (HTTP)
 - **REST API** (`src/api/rest/`) — Express routes for CRUD + search
 - **WebSocket** (`src/api/rest/websocket.ts`) — real-time event push
 
@@ -165,7 +165,8 @@ src/
       docs/                  # 10 MCP doc tools
       code/                  # 5 MCP code tools
       knowledge/             # 12 MCP knowledge tools
-      tasks/                 # 13 MCP task tools
+      tasks/                 # 14 MCP task tools
+      epics/                 # 8 MCP epic tools
       skills/                # 14 MCP skill tools
       file-index/            # 3 MCP file index tools
       context/               # 1 MCP context tool

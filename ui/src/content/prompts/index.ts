@@ -23,6 +23,7 @@ import filesGraph from './graphs/files.md?raw';
 import knowledgeGraph from './graphs/knowledge.md?raw';
 import tasksGraph from './graphs/tasks.md?raw';
 import skillsGraph from './graphs/skills.md?raw';
+import epicsGraph from './graphs/epics.md?raw';
 
 // Scenarios
 import onboardingWorkflow from './scenarios/onboarding.md?raw';
@@ -43,7 +44,7 @@ import customWorkflow from './scenarios/custom.md?raw';
 // Template
 import template from './template.md?raw';
 
-export type GraphName = 'docs' | 'code' | 'files' | 'knowledge' | 'tasks' | 'skills';
+export type GraphName = 'docs' | 'code' | 'files' | 'knowledge' | 'tasks' | 'skills' | 'epics';
 export type RoleName = 'developer' | 'architect' | 'reviewer' | 'tech-writer' | 'team-lead' | 'devops' | 'data-analyst' | 'onboarding-buddy';
 export type StyleName = 'proactive' | 'reactive' | 'read-only' | 'balanced' | 'aggressive' | 'guided';
 
@@ -74,6 +75,7 @@ export const GRAPHS: Record<GraphName, string> = {
   knowledge: knowledgeGraph,
   tasks: tasksGraph,
   skills: skillsGraph,
+  epics: epicsGraph,
 };
 
 export const WORKFLOWS: Record<string, string> = {
@@ -95,7 +97,7 @@ export const WORKFLOWS: Record<string, string> = {
 
 export const TEMPLATE = template;
 
-export const ALL_GRAPHS: GraphName[] = ['docs', 'code', 'files', 'knowledge', 'tasks', 'skills'];
+export const ALL_GRAPHS: GraphName[] = ['docs', 'code', 'files', 'knowledge', 'tasks', 'skills', 'epics'];
 
 export const GRAPH_LABELS: Record<GraphName, string> = {
   docs: 'Documentation',
@@ -104,6 +106,7 @@ export const GRAPH_LABELS: Record<GraphName, string> = {
   knowledge: 'Knowledge',
   tasks: 'Tasks',
   skills: 'Skills',
+  epics: 'Epics',
 };
 
 export const ROLE_LABELS: Record<RoleName, string> = {
@@ -126,7 +129,7 @@ export const STYLE_LABELS: Record<StyleName, string> = {
   guided: 'Guided',
 };
 
-// Tool catalog: all 57 tools with graph and description
+// Tool catalog: all 67 tools with graph and description
 export interface ToolInfo {
   graph: GraphName;
   description: string;
@@ -140,6 +143,7 @@ export const GRAPH_COLORS: Record<GraphName, string> = {
   knowledge: '#ffc107',
   tasks: '#7c4dff',
   skills: '#ff7043',
+  epics: '#26c6da',
 };
 
 export const ROLE_OPTIONS: { value: RoleName; label: string; desc: string }[] = [
@@ -201,7 +205,7 @@ export const TOOL_CATALOG: Record<string, ToolInfo> = {
   notes_add_attachment: { graph: 'knowledge', description: 'Attach a file to a note for reference' },
   notes_remove_attachment: { graph: 'knowledge', description: 'Remove a file attachment from a note' },
 
-  // Tasks (13 tools) — kanban task management with cross-graph links
+  // Tasks (14 tools) — kanban task management with cross-graph links
   tasks_create: { graph: 'tasks', description: 'Create a task with title, description, priority (low/medium/high/critical), status, tags, assignee, due date' },
   tasks_update: { graph: 'tasks', description: 'Update any task fields: title, description, priority, tags, assignee, due date, estimate' },
   tasks_delete: { graph: 'tasks', description: 'Delete a task and all its relations, subtasks links, and cross-graph links' },
@@ -215,6 +219,7 @@ export const TOOL_CATALOG: Record<string, ToolInfo> = {
   tasks_find_linked: { graph: 'tasks', description: 'Find all tasks linked to a target node in any graph — shows what tasks affect a piece of code' },
   tasks_add_attachment: { graph: 'tasks', description: 'Attach a file to a task for reference' },
   tasks_remove_attachment: { graph: 'tasks', description: 'Remove a file attachment from a task' },
+  tasks_reorder: { graph: 'tasks', description: 'Reorder tasks within a status column — sets explicit order for kanban display' },
 
   // Skills (14 tools) — reusable procedures, recipes, and troubleshooting guides
   skills_create: { graph: 'skills', description: 'Create a skill with title, description, ordered steps, trigger keywords, source, and confidence' },
@@ -231,6 +236,16 @@ export const TOOL_CATALOG: Record<string, ToolInfo> = {
   skills_find_linked: { graph: 'skills', description: 'Find all skills linked to a target node in any graph' },
   skills_add_attachment: { graph: 'skills', description: 'Attach a file to a skill for reference' },
   skills_remove_attachment: { graph: 'skills', description: 'Remove a file attachment from a skill' },
+
+  // Epics (8 tools) — milestone-level containers for grouping tasks
+  epics_create: { graph: 'epics', description: 'Create an epic with title, description, status (draft/active/completed/archived), and tags' },
+  epics_update: { graph: 'epics', description: 'Update any epic fields: title, description, status, tags' },
+  epics_delete: { graph: 'epics', description: 'Delete an epic and all its edges — linked tasks are not deleted' },
+  epics_get: { graph: 'epics', description: 'Fetch an epic with full details, linked tasks, and progress summary' },
+  epics_list: { graph: 'epics', description: 'List epics with filters: status, tag — sorted by order then creation date' },
+  epics_search: { graph: 'epics', description: 'Hybrid semantic + keyword search over epics — finds epics by meaning' },
+  epics_link_task: { graph: 'epics', description: 'Link a task to an epic — creates a belongs_to edge' },
+  epics_unlink_task: { graph: 'epics', description: 'Remove a task from an epic — deletes the belongs_to edge' },
 };
 
 export const ALL_TOOL_NAMES: string[] = Object.keys(TOOL_CATALOG);

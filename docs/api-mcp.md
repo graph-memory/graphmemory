@@ -2,7 +2,7 @@
 
 **Files**: `src/api/index.ts`, `src/api/tools/`
 
-58 MCP tools exposed via HTTP transport.
+67 MCP tools exposed via HTTP transport.
 
 ## Authentication
 
@@ -33,7 +33,8 @@ The set of tools registered for an MCP session depends on:
 | Code | 5 | code graph enabled | `tools/code/` |
 | File index | 3 | file index enabled | `tools/file-index/` |
 | Knowledge | 12 | knowledge graph enabled | `tools/knowledge/` |
-| Tasks | 13 | task graph enabled | `tools/tasks/` |
+| Tasks | 14 | task graph enabled | `tools/tasks/` |
+| Epics | 8 | task graph enabled | `tools/epics/` |
 | Skills | 14 | skill graph enabled | `tools/skills/` |
 
 ## Context tool
@@ -121,6 +122,22 @@ Requires both DocGraph and CodeGraph to be enabled. Bridges code definitions wit
 | `tasks_find_linked` | `targetId`, `targetGraph` + optional `kind`, `projectId` | `[{ taskId, title, kind, status, priority, tags }]` |
 | `tasks_add_attachment` | `taskId`, `filePath` (absolute path on disk) | `{ filename, mimeType, size, addedAt }` |
 | `tasks_remove_attachment` | `taskId`, `filename` | `{ deleted: filename }` |
+| `tasks_reorder` | `taskId`, `beforeId?`, `afterId?` | `{ taskId, order }` |
+
+## Epic tools
+
+Epics use the TaskGraph with a `nodeType: "epic"` discriminator. They group tasks via `belongs_to` edges.
+
+| Tool | Input | Output |
+|------|-------|--------|
+| `epics_create` | `title`, `description` + optional `status`, `priority`, `tags` | `{ epicId }` |
+| `epics_update` | `epicId` + optional `title`, `description`, `status`, `priority`, `tags`, `expectedVersion` | `{ epicId, updated }` |
+| `epics_delete` | `epicId` | `{ epicId, deleted }` |
+| `epics_get` | `epicId` | `{ id, title, description, status, priority, tags, tasks, createdAt, updatedAt }` |
+| `epics_list` | optional `status`, `priority`, `tag`, `filter`, `limit` | `[{ id, title, description, status, priority, tags, taskCount, createdAt, updatedAt }]` |
+| `epics_search` | `query` + optional `topK`, `maxResults`, `minScore`, `searchMode` | `[{ id, title, description, status, priority, tags, score }]` |
+| `epics_link_task` | `epicId`, `taskId` | `{ epicId, taskId, linked }` |
+| `epics_unlink_task` | `epicId`, `taskId` | `{ epicId, taskId, unlinked }` |
 
 ## Skill tools
 

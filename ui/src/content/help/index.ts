@@ -7,6 +7,7 @@ import codeTools from './guides/code-tools.md?raw';
 import knowledgeTools from './guides/knowledge-tools.md?raw';
 import taskTools from './guides/task-tools.md?raw';
 import skillTools from './guides/skill-tools.md?raw';
+import epicTools from './guides/epic-tools.md?raw';
 import filesTools from './guides/files-tools.md?raw';
 import crossReferences from './guides/cross-references.md?raw';
 import mcpSetup from './guides/mcp-setup.md?raw';
@@ -44,9 +45,9 @@ export const helpArticles: HelpArticle[] = [
   {
     id: 'graph-structure',
     title: 'Graph Structure',
-    summary: 'The graphs: DocGraph, CodeGraph, FileIndexGraph, KnowledgeGraph, TaskGraph, SkillGraph.',
+    summary: 'The graphs: DocGraph, CodeGraph, FileIndexGraph, KnowledgeGraph, TaskGraph, SkillGraph, EpicGraph.',
     category: 'concept',
-    relatedTools: ['docs_list_files', 'docs_get_toc', 'docs_get_node', 'code_list_files', 'code_get_file_symbols', 'code_get_symbol', 'files_list', 'files_get_info', 'notes_list', 'notes_get', 'tasks_list', 'tasks_get', 'skills_list', 'skills_get'],
+    relatedTools: ['docs_list_files', 'docs_get_toc', 'docs_get_node', 'code_list_files', 'code_get_file_symbols', 'code_get_symbol', 'files_list', 'files_get_info', 'notes_list', 'notes_get', 'tasks_list', 'tasks_get', 'skills_list', 'skills_get', 'epics_list', 'epics_get'],
     content: graphStructure,
   },
   {
@@ -54,7 +55,7 @@ export const helpArticles: HelpArticle[] = [
     title: 'Cross-Graph Links',
     summary: 'How to link notes and tasks to code, docs, and files via proxy nodes.',
     category: 'concept',
-    relatedTools: ['notes_create_link', 'notes_delete_link', 'notes_list_links', 'tasks_create_link', 'tasks_delete_link', 'skills_create_link', 'skills_delete_link', 'notes_find_linked', 'tasks_find_linked', 'skills_find_linked'],
+    relatedTools: ['notes_create_link', 'notes_delete_link', 'notes_list_links', 'tasks_create_link', 'tasks_delete_link', 'skills_create_link', 'skills_delete_link', 'epics_create_link', 'epics_delete_link', 'notes_find_linked', 'tasks_find_linked', 'skills_find_linked', 'epics_find_linked'],
     content: crossGraph,
   },
 
@@ -116,7 +117,7 @@ export const helpArticles: HelpArticle[] = [
     relatedTools: [
       'tasks_create', 'tasks_update', 'tasks_delete', 'tasks_get', 'tasks_list',
       'tasks_search', 'tasks_move', 'tasks_link', 'tasks_create_link', 'tasks_delete_link', 'tasks_find_linked',
-      'tasks_add_attachment', 'tasks_remove_attachment',
+      'tasks_add_attachment', 'tasks_remove_attachment', 'tasks_reorder',
     ],
     content: taskTools,
   },
@@ -131,6 +132,17 @@ export const helpArticles: HelpArticle[] = [
       'skills_add_attachment', 'skills_remove_attachment', 'skills_recall', 'skills_bump_usage',
     ],
     content: skillTools,
+  },
+  {
+    id: 'epic-tools',
+    title: 'Epic Tools',
+    summary: 'Group related tasks into epics for milestone-level tracking and progress monitoring.',
+    category: 'guide',
+    relatedTools: [
+      'epics_create', 'epics_update', 'epics_delete', 'epics_get', 'epics_list',
+      'epics_search', 'epics_link_task', 'epics_unlink_task',
+    ],
+    content: epicTools,
   },
   {
     id: 'files-tools',

@@ -14,7 +14,7 @@ import Divider from '@mui/material/Divider';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { TOOL_CATALOG, ALL_TOOL_NAMES, GRAPH_LABELS, type GraphName } from '@/content/prompts/index.ts';
+import { TOOL_CATALOG, ALL_TOOL_NAMES, ALL_GRAPHS, GRAPH_LABELS, type GraphName } from '@/content/prompts/index.ts';
 import { useBuilderContext } from '../context/BuilderContext.tsx';
 import SectionToggle from './SectionToggle.tsx';
 import type { ToolPriority } from '../types.ts';
@@ -40,7 +40,7 @@ export default function ToolsTab() {
   const [filter, setFilter] = useState('');
 
   const toolsByGraph = useMemo(() => {
-    const groups: Record<GraphName, string[]> = { docs: [], code: [], files: [], knowledge: [], tasks: [], skills: [] };
+    const groups = Object.fromEntries(ALL_GRAPHS.map(g => [g, [] as string[]])) as Record<GraphName, string[]>;
     for (const [name, info] of Object.entries(TOOL_CATALOG)) {
       if (filter && !name.includes(filter.toLowerCase())) continue;
       groups[info.graph].push(name);

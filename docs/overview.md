@@ -1,6 +1,6 @@
 # Overview
 
-**graphmemory** is an MCP (Model Context Protocol) server that turns a project directory into a queryable semantic knowledge base. It indexes markdown documentation, TypeScript/JavaScript source code, and all project files into six interconnected graph structures, then exposes them as 58 MCP tools + REST API + web UI.
+**graphmemory** is an MCP (Model Context Protocol) server that turns a project directory into a queryable semantic knowledge base. It indexes markdown documentation, TypeScript/JavaScript source code, and all project files into six interconnected graph structures, then exposes them as 67 MCP tools + REST API + web UI.
 
 ## What it does
 
@@ -19,7 +19,7 @@
 | Feature | Description |
 |---------|-------------|
 | **Graph types** | DocGraph, CodeGraph, KnowledgeGraph, FileIndexGraph, TaskGraph, SkillGraph |
-| **58 MCP tools** | Full CRUD + search across all graphs, cross-graph linking, attachments |
+| **67 MCP tools** | Full CRUD + search across all graphs, cross-graph linking, attachments, epics |
 | **Multi-project** | One process manages multiple projects with independent graphs |
 | **Workspaces** | Share knowledge/tasks/skills across related projects (e.g. microservices) |
 | **REST API** | Express-based HTTP API for all CRUD operations |

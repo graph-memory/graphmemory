@@ -24,6 +24,8 @@ Task tracking with kanban workflow, priorities, due dates, estimates, assignees,
 | `createdAt` | number | Epoch ms |
 | `updatedAt` | number | Epoch ms |
 | `createdBy` | string | Author |
+| `nodeType` | `"task"` \| `"epic"` | Discriminator (default `"task"`) |
+| `order` | number \| null | Manual sort position (gap-based integers) |
 | `updatedBy` | string | Author |
 | `proxyFor` | object | Present only on phantom proxy nodes |
 
@@ -52,6 +54,7 @@ Slug from title: `"implement-auth"`. Duplicates get `"implement-auth::2"`.
 | `subtask_of` | task → parent task |
 | `blocks` | task → blocked task |
 | `related_to` | free-form relation |
+| `belongs_to` | task → epic |
 
 ### Cross-graph links
 
@@ -123,6 +126,7 @@ See [File Mirror](file-mirror.md) for details.
 | `listTasks(opts)` | List with filters (status, priority, tag, assignee) |
 | `searchTasks(query, opts)` | Hybrid search with BFS expansion |
 | `moveTask(taskId, status)` | Change status, manage completedAt |
+| `reorderTask(taskId, opts)` | Reposition task (beforeId/afterId anchors) |
 
 ### Link operations
 
@@ -139,6 +143,19 @@ See [File Mirror](file-mirror.md) for details.
 |--------|-------------|
 | `addAttachment(taskId, filename, content)` | Add file attachment |
 | `removeAttachment(taskId, filename)` | Remove file attachment |
+
+### Epic operations
+
+| Method | Description |
+|--------|-------------|
+| `createEpic(fields)` | Create epic (nodeType: "epic"), embed, mirror |
+| `updateEpic(epicId, fields)` | Partial update, re-embed |
+| `deleteEpic(epicId)` | Delete epic and belongs_to edges (tasks preserved) |
+| `getEpic(epicId)` | Fetch epic with linked tasks list |
+| `listEpics(opts)` | List epics with filters |
+| `searchEpics(query, opts)` | Hybrid search over epics |
+| `linkTaskToEpic(epicId, taskId)` | Create belongs_to edge |
+| `unlinkTaskFromEpic(epicId, taskId)` | Remove belongs_to edge |
 
 ## Persistence
 

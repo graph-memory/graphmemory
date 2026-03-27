@@ -2,13 +2,13 @@
 title: "Task Tools"
 sidebar_label: "Tasks"
 sidebar_position: 9
-description: "13 MCP tools for managing tasks — create, update, move, link, search, and attach files to tasks with Kanban workflow support."
+description: "14 MCP tools for managing tasks — create, update, move, reorder, link, search, and attach files to tasks with Kanban workflow support."
 keywords: [task tools, tasks_create, tasks_move, tasks_link, kanban, task management, cross-graph links]
 ---
 
 # Task Tools
 
-These 13 tools manage the **task graph** — a Kanban-style task system with priorities, assignees, due dates, and cross-graph context. Tasks are mirrored to `.tasks/` markdown files for IDE access.
+These 14 tools manage the **task graph** — a Kanban-style task system with priorities, assignees, due dates, and cross-graph context. Tasks are mirrored to `.tasks/` markdown files for IDE access.
 
 :::info
 These tools are **always available**. Mutation tools (marked below) are hidden when the task graph is set to `readonly`.
@@ -170,6 +170,29 @@ Changes a task's status with automatic `completedAt` management.
 ### When to use
 
 Always use `tasks_move` instead of `tasks_update` for status changes. It properly manages completion timestamps.
+
+---
+
+## tasks_reorder {#tasks_reorder}
+
+> **Mutation** — hidden in readonly mode
+
+Sets the display order of tasks within a status column. Pass an ordered array of task IDs to define their position. Tasks not included in the array keep their existing order and appear after the explicitly ordered ones.
+
+### Parameters
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `status` | Yes | The status column to reorder (e.g., `todo`, `in_progress`) |
+| `taskIds` | Yes | Ordered array of task IDs defining the new display order |
+
+### Returns
+
+`{ status, ordered }` — the status column and the number of tasks reordered.
+
+### When to use
+
+Use `tasks_reorder` when the priority-based default sort is not sufficient and you need manual control over task ordering within a column, such as arranging a sprint backlog or ordering items for a review queue.
 
 ---
 

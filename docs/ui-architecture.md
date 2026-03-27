@@ -25,7 +25,8 @@ ui/src/
 ├── pages/
 │   ├── dashboard/                # Stats cards + recent activity
 │   ├── knowledge/                # Notes CRUD + search + detail/edit/new
-│   ├── tasks/                    # Kanban board + drag-drop + detail/edit/new
+│   ├── tasks/                    # Kanban board + table view + drag-drop + detail/edit/new
+│   ├── epics/                    # Epic list + detail + task linking
 │   ├── skills/                   # Skill management + triggers + usage
 │   ├── docs/                     # Browse documentation + detail view
 │   ├── code/                     # Code browser + symbol detail
@@ -40,11 +41,14 @@ ui/src/
 ├── features/
 │   ├── note-crud/                # useNotes hook, NoteDialog, RelationsDialog
 │   ├── task-crud/                # TaskDialog
+│   ├── epic-crud/                # EpicDialog
+│   ├── quick-create/             # QuickCreateDialog (tasks + epics from sidebar)
 │   └── skill-crud/               # SkillDialog
 ├── entities/
 │   ├── project/                  # listProjects API, useProjects hook
 │   ├── note/                     # Note type, API, NoteCard
 │   ├── task/                     # Task type, statuses, priorities, API
+│   ├── epic/                     # Epic type, API
 │   ├── skill/                    # Skill type, API
 │   ├── file/                     # FileInfo type, API
 │   ├── doc/                      # searchDocs API
@@ -83,8 +87,10 @@ All routes are scoped to a project: `/:projectId/...`
 | `/:projectId/knowledge/new` | Create note |
 | `/:projectId/knowledge/:noteId` | Note detail |
 | `/:projectId/knowledge/:noteId/edit` | Edit note |
-| `/:projectId/tasks` | TasksPage (kanban) |
+| `/:projectId/tasks` | TasksPage (kanban + table view) |
 | `/:projectId/tasks/:taskId` | Task detail |
+| `/:projectId/epics` | EpicsPage |
+| `/:projectId/epics/:epicId` | Epic detail |
 | `/:projectId/skills` | SkillsPage |
 | `/:projectId/skills/:skillId` | Skill detail |
 | `/:projectId/docs` | DocsPage |

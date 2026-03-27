@@ -93,6 +93,14 @@ The filter bar lets you narrow the board by:
 - **Tags** -- filter by one or more tags
 - **Assignee** -- show only tasks assigned to a specific person
 
+### Task ordering
+
+Within each status column, tasks are sorted by priority and due date by default. You can override this with **manual ordering** by dragging tasks within a column to set a custom display order. Manual order is persisted and takes precedence over the default sort. Use the `tasks_reorder` MCP tool for programmatic reordering.
+
+### List view
+
+In addition to the kanban board, a **list view** presents all tasks in a flat, sortable table. Toggle between board and list views using the view switcher at the top of the Tasks page.
+
 ### Task detail view
 
 Click a task card to open its full detail view, which includes:
@@ -101,7 +109,37 @@ Click a task card to open its full detail view, which includes:
 - Subtask list
 - Blocked-by and blocks relationships
 - Related tasks and cross-graph links
+- Epic membership (if the task belongs to an epic)
 - Edit form with all fields
+
+## Epics
+
+The Epics page lets you group related tasks into larger initiatives with progress tracking.
+
+### Epic list
+
+The main view shows all epics with their title, status, and a progress bar indicating how many linked tasks are complete. Filter epics by status or search by title and description.
+
+### Creating and editing epics
+
+Click the create button to add a new epic. Each epic has:
+
+- **Title** and **description** (markdown)
+- **Status**: `open`, `in_progress`, `done`, or `cancelled`
+- **Tags** for organization
+
+### Task linking
+
+Link tasks to an epic from the epic detail view or from a task's detail view. An epic's progress is calculated automatically from its linked tasks (done tasks / total linked tasks).
+
+### Epic detail view
+
+Click an epic to see:
+
+- Epic metadata (status, tags, description)
+- Progress bar with task counts
+- List of all linked tasks with their status and priority
+- Actions to link or unlink tasks
 
 ## Skills
 

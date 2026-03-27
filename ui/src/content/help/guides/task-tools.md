@@ -27,6 +27,7 @@ Tasks here are tightly integrated with your project's knowledge graph:
 | `tasks_find_linked` | Reverse lookup: find tasks linked to an external node | Read |
 | `tasks_add_attachment` | Attach a file to a task | Mutation |
 | `tasks_remove_attachment` | Remove an attachment from a task | Mutation |
+| `tasks_reorder` | Reorder tasks within a status column | Mutation |
 
 > **Mutation tools** are serialized through a queue to prevent concurrent graph modifications.
 
@@ -253,6 +254,21 @@ Remove an attachment from a task. Deletes the file from disk.
 | `filename` | string | Yes | Filename of the attachment to remove |
 
 **Returns:** `{ taskId, filename, deleted: true }`
+
+### tasks_reorder
+
+Reorder tasks within a status column. Sets the `order` field on each task to control display position.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `status` | enum | Yes | The status column to reorder: `"backlog"`, `"todo"`, `"in_progress"`, `"review"`, `"done"`, `"cancelled"` |
+| `taskIds` | string[] | Yes | Ordered array of task IDs — first item gets order 0, second gets order 1, etc. |
+
+**Returns:** `{ status, reordered: number }`
+
+## Task ordering
+
+Tasks have an `order` field that controls their position within a status column. When listing tasks, they are sorted by `order` (ascending) within each status group. Use `tasks_reorder` to set explicit ordering — for example, after a drag-and-drop reorder in the kanban board.
 
 ## Kanban board UI
 

@@ -156,6 +156,29 @@ Graph Memory tasks aren't meant to replace your project management tool. They se
 
 Think of them as **working memory** for the AI-human collaboration, not as a permanent project management system.
 
+## Task ordering
+
+Tasks support an `order` field for manual positioning within a status column. The ordering system uses **gap-based integers** — new tasks are assigned order values with large gaps (e.g. 1000, 2000, 3000) so that inserting between two tasks just picks the midpoint without renumbering siblings.
+
+The `tasks_reorder` tool repositions a task by specifying `beforeId` and/or `afterId` anchors. When gaps become too small, the system automatically renumbers all tasks in the column.
+
+## Epics and hierarchy
+
+Epics are higher-level groupings that organize related tasks into initiatives or milestones. They live in the same TaskGraph as tasks, distinguished by a `nodeType: "epic"` field.
+
+Tasks are linked to epics via `belongs_to` edges:
+
+```
+"implement-auth" → [belongs_to] → "q4-security-epic"
+"fix-session-bug" → [belongs_to] → "q4-security-epic"
+```
+
+Key properties:
+- A task can belong to at most one epic
+- Deleting an epic removes the `belongs_to` edges but does not delete the tasks
+- Epics have the same status and priority fields as tasks
+- `epics_get` returns the epic with its full task list
+
 ## Configuration
 
 ```yaml

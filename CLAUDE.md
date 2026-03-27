@@ -4,7 +4,7 @@
 
 MCP server that builds a semantic graph memory from a project directory — indexing
 markdown docs, TypeScript/JavaScript source code, and all project files into six
-interconnected graphs. Exposes 58 MCP tools + REST API + Web UI.
+interconnected graphs. Exposes 67 MCP tools + REST API + Web UI.
 
 **Full documentation**: see [docs/](docs/README.md)
 

@@ -16,7 +16,7 @@ The Prompt Builder is a visual tool that generates optimized system prompts for 
 
 AI assistants work significantly better when their system prompts are tailored to the task at hand. A prompt built for code review emphasizes different tools and behaviors than one built for onboarding or architecture design. The Prompt Builder handles this by:
 
-- **Selecting the right tools** from 57 tools in the builder's catalog based on your scenario
+- **Selecting the right tools** from 67 tools in the builder's catalog based on your scenario
 - **Setting the right tone** through roles (Developer, Architect, Tech Writer, etc.)
 - **Controlling mutation behavior** through styles (Proactive, Reactive, Read-only, etc.)
 - **Configuring search depth**, memory strategy, and collaboration patterns

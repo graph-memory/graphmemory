@@ -22,7 +22,7 @@ access control, and real-time updates.
 
 See [docs/graphs-overview.md](docs/graphs-overview.md) for data models, node IDs, and edge types.
 
-## 58 MCP tools
+## 67 MCP tools
 
 | Group | Count | Condition |
 |-------|-------|-----------|
@@ -31,7 +31,8 @@ See [docs/graphs-overview.md](docs/graphs-overview.md) for data models, node IDs
 | Code | 5 | code enabled |
 | File index | 3 | always |
 | Knowledge | 12 | always |
-| Tasks | 13 | always |
+| Tasks | 14 | always |
+| Epics | 8 | task graph enabled |
 | Skills | 14 | always |
 
 See [docs/api-mcp.md](docs/api-mcp.md) for schemas and [docs/mcp-tools-guide.md](docs/mcp-tools-guide.md) for usage guide.

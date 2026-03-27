@@ -188,13 +188,13 @@ Create a directed relation between two tasks.
 
 ### tasks_create_link
 
-Link a task to a node in another graph (docs, code, files, or knowledge).
+Link a task to another task (same-graph) or to a node in docs, code, files, knowledge, or skills graph (cross-graph). Omit `targetGraph` for task-to-task links.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `taskId` | string | Yes | Source task ID |
-| `targetId` | string | Yes | Target node ID in the external graph |
-| `targetGraph` | enum | Yes | `"docs"`, `"code"`, `"files"`, `"knowledge"`, `"skills"` |
+| `targetId` | string | Yes | Target task ID (same-graph) or target node ID in external graph (cross-graph) |
+| `targetGraph` | enum | No | `"docs"`, `"code"`, `"files"`, `"knowledge"`, `"skills"`. Omit for task-to-task links. |
 | `kind` | string | Yes | Relation type: `"references"`, `"fixes"`, `"implements"`, `"documents"`, etc. |
 
 **Returns:** `{ taskId, targetId, targetGraph, kind, created: true }`
@@ -203,19 +203,18 @@ Link a task to a node in another graph (docs, code, files, or knowledge).
 ```
 tasks_create_link({ taskId: "fix-auth", targetId: "src/auth.ts::login", targetGraph: "code", kind: "fixes" })
 tasks_create_link({ taskId: "update-docs", targetId: "guide.md::Authentication", targetGraph: "docs", kind: "updates" })
-tasks_create_link({ taskId: "review-config", targetId: "src/config.ts", targetGraph: "files", kind: "references" })
-tasks_create_link({ taskId: "implement-arch", targetId: "auth-architecture", targetGraph: "knowledge", kind: "implements" })
+tasks_create_link({ taskId: "parent-task", targetId: "child-task", kind: "subtask_of" })
 ```
 
 ### tasks_delete_link
 
-Remove a cross-graph link from a task. Orphaned proxy nodes cleaned up automatically.
+Remove a link from a task. Works for both same-graph and cross-graph links. Orphaned proxy nodes cleaned up automatically.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `taskId` | string | Yes | Source task ID |
-| `targetId` | string | Yes | Target node ID in the external graph |
-| `targetGraph` | enum | Yes | `"docs"`, `"code"`, `"files"`, `"knowledge"`, `"skills"` |
+| `targetId` | string | Yes | Target node ID |
+| `targetGraph` | enum | No | `"docs"`, `"code"`, `"files"`, `"knowledge"`, `"skills"`. Omit for task-to-task links. |
 
 **Returns:** `{ taskId, targetId, targetGraph, deleted: true }`
 

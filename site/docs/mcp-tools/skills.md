@@ -206,15 +206,15 @@ Creates a relation between two skills.
 
 > **Mutation** — hidden in readonly mode
 
-Creates a cross-graph link from a skill to a node in another graph.
+Links a skill to another skill (same-graph) or to a node in the docs, code, files, knowledge, or tasks graph (cross-graph). Omit `targetGraph` for skill-to-skill links.
 
 ### Parameters
 
 | Parameter | Required | Description |
 |-----------|----------|-------------|
 | `skillId` | Yes | Source skill ID |
-| `targetId` | Yes | Target node ID in the external graph |
-| `targetGraph` | Yes | Target graph: `"docs"`, `"code"`, `"files"`, `"knowledge"`, `"tasks"` |
+| `targetId` | Yes | Target skill ID (same-graph) or target node ID in external graph (cross-graph) |
+| `targetGraph` | No | Target graph: `"docs"`, `"code"`, `"files"`, `"knowledge"`, `"tasks"`. Omit for skill-to-skill links. |
 | `kind` | Yes | Relation type (free-form string) |
 | `projectId` | No | Target project ID (for cross-project links) |
 
@@ -232,7 +232,7 @@ Connect a skill to the code or docs it relates to. For instance, link a deployme
 
 > **Mutation** — hidden in readonly mode
 
-Deletes a cross-graph link from a skill.
+Deletes a link from a skill to another skill (same-graph) or to a node in an external graph (cross-graph). Omit `targetGraph` for skill-to-skill links. Orphaned proxy nodes are cleaned up automatically.
 
 ### Parameters
 
@@ -240,7 +240,7 @@ Deletes a cross-graph link from a skill.
 |-----------|----------|-------------|
 | `skillId` | Yes | Skill ID |
 | `targetId` | Yes | Target node ID |
-| `targetGraph` | Yes | Target graph |
+| `targetGraph` | No | Target graph. Omit for skill-to-skill links. |
 | `projectId` | No | Target project ID |
 
 ### Returns

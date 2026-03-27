@@ -197,15 +197,15 @@ Creates a relation between two tasks.
 
 > **Mutation** — hidden in readonly mode
 
-Creates a cross-graph link from a task to a node in another graph.
+Links a task to another task (same-graph) or to a node in the docs, code, files, knowledge, or skills graph (cross-graph). Omit `targetGraph` for task-to-task links.
 
 ### Parameters
 
 | Parameter | Required | Description |
 |-----------|----------|-------------|
 | `taskId` | Yes | Source task ID |
-| `targetId` | Yes | Target node ID in the external graph |
-| `targetGraph` | Yes | Target graph: `"docs"`, `"code"`, `"files"`, `"knowledge"`, `"skills"` |
+| `targetId` | Yes | Target task ID (same-graph) or target node ID in external graph (cross-graph) |
+| `targetGraph` | No | Target graph: `"docs"`, `"code"`, `"files"`, `"knowledge"`, `"skills"`. Omit for task-to-task links. |
 | `kind` | Yes | Relation type (free-form string) |
 | `projectId` | No | Target project ID (for cross-project links) |
 
@@ -223,7 +223,7 @@ Connect tasks to the code, docs, or files they relate to. For instance, link a b
 
 > **Mutation** — hidden in readonly mode
 
-Deletes a cross-graph link from a task.
+Deletes a link from a task to another task (same-graph) or to a node in an external graph (cross-graph). Omit `targetGraph` for task-to-task links. Orphaned proxy nodes are cleaned up automatically.
 
 ### Parameters
 
@@ -231,7 +231,7 @@ Deletes a cross-graph link from a task.
 |-----------|----------|-------------|
 | `taskId` | Yes | Task ID |
 | `targetId` | Yes | Target node ID |
-| `targetGraph` | Yes | Target graph |
+| `targetGraph` | No | Target graph. Omit for task-to-task links. |
 | `projectId` | No | Target project ID |
 
 ### Returns

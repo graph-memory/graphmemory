@@ -378,7 +378,7 @@ Create task↔task relation: `subtask_of`, `blocks`, `related_to`.
 
 ### `tasks_create_link` / `tasks_delete_link`
 
-Cross-graph links to docs/code/files/knowledge/skills nodes.
+Same-graph (task↔task) or cross-graph links to docs/code/files/knowledge/skills nodes. `targetGraph` is optional — omit for task-to-task links.
 
 ### `tasks_find_linked`
 
@@ -417,7 +417,7 @@ Increment `usageCount` + set `lastUsedAt`.
 
 ### `skills_link` / `skills_create_link` / `skills_delete_link` / `skills_find_linked`
 
-Same relation patterns as knowledge/tasks.
+Same relation patterns as knowledge/tasks. `skills_create_link` and `skills_delete_link` support optional `targetGraph` — omit for skill-to-skill links.
 
 ### `skills_add_attachment` / `skills_remove_attachment`
 

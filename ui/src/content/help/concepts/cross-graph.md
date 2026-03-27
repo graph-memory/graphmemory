@@ -33,7 +33,7 @@ Supported target graphs: `docs`, `code`, `files`, `tasks`, `skills`
 
 ### From Tasks
 
-Use `tasks_create_link` with the `targetGraph` parameter:
+Use `tasks_create_link` with the optional `targetGraph` parameter (omit for task-to-task links):
 
 ```
 tasks_create_link({
@@ -48,7 +48,7 @@ Supported target graphs: `docs`, `code`, `files`, `knowledge`, `skills`
 
 ### From Skills
 
-Use `skills_create_link` with the `targetGraph` parameter:
+Use `skills_create_link` with the optional `targetGraph` parameter (omit for skill-to-skill links):
 
 ```
 skills_create_link({

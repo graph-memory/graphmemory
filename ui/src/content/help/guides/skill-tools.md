@@ -188,14 +188,14 @@ Create a directed relation between two skills.
 
 ### skills_create_link
 
-Link a skill to a node in another graph (docs, code, files, knowledge, or tasks).
+Link a skill to another skill (same-graph) or to a node in docs, code, files, knowledge, or tasks graph (cross-graph). Omit `targetGraph` for skill-to-skill links.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `skillId` | string | Yes | Source skill ID |
-| `targetId` | string | Yes | Target node ID in the external graph |
-| `targetGraph` | enum | Yes | `"docs"`, `"code"`, `"files"`, `"knowledge"`, `"tasks"` |
-| `kind` | string | Yes | Relation type: `"applies_to"`, `"documented_in"`, `"used_by"`, etc. |
+| `targetId` | string | Yes | Target skill ID (same-graph) or target node ID in external graph (cross-graph) |
+| `targetGraph` | enum | No | `"docs"`, `"code"`, `"files"`, `"knowledge"`, `"tasks"`. Omit for skill-to-skill links. |
+| `kind` | string | Yes | Relation type: `"applies_to"`, `"documented_in"`, `"used_by"`, `"depends_on"`, etc. |
 
 **Returns:** `{ skillId, targetId, targetGraph, kind, created: true }`
 
@@ -203,18 +203,18 @@ Link a skill to a node in another graph (docs, code, files, knowledge, or tasks)
 ```
 skills_create_link({ skillId: "add-rest-endpoint", targetId: "src/routes/index.ts", targetGraph: "code", kind: "applies_to" })
 skills_create_link({ skillId: "add-rest-endpoint", targetId: "guide.md::REST API", targetGraph: "docs", kind: "documented_in" })
-skills_create_link({ skillId: "add-rest-endpoint", targetId: "implement-api", targetGraph: "tasks", kind: "used_by" })
+skills_create_link({ skillId: "skill-a", targetId: "skill-b", kind: "depends_on" })
 ```
 
 ### skills_delete_link
 
-Remove a cross-graph link from a skill. Orphaned proxy nodes cleaned up automatically.
+Remove a link from a skill. Works for both same-graph and cross-graph links. Orphaned proxy nodes cleaned up automatically.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `skillId` | string | Yes | Source skill ID |
-| `targetId` | string | Yes | Target node ID in the external graph |
-| `targetGraph` | enum | Yes | `"docs"`, `"code"`, `"files"`, `"knowledge"`, `"tasks"` |
+| `targetId` | string | Yes | Target node ID |
+| `targetGraph` | enum | No | `"docs"`, `"code"`, `"files"`, `"knowledge"`, `"tasks"`. Omit for skill-to-skill links. |
 
 **Returns:** `{ skillId, targetId, targetGraph, deleted: true }`
 

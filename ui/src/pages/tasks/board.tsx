@@ -3,12 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Button, Paper, Stack, Chip,
   Alert, CircularProgress, useTheme, alpha,
-  IconButton, Menu, MenuItem, Checkbox, ListItemText,
-  TextField, InputAdornment, FormControl, Select, Tooltip,
+  IconButton, MenuItem, TextField, InputAdornment, FormControl, Select,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import ViewKanbanIcon from '@mui/icons-material/ViewKanban';
-import ViewColumnIcon from '@mui/icons-material/ViewColumn';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SearchIcon from '@mui/icons-material/Search';
@@ -193,7 +191,6 @@ export default function TaskBoardPage() {
 
   // Column visibility
   const { visible, toggle: toggleColumn, visibleColumns } = useColumnVisibility();
-  const [columnMenuAnchor, setColumnMenuAnchor] = useState<HTMLElement | null>(null);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -391,28 +388,33 @@ export default function TaskBoardPage() {
         breadcrumbs={[{ label: 'Tasks' }, { label: 'Board' }]}
         actions={
           <>
-            <Tooltip title="Column visibility">
-              <IconButton onClick={(e) => setColumnMenuAnchor(e.currentTarget)} size="small">
-                <ViewColumnIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            <Menu
-              anchorEl={columnMenuAnchor}
-              open={Boolean(columnMenuAnchor)}
-              onClose={() => setColumnMenuAnchor(null)}
-            >
-              {COLUMNS.map(({ status, label }) => (
-                <MenuItem key={status} onClick={() => toggleColumn(status)} dense>
-                  <Checkbox
-                    checked={visible.has(status)}
-                    disabled={visible.has(status) && visible.size === 1}
+            <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+              {COLUMNS.map(({ status, label, color }) => {
+                const isOn = visible.has(status);
+                return (
+                  <Chip
+                    key={status}
+                    label={label}
                     size="small"
-                    sx={{ p: 0, mr: 1 }}
+                    onClick={() => toggleColumn(status)}
+                    disabled={isOn && visible.size === 1}
+                    sx={{
+                      height: 26,
+                      fontWeight: 600,
+                      fontSize: '0.7rem',
+                      cursor: 'pointer',
+                      bgcolor: isOn ? alpha(color, 0.22) : 'transparent',
+                      color: isOn ? color : palette.custom.textMuted,
+                      border: isOn ? `1.5px solid ${alpha(color, 0.6)}` : '1.5px solid transparent',
+                      textDecoration: isOn ? 'none' : 'line-through',
+                      opacity: isOn ? 1 : 0.45,
+                      '&:hover': { bgcolor: alpha(color, 0.1), opacity: 1 },
+                      '& .MuiChip-label': { px: 1 },
+                    }}
                   />
-                  <ListItemText primary={label} />
-                </MenuItem>
-              ))}
-            </Menu>
+                );
+              })}
+            </Box>
             {canWrite && (
               <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('../tasks/new', { relative: 'path' })}>
                 New Task

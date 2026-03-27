@@ -58,6 +58,29 @@ export function reorderTask(projectId: string, taskId: string, order: number, st
   });
 }
 
+// -- Bulk operations --
+
+export function bulkMoveTasks(projectId: string, taskIds: string[], status: TaskStatus) {
+  return request<{ moved: string[] }>(`/projects/${projectId}/tasks/bulk/move`, {
+    method: 'POST',
+    body: JSON.stringify({ taskIds, status }),
+  });
+}
+
+export function bulkUpdatePriority(projectId: string, taskIds: string[], priority: TaskPriority) {
+  return request<{ updated: string[] }>(`/projects/${projectId}/tasks/bulk/priority`, {
+    method: 'POST',
+    body: JSON.stringify({ taskIds, priority }),
+  });
+}
+
+export function bulkDeleteTasks(projectId: string, taskIds: string[]) {
+  return request<{ deleted: string[] }>(`/projects/${projectId}/tasks/bulk/delete`, {
+    method: 'POST',
+    body: JSON.stringify({ taskIds }),
+  });
+}
+
 export function deleteTask(projectId: string, taskId: string) {
   return request<void>(`/projects/${projectId}/tasks/${taskId}`, {
     method: 'DELETE',

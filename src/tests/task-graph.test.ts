@@ -6,6 +6,7 @@ import {
   listTasks, createTaskRelation, deleteTaskRelation, listTaskRelations,
   createCrossRelation, deleteCrossRelation, cleanupProxies, proxyId, isProxy,
   findLinkedTasks, saveTaskGraph, loadTaskGraph, TaskGraphManager,
+  nextOrderForStatus, rebalanceOrders, reorderTask,
 } from '@/graphs/task';
 import type { GraphManagerContext } from '@/graphs/manager-types';
 import { slugify } from '@/graphs/knowledge-types';
@@ -1049,6 +1050,138 @@ describe('Attachments (TaskGraphManager)', () => {
     it('no-ops for missing task', () => {
       // Should not throw
       expect(() => manager.syncAttachments('nonexistent')).not.toThrow();
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Order field, reorder, rebalance
+// ---------------------------------------------------------------------------
+
+describe('Order — nextOrderForStatus, rebalanceOrders, reorderTask', () => {
+  let g: ReturnType<typeof createTaskGraph>;
+
+  beforeEach(() => {
+    g = createTaskGraph();
+  });
+
+  describe('nextOrderForStatus', () => {
+    it('returns 0 for empty graph', () => {
+      expect(nextOrderForStatus(g, 'todo')).toBe(0);
+    });
+
+    it('returns max+1000 for existing tasks', () => {
+      createTask(g, 'A', '', 'todo', 'medium', [], unitVec(0), null, null, '', null, 0);
+      createTask(g, 'B', '', 'todo', 'medium', [], unitVec(1), null, null, '', null, 2000);
+      expect(nextOrderForStatus(g, 'todo')).toBe(3000);
+    });
+
+    it('scoped to status — other statuses ignored', () => {
+      createTask(g, 'A', '', 'todo', 'medium', [], unitVec(0), null, null, '', null, 5000);
+      expect(nextOrderForStatus(g, 'backlog')).toBe(0);
+    });
+  });
+
+  describe('rebalanceOrders', () => {
+    it('reassigns orders as 0, 1000, 2000...', () => {
+      const id1 = createTask(g, 'A', '', 'todo', 'medium', [], unitVec(0), null, null, '', null, 100);
+      const id2 = createTask(g, 'B', '', 'todo', 'medium', [], unitVec(1), null, null, '', null, 150);
+      const id3 = createTask(g, 'C', '', 'todo', 'medium', [], unitVec(2), null, null, '', null, 200);
+      rebalanceOrders(g, 'todo');
+      expect(g.getNodeAttribute(id1, 'order')).toBe(0);
+      expect(g.getNodeAttribute(id2, 'order')).toBe(1000);
+      expect(g.getNodeAttribute(id3, 'order')).toBe(2000);
+    });
+
+    it('does not affect other statuses', () => {
+      const backlogId = createTask(g, 'X', '', 'backlog', 'low', [], unitVec(0), null, null, '', null, 99);
+      createTask(g, 'A', '', 'todo', 'medium', [], unitVec(1), null, null, '', null, 5);
+      rebalanceOrders(g, 'todo');
+      expect(g.getNodeAttribute(backlogId, 'order')).toBe(99);
+    });
+  });
+
+  describe('reorderTask', () => {
+    it('sets new order within same status', () => {
+      const id1 = createTask(g, 'A', '', 'todo', 'medium', [], unitVec(0), null, null, '', null, 0);
+      expect(reorderTask(g, id1, 500)).toBe(true);
+      expect(g.getNodeAttribute(id1, 'order')).toBe(500);
+    });
+
+    it('moves to different status and sets order', () => {
+      const id1 = createTask(g, 'A', '', 'todo', 'medium', [], unitVec(0));
+      expect(reorderTask(g, id1, 0, 'in_progress')).toBe(true);
+      expect(g.getNodeAttribute(id1, 'status')).toBe('in_progress');
+      expect(g.getNodeAttribute(id1, 'order')).toBe(0);
+    });
+
+    it('sets completedAt when moving to done', () => {
+      const id1 = createTask(g, 'A', '', 'todo', 'medium', [], unitVec(0));
+      reorderTask(g, id1, 0, 'done');
+      expect(g.getNodeAttribute(id1, 'completedAt')).toBeGreaterThan(0);
+    });
+
+    it('clears completedAt when moving from done back', () => {
+      const id1 = createTask(g, 'A', '', 'done', 'medium', [], unitVec(0));
+      g.setNodeAttribute(id1, 'completedAt', Date.now());
+      reorderTask(g, id1, 0, 'todo');
+      expect(g.getNodeAttribute(id1, 'completedAt')).toBeNull();
+    });
+
+    it('rebalances on collision', () => {
+      const id1 = createTask(g, 'A', '', 'todo', 'medium', [], unitVec(0), null, null, '', null, 1000);
+      const id2 = createTask(g, 'B', '', 'todo', 'medium', [], unitVec(1), null, null, '', null, 2000);
+      // Set id2 to same order as id1 → collision → rebalance
+      reorderTask(g, id2, 1000);
+      // After rebalance, orders should be distinct multiples of 1000
+      const o1 = g.getNodeAttribute(id1, 'order');
+      const o2 = g.getNodeAttribute(id2, 'order');
+      expect(o1).not.toBe(o2);
+    });
+
+    it('returns false for missing task', () => {
+      expect(reorderTask(g, 'nonexistent', 0)).toBe(false);
+    });
+
+    it('increments version', () => {
+      const id1 = createTask(g, 'A', '', 'todo', 'medium', [], unitVec(0));
+      const v1 = g.getNodeAttribute(id1, 'version');
+      reorderTask(g, id1, 500);
+      expect(g.getNodeAttribute(id1, 'version')).toBe(v1 + 1);
+    });
+
+    it('supports negative order values', () => {
+      const id1 = createTask(g, 'A', '', 'todo', 'medium', [], unitVec(0), null, null, '', null, 0);
+      expect(reorderTask(g, id1, -1000)).toBe(true);
+      expect(g.getNodeAttribute(id1, 'order')).toBe(-1000);
+    });
+  });
+
+  describe('createTask auto-assigns order', () => {
+    it('first task in status gets order 0', () => {
+      const id = createTask(g, 'A', '', 'todo', 'medium', [], unitVec(0));
+      expect(g.getNodeAttribute(id, 'order')).toBe(0);
+    });
+
+    it('second task gets next order (1000)', () => {
+      createTask(g, 'A', '', 'todo', 'medium', [], unitVec(0));
+      const id2 = createTask(g, 'B', '', 'todo', 'medium', [], unitVec(1));
+      expect(g.getNodeAttribute(id2, 'order')).toBe(1000);
+    });
+
+    it('explicit order overrides auto', () => {
+      const id = createTask(g, 'A', '', 'todo', 'medium', [], unitVec(0), null, null, '', null, 42);
+      expect(g.getNodeAttribute(id, 'order')).toBe(42);
+    });
+  });
+
+  describe('listTasks sorts by priority then order', () => {
+    it('tasks within same priority sorted by order asc', () => {
+      createTask(g, 'C', '', 'todo', 'medium', [], unitVec(0), null, null, '', null, 3000);
+      createTask(g, 'A', '', 'todo', 'medium', [], unitVec(1), null, null, '', null, 1000);
+      createTask(g, 'B', '', 'todo', 'medium', [], unitVec(2), null, null, '', null, 2000);
+      const list = listTasks(g, { status: 'todo' });
+      expect(list.map(t => t.title)).toEqual(['A', 'B', 'C']);
     });
   });
 });

@@ -3,7 +3,7 @@ import mime from 'mime';
 import { Router } from 'express';
 import multer from 'multer';
 import type { ProjectInstance } from '@/lib/project-manager';
-import { validateBody, validateQuery, createTaskSchema, updateTaskSchema, moveTaskSchema, reorderTaskSchema, createTaskLinkSchema, taskSearchSchema, taskListSchema, linkedQuerySchema, attachmentFilenameSchema } from '@/api/rest/validation';
+import { validateBody, validateQuery, createTaskSchema, updateTaskSchema, moveTaskSchema, reorderTaskSchema, bulkMoveSchema, bulkPrioritySchema, bulkDeleteSchema, createTaskLinkSchema, taskSearchSchema, taskListSchema, linkedQuerySchema, attachmentFilenameSchema } from '@/api/rest/validation';
 import { requireWriteAccess } from '@/api/rest/index';
 import { VersionConflictError } from '@/graphs/manager-types';
 import { MAX_UPLOAD_SIZE } from '@/lib/defaults';
@@ -75,6 +75,54 @@ export function createTasksRouter(): Router {
         return p.taskManager.getTask(taskId);
       });
       res.status(201).json(created);
+    } catch (err) { next(err); }
+  });
+
+  // Bulk routes — must be registered before /:taskId parameterized routes
+  router.post('/bulk/move', requireWriteAccess, validateBody(bulkMoveSchema), async (req, res, next) => {
+    try {
+      const p = getProject(req);
+      const { taskIds, status } = req.body;
+      const results = await p.mutationQueue.enqueue(async () => {
+        const moved: string[] = [];
+        for (const id of taskIds) {
+          if (p.taskManager.moveTask(id, status)) moved.push(id);
+        }
+        return moved;
+      });
+      res.json({ moved: results });
+    } catch (err) { next(err); }
+  });
+
+  // Bulk update priority
+  router.post('/bulk/priority', requireWriteAccess, validateBody(bulkPrioritySchema), async (req, res, next) => {
+    try {
+      const p = getProject(req);
+      const { taskIds, priority } = req.body;
+      const results = await p.mutationQueue.enqueue(async () => {
+        const updated: string[] = [];
+        for (const id of taskIds) {
+          if (await p.taskManager.updateTask(id, { priority })) updated.push(id);
+        }
+        return updated;
+      });
+      res.json({ updated: results });
+    } catch (err) { next(err); }
+  });
+
+  // Bulk delete tasks
+  router.post('/bulk/delete', requireWriteAccess, validateBody(bulkDeleteSchema), async (req, res, next) => {
+    try {
+      const p = getProject(req);
+      const { taskIds } = req.body;
+      const results = await p.mutationQueue.enqueue(async () => {
+        const deleted: string[] = [];
+        for (const id of taskIds) {
+          if (p.taskManager.deleteTask(id)) deleted.push(id);
+        }
+        return deleted;
+      });
+      res.json({ deleted: results });
     } catch (err) { next(err); }
   });
 

@@ -1,4 +1,4 @@
-import { Chip, useTheme } from '@mui/material'
+import { Chip, alpha, useTheme } from '@mui/material'
 import type { ReactElement } from 'react'
 
 interface StatusBadgeProps {
@@ -27,9 +27,9 @@ export function StatusBadge({ label, color, icon, size = 'small' }: StatusBadgeP
       icon={icon}
       size={size}
       sx={{
-        bgcolor: `${fg}26`,
+        bgcolor: alpha(fg, 0.12),
         color: fg,
-        border: 'none',
+        border: `1px solid ${alpha(fg, 0.3)}`,
         borderRadius: '999px',
         fontWeight: 600,
         '& .MuiChip-icon': { color: fg },

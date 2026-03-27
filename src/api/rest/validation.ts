@@ -120,6 +120,20 @@ export const reorderTaskSchema = z.object({
   status: z.enum(['backlog', 'todo', 'in_progress', 'review', 'done', 'cancelled']).optional(),
 });
 
+export const bulkMoveSchema = z.object({
+  taskIds: z.array(z.string().min(1).max(500)).min(1).max(100),
+  status:  z.enum(['backlog', 'todo', 'in_progress', 'review', 'done', 'cancelled']),
+});
+
+export const bulkPrioritySchema = z.object({
+  taskIds:  z.array(z.string().min(1).max(500)).min(1).max(100),
+  priority: z.enum(['critical', 'high', 'medium', 'low']),
+});
+
+export const bulkDeleteSchema = z.object({
+  taskIds: z.array(z.string().min(1).max(500)).min(1).max(100),
+});
+
 export const createTaskLinkSchema = z.object({
   fromId: z.string().min(1).max(MAX_TARGET_NODE_ID_LEN),
   toId:   z.string().min(1).max(MAX_TARGET_NODE_ID_LEN),

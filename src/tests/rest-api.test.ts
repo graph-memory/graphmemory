@@ -317,6 +317,118 @@ describe('REST API', () => {
     });
   });
 
+  describe('Task reorder', () => {
+    it('reorders a task within same status', async () => {
+      const created = await request(app)
+        .post('/api/projects/test/tasks')
+        .send({ title: 'Reorder Me', description: '' });
+      const taskId = created.body.id;
+
+      const res = await request(app)
+        .post(`/api/projects/test/tasks/${taskId}/reorder`)
+        .send({ order: 500 });
+      expect(res.status).toBe(200);
+      expect(res.body.order).toBe(500);
+    });
+
+    it('reorders with status change', async () => {
+      const created = await request(app)
+        .post('/api/projects/test/tasks')
+        .send({ title: 'Reorder Move', description: '', status: 'todo' });
+      const taskId = created.body.id;
+
+      const res = await request(app)
+        .post(`/api/projects/test/tasks/${taskId}/reorder`)
+        .send({ order: 0, status: 'in_progress' });
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('in_progress');
+      expect(res.body.order).toBe(0);
+    });
+
+    it('returns 404 for nonexistent task', async () => {
+      const res = await request(app)
+        .post('/api/projects/test/tasks/nonexistent/reorder')
+        .send({ order: 0 });
+      expect(res.status).toBe(404);
+    });
+
+    it('supports negative order', async () => {
+      const created = await request(app)
+        .post('/api/projects/test/tasks')
+        .send({ title: 'Negative Order', description: '' });
+      const taskId = created.body.id;
+
+      const res = await request(app)
+        .post(`/api/projects/test/tasks/${taskId}/reorder`)
+        .send({ order: -1000 });
+      expect(res.status).toBe(200);
+      expect(res.body.order).toBe(-1000);
+    });
+  });
+
+  describe('Task bulk operations', () => {
+    it('POST /bulk/move moves multiple tasks', async () => {
+      const t1 = await request(app).post('/api/projects/test/tasks').send({ title: 'Bulk A', description: '' });
+      const t2 = await request(app).post('/api/projects/test/tasks').send({ title: 'Bulk B', description: '' });
+
+      const res = await request(app)
+        .post('/api/projects/test/tasks/bulk/move')
+        .send({ taskIds: [t1.body.id, t2.body.id], status: 'done' });
+      expect(res.status).toBe(200);
+      expect(res.body.moved).toContain(t1.body.id);
+      expect(res.body.moved).toContain(t2.body.id);
+
+      const get1 = await request(app).get(`/api/projects/test/tasks/${t1.body.id}`);
+      expect(get1.body.status).toBe('done');
+    });
+
+    it('POST /bulk/priority updates multiple tasks', async () => {
+      const t1 = await request(app).post('/api/projects/test/tasks').send({ title: 'PrioA', description: '' });
+      const t2 = await request(app).post('/api/projects/test/tasks').send({ title: 'PrioB', description: '' });
+
+      const res = await request(app)
+        .post('/api/projects/test/tasks/bulk/priority')
+        .send({ taskIds: [t1.body.id, t2.body.id], priority: 'critical' });
+      expect(res.status).toBe(200);
+      expect(res.body.updated).toContain(t1.body.id);
+
+      const get1 = await request(app).get(`/api/projects/test/tasks/${t1.body.id}`);
+      expect(get1.body.priority).toBe('critical');
+    });
+
+    it('POST /bulk/delete deletes multiple tasks', async () => {
+      const t1 = await request(app).post('/api/projects/test/tasks').send({ title: 'DelA', description: '' });
+      const t2 = await request(app).post('/api/projects/test/tasks').send({ title: 'DelB', description: '' });
+
+      const res = await request(app)
+        .post('/api/projects/test/tasks/bulk/delete')
+        .send({ taskIds: [t1.body.id, t2.body.id] });
+      expect(res.status).toBe(200);
+      expect(res.body.deleted).toContain(t1.body.id);
+
+      const get1 = await request(app).get(`/api/projects/test/tasks/${t1.body.id}`);
+      expect(get1.status).toBe(404);
+    });
+
+    it('bulk move skips nonexistent tasks', async () => {
+      const t1 = await request(app).post('/api/projects/test/tasks').send({ title: 'Real', description: '' });
+
+      const res = await request(app)
+        .post('/api/projects/test/tasks/bulk/move')
+        .send({ taskIds: [t1.body.id, 'nonexistent'], status: 'review' });
+      expect(res.status).toBe(200);
+      expect(res.body.moved).toContain(t1.body.id);
+      expect(res.body.moved).not.toContain('nonexistent');
+    });
+
+    it('rejects empty taskIds array', async () => {
+      const res = await request(app)
+        .post('/api/projects/test/tasks/bulk/move')
+        .send({ taskIds: [], status: 'done' });
+      expect(res.status).toBe(400);
+    });
+  });
+
   describe('Cross-graph proxy cleanup on delete', () => {
     it('delete note cleans up proxy in TaskGraph', async () => {
       // Create note and task

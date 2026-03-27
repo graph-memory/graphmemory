@@ -198,6 +198,33 @@ describe('Task CRUD tools', () => {
     expect(res.completedAt).toBeUndefined();
   });
 
+  // -- tasks_reorder --
+
+  it('reorder_task changes order within same status', async () => {
+    const res = json<{ taskId: string; status: string; order: number }>(await call('tasks_reorder', {
+      taskId: fixAuthId,
+      order: 500,
+    }));
+    expect(res.taskId).toBe(fixAuthId);
+    expect(res.order).toBe(500);
+  });
+
+  it('reorder_task moves to different status', async () => {
+    const res = json<{ taskId: string; status: string; order: number }>(await call('tasks_reorder', {
+      taskId: refactorConfigId,
+      order: 0,
+      status: 'review',
+    }));
+    expect(res.taskId).toBe(refactorConfigId);
+    expect(res.status).toBe('review');
+    expect(res.order).toBe(0);
+  });
+
+  it('reorder_task returns error for missing task', async () => {
+    const result = await call('tasks_reorder', { taskId: 'nonexistent', order: 0 });
+    expect(result.isError).toBe(true);
+  });
+
   // -- tasks_list --
 
   it('list_tasks returns all 3', async () => {

@@ -47,18 +47,16 @@ export default function TaskDetailPage() {
   const load = useCallback(async () => {
     if (!projectId || !taskId) return;
     try {
-      const [t, rels, atts, members, allEpics] = await Promise.all([
+      const [t, rels, atts, members] = await Promise.all([
         getTask(projectId, taskId) as Promise<TaskDetail>,
         listTaskRelations(projectId, taskId),
         listTaskAttachments(projectId, taskId),
         listTeam(projectId).catch(() => [] as TeamMember[]),
-        listEpics(projectId).catch(() => [] as Epic[]),
       ]);
       setTask(t);
       setRelations(rels);
       setAttachments(atts);
       setTeam(members);
-      setEpics(allEpics);
       setError(null);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
@@ -67,11 +65,16 @@ export default function TaskDetailPage() {
     }
   }, [projectId, taskId]);
 
-  useEffect(() => { load(); }, [load]);
+  const loadEpics = useCallback(() => {
+    if (projectId) listEpics(projectId).then(setEpics).catch(() => {});
+  }, [projectId]);
+
+  useEffect(() => { load(); loadEpics(); }, [load, loadEpics]);
 
   useWebSocket(projectId ?? null, useCallback((event) => {
     if (event.type.startsWith('task:')) load();
-  }, [load]));
+    if (event.type.startsWith('epic:')) { load(); loadEpics(); }
+  }, [load, loadEpics]));
 
   const handleDelete = async () => {
     if (!projectId || !taskId) return;
@@ -172,20 +175,22 @@ export default function TaskDetailPage() {
         </FieldRow>
         <FieldRow label="Epics">
           {(() => {
-            const linkedEpicIds = relations.filter(r => r.kind === 'belongs_to').map(r => r.toId);
-            const linkedEpics = epics.filter(e => linkedEpicIds.includes(e.id));
-            const availableEpics = epics.filter(e => !linkedEpicIds.includes(e.id) && (e.status === 'open' || e.status === 'in_progress'));
+            // Linked epics come directly from relations (survives any state race)
+            const epicLinks = relations.filter(r => r.kind === 'belongs_to');
+            const linkedEpicIds = new Set(epicLinks.map(r => r.toId));
+            // Available epics for "Add to..." dropdown — only open/in_progress, not already linked
+            const availableEpics = epics.filter(e => !linkedEpicIds.has(e.id) && (e.status === 'open' || e.status === 'in_progress'));
             return (
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                {linkedEpics.map(e => (
-                  <Box key={e.id} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <FlagIcon sx={{ fontSize: 16, color: e.status === 'open' ? '#1976d2' : e.status === 'in_progress' ? '#f57c00' : '#388e3c' }} />
-                    <Link component="button" variant="body2" onClick={() => navigate(`/${projectId}/epics/${e.id}`)}>
-                      {e.title}
+                {epicLinks.map(r => (
+                  <Box key={r.toId} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <FlagIcon sx={{ fontSize: 16, color: '#1976d2' }} />
+                    <Link component="button" variant="body2" onClick={() => navigate(`/${projectId}/epics/${r.toId}`)}>
+                      {r.title || r.toId}
                     </Link>
                     {canWrite && (
                       <IconButton size="small" sx={{ p: 0.25 }} onClick={async () => {
-                        await unlinkTaskFromEpic(projectId!, e.id, taskId!);
+                        await unlinkTaskFromEpic(projectId!, r.toId, taskId!);
                         load();
                       }}>
                         <LinkOffIcon sx={{ fontSize: 14 }} />
@@ -193,7 +198,7 @@ export default function TaskDetailPage() {
                     )}
                   </Box>
                 ))}
-                {linkedEpics.length === 0 && !canWrite && <Typography variant="body2" color="text.secondary">—</Typography>}
+                {epicLinks.length === 0 && !canWrite && <Typography variant="body2" color="text.secondary">—</Typography>}
                 {canWrite && availableEpics.length > 0 && (
                   <FormControl size="small" sx={{ minWidth: 160, mt: 0.5 }}>
                     <Select

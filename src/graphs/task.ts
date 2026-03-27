@@ -1720,6 +1720,14 @@ export class TaskGraphManager {
     if (!ok) return false;
     this.ctx.markDirty();
     this.ctx.emit('epic:linked', { projectId: this.ctx.projectId, taskId, epicId });
+    // Update task mirror so file watcher doesn't remove the edge from stale file
+    const dir = this.tasksDir;
+    if (dir && this._graph.hasNode(taskId) && !isProxy(this._graph, taskId)) {
+      const attrs = this._graph.getNodeAttributes(taskId);
+      const relations = listTaskRelations(this._graph, taskId, this.ext);
+      mirrorTaskUpdate(dir, taskId, { by: this.ctx.author }, attrs, relations);
+      this.recordMirrorWrites(taskId);
+    }
     return true;
   }
 
@@ -1728,6 +1736,14 @@ export class TaskGraphManager {
     if (!ok) return false;
     this.ctx.markDirty();
     this.ctx.emit('epic:unlinked', { projectId: this.ctx.projectId, taskId, epicId });
+    // Update task mirror so file watcher doesn't re-add the edge from stale file
+    const dir = this.tasksDir;
+    if (dir && this._graph.hasNode(taskId) && !isProxy(this._graph, taskId)) {
+      const attrs = this._graph.getNodeAttributes(taskId);
+      const relations = listTaskRelations(this._graph, taskId, this.ext);
+      mirrorTaskUpdate(dir, taskId, { by: this.ctx.author }, attrs, relations);
+      this.recordMirrorWrites(taskId);
+    }
     return true;
   }
 

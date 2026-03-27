@@ -13,7 +13,7 @@ import { useWebSocket } from '@/shared/lib/useWebSocket.ts';
 import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
 import { PageTopBar, StatusBadge, Tags } from '@/shared/ui/index.ts';
 import { listEpics, type Epic, type EpicStatus } from '@/entities/epic/index.ts';
-import { PRIORITY_BADGE_COLOR, priorityLabel, type TaskPriority } from '@/entities/task/index.ts';
+import { PRIORITY_COLORS, PRIORITY_BADGE_COLOR, priorityLabel, type TaskPriority } from '@/entities/task/index.ts';
 
 const EPIC_STATUS_COLOR: Record<EpicStatus, string> = {
   open: '#1976d2',
@@ -118,7 +118,14 @@ export default function EpicsPage() {
             renderValue={v => v ? priorityLabel(v as TaskPriority) : 'Priority'}
             sx={{ color: filterPriority ? undefined : palette.custom.textMuted }}>
             <MenuItem value="">All priorities</MenuItem>
-            {PRIORITY_OPTIONS.map(p => <MenuItem key={p} value={p}>{priorityLabel(p)}</MenuItem>)}
+            {PRIORITY_OPTIONS.map(p => (
+              <MenuItem key={p} value={p}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: PRIORITY_COLORS[p] }} />
+                  {priorityLabel(p)}
+                </Box>
+              </MenuItem>
+            ))}
           </Select>
         </FormControl>
         {hasFilters && <Button size="small" onClick={() => { setSearchQuery(''); setFilterStatus(''); setFilterPriority(''); }}>Clear</Button>}

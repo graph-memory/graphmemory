@@ -67,6 +67,14 @@ import * as createTaskLink from '@/api/tools/tasks/create-task-link';
 import * as deleteTaskLink from '@/api/tools/tasks/delete-task-link';
 import * as findLinkedTasks from '@/api/tools/tasks/find-linked-tasks';
 import * as addTaskAttachment from '@/api/tools/tasks/add-attachment';
+import * as createEpicTool from '@/api/tools/epics/create-epic';
+import * as updateEpicTool from '@/api/tools/epics/update-epic';
+import * as deleteEpicTool from '@/api/tools/epics/delete-epic';
+import * as getEpicTool from '@/api/tools/epics/get-epic';
+import * as listEpicsTool from '@/api/tools/epics/list-epics';
+import * as searchEpicsTool from '@/api/tools/epics/search-epics';
+import * as linkEpicTaskTool from '@/api/tools/epics/link-task';
+import * as unlinkEpicTaskTool from '@/api/tools/epics/unlink-task';
 import * as removeTaskAttachment from '@/api/tools/tasks/remove-attachment';
 import * as createSkillTool from '@/api/tools/skills/create-skill';
 import * as updateSkillTool from '@/api/tools/skills/update-skill';
@@ -182,7 +190,7 @@ function buildInstructions(ctx: McpSessionContext): string {
  * pass fileIndexGraph to enable the 3 file index tools.
  * cross_references requires both docGraph and codeGraph.
  * Knowledge tools (12) are always registered.
- * Task tools (13) are always registered when taskGraph is provided.
+ * Task tools (13) + Epic tools (8) are always registered when taskGraph is provided.
  * @param embedFn  Single EmbedFn (all graphs share it) or per-graph EmbedFnMap.
  *                 Tests typically pass a single function; CLI passes a map for per-graph models.
  * @param mutationQueue  Optional PromiseQueue to serialize mutation tool handlers.
@@ -342,6 +350,18 @@ export function createMcpServer(
       deleteTaskLink.register(mutServer, taskMgr);
       addTaskAttachment.register(mutServer, taskMgr);
       removeTaskAttachment.register(mutServer, taskMgr);
+    }
+
+    // Epic tools (same graph, same access)
+    getEpicTool.register(server, taskMgr);
+    listEpicsTool.register(server, taskMgr);
+    searchEpicsTool.register(server, taskMgr);
+    if (canMutate('tasks')) {
+      createEpicTool.register(mutServer, taskMgr);
+      updateEpicTool.register(mutServer, taskMgr);
+      deleteEpicTool.register(mutServer, taskMgr);
+      linkEpicTaskTool.register(mutServer, taskMgr);
+      unlinkEpicTaskTool.register(mutServer, taskMgr);
     }
   }
 

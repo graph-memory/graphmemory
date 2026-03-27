@@ -16,6 +16,7 @@ import {
 } from '@/lib/jwt';
 import { createKnowledgeRouter } from '@/api/rest/knowledge';
 import { createTasksRouter } from '@/api/rest/tasks';
+import { createEpicsRouter } from '@/api/rest/epics';
 import { createSkillsRouter } from '@/api/rest/skills';
 import { createDocsRouter } from '@/api/rest/docs';
 import { createCodeRouter } from '@/api/rest/code';
@@ -458,6 +459,7 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
   // Mutation endpoints (POST/PUT/DELETE) inside routers check req.accessLevel for write access
   app.use('/api/projects/:projectId/knowledge', ...graphMiddleware('knowledgeManager', 'knowledge'), createKnowledgeRouter());
   app.use('/api/projects/:projectId/tasks', ...graphMiddleware('taskManager', 'tasks'), createTasksRouter());
+  app.use('/api/projects/:projectId/epics', ...graphMiddleware('taskManager', 'tasks'), createEpicsRouter());
   app.use('/api/projects/:projectId/skills', ...graphMiddleware('skillManager', 'skills'), createSkillsRouter());
   app.use('/api/projects/:projectId/docs', ...graphMiddleware('docManager', 'docs'), createDocsRouter());
   app.use('/api/projects/:projectId/code', ...graphMiddleware('codeManager', 'code'), createCodeRouter());

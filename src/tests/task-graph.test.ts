@@ -7,6 +7,8 @@ import {
   createCrossRelation, deleteCrossRelation, cleanupProxies, proxyId, isProxy,
   findLinkedTasks, saveTaskGraph, loadTaskGraph, TaskGraphManager,
   nextOrderForStatus, rebalanceOrders, reorderTask,
+  createEpic, getEpic, listEpics, updateEpic, deleteEpic,
+  linkTaskToEpic, unlinkTaskFromEpic, listEpicTasks,
 } from '@/graphs/task';
 import type { GraphManagerContext } from '@/graphs/manager-types';
 import { slugify } from '@/graphs/knowledge-types';
@@ -1182,6 +1184,177 @@ describe('Order — nextOrderForStatus, rebalanceOrders, reorderTask', () => {
       createTask(g, 'B', '', 'todo', 'medium', [], unitVec(2), null, null, '', null, 2000);
       const list = listTasks(g, { status: 'todo' });
       expect(list.map(t => t.title)).toEqual(['A', 'B', 'C']);
+    });
+  });
+});
+
+describe('Epic CRUD', () => {
+  let g: ReturnType<typeof createTaskGraph>;
+  beforeEach(() => { g = createTaskGraph(); });
+
+  describe('createEpic', () => {
+    it('creates an epic node with nodeType=epic', () => {
+      const id = createEpic(g, 'MVP Launch', 'Ship the MVP', 'open', 'high', ['release'], unitVec(0));
+      expect(g.hasNode(id)).toBe(true);
+      expect(g.getNodeAttribute(id, 'nodeType')).toBe('epic');
+    });
+  });
+
+  describe('getEpic', () => {
+    it('returns epic with progress {done:0, total:0}', () => {
+      const id = createEpic(g, 'MVP Launch', 'Ship the MVP', 'open', 'high', ['release'], unitVec(0));
+      const epic = getEpic(g, id);
+      expect(epic).not.toBeNull();
+      expect(epic!.title).toBe('MVP Launch');
+      expect(epic!.progress).toEqual({ done: 0, total: 0 });
+    });
+
+    it('returns null for task (not epic)', () => {
+      const taskId = createTask(g, 'Fix bug', 'desc', 'todo', 'high', ['bug'], unitVec(0));
+      expect(getEpic(g, taskId)).toBeNull();
+    });
+  });
+
+  describe('getTask excludes epics', () => {
+    it('returns null for epic (excludes epics)', () => {
+      const epicId = createEpic(g, 'MVP Launch', 'Ship the MVP', 'open', 'high', ['release'], unitVec(0));
+      expect(getTask(g, epicId)).toBeNull();
+    });
+  });
+
+  describe('listEpics', () => {
+    it('returns only epics, not tasks', () => {
+      createEpic(g, 'Epic A', 'desc', 'open', 'high', [], unitVec(0));
+      createEpic(g, 'Epic B', 'desc', 'in_progress', 'medium', [], unitVec(1));
+      createTask(g, 'Task X', 'desc', 'todo', 'high', [], unitVec(2));
+      const epics = listEpics(g);
+      expect(epics).toHaveLength(2);
+      expect(epics.map(e => e.title).sort()).toEqual(['Epic A', 'Epic B']);
+    });
+  });
+
+  describe('listTasks excludes epics', () => {
+    it('excludes epics from task listing', () => {
+      createEpic(g, 'Epic A', 'desc', 'open', 'high', [], unitVec(0));
+      const taskId = createTask(g, 'Task X', 'desc', 'todo', 'high', [], unitVec(1));
+      const tasks = listTasks(g);
+      expect(tasks).toHaveLength(1);
+      expect(tasks[0].id).toBe(taskId);
+    });
+  });
+
+  describe('updateEpic', () => {
+    it('updates title/description/priority/tags', () => {
+      const id = createEpic(g, 'Old Title', 'Old desc', 'open', 'low', ['old'], unitVec(0));
+      const ok = updateEpic(g, id, { title: 'New Title', description: 'New desc', priority: 'critical', tags: ['new'] });
+      expect(ok).toBe(true);
+      expect(g.getNodeAttribute(id, 'title')).toBe('New Title');
+      expect(g.getNodeAttribute(id, 'description')).toBe('New desc');
+      expect(g.getNodeAttribute(id, 'priority')).toBe('critical');
+      expect(g.getNodeAttribute(id, 'tags')).toEqual(['new']);
+    });
+
+    it('changes status with completedAt auto-logic', () => {
+      const id = createEpic(g, 'Epic', 'desc', 'open', 'medium', [], unitVec(0));
+      expect(g.getNodeAttribute(id, 'completedAt')).toBeNull();
+
+      updateEpic(g, id, {}, 'done');
+      expect(g.getNodeAttribute(id, 'status')).toBe('done');
+      expect(g.getNodeAttribute(id, 'completedAt')).toEqual(expect.any(Number));
+
+      // Re-opening clears completedAt
+      updateEpic(g, id, {}, 'open');
+      expect(g.getNodeAttribute(id, 'completedAt')).toBeNull();
+    });
+  });
+
+  describe('deleteEpic', () => {
+    it('deletes epic', () => {
+      const id = createEpic(g, 'To Delete', 'desc', 'open', 'medium', [], unitVec(0));
+      expect(deleteEpic(g, id)).toBe(true);
+      expect(g.hasNode(id)).toBe(false);
+    });
+
+    it('returns false for task (not epic)', () => {
+      const taskId = createTask(g, 'A Task', 'desc', 'todo', 'medium', [], unitVec(0));
+      expect(deleteEpic(g, taskId)).toBe(false);
+      expect(g.hasNode(taskId)).toBe(true);
+    });
+  });
+
+  describe('linkTaskToEpic', () => {
+    it('creates belongs_to edge', () => {
+      const epicId = createEpic(g, 'Epic', 'desc', 'open', 'high', [], unitVec(0));
+      const taskId = createTask(g, 'Task', 'desc', 'todo', 'medium', [], unitVec(1));
+      const ok = linkTaskToEpic(g, taskId, epicId);
+      expect(ok).toBe(true);
+      expect(g.hasEdge(`${taskId}→${epicId}`)).toBe(true);
+      expect(g.getEdgeAttribute(`${taskId}→${epicId}`, 'kind')).toBe('belongs_to');
+    });
+
+    it('returns false if target is not epic', () => {
+      const task1 = createTask(g, 'Task1', 'desc', 'todo', 'medium', [], unitVec(0));
+      const task2 = createTask(g, 'Task2', 'desc', 'todo', 'medium', [], unitVec(1));
+      expect(linkTaskToEpic(g, task1, task2)).toBe(false);
+    });
+  });
+
+  describe('unlinkTaskFromEpic', () => {
+    it('removes edge', () => {
+      const epicId = createEpic(g, 'Epic', 'desc', 'open', 'high', [], unitVec(0));
+      const taskId = createTask(g, 'Task', 'desc', 'todo', 'medium', [], unitVec(1));
+      linkTaskToEpic(g, taskId, epicId);
+      expect(unlinkTaskFromEpic(g, taskId, epicId)).toBe(true);
+      expect(g.hasEdge(`${taskId}→${epicId}`)).toBe(false);
+    });
+  });
+
+  describe('listEpicTasks', () => {
+    it('returns tasks linked to epic', () => {
+      const epicId = createEpic(g, 'Epic', 'desc', 'open', 'high', [], unitVec(0));
+      const t1 = createTask(g, 'Task A', 'desc', 'todo', 'high', [], unitVec(1));
+      const t2 = createTask(g, 'Task B', 'desc', 'in_progress', 'low', [], unitVec(2));
+      linkTaskToEpic(g, t1, epicId);
+      linkTaskToEpic(g, t2, epicId);
+      const tasks = listEpicTasks(g, epicId);
+      expect(tasks).toHaveLength(2);
+      expect(tasks.map(t => t.id).sort()).toEqual([t1, t2].sort());
+    });
+  });
+
+  describe('epic progress', () => {
+    it('done/total counts from belongs_to edges', () => {
+      const epicId = createEpic(g, 'Epic', 'desc', 'open', 'high', [], unitVec(0));
+      const t1 = createTask(g, 'Task A', 'desc', 'done', 'high', [], unitVec(1));
+      const t2 = createTask(g, 'Task B', 'desc', 'in_progress', 'medium', [], unitVec(2));
+      const t3 = createTask(g, 'Task C', 'desc', 'cancelled', 'low', [], unitVec(3));
+      linkTaskToEpic(g, t1, epicId);
+      linkTaskToEpic(g, t2, epicId);
+      linkTaskToEpic(g, t3, epicId);
+      const epic = getEpic(g, epicId);
+      expect(epic!.progress).toEqual({ done: 2, total: 3 });
+    });
+  });
+
+  describe('listEpics filters', () => {
+    it('filters by status, priority, tag', () => {
+      createEpic(g, 'Epic A', 'desc', 'open', 'high', ['backend'], unitVec(0));
+      createEpic(g, 'Epic B', 'desc', 'done', 'low', ['frontend'], unitVec(1));
+      createEpic(g, 'Epic C', 'desc', 'open', 'high', ['backend', 'api'], unitVec(2));
+
+      const byStatus = listEpics(g, { status: 'open' });
+      expect(byStatus).toHaveLength(2);
+
+      const byPriority = listEpics(g, { priority: 'low' });
+      expect(byPriority).toHaveLength(1);
+      expect(byPriority[0].title).toBe('Epic B');
+
+      const byTag = listEpics(g, { tag: 'backend' });
+      expect(byTag).toHaveLength(2);
+
+      const combined = listEpics(g, { status: 'open', priority: 'high', tag: 'api' });
+      expect(combined).toHaveLength(1);
+      expect(combined[0].title).toBe('Epic C');
     });
   });
 });

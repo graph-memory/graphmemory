@@ -842,3 +842,102 @@ describe('Same-graph task links via tasks_create_link/tasks_delete_link', () => 
     expect(sgTaskGraph.hasEdge(parentTaskId, childTaskId)).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Epic MCP tools
+// ---------------------------------------------------------------------------
+
+describe('Epic CRUD tools', () => {
+  const taskGraph = createTaskGraph();
+  const fakeEmbed = createFakeEmbed([['auth overhaul', 30], ['payment', 31]]);
+  let ctx: McpTestContext;
+  let call: McpTestContext['call'];
+  let epicId: string;
+  let taskId: string;
+
+  beforeAll(async () => {
+    ctx = await setupMcpClient({ taskGraph, embedFn: fakeEmbed });
+    call = ctx.call;
+  });
+  afterAll(async () => { await ctx.close(); });
+
+  it('epics_create returns epicId', async () => {
+    const res = json<{ epicId: string }>(await call('epics_create', {
+      title: 'Auth Overhaul',
+      description: 'Rewrite the auth system',
+      priority: 'high',
+      tags: ['auth'],
+    }));
+    expect(res.epicId).toBeTruthy();
+    epicId = res.epicId;
+  });
+
+  it('epics_get returns epic with progress', async () => {
+    const res = json<any>(await call('epics_get', { epicId }));
+    expect(res.title).toBe('Auth Overhaul');
+    expect(res.status).toBe('open');
+    expect(res.progress).toEqual({ done: 0, total: 0 });
+  });
+
+  it('epics_list returns created epic', async () => {
+    const res = json<any[]>(await call('epics_list', {}));
+    expect(res.length).toBeGreaterThanOrEqual(1);
+    expect(res.some((e: any) => e.id === epicId)).toBe(true);
+  });
+
+  it('epics_update changes title and status', async () => {
+    const res = json<{ epicId: string; updated: boolean }>(await call('epics_update', {
+      epicId,
+      title: 'Auth Overhaul v2',
+      status: 'in_progress',
+    }));
+    expect(res.updated).toBe(true);
+    const get = json<any>(await call('epics_get', { epicId }));
+    expect(get.title).toBe('Auth Overhaul v2');
+    expect(get.status).toBe('in_progress');
+  });
+
+  it('create a task and link to epic', async () => {
+    const task = json<{ taskId: string }>(await call('tasks_create', {
+      title: 'Fix login redirect',
+      description: 'Login redirect broken',
+      priority: 'high',
+    }));
+    taskId = task.taskId;
+
+    const link = json<{ linked: boolean }>(await call('epics_link_task', { taskId, epicId }));
+    expect(link.linked).toBe(true);
+  });
+
+  it('epic progress reflects linked task', async () => {
+    const epic = json<any>(await call('epics_get', { epicId }));
+    expect(epic.progress.total).toBe(1);
+    expect(epic.progress.done).toBe(0);
+  });
+
+  it('epics_unlink_task removes link', async () => {
+    const res = json<{ unlinked: boolean }>(await call('epics_unlink_task', { taskId, epicId }));
+    expect(res.unlinked).toBe(true);
+    const epic = json<any>(await call('epics_get', { epicId }));
+    expect(epic.progress.total).toBe(0);
+  });
+
+  it('epics_delete removes epic', async () => {
+    const res = json<{ deleted: boolean }>(await call('epics_delete', { epicId }));
+    expect(res.deleted).toBe(true);
+    const get = await call('epics_get', { epicId });
+    expect(get.isError).toBe(true);
+  });
+
+  it('tasks_list excludes epics', async () => {
+    // Create an epic
+    const ep = json<{ epicId: string }>(await call('epics_create', {
+      title: 'Hidden Epic',
+      description: '',
+      priority: 'low',
+    }));
+    // List tasks should not include it
+    const tasks = json<any[]>(await call('tasks_list', {}));
+    expect(tasks.every((t: any) => t.id !== ep.epicId)).toBe(true);
+  });
+});

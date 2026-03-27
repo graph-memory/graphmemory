@@ -255,8 +255,44 @@ export const skillListSchema = z.object({
 
 
 // ---------------------------------------------------------------------------
-// Attachment schemas
+// Epic schemas
 // ---------------------------------------------------------------------------
+
+export const createEpicSchema = z.object({
+  title:       z.string().min(1).max(MAX_TITLE_LEN),
+  description: z.string().max(MAX_DESCRIPTION_LEN).default(''),
+  status:      z.enum(['open', 'in_progress', 'done', 'cancelled']).default('open'),
+  priority:    z.enum(['critical', 'high', 'medium', 'low']).default('medium'),
+  tags:        z.array(z.string().max(MAX_TAG_LEN)).max(MAX_TAGS_COUNT).optional().default([]),
+});
+
+export const updateEpicSchema = z.object({
+  title:       z.string().min(1).max(MAX_TITLE_LEN).optional(),
+  description: z.string().max(MAX_DESCRIPTION_LEN).optional(),
+  status:      z.enum(['open', 'in_progress', 'done', 'cancelled']).optional(),
+  priority:    z.enum(['critical', 'high', 'medium', 'low']).optional(),
+  tags:        z.array(z.string().max(MAX_TAG_LEN)).max(MAX_TAGS_COUNT).optional(),
+  version:     z.number().int().positive().optional(),
+});
+
+export const epicSearchSchema = z.object({
+  q:          z.string().min(1).max(MAX_SEARCH_QUERY_LEN),
+  topK:       z.coerce.number().int().positive().max(MAX_SEARCH_TOP_K).optional(),
+  minScore:   z.coerce.number().min(0).max(1).optional(),
+  searchMode: z.enum(['hybrid', 'vector', 'keyword']).optional(),
+});
+
+export const epicListSchema = z.object({
+  status:   z.enum(['open', 'in_progress', 'done', 'cancelled']).optional(),
+  priority: z.enum(['critical', 'high', 'medium', 'low']).optional(),
+  tag:      z.string().max(MAX_TAG_LEN).optional(),
+  filter:   z.string().max(500).optional(),
+  limit:    z.coerce.number().int().positive().max(1000).optional(),
+});
+
+export const epicLinkSchema = z.object({
+  taskId: z.string().min(1).max(500),
+});
 
 // ---------------------------------------------------------------------------
 // Linked query schema (cross-graph reverse lookup)

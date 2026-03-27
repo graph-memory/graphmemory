@@ -5,6 +5,8 @@ export type TaskCrossGraphType = 'docs' | 'code' | 'files' | 'knowledge' | 'skil
 
 export type TaskStatus = 'backlog' | 'todo' | 'in_progress' | 'review' | 'done' | 'cancelled';
 export type TaskPriority = 'critical' | 'high' | 'medium' | 'low';
+export type TaskNodeType = 'task' | 'epic';
+export type EpicStatus = 'open' | 'in_progress' | 'done' | 'cancelled';
 
 export const PRIORITY_ORDER: Record<TaskPriority, number> = {
   critical: 0,
@@ -27,6 +29,7 @@ export interface TaskNodeAttributes {
   version: number;         // incremented on every mutation (starts at 1)
   order: number;            // position within status group (gap-based integer, multiples of 1000)
   assignee: string | null;  // team member ID
+  nodeType?: TaskNodeType;  // 'task' (default/undefined) or 'epic'
   createdBy?: string;      // author from config at creation time
   updatedBy?: string;      // author from config at last update
   embedding: number[];

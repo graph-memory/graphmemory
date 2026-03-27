@@ -429,6 +429,114 @@ describe('REST API', () => {
     });
   });
 
+  describe('Epic CRUD', () => {
+    it('creates an epic', async () => {
+      const res = await request(app)
+        .post('/api/projects/test/epics')
+        .send({ title: 'Auth Overhaul', description: 'Rewrite auth system' });
+      expect(res.status).toBe(201);
+      expect(res.body.title).toBe('Auth Overhaul');
+      expect(res.body.status).toBe('open');
+      expect(res.body.progress).toEqual({ done: 0, total: 0 });
+    });
+
+    it('gets an epic', async () => {
+      const created = await request(app)
+        .post('/api/projects/test/epics')
+        .send({ title: 'Get Me', description: '' });
+      const epicId = created.body.id;
+
+      const res = await request(app).get(`/api/projects/test/epics/${epicId}`);
+      expect(res.status).toBe(200);
+      expect(res.body.title).toBe('Get Me');
+    });
+
+    it('lists epics', async () => {
+      await request(app).post('/api/projects/test/epics').send({ title: 'Epic 1' });
+      await request(app).post('/api/projects/test/epics').send({ title: 'Epic 2' });
+      const res = await request(app).get('/api/projects/test/epics');
+      expect(res.status).toBe(200);
+      expect(res.body.results.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('updates an epic', async () => {
+      const created = await request(app)
+        .post('/api/projects/test/epics')
+        .send({ title: 'Update Me' });
+      const epicId = created.body.id;
+
+      const res = await request(app)
+        .put(`/api/projects/test/epics/${epicId}`)
+        .send({ title: 'Updated', status: 'in_progress' });
+      expect(res.status).toBe(200);
+      expect(res.body.title).toBe('Updated');
+      expect(res.body.status).toBe('in_progress');
+    });
+
+    it('deletes an epic', async () => {
+      const created = await request(app)
+        .post('/api/projects/test/epics')
+        .send({ title: 'Delete Me' });
+      const epicId = created.body.id;
+
+      const res = await request(app).delete(`/api/projects/test/epics/${epicId}`);
+      expect(res.status).toBe(204);
+
+      const get = await request(app).get(`/api/projects/test/epics/${epicId}`);
+      expect(get.status).toBe(404);
+    });
+
+    it('links and unlinks task to epic', async () => {
+      const epic = await request(app)
+        .post('/api/projects/test/epics')
+        .send({ title: 'Link Epic' });
+      const task = await request(app)
+        .post('/api/projects/test/tasks')
+        .send({ title: 'Link Task', description: '' });
+
+      // Link
+      const linkRes = await request(app)
+        .post(`/api/projects/test/epics/${epic.body.id}/link`)
+        .send({ taskId: task.body.id });
+      expect(linkRes.status).toBe(201);
+
+      // Get tasks
+      const tasksRes = await request(app).get(`/api/projects/test/epics/${epic.body.id}/tasks`);
+      expect(tasksRes.status).toBe(200);
+      expect(tasksRes.body.results).toHaveLength(1);
+      expect(tasksRes.body.progress.total).toBe(1);
+
+      // Unlink
+      const unlinkRes = await request(app)
+        .delete(`/api/projects/test/epics/${epic.body.id}/link`)
+        .send({ taskId: task.body.id });
+      expect(unlinkRes.status).toBe(204);
+    });
+
+    it('epic progress reflects task statuses', async () => {
+      const epic = await request(app)
+        .post('/api/projects/test/epics')
+        .send({ title: 'Progress Epic' });
+
+      const t1 = await request(app).post('/api/projects/test/tasks').send({ title: 'T1', description: '' });
+      const t2 = await request(app).post('/api/projects/test/tasks').send({ title: 'T2', description: '', status: 'done' });
+
+      await request(app).post(`/api/projects/test/epics/${epic.body.id}/link`).send({ taskId: t1.body.id });
+      await request(app).post(`/api/projects/test/epics/${epic.body.id}/link`).send({ taskId: t2.body.id });
+
+      const res = await request(app).get(`/api/projects/test/epics/${epic.body.id}`);
+      expect(res.body.progress.total).toBe(2);
+      expect(res.body.progress.done).toBe(1);
+    });
+
+    it('listTasks excludes epics', async () => {
+      await request(app).post('/api/projects/test/epics').send({ title: 'Hidden Epic' });
+      const tasks = await request(app).get('/api/projects/test/tasks');
+      const titles = tasks.body.results.map((t: any) => t.title);
+      expect(titles).not.toContain('Hidden Epic');
+    });
+  });
+
   describe('Cross-graph proxy cleanup on delete', () => {
     it('delete note cleans up proxy in TaskGraph', async () => {
       // Create note and task

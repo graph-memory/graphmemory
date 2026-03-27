@@ -77,6 +77,15 @@ const TASK_MUTATION = [
   'tasks_add_attachment', 'tasks_remove_attachment',
 ].sort();
 
+const EPIC_READ = [
+  'epics_get', 'epics_list', 'epics_search',
+].sort();
+
+const EPIC_MUTATION = [
+  'epics_create', 'epics_update', 'epics_delete',
+  'epics_link_task', 'epics_unlink_task',
+].sort();
+
 const SKILL_READ = [
   'skills_get', 'skills_list', 'skills_search', 'skills_find_linked', 'skills_recall',
 ].sort();
@@ -89,6 +98,7 @@ const SKILL_MUTATION = [
 
 const ALL_TOOLS_COUNT = KNOWLEDGE_READ.length + KNOWLEDGE_MUTATION.length
   + TASK_READ.length + TASK_MUTATION.length
+  + EPIC_READ.length + EPIC_MUTATION.length
   + SKILL_READ.length + SKILL_MUTATION.length
   + 1; // get_context
 
@@ -99,10 +109,11 @@ const ALL_TOOLS_COUNT = KNOWLEDGE_READ.length + KNOWLEDGE_MUTATION.length
 describe('MCP readonly graphs', () => {
   it('no restrictions — all tools visible', async () => {
     const names = await listToolNames();
-    expect(names.length).toBe(ALL_TOOLS_COUNT); // 40
+    expect(names.length).toBe(ALL_TOOLS_COUNT);
     expect(names).toContain('get_context');
     for (const t of [...KNOWLEDGE_READ, ...KNOWLEDGE_MUTATION]) expect(names).toContain(t);
     for (const t of [...TASK_READ, ...TASK_MUTATION]) expect(names).toContain(t);
+    for (const t of [...EPIC_READ, ...EPIC_MUTATION]) expect(names).toContain(t);
     for (const t of [...SKILL_READ, ...SKILL_MUTATION]) expect(names).toContain(t);
   });
 
@@ -113,11 +124,13 @@ describe('MCP readonly graphs', () => {
     for (const t of KNOWLEDGE_MUTATION) expect(names).not.toContain(t);
   });
 
-  it('tasks readonly — hides 9 task mutation tools', async () => {
+  it('tasks readonly — hides task + epic mutation tools', async () => {
     const names = await listToolNames(new Set(['tasks']));
-    expect(names.length).toBe(ALL_TOOLS_COUNT - TASK_MUTATION.length); // 31
+    expect(names.length).toBe(ALL_TOOLS_COUNT - TASK_MUTATION.length - EPIC_MUTATION.length);
     for (const t of TASK_READ) expect(names).toContain(t);
     for (const t of TASK_MUTATION) expect(names).not.toContain(t);
+    for (const t of EPIC_READ) expect(names).toContain(t);
+    for (const t of EPIC_MUTATION) expect(names).not.toContain(t);
   });
 
   it('skills readonly — hides 9 skill mutation tools', async () => {
@@ -129,10 +142,11 @@ describe('MCP readonly graphs', () => {
 
   it('all three readonly — only read tools + get_context visible', async () => {
     const names = await listToolNames(new Set(['knowledge', 'tasks', 'skills']));
-    const readCount = KNOWLEDGE_READ.length + TASK_READ.length + SKILL_READ.length + 1;
-    expect(names.length).toBe(readCount); // 15
+    const readCount = KNOWLEDGE_READ.length + TASK_READ.length + EPIC_READ.length + SKILL_READ.length + 1;
+    expect(names.length).toBe(readCount);
     for (const t of KNOWLEDGE_READ) expect(names).toContain(t);
     for (const t of TASK_READ) expect(names).toContain(t);
+    for (const t of EPIC_READ) expect(names).toContain(t);
     for (const t of SKILL_READ) expect(names).toContain(t);
     expect(names).toContain('get_context');
   });
@@ -153,8 +167,9 @@ describe('MCP per-user access', () => {
     const hiddenCount = KNOWLEDGE_READ.length + KNOWLEDGE_MUTATION.length;
     expect(names.length).toBe(ALL_TOOLS_COUNT - hiddenCount); // 28
     for (const t of [...KNOWLEDGE_READ, ...KNOWLEDGE_MUTATION]) expect(names).not.toContain(t);
-    // Tasks and skills still visible
+    // Tasks, epics, and skills still visible
     for (const t of [...TASK_READ, ...TASK_MUTATION]) expect(names).toContain(t);
+    for (const t of [...EPIC_READ, ...EPIC_MUTATION]) expect(names).toContain(t);
     for (const t of [...SKILL_READ, ...SKILL_MUTATION]) expect(names).toContain(t);
   });
 
@@ -165,8 +180,8 @@ describe('MCP per-user access', () => {
       ['skills', 'r'],
     ]);
     const names = await listToolNames(undefined, access);
-    const readCount = KNOWLEDGE_READ.length + TASK_READ.length + SKILL_READ.length + 1;
-    expect(names.length).toBe(readCount); // 15
+    const readCount = KNOWLEDGE_READ.length + TASK_READ.length + EPIC_READ.length + SKILL_READ.length + 1;
+    expect(names.length).toBe(readCount);
   });
 
   it('read tools still work when knowledge is readonly', async () => {

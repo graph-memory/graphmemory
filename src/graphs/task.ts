@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import type { TaskGraph, TaskNodeAttributes, TaskEdgeAttributes, TaskCrossGraphType, TaskStatus, TaskPriority } from '@/graphs/task-types';
+import type { TaskGraph, TaskNodeAttributes, TaskEdgeAttributes, TaskCrossGraphType, TaskStatus, TaskPriority, EpicStatus } from '@/graphs/task-types';
 import type { AttachmentMeta } from '@/graphs/attachment-types';
 import { createTaskGraph, PRIORITY_ORDER } from '@/graphs/task-types';
 import { generateId } from '@/graphs/knowledge-types';
@@ -347,7 +347,7 @@ export interface CrossLinkEntry {
   direction: 'outgoing' | 'incoming';
 }
 
-/** Get a task by ID, or null if not found. Excludes proxy nodes. */
+/** Get a task by ID, or null if not found. Excludes proxy nodes and epics. */
 export function getTask(
   graph: TaskGraph,
   taskId: string,
@@ -360,6 +360,7 @@ export function getTask(
 }) | null {
   if (!graph.hasNode(taskId)) return null;
   if (isProxy(graph, taskId)) return null;
+  if (graph.getNodeAttribute(taskId, 'nodeType') === 'epic') return null;
 
   const attrs = graph.getNodeAttributes(taskId);
   const subtasks: Array<{ id: string; title: string; status: TaskStatus }> = [];
@@ -445,7 +446,7 @@ export function getTask(
   };
 }
 
-/** List tasks with optional filters. Excludes proxy nodes. */
+/** List tasks with optional filters. Excludes proxy nodes and epics. */
 export function listTasks(
   graph: TaskGraph,
   opts: {
@@ -465,6 +466,7 @@ export function listTasks(
 
   graph.forEachNode((id, attrs: TaskNodeAttributes) => {
     if (attrs.proxyFor) return;
+    if (attrs.nodeType === 'epic') return;
     if (status && attrs.status !== status) return;
     if (priority && attrs.priority !== priority) return;
     if (assignee !== undefined && attrs.assignee !== assignee) return;
@@ -506,6 +508,247 @@ export function listTasks(
       return a.dueDate - b.dueDate;
     })
     .slice(0, limit);
+}
+
+// ---------------------------------------------------------------------------
+// CRUD — Epics (stored in same graph with nodeType='epic')
+// ---------------------------------------------------------------------------
+
+export interface EpicEntry {
+  id: string;
+  title: string;
+  description: string;
+  status: EpicStatus;
+  priority: TaskPriority;
+  tags: string[];
+  order: number;
+  createdAt: number;
+  updatedAt: number;
+  version: number;
+  attachments: AttachmentMeta[];
+  progress: { done: number; total: number };
+}
+
+function epicProgress(graph: TaskGraph, epicId: string): { done: number; total: number } {
+  let done = 0;
+  let total = 0;
+  graph.forEachInEdge(epicId, (_edge, edgeAttrs: TaskEdgeAttributes, source) => {
+    if (edgeAttrs.kind !== 'belongs_to') return;
+    if (isProxy(graph, source)) return;
+    total++;
+    const s = graph.getNodeAttribute(source, 'status');
+    if (s === 'done' || s === 'cancelled') done++;
+  });
+  return { done, total };
+}
+
+export function createEpic(
+  graph: TaskGraph,
+  title: string,
+  description: string,
+  status: EpicStatus,
+  priority: TaskPriority,
+  tags: string[],
+  embedding: number[],
+  author = '',
+  order?: number,
+): string {
+  const id = generateId();
+  const now = Date.now();
+  const effectiveOrder = order ?? nextOrderForStatus(graph, status as unknown as TaskStatus);
+  graph.addNode(id, {
+    title,
+    description,
+    status: status as unknown as TaskStatus,
+    priority,
+    tags,
+    order: effectiveOrder,
+    dueDate: null,
+    estimate: null,
+    completedAt: null,
+    assignee: null,
+    nodeType: 'epic',
+    embedding,
+    attachments: [],
+    createdAt: now,
+    updatedAt: now,
+    version: 1,
+    createdBy: author || undefined,
+    updatedBy: author || undefined,
+  });
+  return id;
+}
+
+export function updateEpic(
+  graph: TaskGraph,
+  epicId: string,
+  patch: Partial<Pick<TaskNodeAttributes, 'title' | 'description' | 'priority' | 'tags'>>,
+  newStatus?: EpicStatus,
+  expectedVersion?: number,
+  author?: string,
+): boolean {
+  if (!graph.hasNode(epicId)) return false;
+  if (graph.getNodeAttribute(epicId, 'nodeType') !== 'epic') return false;
+
+  const current = graph.getNodeAttribute(epicId, 'version');
+  if (expectedVersion !== undefined && current !== expectedVersion) {
+    throw new VersionConflictError(current, expectedVersion);
+  }
+
+  const now = Date.now();
+  if (patch.title !== undefined) graph.setNodeAttribute(epicId, 'title', patch.title);
+  if (patch.description !== undefined) graph.setNodeAttribute(epicId, 'description', patch.description);
+  if (patch.priority !== undefined) graph.setNodeAttribute(epicId, 'priority', patch.priority);
+  if (patch.tags !== undefined) graph.setNodeAttribute(epicId, 'tags', patch.tags);
+  if (newStatus !== undefined) {
+    graph.setNodeAttribute(epicId, 'status', newStatus as unknown as TaskStatus);
+    if ((newStatus === 'done' || newStatus === 'cancelled') && !graph.getNodeAttribute(epicId, 'completedAt')) {
+      graph.setNodeAttribute(epicId, 'completedAt', now);
+    } else if (newStatus !== 'done' && newStatus !== 'cancelled') {
+      graph.setNodeAttribute(epicId, 'completedAt', null);
+    }
+  }
+  graph.setNodeAttribute(epicId, 'version', current + 1);
+  graph.setNodeAttribute(epicId, 'updatedAt', now);
+  if (author) graph.setNodeAttribute(epicId, 'updatedBy', author);
+  return true;
+}
+
+export function deleteEpic(graph: TaskGraph, epicId: string): boolean {
+  if (!graph.hasNode(epicId)) return false;
+  if (graph.getNodeAttribute(epicId, 'nodeType') !== 'epic') return false;
+  graph.dropNode(epicId);
+  return true;
+}
+
+export function getEpic(graph: TaskGraph, epicId: string): (EpicEntry & { crossLinks: CrossLinkEntry[] }) | null {
+  if (!graph.hasNode(epicId)) return null;
+  if (graph.getNodeAttribute(epicId, 'nodeType') !== 'epic') return null;
+
+  const attrs = graph.getNodeAttributes(epicId);
+  const crossLinks: CrossLinkEntry[] = [];
+
+  graph.forEachOutEdge(epicId, (_edge, edgeAttrs: TaskEdgeAttributes, _source, target) => {
+    if (!isProxy(graph, target)) return;
+    const proxyFor = graph.getNodeAttribute(target, 'proxyFor');
+    if (proxyFor) {
+      crossLinks.push({ nodeId: proxyFor.nodeId, targetGraph: proxyFor.graph, kind: edgeAttrs.kind, direction: 'outgoing' });
+    }
+  });
+
+  graph.forEachInEdge(epicId, (_edge, edgeAttrs: TaskEdgeAttributes, source) => {
+    if (!isProxy(graph, source)) return;
+    const proxyFor = graph.getNodeAttribute(source, 'proxyFor');
+    if (proxyFor) {
+      crossLinks.push({ nodeId: proxyFor.nodeId, targetGraph: proxyFor.graph, kind: edgeAttrs.kind, direction: 'incoming' });
+    }
+  });
+
+  return {
+    id: epicId,
+    title: attrs.title,
+    description: attrs.description,
+    status: attrs.status as unknown as EpicStatus,
+    priority: attrs.priority,
+    tags: attrs.tags,
+    order: attrs.order ?? 0,
+    createdAt: attrs.createdAt,
+    updatedAt: attrs.updatedAt,
+    version: attrs.version,
+    attachments: attrs.attachments ?? [],
+    progress: epicProgress(graph, epicId),
+    crossLinks,
+  };
+}
+
+export function listEpics(
+  graph: TaskGraph,
+  opts: { status?: EpicStatus; priority?: TaskPriority; tag?: string; filter?: string; limit?: number } = {},
+): EpicEntry[] {
+  const { status, priority, tag, filter, limit = LIST_LIMIT_LARGE } = opts;
+  const lowerFilter = filter?.toLowerCase();
+  const lowerTag = tag?.toLowerCase();
+  const results: EpicEntry[] = [];
+
+  graph.forEachNode((id, attrs: TaskNodeAttributes) => {
+    if (attrs.proxyFor) return;
+    if (attrs.nodeType !== 'epic') return;
+    if (status && (attrs.status as unknown as EpicStatus) !== status) return;
+    if (priority && attrs.priority !== priority) return;
+    if (lowerTag && !attrs.tags.some(t => t.toLowerCase() === lowerTag)) return;
+    if (lowerFilter) {
+      const match = id.toLowerCase().includes(lowerFilter) || attrs.title.toLowerCase().includes(lowerFilter);
+      if (!match) return;
+    }
+    results.push({
+      id,
+      title: attrs.title,
+      description: attrs.description?.slice(0, CONTENT_PREVIEW_LEN),
+      status: attrs.status as unknown as EpicStatus,
+      priority: attrs.priority,
+      tags: attrs.tags,
+      order: attrs.order ?? 0,
+      createdAt: attrs.createdAt,
+      updatedAt: attrs.updatedAt,
+      version: attrs.version,
+      attachments: attrs.attachments ?? [],
+      progress: epicProgress(graph, id),
+    });
+  });
+
+  return results
+    .sort((a, b) => {
+      const pDiff = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+      if (pDiff !== 0) return pDiff;
+      return a.order - b.order;
+    })
+    .slice(0, limit);
+}
+
+export function linkTaskToEpic(graph: TaskGraph, taskId: string, epicId: string): boolean {
+  if (!graph.hasNode(taskId) || !graph.hasNode(epicId)) return false;
+  if (graph.getNodeAttribute(epicId, 'nodeType') !== 'epic') return false;
+  if (isProxy(graph, taskId)) return false;
+  const edgeKey = `${taskId}→${epicId}`;
+  if (graph.hasEdge(edgeKey)) return false;
+  graph.addEdgeWithKey(edgeKey, taskId, epicId, { kind: 'belongs_to' });
+  return true;
+}
+
+export function unlinkTaskFromEpic(graph: TaskGraph, taskId: string, epicId: string): boolean {
+  const edgeKey = `${taskId}→${epicId}`;
+  if (!graph.hasEdge(edgeKey)) return false;
+  graph.dropEdge(edgeKey);
+  return true;
+}
+
+/** List tasks belonging to an epic (via belongs_to edges). */
+export function listEpicTasks(graph: TaskGraph, epicId: string): TaskEntry[] {
+  if (!graph.hasNode(epicId)) return [];
+  const results: TaskEntry[] = [];
+  graph.forEachInEdge(epicId, (_edge, edgeAttrs: TaskEdgeAttributes, source) => {
+    if (edgeAttrs.kind !== 'belongs_to') return;
+    if (isProxy(graph, source)) return;
+    const attrs = graph.getNodeAttributes(source);
+    results.push({
+      id: source,
+      title: attrs.title,
+      description: attrs.description?.slice(0, CONTENT_PREVIEW_LEN),
+      status: attrs.status,
+      priority: attrs.priority,
+      tags: attrs.tags,
+      order: attrs.order ?? 0,
+      dueDate: attrs.dueDate,
+      estimate: attrs.estimate,
+      completedAt: attrs.completedAt,
+      assignee: attrs.assignee ?? null,
+      createdAt: attrs.createdAt,
+      updatedAt: attrs.updatedAt,
+      version: attrs.version,
+      attachments: attrs.attachments ?? [],
+    });
+  });
+  return results.sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority] || a.order - b.order);
 }
 
 // ---------------------------------------------------------------------------
@@ -1380,5 +1623,115 @@ export class TaskGraphManager {
 
   findLinkedTasks(targetGraph: TaskCrossGraphType, targetNodeId: string, kind?: string, projectId?: string) {
     return findLinkedTasks(this._graph, targetGraph, targetNodeId, kind, projectId || this.ctx.projectId);
+  }
+
+  // -- Epic operations --
+
+  private get epicsDir(): string | undefined {
+    const base = this.ctx.mirrorDir ?? this.ctx.projectDir;
+    return base ? path.join(base, '.epics') : undefined;
+  }
+
+  private recordEpicMirrorWrites(epicId: string): void {
+    const dir = this.epicsDir;
+    if (!dir || !this.mirrorTracker) return;
+    const entityDir = path.join(dir, epicId);
+    this.mirrorTracker.recordWrite(path.join(entityDir, 'events.jsonl'));
+    this.mirrorTracker.recordWrite(path.join(entityDir, 'task.md'));
+    this.mirrorTracker.recordWrite(path.join(entityDir, 'description.md'));
+  }
+
+  async createEpic(
+    title: string,
+    description: string,
+    status: EpicStatus = 'open',
+    priority: TaskPriority = 'medium',
+    tags: string[] = [],
+  ): Promise<string> {
+    const embedding = await this.embedFns.document(`${title}\n${description}`);
+    const epicId = createEpic(this._graph, title, description, status, priority, tags, embedding, this.ctx.author);
+    this._bm25Index.addDocument(epicId, this._graph.getNodeAttributes(epicId));
+    this.ctx.markDirty();
+    this.ctx.emit('epic:created', { projectId: this.ctx.projectId, epicId, title, status });
+    const dir = this.epicsDir;
+    if (dir) {
+      mirrorTaskCreate(dir, epicId, this._graph.getNodeAttributes(epicId), []);
+      this.recordEpicMirrorWrites(epicId);
+    }
+    return epicId;
+  }
+
+  async updateEpic(
+    epicId: string,
+    patch: Partial<Pick<TaskNodeAttributes, 'title' | 'description' | 'priority' | 'tags'>>,
+    newStatus?: EpicStatus,
+    expectedVersion?: number,
+  ): Promise<boolean> {
+    const ok = updateEpic(this._graph, epicId, patch, newStatus, expectedVersion, this.ctx.author);
+    if (!ok) return false;
+    if (patch.title !== undefined || patch.description !== undefined || patch.tags !== undefined) {
+      const attrs = this._graph.getNodeAttributes(epicId);
+      this._bm25Index.updateDocument(epicId, attrs);
+      const embedding = await this.embedFns.document(`${attrs.title}\n${attrs.description}`);
+      this._graph.setNodeAttribute(epicId, 'embedding', embedding);
+    }
+    this.ctx.markDirty();
+    this.ctx.emit('epic:updated', { projectId: this.ctx.projectId, epicId });
+    const dir = this.epicsDir;
+    if (dir) {
+      const attrs = this._graph.getNodeAttributes(epicId);
+      const relations = listTaskRelations(this._graph, epicId, this.ext);
+      mirrorTaskUpdate(dir, epicId, { ...patch, ...(newStatus ? { status: newStatus as unknown as TaskStatus } : {}), by: this.ctx.author }, attrs, relations);
+      this.recordEpicMirrorWrites(epicId);
+    }
+    return true;
+  }
+
+  deleteEpic(epicId: string): boolean {
+    const dir = this.epicsDir;
+    if (dir) deleteMirrorDir(dir, epicId);
+    this._bm25Index.removeDocument(epicId);
+    const ok = deleteEpic(this._graph, epicId);
+    if (!ok) return false;
+    this.ctx.markDirty();
+    this.ctx.emit('epic:deleted', { projectId: this.ctx.projectId, epicId });
+    return true;
+  }
+
+  getEpic(epicId: string) {
+    return getEpic(this._graph, epicId);
+  }
+
+  listEpics(opts?: Parameters<typeof listEpics>[1]) {
+    return listEpics(this._graph, opts);
+  }
+
+  async searchEpics(query: string, opts?: {
+    topK?: number; minScore?: number; searchMode?: 'hybrid' | 'vector' | 'keyword';
+    bfsDepth?: number; maxResults?: number; bfsDecay?: number;
+  }) {
+    const embedding = opts?.searchMode === 'keyword' ? [] : await this.embedFns.query(query);
+    const results = searchTasks(this._graph, embedding, { ...opts, queryText: query, bm25Index: this._bm25Index });
+    return results.filter(r => this._graph.hasNode(r.id) && this._graph.getNodeAttribute(r.id, 'nodeType') === 'epic');
+  }
+
+  linkTaskToEpic(taskId: string, epicId: string): boolean {
+    const ok = linkTaskToEpic(this._graph, taskId, epicId);
+    if (!ok) return false;
+    this.ctx.markDirty();
+    this.ctx.emit('epic:linked', { projectId: this.ctx.projectId, taskId, epicId });
+    return true;
+  }
+
+  unlinkTaskFromEpic(taskId: string, epicId: string): boolean {
+    const ok = unlinkTaskFromEpic(this._graph, taskId, epicId);
+    if (!ok) return false;
+    this.ctx.markDirty();
+    this.ctx.emit('epic:unlinked', { projectId: this.ctx.projectId, taskId, epicId });
+    return true;
+  }
+
+  listEpicTasks(epicId: string) {
+    return listEpicTasks(this._graph, epicId);
   }
 }

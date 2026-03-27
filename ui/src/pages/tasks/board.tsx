@@ -62,11 +62,11 @@ function computeOrderAt(items: Task[], index: number): number {
 // ---------------------------------------------------------------------------
 
 function SortableTaskCard({
-  task, team, canWrite, onNavigate, onEdit, onDelete, palette, taskEpics, onTagClick, activeTag, onAssigneeClick, onPriorityChange,
+  task, team, canWrite, onNavigate, onEdit, onDelete, palette, taskEpics, onTagClick, activeTag, onAssigneeClick, onPriorityChange, onEpicClick,
 }: {
   task: Task; team: TeamMember[]; canWrite: boolean;
   onNavigate: (id: string) => void; onEdit: (id: string) => void; onDelete: (t: Task) => void;
-  palette: any; taskEpics?: Epic[]; onTagClick: (tag: string) => void; activeTag?: string; onAssigneeClick: (id: string) => void; onPriorityChange: (p: TaskPriority) => void;
+  palette: any; taskEpics?: Epic[]; onTagClick: (tag: string) => void; activeTag?: string; onAssigneeClick: (id: string) => void; onPriorityChange: (p: TaskPriority) => void; onEpicClick: (id: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
   const style = {
@@ -198,7 +198,8 @@ function SortableTaskCard({
               icon={<FlagIcon sx={{ fontSize: '14px !important' }} />}
               label={e.title}
               size="small"
-              sx={{ height: 20, '& .MuiChip-label': { px: 0.5, fontSize: '0.7rem' }, '& .MuiChip-icon': { ml: 0.5, color: e.status === 'open' ? '#1976d2' : '#f57c00' } }}
+              onClick={(ev: React.MouseEvent) => { ev.stopPropagation(); onEpicClick(e.id); }}
+              sx={{ height: 20, cursor: 'pointer', '& .MuiChip-label': { px: 0.5, fontSize: '0.7rem' }, '& .MuiChip-icon': { ml: 0.5, color: e.status === 'open' ? '#1976d2' : '#f57c00' } }}
             />
           ))}
           {task.tags?.map(t => (
@@ -670,6 +671,7 @@ export default function TaskBoardPage() {
                           onTagClick={setFilterTag}
                           activeTag={filterTag}
                           onAssigneeClick={setAssigneeFilter}
+                          onEpicClick={setEpicFilter}
                           onPriorityChange={async (p) => {
                             setTasks(prev => prev.map(t => t.id === task.id ? { ...t, priority: p } : t));
                             try { await updateTask(projectId!, task.id, { priority: p }); } catch { refresh(); }

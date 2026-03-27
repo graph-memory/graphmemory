@@ -126,12 +126,12 @@ function DroppableGroupHeader({
 
 function DraggableTaskRow({
   task, team, canWrite, selected, onToggleSelect, onNavigate, palette,
-  onInlineStatus, onInlinePriority, isBeingDragged, groupColor, taskEpics, onTagClick, activeTag, onAssigneeClick,
+  onInlineStatus, onInlinePriority, isBeingDragged, groupColor, taskEpics, onTagClick, activeTag, onAssigneeClick, onEpicClick,
 }: {
   task: Task; team: TeamMember[]; canWrite: boolean; selected: boolean;
   onToggleSelect: () => void; onNavigate: () => void; palette: any;
   onInlineStatus: (status: TaskStatus) => void; onInlinePriority: (priority: TaskPriority) => void;
-  isBeingDragged: boolean; groupColor: string; taskEpics?: Epic[]; onTagClick: (tag: string) => void; activeTag?: string; onAssigneeClick: (id: string) => void;
+  isBeingDragged: boolean; groupColor: string; taskEpics?: Epic[]; onTagClick: (tag: string) => void; activeTag?: string; onAssigneeClick: (id: string) => void; onEpicClick: (id: string) => void;
 }) {
   const { attributes, listeners, setNodeRef: setDragRef } = useDraggable({ id: task.id });
   const { setNodeRef: setDropRef, isOver } = useDroppable({ id: task.id });
@@ -175,7 +175,8 @@ function DraggableTaskRow({
                 icon={<FlagIcon sx={{ fontSize: '14px !important' }} />}
                 label={e.title}
                 size="small"
-                sx={{ height: 20, '& .MuiChip-label': { px: 0.5, fontSize: '0.7rem' }, '& .MuiChip-icon': { ml: 0.5, color: e.status === 'open' ? '#1976d2' : '#f57c00' } }}
+                onClick={(ev: React.MouseEvent) => { ev.stopPropagation(); onEpicClick(e.id); }}
+                sx={{ height: 20, cursor: 'pointer', '& .MuiChip-label': { px: 0.5, fontSize: '0.7rem' }, '& .MuiChip-icon': { ml: 0.5, color: e.status === 'open' ? '#1976d2' : '#f57c00' } }}
               />
             ))}
             {task.tags?.map(t => (
@@ -705,6 +706,7 @@ export default function TaskListPage() {
                           onTagClick={setFilterTag}
                           activeTag={filterTag}
                           onAssigneeClick={setAssigneeFilter}
+                          onEpicClick={setEpicFilter}
                         />
                       ))}
                     </Fragment>

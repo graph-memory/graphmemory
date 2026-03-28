@@ -3,7 +3,7 @@ import { createGraph } from '@/graphs/docs';
 import { createCodeGraph } from '@/graphs/code';
 import { createKnowledgeGraph } from '@/graphs/knowledge-types';
 import {
-  setupMcpClient, createFakeEmbed, unitVec, json,
+  setupMcpClient, createFakeEmbed, unitVec, json, jsonList,
   type McpTestContext,
 } from '@/tests/helpers';
 import type { TaskStatus, TaskPriority } from '@/graphs/task-types';
@@ -228,37 +228,37 @@ describe('Task CRUD tools', () => {
   // -- tasks_list --
 
   it('list_tasks returns all 3', async () => {
-    const tasks = json<TaskListEntry[]>(await call('tasks_list'));
+    const tasks = jsonList<TaskListEntry>(await call('tasks_list'));
     expect(tasks).toHaveLength(3);
   });
 
   it('list_tasks sorted by priority', async () => {
-    const tasks = json<TaskListEntry[]>(await call('tasks_list'));
+    const tasks = jsonList<TaskListEntry>(await call('tasks_list'));
     expect(tasks[0].priority).toBe('high');
   });
 
   it('list_tasks filter by status', async () => {
-    const tasks = json<TaskListEntry[]>(await call('tasks_list', { status: 'todo' }));
+    const tasks = jsonList<TaskListEntry>(await call('tasks_list', { status: 'todo' }));
     expect(tasks).toHaveLength(2);
   });
 
   it('list_tasks filter by priority', async () => {
-    const tasks = json<TaskListEntry[]>(await call('tasks_list', { priority: 'high' }));
+    const tasks = jsonList<TaskListEntry>(await call('tasks_list', { priority: 'high' }));
     expect(tasks).toHaveLength(1);
   });
 
   it('list_tasks filter by tag', async () => {
-    const tasks = json<TaskListEntry[]>(await call('tasks_list', { tag: 'bug' }));
+    const tasks = jsonList<TaskListEntry>(await call('tasks_list', { tag: 'bug' }));
     expect(tasks).toHaveLength(1);
   });
 
   it('list_tasks substring filter', async () => {
-    const tasks = json<TaskListEntry[]>(await call('tasks_list', { filter: 'auth' }));
+    const tasks = jsonList<TaskListEntry>(await call('tasks_list', { filter: 'auth' }));
     expect(tasks).toHaveLength(1);
   });
 
   it('list_tasks limit', async () => {
-    const tasks = json<TaskListEntry[]>(await call('tasks_list', { limit: 1 }));
+    const tasks = jsonList<TaskListEntry>(await call('tasks_list', { limit: 1 }));
     expect(tasks).toHaveLength(1);
   });
 
@@ -341,7 +341,7 @@ describe('Task CRUD tools', () => {
   });
 
   it('list_tasks after delete returns 2', async () => {
-    const tasks = json<TaskListEntry[]>(await call('tasks_list'));
+    const tasks = jsonList<TaskListEntry>(await call('tasks_list'));
     expect(tasks).toHaveLength(2);
   });
 });
@@ -880,7 +880,7 @@ describe('Epic CRUD tools', () => {
   });
 
   it('epics_list returns created epic', async () => {
-    const res = json<any[]>(await call('epics_list', {}));
+    const res = jsonList<any>(await call('epics_list', {}));
     expect(res.length).toBeGreaterThanOrEqual(1);
     expect(res.some((e: any) => e.id === epicId)).toBe(true);
   });
@@ -937,7 +937,7 @@ describe('Epic CRUD tools', () => {
       priority: 'low',
     }));
     // List tasks should not include it
-    const tasks = json<any[]>(await call('tasks_list', {}));
+    const tasks = jsonList<any>(await call('tasks_list', {}));
     expect(tasks.every((t: any) => t.id !== ep.epicId)).toBe(true);
   });
 });

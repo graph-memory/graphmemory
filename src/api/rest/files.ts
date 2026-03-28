@@ -15,8 +15,8 @@ export function createFilesRouter(): Router {
     try {
       const p = getProject(req);
       const q = (req as any).validatedQuery;
-      const files = p.fileIndexManager.listAllFiles(q);
-      res.json({ results: files });
+      const { results: files, total } = p.fileIndexManager.listAllFiles(q);
+      res.json({ results: files, total });
     } catch (err) { next(err); }
   });
 

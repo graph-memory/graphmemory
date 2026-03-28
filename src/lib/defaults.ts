@@ -42,6 +42,8 @@ export const SIGNATURE_MAX_LEN  = 300;
 
 export const LIST_LIMIT_SMALL   = 10;
 export const LIST_LIMIT_LARGE   = 50;
+export const LIST_PAGE_SIZE     = 25;
+export const LIST_PAGE_SIZE_TABLE = 50;
 
 export const CONTENT_PREVIEW_LEN = 500;
 export const INDEXER_PREVIEW_LEN = 200;

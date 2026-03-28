@@ -10,7 +10,8 @@ import { BM25Index } from '@/lib/search/bm25';
 import { mirrorNoteCreate, mirrorNoteUpdate, mirrorNoteRelation, mirrorAttachmentEvent, deleteMirrorDir, writeAttachment, deleteAttachment, getAttachmentPath as getAttPath, sanitizeFilename } from '@/lib/file-mirror';
 import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
 import { readJsonWithTmpFallback, validateGraphStructure } from '@/lib/graph-persistence';
-import { LIST_LIMIT_SMALL, CONTENT_PREVIEW_LEN, GRAPH_DATA_VERSION } from '@/lib/defaults';
+import { LIST_PAGE_SIZE, CONTENT_PREVIEW_LEN, GRAPH_DATA_VERSION } from '@/lib/defaults';
+import type { PaginatedResult } from '@/lib/pagination';
 import type { MirrorWriteTracker } from '@/lib/mirror-watcher';
 import type { ParsedNoteFile } from '@/lib/file-import';
 import type { AttachmentMeta } from '@/graphs/attachment-types';
@@ -181,8 +182,9 @@ export function listNotes(
   graph: KnowledgeGraph,
   filter?: string,
   tag?: string,
-  limit: number = LIST_LIMIT_SMALL,
-): Array<{ id: string; title: string; content: string; tags: string[]; updatedAt: number }> {
+  limit: number = LIST_PAGE_SIZE,
+  offset: number = 0,
+): PaginatedResult<{ id: string; title: string; content: string; tags: string[]; updatedAt: number }> {
   const lowerFilter = filter?.toLowerCase();
   const lowerTag = tag?.toLowerCase();
 
@@ -201,9 +203,8 @@ export function listNotes(
     results.push({ id, title: attrs.title, content: attrs.content.slice(0, CONTENT_PREVIEW_LEN), tags: attrs.tags, updatedAt: attrs.updatedAt });
   });
 
-  return results
-    .sort((a, b) => b.updatedAt - a.updatedAt)
-    .slice(0, limit);
+  const sorted = results.sort((a, b) => b.updatedAt - a.updatedAt);
+  return { results: sorted.slice(offset, offset + limit), total: sorted.length };
 }
 
 // ---------------------------------------------------------------------------
@@ -959,8 +960,8 @@ export class KnowledgeGraphManager {
     return { ...note, relations };
   }
 
-  listNotes(filter?: string, tag?: string, limit?: number) {
-    return listNotes(this._graph, filter, tag, limit);
+  listNotes(filter?: string, tag?: string, limit?: number, offset?: number) {
+    return listNotes(this._graph, filter, tag, limit, offset);
   }
 
   async searchNotes(query: string, opts?: {

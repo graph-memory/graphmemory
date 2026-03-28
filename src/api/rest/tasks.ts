@@ -22,8 +22,8 @@ export function createTasksRouter(): Router {
     try {
       const p = getProject(req);
       const q = (req as any).validatedQuery;
-      const tasks = p.taskManager.listTasks(q);
-      res.json({ results: tasks });
+      const { results: tasks, total } = p.taskManager.listTasks(q);
+      res.json({ results: tasks, total });
     } catch (err) { next(err); }
   });
 

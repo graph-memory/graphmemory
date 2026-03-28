@@ -15,12 +15,13 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
         filter: z.string().max(500).optional().describe('Case-insensitive substring to match against note title or ID'),
         tag:    z.string().max(MAX_TAG_LEN).optional().describe('Filter by tag (exact match, case-insensitive)'),
         limit:  z.number().int().min(1).max(1000).optional().describe('Maximum number of results'),
+        offset: z.number().int().min(0).max(100_000).optional().describe('Offset for pagination (default 0)'),
       },
     },
-    async ({ filter, tag, limit }) => {
-      const notes = mgr.listNotes(filter, tag, limit);
+    async ({ filter, tag, limit, offset }) => {
+      const { results: notes, total } = mgr.listNotes(filter, tag, limit, offset);
       const output = notes.map(({ content: _, ...n }) => n);
-      return { content: [{ type: 'text', text: JSON.stringify(output, null, 2) }] };
+      return { content: [{ type: 'text', text: JSON.stringify({ results: output, total }, null, 2) }] };
     },
   );
 }

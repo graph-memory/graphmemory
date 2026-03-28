@@ -9,7 +9,8 @@ import { searchDocFiles, type DocFileSearchResult } from '@/lib/search/files';
 import { BM25Index, type SearchMode } from '@/lib/search/bm25';
 import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
 import { readJsonWithTmpFallback, validateGraphStructure } from '@/lib/graph-persistence';
-import { LIST_LIMIT_SMALL, GRAPH_DATA_VERSION } from '@/lib/defaults';
+import { LIST_PAGE_SIZE, GRAPH_DATA_VERSION } from '@/lib/defaults';
+import type { PaginatedResult } from '@/lib/pagination';
 
 export interface NodeAttributes {
   fileId: string;
@@ -127,8 +128,9 @@ export function getFileMtime(graph: DocGraph, fileId: string): number {
 export function listFiles(
   graph: DocGraph,
   filter?: string,
-  limit: number = LIST_LIMIT_SMALL,
-): Array<{ fileId: string; title: string; chunks: number }> {
+  limit: number = LIST_PAGE_SIZE,
+  offset: number = 0,
+): PaginatedResult<{ fileId: string; title: string; chunks: number }> {
   const files = new Map<string, { title: string; chunks: number }>();
   const lowerFilter = filter?.toLowerCase();
 
@@ -150,7 +152,7 @@ export function listFiles(
     result = result.filter(f => f.fileId.toLowerCase().includes(lowerFilter));
   }
 
-  return result.slice(0, limit);
+  return { results: result.slice(offset, offset + limit), total: result.length };
 }
 
 export function saveGraph(graph: DocGraph, graphMemory: string, embeddingFingerprint?: string): void {
@@ -259,8 +261,8 @@ export class DocGraphManager {
 
   // -- Read --
 
-  listFiles(filter?: string, limit?: number) {
-    return listFiles(this._graph, filter, limit);
+  listFiles(filter?: string, limit?: number, offset?: number) {
+    return listFiles(this._graph, filter, limit, offset);
   }
 
   getFileChunks(fileId: string) {

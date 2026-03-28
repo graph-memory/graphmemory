@@ -23,12 +23,14 @@ export function register(server: McpServer, mgr: FileIndexGraphManager): void {
           .describe('Substring filter on file path (case-insensitive)'),
         limit: z.number().int().min(1).max(1000).optional().default(50)
           .describe('Max results (default 50)'),
+        offset: z.number().int().min(0).max(100_000).optional()
+          .describe('Offset for pagination (default 0)'),
       },
     },
-    async ({ directory, extension, language, filter, limit }) => {
-      const results = mgr.listAllFiles({ directory, extension, language, filter, limit });
+    async ({ directory, extension, language, filter, limit, offset }) => {
+      const { results, total } = mgr.listAllFiles({ directory, extension, language, filter, limit, offset });
       const output = results.map(({ mimeType: _, ...r }) => r);
-      return { content: [{ type: 'text', text: JSON.stringify(output, null, 2) }] };
+      return { content: [{ type: 'text', text: JSON.stringify({ results: output, total }, null, 2) }] };
     },
   );
 }

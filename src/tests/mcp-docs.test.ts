@@ -4,7 +4,7 @@ import { createGraph, updateFile } from '@/graphs/docs';
 import { parseFile } from '@/lib/parsers/docs';
 import {
   unitVec, createFakeEmbed, setupMcpClient,
-  json, text,
+  json, jsonList, text,
   type CallResult, type McpTestContext,
 } from '@/tests/helpers';
 
@@ -81,7 +81,7 @@ describe('MCP docs tools', () => {
 
   describe('docs_list_files', () => {
     it('returns all 3 files with correct metadata', async () => {
-      const topics = json<TopicEntry[]>(await ctx.call('docs_list_files'));
+      const topics = jsonList<TopicEntry>(await ctx.call('docs_list_files'));
 
       expect(topics).toHaveLength(3);
       expect(topics[0].fileId).toBe('api.md');
@@ -95,40 +95,40 @@ describe('MCP docs tools', () => {
     });
 
     it('filter: "auth" returns 1 file', async () => {
-      const topics = json<TopicEntry[]>(await ctx.call('docs_list_files', { filter: 'auth' }));
+      const topics = jsonList<TopicEntry>(await ctx.call('docs_list_files', { filter: 'auth' }));
       expect(topics).toHaveLength(1);
       expect(topics[0].fileId).toBe('auth.md');
     });
 
     it('filter: "API" is case-insensitive', async () => {
-      const topics = json<TopicEntry[]>(await ctx.call('docs_list_files', { filter: 'API' }));
+      const topics = jsonList<TopicEntry>(await ctx.call('docs_list_files', { filter: 'API' }));
       expect(topics).toHaveLength(1);
       expect(topics[0].fileId).toBe('api.md');
     });
 
     it('filter: "nonexistent" returns empty', async () => {
-      const topics = json<TopicEntry[]>(await ctx.call('docs_list_files', { filter: 'nonexistent' }));
+      const topics = jsonList<TopicEntry>(await ctx.call('docs_list_files', { filter: 'nonexistent' }));
       expect(topics).toHaveLength(0);
     });
 
     it('filter: ".md" returns all 3 files', async () => {
-      const topics = json<TopicEntry[]>(await ctx.call('docs_list_files', { filter: '.md' }));
+      const topics = jsonList<TopicEntry>(await ctx.call('docs_list_files', { filter: '.md' }));
       expect(topics).toHaveLength(3);
     });
 
     it('limit=1 returns first alphabetically', async () => {
-      const topics = json<TopicEntry[]>(await ctx.call('docs_list_files', { limit: 1 }));
+      const topics = jsonList<TopicEntry>(await ctx.call('docs_list_files', { limit: 1 }));
       expect(topics).toHaveLength(1);
       expect(topics[0].fileId).toBe('api.md');
     });
 
     it('limit=2 returns exactly 2 files', async () => {
-      const topics = json<TopicEntry[]>(await ctx.call('docs_list_files', { limit: 2 }));
+      const topics = jsonList<TopicEntry>(await ctx.call('docs_list_files', { limit: 2 }));
       expect(topics).toHaveLength(2);
     });
 
     it('default limit returns all 3 files', async () => {
-      const topics = json<TopicEntry[]>(await ctx.call('docs_list_files'));
+      const topics = jsonList<TopicEntry>(await ctx.call('docs_list_files'));
       expect(topics).toHaveLength(3);
     });
   });
@@ -477,7 +477,7 @@ describe('MCP docs tools', () => {
     });
 
     it('list_topics works without codeGraph', async () => {
-      const topics = json<TopicEntry[]>(await docsCtx.call('docs_list_files'));
+      const topics = jsonList<TopicEntry>(await docsCtx.call('docs_list_files'));
       expect(topics).toHaveLength(3);
     });
 

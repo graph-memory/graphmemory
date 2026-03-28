@@ -8,7 +8,8 @@ import { searchFileIndex, type FileIndexSearchResult } from '@/lib/search/file-i
 import { BM25Index } from '@/lib/search/bm25';
 import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
 import { readJsonWithTmpFallback, validateGraphStructure } from '@/lib/graph-persistence';
-import { LIST_LIMIT_LARGE, GRAPH_DATA_VERSION } from '@/lib/defaults';
+import { LIST_PAGE_SIZE, GRAPH_DATA_VERSION } from '@/lib/defaults';
+import type { PaginatedResult } from '@/lib/pagination';
 
 // ---------------------------------------------------------------------------
 // CRUD
@@ -171,16 +172,17 @@ export function listAllFiles(
     language?: string;
     filter?: string;
     limit?: number;
+    offset?: number;
   } = {},
-): FileListEntry[] {
-  const { directory, extension, language, filter, limit = LIST_LIMIT_LARGE } = options;
+): PaginatedResult<FileListEntry> {
+  const { directory, extension, language, filter, limit = LIST_PAGE_SIZE, offset = 0 } = options;
   const lowerFilter = filter?.toLowerCase();
   const results: FileListEntry[] = [];
 
   if (directory !== undefined) {
     // List immediate children of the specified directory
     const dirId = directory || '.';
-    if (!graph.hasNode(dirId)) return [];
+    if (!graph.hasNode(dirId)) return { results: [], total: 0 };
 
     graph.forEachOutNeighbor(dirId, (childId) => {
       const attrs = graph.getNodeAttributes(childId);
@@ -203,7 +205,7 @@ export function listAllFiles(
   }
 
   results.sort((a, b) => a.filePath.localeCompare(b.filePath));
-  return results.slice(0, limit);
+  return { results: results.slice(offset, offset + limit), total: results.length };
 }
 
 function toEntry(attrs: FileIndexNodeAttributes): FileListEntry {
@@ -357,8 +359,8 @@ export class FileIndexGraphManager {
   // -- Read --
 
   listAllFiles(options?: {
-    directory?: string; extension?: string; language?: string; filter?: string; limit?: number;
-  }): FileListEntry[] {
+    directory?: string; extension?: string; language?: string; filter?: string; limit?: number; offset?: number;
+  }) {
     return listAllFiles(this._graph, options);
   }
 

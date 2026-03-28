@@ -4,7 +4,7 @@
 import { createFileIndexGraph } from '@/graphs/file-index-types';
 import { updateFileEntry, rebuildDirectoryStats } from '@/graphs/file-index';
 import { createKnowledgeGraph } from '@/graphs/knowledge-types';
-import { createFakeEmbed, setupMcpClient, json, unitVec, type McpTestContext } from '@/tests/helpers';
+import { createFakeEmbed, setupMcpClient, json, jsonList, unitVec, type McpTestContext } from '@/tests/helpers';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -74,13 +74,13 @@ afterAll(async () => {
 
 describe('files_list', () => {
   it('lists all files without params', async () => {
-    const results = json<FileListEntry[]>(await call('files_list'));
+    const results = jsonList<FileListEntry>(await call('files_list'));
     expect(results.length).toBe(5);
     expect(results.every(r => r.kind === 'file')).toBe(true);
   });
 
   it('lists root directory children', async () => {
-    const results = json<FileListEntry[]>(await call('files_list', { directory: '.' }));
+    const results = jsonList<FileListEntry>(await call('files_list', { directory: '.' }));
     const names = results.map(r => r.fileName);
     expect(names).toContain('src');
     expect(names).toContain('package.json');
@@ -88,42 +88,42 @@ describe('files_list', () => {
   });
 
   it('lists src directory children', async () => {
-    const results = json<FileListEntry[]>(await call('files_list', { directory: 'src' }));
+    const results = jsonList<FileListEntry>(await call('files_list', { directory: 'src' }));
     const names = results.map(r => r.fileName);
     expect(names).toContain('lib');
     expect(names).toContain('index.ts');
   });
 
   it('filters by extension', async () => {
-    const results = json<FileListEntry[]>(await call('files_list', { extension: '.json' }));
+    const results = jsonList<FileListEntry>(await call('files_list', { extension: '.json' }));
     expect(results).toHaveLength(1);
     expect(results[0].fileName).toBe('package.json');
   });
 
   it('filters by language', async () => {
-    const results = json<FileListEntry[]>(await call('files_list', { language: 'markdown' }));
+    const results = jsonList<FileListEntry>(await call('files_list', { language: 'markdown' }));
     expect(results).toHaveLength(1);
     expect(results[0].fileName).toBe('README.md');
   });
 
   it('filters by substring', async () => {
-    const results = json<FileListEntry[]>(await call('files_list', { filter: 'config' }));
+    const results = jsonList<FileListEntry>(await call('files_list', { filter: 'config' }));
     expect(results).toHaveLength(1);
     expect(results[0].filePath).toBe('src/lib/config.ts');
   });
 
   it('respects limit', async () => {
-    const results = json<FileListEntry[]>(await call('files_list', { limit: 2 }));
+    const results = jsonList<FileListEntry>(await call('files_list', { limit: 2 }));
     expect(results).toHaveLength(2);
   });
 
   it('returns empty for nonexistent directory', async () => {
-    const results = json<FileListEntry[]>(await call('files_list', { directory: 'nonexistent' }));
+    const results = jsonList<FileListEntry>(await call('files_list', { directory: 'nonexistent' }));
     expect(results).toHaveLength(0);
   });
 
   it('directory entries include kind and fileCount', async () => {
-    const results = json<FileListEntry[]>(await call('files_list', { directory: '.' }));
+    const results = jsonList<FileListEntry>(await call('files_list', { directory: '.' }));
     const srcEntry = results.find(r => r.filePath === 'src');
     expect(srcEntry).toBeDefined();
     expect(srcEntry!.kind).toBe('directory');

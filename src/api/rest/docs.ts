@@ -20,8 +20,8 @@ export function createDocsRouter(): Router {
       const p = getProject(req);
       if (!p.docManager) return res.json({ results: [] });
       const q = (req as any).validatedQuery;
-      const topics = p.docManager.listFiles(q.filter, q.limit);
-      res.json({ results: topics });
+      const { results: topics, total } = p.docManager.listFiles(q.filter, q.limit, q.offset);
+      res.json({ results: topics, total });
     } catch (err) { next(err); }
   });
 

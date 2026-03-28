@@ -17,8 +17,8 @@ export function createEpicsRouter(): Router {
     try {
       const p = getProject(req);
       const q = (req as any).validatedQuery;
-      const epics = p.taskManager.listEpics(q);
-      res.json({ results: epics });
+      const { results: epics, total } = p.taskManager.listEpics(q);
+      res.json({ results: epics, total });
     } catch (err) { next(err); }
   });
 

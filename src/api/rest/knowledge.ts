@@ -22,8 +22,8 @@ export function createKnowledgeRouter(): Router {
     try {
       const p = getProject(req);
       const q = (req as any).validatedQuery;
-      const notes = p.knowledgeManager.listNotes(q.filter, q.tag, q.limit);
-      res.json({ results: notes });
+      const { results: notes, total } = p.knowledgeManager.listNotes(q.filter, q.tag, q.limit, q.offset);
+      res.json({ results: notes, total });
     } catch (err) { next(err); }
   });
 

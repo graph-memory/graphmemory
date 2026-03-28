@@ -1,4 +1,4 @@
-import { unitVec, createFakeEmbed, setupMcpClient, json, text, type McpTestContext } from '@/tests/helpers';
+import { unitVec, createFakeEmbed, setupMcpClient, json, jsonList, text, type McpTestContext } from '@/tests/helpers';
 import { createCodeGraph, updateCodeFile } from '@/graphs/code';
 import type { CodeNodeKind, CodeNodeAttributes } from '@/graphs/code-types';
 
@@ -106,7 +106,7 @@ describe('MCP code tools', () => {
 
   describe('code_list_files', () => {
     it('returns 2 files sorted with correct symbolCounts', async () => {
-      const files = json<FileEntry[]>(await call('code_list_files'));
+      const files = jsonList<FileEntry>(await call('code_list_files'));
       expect(files.length).toBe(2);
       expect(files.some(f => f.fileId === 'src/graph.ts')).toBe(true);
       expect(files.some(f => f.fileId === 'src/search.ts')).toBe(true);
@@ -116,29 +116,29 @@ describe('MCP code tools', () => {
     });
 
     it('filter "graph" returns 1 file', async () => {
-      const files = json<FileEntry[]>(await call('code_list_files', { filter: 'graph' }));
+      const files = jsonList<FileEntry>(await call('code_list_files', { filter: 'graph' }));
       expect(files.length).toBe(1);
       expect(files[0].fileId).toBe('src/graph.ts');
     });
 
     it('filter "src/" returns all 2 files', async () => {
-      const files = json<FileEntry[]>(await call('code_list_files', { filter: 'src/' }));
+      const files = jsonList<FileEntry>(await call('code_list_files', { filter: 'src/' }));
       expect(files.length).toBe(2);
     });
 
     it('filter "nonexistent" returns empty', async () => {
-      const files = json<FileEntry[]>(await call('code_list_files', { filter: 'nonexistent' }));
+      const files = jsonList<FileEntry>(await call('code_list_files', { filter: 'nonexistent' }));
       expect(files.length).toBe(0);
     });
 
     it('limit=1 returns first alphabetically', async () => {
-      const files = json<FileEntry[]>(await call('code_list_files', { limit: 1 }));
+      const files = jsonList<FileEntry>(await call('code_list_files', { limit: 1 }));
       expect(files.length).toBe(1);
       expect(files[0].fileId).toBe('src/graph.ts');
     });
 
     it('default limit returns all files', async () => {
-      const files = json<FileEntry[]>(await call('code_list_files'));
+      const files = jsonList<FileEntry>(await call('code_list_files'));
       expect(files.length).toBe(2);
     });
   });

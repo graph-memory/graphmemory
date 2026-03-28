@@ -129,22 +129,22 @@ describe('code graph CRUD', () => {
 
   describe('listCodeFiles', () => {
     it('returns 2 files', () => {
-      const files = listCodeFiles(graph);
+      const files = listCodeFiles(graph).results;
       expect(files).toHaveLength(2);
     });
 
     it('sorted alphabetically: graph < search', () => {
-      const files = listCodeFiles(graph);
+      const files = listCodeFiles(graph).results;
       expect(files[0].fileId).toBe('src/graph.ts');
     });
 
     it('graph.ts has 3 symbols', () => {
-      const files = listCodeFiles(graph);
+      const files = listCodeFiles(graph).results;
       expect(files[0].symbolCount).toBe(3);
     });
 
     it('search.ts has 2 symbols', () => {
-      const files = listCodeFiles(graph);
+      const files = listCodeFiles(graph).results;
       expect(files[1].symbolCount).toBe(2);
     });
   });

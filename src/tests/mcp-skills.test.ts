@@ -1,7 +1,7 @@
 import { createSkillGraph } from '@/graphs/skill-types';
 import { createKnowledgeGraph } from '@/graphs/knowledge-types';
 import {
-  setupMcpClient, createFakeEmbed, json,
+  setupMcpClient, createFakeEmbed, json, jsonList,
   type McpTestContext,
 } from '@/tests/helpers';
 import type { SkillSource } from '@/graphs/skill-types';
@@ -197,30 +197,30 @@ describe('MCP Skill Tools', () => {
     // -- skills_list --
 
     it('skills_list returns all 3', async () => {
-      const skills = json<SkillListEntry[]>(await call('skills_list'));
+      const skills = jsonList<SkillListEntry>(await call('skills_list'));
       expect(skills).toHaveLength(3);
     });
 
     it('skills_list filter by source', async () => {
-      const skills = json<SkillListEntry[]>(await call('skills_list', { source: 'learned' }));
+      const skills = jsonList<SkillListEntry>(await call('skills_list', { source: 'learned' }));
       expect(skills).toHaveLength(1);
       expect(skills[0].id).toBe(debugAuthIssuesId);
     });
 
     it('skills_list filter by tag', async () => {
-      const skills = json<SkillListEntry[]>(await call('skills_list', { tag: 'auth' }));
+      const skills = jsonList<SkillListEntry>(await call('skills_list', { tag: 'auth' }));
       expect(skills).toHaveLength(1);
       expect(skills[0].id).toBe(debugAuthIssuesId);
     });
 
     it('skills_list substring filter', async () => {
-      const skills = json<SkillListEntry[]>(await call('skills_list', { filter: 'rest' }));
+      const skills = jsonList<SkillListEntry>(await call('skills_list', { filter: 'rest' }));
       expect(skills).toHaveLength(1);
       expect(skills[0].id).toBe(addRestEndpointId);
     });
 
     it('skills_list limit', async () => {
-      const skills = json<SkillListEntry[]>(await call('skills_list', { limit: 1 }));
+      const skills = jsonList<SkillListEntry>(await call('skills_list', { limit: 1 }));
       expect(skills).toHaveLength(1);
     });
 
@@ -425,7 +425,7 @@ describe('MCP Skill Tools', () => {
     });
 
     it('skills_list after delete returns 2', async () => {
-      const skills = json<SkillListEntry[]>(await call('skills_list'));
+      const skills = jsonList<SkillListEntry>(await call('skills_list'));
       expect(skills).toHaveLength(2);
     });
 

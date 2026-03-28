@@ -217,40 +217,40 @@ describe('CRUD — Tasks', () => {
 
   describe('listTasks', () => {
     it('returns 3 tasks', () => {
-      expect(listTasks(g)).toHaveLength(3);
+      expect(listTasks(g).results).toHaveLength(3);
     });
 
     it('sorted by priority (high first)', () => {
-      const all = listTasks(g);
+      const all = listTasks(g).results;
       expect(all[0].priority).toBe('high');
     });
 
     it('filter by status', () => {
-      expect(listTasks(g, { status: 'todo' })).toHaveLength(2);
+      expect(listTasks(g, { status: 'todo' }).results).toHaveLength(2);
     });
 
     it('filter by priority', () => {
-      expect(listTasks(g, { priority: 'high' })).toHaveLength(1);
+      expect(listTasks(g, { priority: 'high' }).results).toHaveLength(1);
     });
 
     it('filter by tag', () => {
-      expect(listTasks(g, { tag: 'feature' })).toHaveLength(1);
+      expect(listTasks(g, { tag: 'feature' }).results).toHaveLength(1);
     });
 
     it('substring filter', () => {
-      expect(listTasks(g, { filter: 'auth' })).toHaveLength(1);
+      expect(listTasks(g, { filter: 'auth' }).results).toHaveLength(1);
     });
 
     it('no match = empty', () => {
-      expect(listTasks(g, { filter: 'nonexistent' })).toHaveLength(0);
+      expect(listTasks(g, { filter: 'nonexistent' }).results).toHaveLength(0);
     });
 
     it('limit=1 returns 1', () => {
-      expect(listTasks(g, { limit: 1 })).toHaveLength(1);
+      expect(listTasks(g, { limit: 1 }).results).toHaveLength(1);
     });
 
     it('returns description field', () => {
-      const task = listTasks(g).find(t => t.id === id1);
+      const task = listTasks(g).results.find(t => t.id === id1);
       expect(task?.description).toBe('Updated: redirect loop fixed.');
     });
 
@@ -258,13 +258,13 @@ describe('CRUD — Tasks', () => {
       const longDesc = 'x'.repeat(1000);
       const g2 = createTaskGraph();
       createTask(g2, 'Long Task', longDesc, 'todo', 'medium', [], unitVec(0));
-      const task = listTasks(g2)[0];
+      const task = listTasks(g2).results[0];
       expect(task.description).toHaveLength(500);
     });
 
     it('dueDate sorting: tasks with dueDate before nulls', () => {
       // id2 has dueDate, others don't; among same priority, dueDate first
-      const medTasks = listTasks(g, { priority: 'medium' });
+      const medTasks = listTasks(g, { priority: 'medium' }).results;
       // only 1 medium task, so just verify it's there
       expect(medTasks).toHaveLength(1);
     });
@@ -613,13 +613,13 @@ describe('Cross-graph relations (tasks)', () => {
   describe('listTasks excludes proxies', () => {
     it('proxy not in list', () => {
       createCrossRelation(tg, taskId, 'docs', 'guide.md::Setup', 'references', extDocs);
-      const tasks = listTasks(tg);
+      const tasks = listTasks(tg).results;
       expect(tasks.every(t => !t.id.startsWith('@'))).toBe(true);
     });
 
     it('count matches real tasks only', () => {
       createCrossRelation(tg, taskId, 'docs', 'guide.md::Setup', 'references', extDocs);
-      expect(listTasks(tg)).toHaveLength(1);
+      expect(listTasks(tg).results).toHaveLength(1);
     });
   });
 
@@ -779,7 +779,7 @@ describe('persistence round-trip (tasks)', () => {
     const manager = new TaskGraphManager(loaded, embedFnPair(fakeEmbed), ctx, {});
 
     // 5. Verify: list returns all items (3 tasks, no proxies)
-    const tasks = listTasks(loaded);
+    const tasks = listTasks(loaded).results;
     expect(tasks).toHaveLength(3);
     expect(tasks.map(t => t.id).sort()).toEqual([t1, t2, t3].sort());
 
@@ -827,7 +827,7 @@ describe('persistence round-trip (tasks)', () => {
     // Verify a new task can be created via Manager on the loaded graph
     const t4 = await manager.createTask('New Task', 'Created after load', 'todo', 'medium', ['test']);
     expect(t4).toMatch(/^[0-9a-f]{8}-/);
-    expect(listTasks(loaded)).toHaveLength(4);
+    expect(listTasks(loaded).results).toHaveLength(4);
     expect(manager.bm25Index.size).toBe(4);
   });
 });
@@ -1182,7 +1182,7 @@ describe('Order — nextOrderForStatus, rebalanceOrders, reorderTask', () => {
       createTask(g, 'C', '', 'todo', 'medium', [], unitVec(0), null, null, '', null, 3000);
       createTask(g, 'A', '', 'todo', 'medium', [], unitVec(1), null, null, '', null, 1000);
       createTask(g, 'B', '', 'todo', 'medium', [], unitVec(2), null, null, '', null, 2000);
-      const list = listTasks(g, { status: 'todo' });
+      const list = listTasks(g, { status: 'todo' }).results;
       expect(list.map(t => t.title)).toEqual(['A', 'B', 'C']);
     });
   });
@@ -1227,7 +1227,7 @@ describe('Epic CRUD', () => {
       createEpic(g, 'Epic A', 'desc', 'open', 'high', [], unitVec(0));
       createEpic(g, 'Epic B', 'desc', 'in_progress', 'medium', [], unitVec(1));
       createTask(g, 'Task X', 'desc', 'todo', 'high', [], unitVec(2));
-      const epics = listEpics(g);
+      const epics = listEpics(g).results;
       expect(epics).toHaveLength(2);
       expect(epics.map(e => e.title).sort()).toEqual(['Epic A', 'Epic B']);
     });
@@ -1237,7 +1237,7 @@ describe('Epic CRUD', () => {
     it('excludes epics from task listing', () => {
       createEpic(g, 'Epic A', 'desc', 'open', 'high', [], unitVec(0));
       const taskId = createTask(g, 'Task X', 'desc', 'todo', 'high', [], unitVec(1));
-      const tasks = listTasks(g);
+      const tasks = listTasks(g).results;
       expect(tasks).toHaveLength(1);
       expect(tasks[0].id).toBe(taskId);
     });
@@ -1342,17 +1342,17 @@ describe('Epic CRUD', () => {
       createEpic(g, 'Epic B', 'desc', 'done', 'low', ['frontend'], unitVec(1));
       createEpic(g, 'Epic C', 'desc', 'open', 'high', ['backend', 'api'], unitVec(2));
 
-      const byStatus = listEpics(g, { status: 'open' });
+      const byStatus = listEpics(g, { status: 'open' }).results;
       expect(byStatus).toHaveLength(2);
 
-      const byPriority = listEpics(g, { priority: 'low' });
+      const byPriority = listEpics(g, { priority: 'low' }).results;
       expect(byPriority).toHaveLength(1);
       expect(byPriority[0].title).toBe('Epic B');
 
-      const byTag = listEpics(g, { tag: 'backend' });
+      const byTag = listEpics(g, { tag: 'backend' }).results;
       expect(byTag).toHaveLength(2);
 
-      const combined = listEpics(g, { status: 'open', priority: 'high', tag: 'api' });
+      const combined = listEpics(g, { status: 'open', priority: 'high', tag: 'api' }).results;
       expect(combined).toHaveLength(1);
       expect(combined[0].title).toBe('Epic C');
     });

@@ -216,37 +216,37 @@ describe('CRUD — Skills', () => {
 
   describe('listSkills', () => {
     it('returns 3 skills', () => {
-      expect(listSkills(g)).toHaveLength(3);
+      expect(listSkills(g).results).toHaveLength(3);
     });
 
     it('sorted by usageCount desc (most used first)', () => {
-      const all = listSkills(g);
+      const all = listSkills(g).results;
       expect(all[0].id).toBe(id1); // usageCount=2
     });
 
     it('filter by source', () => {
       // id1 was changed to learned, id2 is learned, id3 is user
-      expect(listSkills(g, { source: 'user' })).toHaveLength(1);
+      expect(listSkills(g, { source: 'user' }).results).toHaveLength(1);
     });
 
     it('filter by tag', () => {
-      expect(listSkills(g, { tag: 'auth' })).toHaveLength(1);
+      expect(listSkills(g, { tag: 'auth' }).results).toHaveLength(1);
     });
 
     it('substring filter', () => {
-      expect(listSkills(g, { filter: 'endpoint' })).toHaveLength(1);
+      expect(listSkills(g, { filter: 'endpoint' }).results).toHaveLength(1);
     });
 
     it('no match = empty', () => {
-      expect(listSkills(g, { filter: 'nonexistent' })).toHaveLength(0);
+      expect(listSkills(g, { filter: 'nonexistent' }).results).toHaveLength(0);
     });
 
     it('limit=1 returns 1', () => {
-      expect(listSkills(g, { limit: 1 })).toHaveLength(1);
+      expect(listSkills(g, { limit: 1 }).results).toHaveLength(1);
     });
 
     it('returns description field', () => {
-      const skill = listSkills(g).find(s => s.id === id1);
+      const skill = listSkills(g).results.find(s => s.id === id1);
       expect(skill?.description).toBe('Updated: complete guide to REST endpoints.');
     });
 
@@ -254,7 +254,7 @@ describe('CRUD — Skills', () => {
       const longDesc = 'x'.repeat(1000);
       const g2 = createSkillGraph();
       createSkill(g2, 'Long Skill', longDesc, ['step'], ['trigger'], [], [], [], 'user', 1, unitVec(0));
-      const skill = listSkills(g2)[0];
+      const skill = listSkills(g2).results[0];
       expect(skill.description).toHaveLength(500);
     });
   });
@@ -628,13 +628,13 @@ describe('Cross-graph relations (skills)', () => {
   describe('listSkills excludes proxies', () => {
     it('proxy not in list', () => {
       createCrossRelation(sg, skillId, 'docs', 'guide.md::Setup', 'references', extDocs);
-      const skills = listSkills(sg);
+      const skills = listSkills(sg).results;
       expect(skills.every(s => !s.id.startsWith('@'))).toBe(true);
     });
 
     it('count matches real skills only', () => {
       createCrossRelation(sg, skillId, 'docs', 'guide.md::Setup', 'references', extDocs);
-      expect(listSkills(sg)).toHaveLength(1);
+      expect(listSkills(sg).results).toHaveLength(1);
     });
   });
 
@@ -795,7 +795,7 @@ describe('persistence round-trip (skills)', () => {
     const manager = new SkillGraphManager(loaded, embedFnPair(fakeEmbed), ctx, {});
 
     // 5. Verify: list returns all items (3 skills, no proxies)
-    const skills = listSkills(loaded);
+    const skills = listSkills(loaded).results;
     expect(skills).toHaveLength(3);
     expect(skills.map(s => s.id).sort()).toEqual([s1, s2, s3].sort());
 
@@ -848,7 +848,7 @@ describe('persistence round-trip (skills)', () => {
     // Verify a new skill can be created via Manager on the loaded graph
     const s4 = await manager.createSkill('New Skill', 'Created after load', ['Step 1'], ['trigger'], [], [], ['test']);
     expect(s4).toMatch(/^[0-9a-f]{8}-/);
-    expect(listSkills(loaded)).toHaveLength(4);
+    expect(listSkills(loaded).results).toHaveLength(4);
     expect(manager.bm25Index.size).toBe(4);
   });
 });

@@ -56,6 +56,12 @@ export function json<T>(result: CallResult): T {
   return JSON.parse(text(result)) as T;
 }
 
+/** Parse a paginated list response (`{ results, total }`) and return just the results array. */
+export function jsonList<T>(result: CallResult): T[] {
+  const parsed = JSON.parse(text(result)) as { results: T[]; total: number };
+  return parsed.results;
+}
+
 export interface McpTestContext {
   client: Client;
   call: (name: string, args?: Record<string, unknown>) => Promise<CallResult>;

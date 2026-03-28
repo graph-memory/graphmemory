@@ -10,7 +10,8 @@ import { searchCodeFiles, type CodeFileSearchResult } from '@/lib/search/files';
 import { BM25Index, type SearchMode } from '@/lib/search/bm25';
 import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
 import { readJsonWithTmpFallback, validateGraphStructure } from '@/lib/graph-persistence';
-import { BM25_BODY_MAX_CHARS, LIST_LIMIT_SMALL, GRAPH_DATA_VERSION } from '@/lib/defaults';
+import { BM25_BODY_MAX_CHARS, LIST_PAGE_SIZE, GRAPH_DATA_VERSION } from '@/lib/defaults';
+import type { PaginatedResult } from '@/lib/pagination';
 
 export type { CodeGraph };
 export { createCodeGraph };
@@ -171,8 +172,9 @@ export function getCodeFileMtime(graph: CodeGraph, fileId: string): number {
 export function listCodeFiles(
   graph: CodeGraph,
   filter?: string,
-  limit: number = LIST_LIMIT_SMALL,
-): Array<{ fileId: string; symbolCount: number }> {
+  limit: number = LIST_PAGE_SIZE,
+  offset: number = 0,
+): PaginatedResult<{ fileId: string; symbolCount: number }> {
   const files = new Map<string, number>();
   const lowerFilter = filter?.toLowerCase();
 
@@ -188,7 +190,7 @@ export function listCodeFiles(
     result = result.filter(f => f.fileId.toLowerCase().includes(lowerFilter));
   }
 
-  return result.slice(0, limit);
+  return { results: result.slice(offset, offset + limit), total: result.length };
 }
 
 // ---------------------------------------------------------------------------
@@ -294,8 +296,8 @@ export class CodeGraphManager {
 
   // -- Read --
 
-  listFiles(filter?: string, limit?: number) {
-    return listCodeFiles(this._graph, filter, limit);
+  listFiles(filter?: string, limit?: number, offset?: number) {
+    return listCodeFiles(this._graph, filter, limit, offset);
   }
 
   getFileSymbols(fileId: string) {

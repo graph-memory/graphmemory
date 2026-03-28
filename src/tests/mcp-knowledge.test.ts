@@ -4,7 +4,7 @@
 import { createKnowledgeGraph } from '@/graphs/knowledge-types';
 import { createGraph } from '@/graphs/docs';
 import { createCodeGraph } from '@/graphs/code-types';
-import { createFakeEmbed, setupMcpClient, json, unitVec, type McpTestContext } from '@/tests/helpers';
+import { createFakeEmbed, setupMcpClient, json, jsonList, unitVec, type McpTestContext } from '@/tests/helpers';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -105,30 +105,30 @@ describe('knowledge tools', () => {
   // ── notes_list (before update) ──
 
   it('notes_list: returns all 3 notes', async () => {
-    const allNotes = json<NoteListEntry[]>(await call('notes_list'));
+    const allNotes = jsonList<NoteListEntry>(await call('notes_list'));
     expect(allNotes).toHaveLength(3);
     expect(allNotes.every(n => n.id && n.title)).toBe(true);
   });
 
   it('notes_list: filter "auth" matches 1 note', async () => {
-    const filteredNotes = json<NoteListEntry[]>(await call('notes_list', { filter: 'auth' }));
+    const filteredNotes = jsonList<NoteListEntry>(await call('notes_list', { filter: 'auth' }));
     expect(filteredNotes).toHaveLength(1);
     expect(filteredNotes[0].id).toBe(note1.noteId);
   });
 
   it('notes_list: tag "infra" matches 1 note', async () => {
-    const taggedNotes = json<NoteListEntry[]>(await call('notes_list', { tag: 'infra' }));
+    const taggedNotes = jsonList<NoteListEntry>(await call('notes_list', { tag: 'infra' }));
     expect(taggedNotes).toHaveLength(1);
     expect(taggedNotes[0].id).toBe(note2.noteId);
   });
 
   it('notes_list: limit=1 returns 1 note', async () => {
-    const limitedNotes = json<NoteListEntry[]>(await call('notes_list', { limit: 1 }));
+    const limitedNotes = jsonList<NoteListEntry>(await call('notes_list', { limit: 1 }));
     expect(limitedNotes).toHaveLength(1);
   });
 
   it('notes_list: filter no match returns empty', async () => {
-    const noNotes = json<NoteListEntry[]>(await call('notes_list', { filter: 'nonexistent' }));
+    const noNotes = jsonList<NoteListEntry>(await call('notes_list', { filter: 'nonexistent' }));
     expect(noNotes).toHaveLength(0);
   });
 
@@ -295,7 +295,7 @@ describe('knowledge tools', () => {
   });
 
   it('notes_delete: 2 notes remain after delete', async () => {
-    const remainingNotes = json<NoteListEntry[]>(await call('notes_list'));
+    const remainingNotes = jsonList<NoteListEntry>(await call('notes_list'));
     expect(remainingNotes).toHaveLength(2);
   });
 
@@ -437,7 +437,7 @@ describe('cross-graph relation tools', () => {
   });
 
   it('notes_list does not include proxy nodes', async () => {
-    const notes = json<Array<{ id: string }>>(await xCall('notes_list'));
+    const notes = jsonList<{ id: string }>(await xCall('notes_list'));
     expect(notes).toHaveLength(1);
     expect(notes[0].id).toBe(noteId);
   });

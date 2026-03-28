@@ -20,8 +20,8 @@ export function createCodeRouter(): Router {
       const p = getProject(req);
       if (!p.codeManager) return res.json({ results: [] });
       const q = (req as any).validatedQuery;
-      const files = p.codeManager.listFiles(q.filter, q.limit);
-      res.json({ results: files });
+      const { results: files, total } = p.codeManager.listFiles(q.filter, q.limit, q.offset);
+      res.json({ results: files, total });
     } catch (err) { next(err); }
   });
 

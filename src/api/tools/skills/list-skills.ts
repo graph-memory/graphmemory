@@ -16,13 +16,14 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
         tag:    z.string().max(MAX_TAG_LEN).optional().describe('Filter by tag (exact match, case-insensitive)'),
         filter: z.string().max(500).optional().describe('Substring match on title or ID'),
         limit:  z.number().int().min(1).max(1000).optional().describe('Max results (default 50)'),
+        offset: z.number().int().min(0).max(100_000).optional().describe('Offset for pagination (default 0)'),
       },
     },
-    async ({ source, tag, filter, limit }) => {
-      const results = mgr.listSkills({ source, tag, filter, limit });
+    async ({ source, tag, filter, limit, offset }) => {
+      const { results, total } = mgr.listSkills({ source, tag, filter, limit, offset });
       const clean = (k: string, v: any) => (k !== '' && (v === null || (Array.isArray(v) && v.length === 0)) ? undefined : v);
       const output = results.map(({ version: _, ...r }) => r);
-      return { content: [{ type: 'text', text: JSON.stringify(output, clean, 2) }] };
+      return { content: [{ type: 'text', text: JSON.stringify({ results: output, total }, clean, 2) }] };
     },
   );
 }

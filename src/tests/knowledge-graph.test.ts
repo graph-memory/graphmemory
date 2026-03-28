@@ -165,44 +165,44 @@ describe('CRUD — Notes', () => {
 
   describe('listNotes', () => {
     it('returns 3 notes', () => {
-      expect(listNotes(g)).toHaveLength(3);
+      expect(listNotes(g).results).toHaveLength(3);
     });
 
     it('sorted by updatedAt desc', () => {
-      const all = listNotes(g);
+      const all = listNotes(g).results;
       expect(all[0].updatedAt).toBeGreaterThanOrEqual(all[1].updatedAt);
     });
 
     it('filter "auth" matches 1 note', () => {
-      expect(listNotes(g, 'auth')).toHaveLength(1);
+      expect(listNotes(g, 'auth').results).toHaveLength(1);
     });
 
     it('filter matches by id', () => {
-      expect(listNotes(g, 'auth')[0].id).toBe(id1);
+      expect(listNotes(g, 'auth').results[0].id).toBe(id1);
     });
 
     it('tag filter "infra" matches 1 note', () => {
-      expect(listNotes(g, undefined, 'infra')).toHaveLength(1);
+      expect(listNotes(g, undefined, 'infra').results).toHaveLength(1);
     });
 
     it('tag filter matches database note', () => {
-      expect(listNotes(g, undefined, 'infra')[0].id).toBe(id2);
+      expect(listNotes(g, undefined, 'infra').results[0].id).toBe(id2);
     });
 
     it('filter + tag combined', () => {
-      expect(listNotes(g, 'auth', 'jwt')).toHaveLength(1);
+      expect(listNotes(g, 'auth', 'jwt').results).toHaveLength(1);
     });
 
     it('filter no match = empty', () => {
-      expect(listNotes(g, 'nonexistent')).toHaveLength(0);
+      expect(listNotes(g, 'nonexistent').results).toHaveLength(0);
     });
 
     it('limit=1 returns 1', () => {
-      expect(listNotes(g, undefined, undefined, 1)).toHaveLength(1);
+      expect(listNotes(g, undefined, undefined, 1).results).toHaveLength(1);
     });
 
     it('returns content field', () => {
-      const note = listNotes(g).find(n => n.id === id1);
+      const note = listNotes(g).results.find(n => n.id === id1);
       expect(note?.content).toBe('Updated: JWT with refresh tokens.');
     });
 
@@ -210,7 +210,7 @@ describe('CRUD — Notes', () => {
       const longContent = 'x'.repeat(1000);
       const g2 = createKnowledgeGraph();
       createNote(g2, 'Long Note', longContent, [], unitVec(0));
-      const note = listNotes(g2)[0];
+      const note = listNotes(g2).results[0];
       expect(note.content).toHaveLength(500);
     });
   });
@@ -608,13 +608,13 @@ describe('Cross-graph relations', () => {
   describe('listNotes excludes proxies', () => {
     it('proxy not in list', () => {
       createCrossRelation(kg, noteId, 'docs', 'guide.md::Setup', 'references', extDocs);
-      const notes = listNotes(kg);
+      const notes = listNotes(kg).results;
       expect(notes.every(n => !n.id.startsWith('@'))).toBe(true);
     });
 
     it('count matches real notes only', () => {
       createCrossRelation(kg, noteId, 'docs', 'guide.md::Setup', 'references', extDocs);
-      expect(listNotes(kg)).toHaveLength(1);
+      expect(listNotes(kg).results).toHaveLength(1);
     });
   });
 
@@ -810,7 +810,7 @@ describe('persistence round-trip (knowledge)', () => {
     const manager = new KnowledgeGraphManager(loaded, embedFnPair(fakeEmbed), ctx, {});
 
     // 5. Verify: list returns all items (3 notes, no proxies)
-    const notes = listNotes(loaded);
+    const notes = listNotes(loaded).results;
     expect(notes).toHaveLength(3);
     expect(notes.map(n => n.id).sort()).toEqual([n1, n2, n3].sort());
 
@@ -855,7 +855,7 @@ describe('persistence round-trip (knowledge)', () => {
     // Verify a new note can be created via Manager on the loaded graph
     const n4 = await manager.createNote('New Note', 'Created after load', ['test']);
     expect(n4).toMatch(/^[0-9a-f]{8}-/);
-    expect(listNotes(loaded)).toHaveLength(4);
+    expect(listNotes(loaded).results).toHaveLength(4);
     expect(manager.bm25Index.size).toBe(4);
   });
 });

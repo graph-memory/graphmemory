@@ -301,7 +301,7 @@ describe('workspace shared graphs', () => {
     expect(note!.tags).toEqual(['shared']);
 
     // Also visible via listNotes (used by both projects)
-    const notes = sharedKnowledgeManager.listNotes();
+    const notes = sharedKnowledgeManager.listNotes().results;
     expect(notes.some(n => n.id === noteId)).toBe(true);
   });
 
@@ -334,7 +334,7 @@ describe('workspace shared graphs', () => {
 
   it('standalone project has its own separate knowledge graph', async () => {
     // Standalone project should NOT see workspace notes
-    const standaloneNotes = standaloneKnowledgeManager.listNotes();
+    const standaloneNotes = standaloneKnowledgeManager.listNotes().results;
     expect(standaloneNotes).toHaveLength(0);
 
     // Create a note on standalone — not visible in workspace
@@ -342,23 +342,23 @@ describe('workspace shared graphs', () => {
     expect(standaloneKnowledgeManager.getNote(standaloneNoteId)).not.toBeNull();
 
     // Workspace notes unchanged (still has the shared note from earlier test)
-    const wsNotes = sharedKnowledgeManager.listNotes();
+    const wsNotes = sharedKnowledgeManager.listNotes().results;
     expect(wsNotes.every(n => n.id !== standaloneNoteId)).toBe(true);
   });
 
   it('standalone project has its own separate task and skill graphs', async () => {
-    const standaloneTasks = standaloneTaskManager.listTasks();
+    const standaloneTasks = standaloneTaskManager.listTasks().results;
     expect(standaloneTasks).toHaveLength(0);
 
-    const standaloneSkills = standaloneSkillManager.listSkills();
+    const standaloneSkills = standaloneSkillManager.listSkills().results;
     expect(standaloneSkills).toHaveLength(0);
 
     // Create items on standalone — not visible in workspace
     await standaloneTaskManager.createTask('Solo Task', 'only standalone');
     await standaloneSkillManager.createSkill('Solo Skill', 'only standalone', ['s1']);
 
-    expect(standaloneTaskManager.listTasks()).toHaveLength(1);
-    expect(standaloneSkillManager.listSkills()).toHaveLength(1);
+    expect(standaloneTaskManager.listTasks().results).toHaveLength(1);
+    expect(standaloneSkillManager.listSkills().results).toHaveLength(1);
 
     // Workspace graphs unaffected
     expect(sharedTaskGraph.order).toBeGreaterThan(0);

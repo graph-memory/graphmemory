@@ -12,7 +12,8 @@ import { BM25Index } from '@/lib/search/bm25';
 import { mirrorTaskCreate, mirrorTaskUpdate, mirrorTaskRelation, mirrorAttachmentEvent, deleteMirrorDir, writeAttachment, deleteAttachment, getAttachmentPath as getAttPath, sanitizeFilename } from '@/lib/file-mirror';
 import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
 import { readJsonWithTmpFallback, validateGraphStructure } from '@/lib/graph-persistence';
-import { LIST_LIMIT_LARGE, CONTENT_PREVIEW_LEN, GRAPH_DATA_VERSION } from '@/lib/defaults';
+import { LIST_PAGE_SIZE, CONTENT_PREVIEW_LEN, GRAPH_DATA_VERSION } from '@/lib/defaults';
+import type { PaginatedResult } from '@/lib/pagination';
 import type { MirrorWriteTracker } from '@/lib/mirror-watcher';
 import type { ParsedTaskFile } from '@/lib/file-import';
 import { scanAttachments, MAX_ATTACHMENT_SIZE, MAX_ATTACHMENTS_PER_ENTITY } from '@/graphs/attachment-types';
@@ -456,9 +457,10 @@ export function listTasks(
     filter?: string;
     assignee?: string;
     limit?: number;
+    offset?: number;
   } = {},
-): TaskEntry[] {
-  const { status, priority, tag, filter, assignee, limit = LIST_LIMIT_LARGE } = opts;
+): PaginatedResult<TaskEntry> {
+  const { status, priority, tag, filter, assignee, limit = LIST_PAGE_SIZE, offset = 0 } = opts;
   const lowerFilter = filter?.toLowerCase();
   const lowerTag = tag?.toLowerCase();
 
@@ -495,19 +497,18 @@ export function listTasks(
     });
   });
 
-  return results
-    .sort((a, b) => {
-      // Sort by priority (critical first), then order (ascending), then dueDate (earliest first, nulls last)
-      const pDiff = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
-      if (pDiff !== 0) return pDiff;
-      const oDiff = a.order - b.order;
-      if (oDiff !== 0) return oDiff;
-      if (a.dueDate === null && b.dueDate === null) return 0;
-      if (a.dueDate === null) return 1;
-      if (b.dueDate === null) return -1;
-      return a.dueDate - b.dueDate;
-    })
-    .slice(0, limit);
+  const sorted = results.sort((a, b) => {
+    // Sort by priority (critical first), then order (ascending), then dueDate (earliest first, nulls last)
+    const pDiff = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+    if (pDiff !== 0) return pDiff;
+    const oDiff = a.order - b.order;
+    if (oDiff !== 0) return oDiff;
+    if (a.dueDate === null && b.dueDate === null) return 0;
+    if (a.dueDate === null) return 1;
+    if (b.dueDate === null) return -1;
+    return a.dueDate - b.dueDate;
+  });
+  return { results: sorted.slice(offset, offset + limit), total: sorted.length };
 }
 
 // ---------------------------------------------------------------------------
@@ -663,9 +664,9 @@ export function getEpic(graph: TaskGraph, epicId: string): (EpicEntry & { crossL
 
 export function listEpics(
   graph: TaskGraph,
-  opts: { status?: EpicStatus; priority?: TaskPriority; tag?: string; filter?: string; limit?: number } = {},
-): EpicEntry[] {
-  const { status, priority, tag, filter, limit = LIST_LIMIT_LARGE } = opts;
+  opts: { status?: EpicStatus; priority?: TaskPriority; tag?: string; filter?: string; limit?: number; offset?: number } = {},
+): PaginatedResult<EpicEntry> {
+  const { status, priority, tag, filter, limit = LIST_PAGE_SIZE, offset = 0 } = opts;
   const lowerFilter = filter?.toLowerCase();
   const lowerTag = tag?.toLowerCase();
   const results: EpicEntry[] = [];
@@ -696,13 +697,12 @@ export function listEpics(
     });
   });
 
-  return results
-    .sort((a, b) => {
-      const pDiff = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
-      if (pDiff !== 0) return pDiff;
-      return a.order - b.order;
-    })
-    .slice(0, limit);
+  const sorted = results.sort((a, b) => {
+    const pDiff = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+    if (pDiff !== 0) return pDiff;
+    return a.order - b.order;
+  });
+  return { results: sorted.slice(offset, offset + limit), total: sorted.length };
 }
 
 export function linkTaskToEpic(graph: TaskGraph, taskId: string, epicId: string): boolean {
@@ -1604,7 +1604,7 @@ export class TaskGraphManager {
   }
 
   listTasks(opts?: {
-    status?: TaskStatus; priority?: TaskPriority; tag?: string; filter?: string; assignee?: string; limit?: number;
+    status?: TaskStatus; priority?: TaskPriority; tag?: string; filter?: string; assignee?: string; limit?: number; offset?: number;
   }) {
     return listTasks(this._graph, opts);
   }

@@ -22,8 +22,8 @@ export function createSkillsRouter(): Router {
     try {
       const p = getProject(req);
       const q = (req as any).validatedQuery;
-      const skills = p.skillManager.listSkills(q);
-      res.json({ results: skills });
+      const { results: skills, total } = p.skillManager.listSkills(q);
+      res.json({ results: skills, total });
     } catch (err) { next(err); }
   });
 

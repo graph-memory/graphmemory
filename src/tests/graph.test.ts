@@ -79,32 +79,32 @@ describe('docs graph CRUD', () => {
 
   describe('listFiles', () => {
     it('returns 2 entries', () => {
-      const files = listFiles(graph);
+      const files = listFiles(graph).results;
       expect(files).toHaveLength(2);
     });
 
     it('sorted alphabetically: api first', () => {
-      const files = listFiles(graph);
+      const files = listFiles(graph).results;
       expect(files[0].fileId).toBe('docs/api.md');
     });
 
     it('api.md title = "API Reference"', () => {
-      const files = listFiles(graph);
+      const files = listFiles(graph).results;
       expect(files[0].title).toBe('API Reference');
     });
 
     it('api.md chunks = 2', () => {
-      const files = listFiles(graph);
+      const files = listFiles(graph).results;
       expect(files[0].chunks).toBe(2);
     });
 
     it('auth.md chunks = 3', () => {
-      const files = listFiles(graph);
+      const files = listFiles(graph).results;
       expect(files[1].chunks).toBe(3);
     });
 
     it('auth.md title = "Auth Guide"', () => {
-      const files = listFiles(graph);
+      const files = listFiles(graph).results;
       expect(files[1].title).toBe('Auth Guide');
     });
   });
@@ -212,7 +212,7 @@ describe('docs graph CRUD', () => {
     });
 
     it('after re-index: title updated to "API v2"', () => {
-      expect(listFiles(graph).find(f => f.fileId === 'docs/api.md')?.title).toBe('API v2');
+      expect(listFiles(graph).results.find(f => f.fileId === 'docs/api.md')?.title).toBe('API v2');
     });
 
     it('after re-index: api.md::Endpoints node removed', () => {

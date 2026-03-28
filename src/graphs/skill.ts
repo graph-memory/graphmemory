@@ -14,7 +14,8 @@ import type { MirrorWriteTracker } from '@/lib/mirror-watcher';
 import type { ParsedSkillFile } from '@/lib/file-import';
 import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
 import { readJsonWithTmpFallback, validateGraphStructure } from '@/lib/graph-persistence';
-import { LIST_LIMIT_LARGE, CONTENT_PREVIEW_LEN, GRAPH_DATA_VERSION } from '@/lib/defaults';
+import { LIST_PAGE_SIZE, CONTENT_PREVIEW_LEN, GRAPH_DATA_VERSION } from '@/lib/defaults';
+import type { PaginatedResult } from '@/lib/pagination';
 import { scanAttachments, MAX_ATTACHMENT_SIZE, MAX_ATTACHMENTS_PER_ENTITY } from '@/graphs/attachment-types';
 import { diffRelations } from '@/lib/file-import';
 import type { RelationFrontmatter } from '@/lib/file-mirror';
@@ -350,9 +351,10 @@ export function listSkills(
     tag?: string;
     filter?: string;
     limit?: number;
+    offset?: number;
   } = {},
-): SkillEntry[] {
-  const { source, tag, filter, limit = LIST_LIMIT_LARGE } = opts;
+): PaginatedResult<SkillEntry> {
+  const { source, tag, filter, limit = LIST_PAGE_SIZE, offset = 0 } = opts;
   const lowerFilter = filter?.toLowerCase();
   const lowerTag = tag?.toLowerCase();
 
@@ -387,13 +389,12 @@ export function listSkills(
     });
   });
 
-  return results
-    .sort((a, b) => {
-      // Sort by usageCount desc, then updatedAt desc
-      if (a.usageCount !== b.usageCount) return b.usageCount - a.usageCount;
-      return b.updatedAt - a.updatedAt;
-    })
-    .slice(0, limit);
+  const sorted = results.sort((a, b) => {
+    // Sort by usageCount desc, then updatedAt desc
+    if (a.usageCount !== b.usageCount) return b.usageCount - a.usageCount;
+    return b.updatedAt - a.updatedAt;
+  });
+  return { results: sorted.slice(offset, offset + limit), total: sorted.length };
 }
 
 // ---------------------------------------------------------------------------
@@ -1299,7 +1300,7 @@ export class SkillGraphManager {
   }
 
   listSkills(opts?: {
-    source?: SkillSource; tag?: string; filter?: string; limit?: number;
+    source?: SkillSource; tag?: string; filter?: string; limit?: number; offset?: number;
   }) {
     return listSkills(this._graph, opts);
   }

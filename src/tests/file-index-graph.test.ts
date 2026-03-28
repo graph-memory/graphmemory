@@ -217,13 +217,13 @@ describe('listAllFiles', () => {
   });
 
   it('lists all files without directory param', () => {
-    const results = listAllFiles(g);
+    const results = listAllFiles(g).results;
     expect(results.every(r => r.kind === 'file')).toBe(true);
     expect(results).toHaveLength(5);
   });
 
   it('lists immediate children of root', () => {
-    const results = listAllFiles(g, { directory: '.' });
+    const results = listAllFiles(g, { directory: '.' }).results;
     const names = results.map(r => r.fileName);
     expect(names).toContain('src');
     expect(names).toContain('package.json');
@@ -231,47 +231,47 @@ describe('listAllFiles', () => {
   });
 
   it('lists immediate children of src', () => {
-    const results = listAllFiles(g, { directory: 'src' });
+    const results = listAllFiles(g, { directory: 'src' }).results;
     const names = results.map(r => r.fileName);
     expect(names).toContain('lib');
     expect(names).toContain('index.ts');
   });
 
   it('lists immediate children of src/lib', () => {
-    const results = listAllFiles(g, { directory: 'src/lib' });
+    const results = listAllFiles(g, { directory: 'src/lib' }).results;
     expect(results).toHaveLength(2);
     expect(results.every(r => r.kind === 'file')).toBe(true);
   });
 
   it('filters by extension', () => {
-    const results = listAllFiles(g, { extension: '.ts' });
+    const results = listAllFiles(g, { extension: '.ts' }).results;
     expect(results).toHaveLength(3);
   });
 
   it('filters by language', () => {
-    const results = listAllFiles(g, { language: 'markdown' });
+    const results = listAllFiles(g, { language: 'markdown' }).results;
     expect(results).toHaveLength(1);
     expect(results[0].fileName).toBe('README.md');
   });
 
   it('filters by substring', () => {
-    const results = listAllFiles(g, { filter: 'config' });
+    const results = listAllFiles(g, { filter: 'config' }).results;
     expect(results).toHaveLength(1);
     expect(results[0].filePath).toBe('src/lib/config.ts');
   });
 
   it('respects limit', () => {
-    const results = listAllFiles(g, { limit: 2 });
+    const results = listAllFiles(g, { limit: 2 }).results;
     expect(results).toHaveLength(2);
   });
 
   it('returns empty for nonexistent directory', () => {
-    const results = listAllFiles(g, { directory: 'nonexistent' });
+    const results = listAllFiles(g, { directory: 'nonexistent' }).results;
     expect(results).toHaveLength(0);
   });
 
   it('directory listing includes dirs with stats', () => {
-    const results = listAllFiles(g, { directory: '.' });
+    const results = listAllFiles(g, { directory: '.' }).results;
     const srcEntry = results.find(r => r.filePath === 'src');
     expect(srcEntry).toBeDefined();
     expect(srcEntry!.kind).toBe('directory');

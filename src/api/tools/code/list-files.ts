@@ -18,10 +18,14 @@ export function register(server: McpServer, mgr: CodeGraphManager): void {
         limit: z.number().int().min(1).max(1000).optional().describe(
           'Maximum number of results to return',
         ),
+        offset: z.number().int().min(0).max(100_000).optional().describe(
+          'Offset for pagination (default 0)',
+        ),
       },
     },
-    async ({ filter, limit }) => ({
-      content: [{ type: 'text', text: JSON.stringify(mgr.listFiles(filter, limit), null, 2) }],
-    }),
+    async ({ filter, limit, offset }) => {
+      const { results, total } = mgr.listFiles(filter, limit, offset);
+      return { content: [{ type: 'text', text: JSON.stringify({ results, total }, null, 2) }] };
+    },
   );
 }

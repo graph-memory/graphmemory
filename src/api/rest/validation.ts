@@ -78,6 +78,7 @@ export const noteListSchema = z.object({
   filter: z.string().max(500).optional(),
   tag:    z.string().max(MAX_TAG_LEN).optional(),
   limit:  z.coerce.number().int().positive().max(1000).optional(),
+  offset: z.coerce.number().int().min(0).max(100_000).optional().default(0),
 });
 
 // ---------------------------------------------------------------------------
@@ -159,6 +160,7 @@ export const taskListSchema = z.object({
   filter:   z.string().max(500).optional(),
   assignee: z.string().max(MAX_ASSIGNEE_LEN).optional(),
   limit:    z.coerce.number().int().positive().max(1000).optional(),
+  offset:   z.coerce.number().int().min(0).max(100_000).optional().default(0),
 });
 
 // ---------------------------------------------------------------------------
@@ -179,6 +181,7 @@ export const searchQuerySchema = z.object({
 export const listQuerySchema = z.object({
   filter: z.string().max(500).optional(),
   limit:  z.coerce.number().int().positive().max(1000).optional(),
+  offset: z.coerce.number().int().min(0).max(100_000).optional().default(0),
 });
 
 // ---------------------------------------------------------------------------
@@ -197,6 +200,7 @@ export const fileListSchema = z.object({
   language:  z.string().max(100).optional(),
   filter:    z.string().max(500).optional(),
   limit:     z.coerce.number().int().positive().max(1000).optional().default(50),
+  offset:    z.coerce.number().int().min(0).max(100_000).optional().default(0),
 });
 
 // ---------------------------------------------------------------------------
@@ -251,6 +255,7 @@ export const skillListSchema = z.object({
   tag:    z.string().max(MAX_TAG_LEN).optional(),
   filter: z.string().max(500).optional(),
   limit:  z.coerce.number().int().positive().max(1000).optional(),
+  offset: z.coerce.number().int().min(0).max(100_000).optional().default(0),
 });
 
 
@@ -288,6 +293,7 @@ export const epicListSchema = z.object({
   tag:      z.string().max(MAX_TAG_LEN).optional(),
   filter:   z.string().max(500).optional(),
   limit:    z.coerce.number().int().positive().max(1000).optional(),
+  offset:   z.coerce.number().int().min(0).max(100_000).optional().default(0),
 });
 
 export const epicLinkSchema = z.object({

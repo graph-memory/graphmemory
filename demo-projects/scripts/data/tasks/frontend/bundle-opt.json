@@ -1,0 +1,1 @@
+{"key":"t_bundle_opt","title":"Bundle Size Optimization","description":"Analyze bundle with webpack-bundle-analyzer. Targets: main chunk < 100KB gzip. Actions: lazy load routes, tree-shake unused MUI components, optimize lodash imports.","status":"backlog","priority":"low","tags":["performance","build"]}

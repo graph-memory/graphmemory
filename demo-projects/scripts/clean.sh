@@ -23,6 +23,8 @@ for proj in api-gateway catalog-service order-service web-store admin-panel infr
   rm -rf "$DIR/$proj/.notes"
   rm -rf "$DIR/$proj/.tasks"
   rm -rf "$DIR/$proj/.skills"
+  rm -rf "$DIR/$proj/.team"
+  rm -rf "$DIR/$proj/.epics"
 done
 
-echo "Done. All graphs, mirror files, and workspace data removed."
+echo "Done. All graphs, mirror files, team, epics, and workspace data removed."

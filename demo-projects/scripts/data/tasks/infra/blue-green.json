@@ -1,0 +1,1 @@
+{"key":"t_blue_green","title":"Implement Blue-Green Deployment for DB Migrations","description":"Set up blue-green pattern for database migrations. Parallel DB instances during migration window. Automatic rollback if health checks fail post-migration.","status":"backlog","priority":"high","tags":["database","deployment","reliability"]}

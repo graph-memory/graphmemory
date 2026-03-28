@@ -1,0 +1,1 @@
+{"key":"t_fix_webhook","title":"Fix Payment Webhook Double Processing","description":"Stripe webhook occasionally fires twice for same event. Need idempotency check on payment callback. Currently causing duplicate order confirmations and double inventory decrement.","status":"in_progress","priority":"critical","tags":["bug","payment","order-service"],"assignee":"Maria Garcia"}

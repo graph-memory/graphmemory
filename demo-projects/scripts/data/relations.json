@@ -1,0 +1,186 @@
+{
+  "epicTasks": {
+    "e_payment":    ["t_fix_webhook", "t_order_cancel", "t_multi_currency", "t_webhook_system", "t_tax_calc", "t_bulk_pricing", "t_fix_session_expiry"],
+    "e_catalog":    ["t_product_search", "t_review_mod", "t_product_import", "t_recommendations", "t_product_variants"],
+    "e_gateway":    ["t_rate_limit_redis", "t_circuit_breaker", "t_redis_session", "t_graceful_shutdown", "t_req_validation", "t_refresh_token"],
+    "e_checkout":   ["t_checkout", "t_cart_persist", "t_saved_addresses", "t_review_submit", "t_e2e_checkout"],
+    "e_admin":      ["t_admin_orders", "t_product_editor", "t_analytics_charts", "t_role_assign", "t_admin_refund", "t_admin_import"],
+    "e_production": ["t_staging", "t_prom_alerting", "t_canary", "t_backup_verify", "t_waf", "t_dr_runbook", "t_ssl_monitor", "t_grafana_biz"]
+  },
+
+  "noteRelations": [
+    {"workspace": "backend", "from": "n_jwt",              "to": "n_session",            "kind": "relates_to"},
+    {"workspace": "backend", "from": "n_jwt",              "to": "n_cors",               "kind": "relates_to"},
+    {"workspace": "backend", "from": "n_jwt",              "to": "n_auth_flow",          "kind": "supports"},
+    {"workspace": "backend", "from": "n_microservices",    "to": "n_service_comm",       "kind": "supports"},
+    {"workspace": "backend", "from": "n_microservices",    "to": "n_db_strategy",        "kind": "supports"},
+    {"workspace": "backend", "from": "n_circuit_breaker",  "to": "n_service_comm",       "kind": "depends_on"},
+    {"workspace": "backend", "from": "n_circuit_breaker",  "to": "n_load_balancing",     "kind": "relates_to"},
+    {"workspace": "backend", "from": "n_circuit_breaker",  "to": "n_degradation",        "kind": "supports"},
+    {"workspace": "backend", "from": "n_search_algo",      "to": "n_category_tree",      "kind": "depends_on"},
+    {"workspace": "backend", "from": "n_search_algo",      "to": "n_slug",               "kind": "relates_to"},
+    {"workspace": "backend", "from": "n_pricing",          "to": "n_tax_rules",          "kind": "depends_on"},
+    {"workspace": "backend", "from": "n_pricing",          "to": "n_currency",           "kind": "depends_on"},
+    {"workspace": "backend", "from": "n_pricing",          "to": "n_shipping",           "kind": "relates_to"},
+    {"workspace": "backend", "from": "n_order_state",      "to": "n_payment",            "kind": "depends_on"},
+    {"workspace": "backend", "from": "n_order_state",      "to": "n_inventory_reservation","kind": "depends_on"},
+    {"workspace": "backend", "from": "n_order_state",      "to": "n_notifications",      "kind": "triggers"},
+    {"workspace": "backend", "from": "n_order_state",      "to": "n_refund",             "kind": "relates_to"},
+    {"workspace": "backend", "from": "n_order_state",      "to": "n_event_sourcing",     "kind": "supports"},
+    {"workspace": "backend", "from": "n_payment",          "to": "n_webhook",            "kind": "relates_to"},
+    {"workspace": "backend", "from": "n_inventory_reservation","to": "n_cart_merge",      "kind": "relates_to"},
+    {"workspace": "backend", "from": "n_product_import",   "to": "n_validation",         "kind": "depends_on"},
+    {"workspace": "backend", "from": "n_product_import",   "to": "n_slug",               "kind": "depends_on"},
+    {"workspace": "backend", "from": "n_review_moderation","to": "n_notifications",      "kind": "triggers"},
+    {"workspace": "backend", "from": "n_error_handling",   "to": "n_validation",         "kind": "relates_to"},
+    {"workspace": "backend", "from": "n_error_handling",   "to": "n_logging",            "kind": "relates_to"},
+    {"workspace": "backend", "from": "n_api_versioning",   "to": "n_rate_limiting",      "kind": "relates_to"},
+    {"workspace": "backend", "from": "n_images",           "to": "n_product_import",     "kind": "relates_to"},
+    {"workspace": "backend", "from": "n_caching",          "to": "n_db_strategy",        "kind": "relates_to"},
+    {"workspace": "backend", "from": "n_caching",          "to": "n_search_algo",        "kind": "supports"},
+    {"workspace": "backend", "from": "n_db_migration",     "to": "n_db_strategy",        "kind": "depends_on"},
+
+    {"workspace": "frontend", "from": "n_components",      "to": "n_state_mgmt",         "kind": "relates_to"},
+    {"workspace": "frontend", "from": "n_state_mgmt",      "to": "n_api_client",         "kind": "depends_on"},
+    {"workspace": "frontend", "from": "n_checkout",        "to": "n_a11y",               "kind": "depends_on"},
+    {"workspace": "frontend", "from": "n_checkout",        "to": "n_i18n",               "kind": "depends_on"},
+    {"workspace": "frontend", "from": "n_checkout",        "to": "n_form_validation",    "kind": "depends_on"},
+    {"workspace": "frontend", "from": "n_search_ux",       "to": "n_perf",               "kind": "relates_to"},
+    {"workspace": "frontend", "from": "n_admin_dashboard", "to": "n_admin_perms",        "kind": "depends_on"},
+    {"workspace": "frontend", "from": "n_admin_dashboard", "to": "n_realtime",           "kind": "depends_on"},
+    {"workspace": "frontend", "from": "n_csv_export",      "to": "n_admin_perms",        "kind": "depends_on"},
+    {"workspace": "frontend", "from": "n_design_tokens",   "to": "n_components",         "kind": "supports"},
+    {"workspace": "frontend", "from": "n_mobile_first",    "to": "n_perf",               "kind": "relates_to"},
+
+    {"workspace": "infra", "from": "n_aws",                "to": "n_terraform",          "kind": "supports"},
+    {"workspace": "infra", "from": "n_aws",                "to": "n_k8s_ns",             "kind": "supports"},
+    {"workspace": "infra", "from": "n_aws",                "to": "n_cost",               "kind": "relates_to"},
+    {"workspace": "infra", "from": "n_cicd",               "to": "n_monitoring",         "kind": "depends_on"},
+    {"workspace": "infra", "from": "n_incident",           "to": "n_monitoring",         "kind": "depends_on"},
+    {"workspace": "infra", "from": "n_incident",           "to": "n_db_backup",          "kind": "relates_to"},
+    {"workspace": "infra", "from": "n_scaling",            "to": "n_cost",               "kind": "relates_to"},
+    {"workspace": "infra", "from": "n_secrets",            "to": "n_k8s_ns",             "kind": "depends_on"},
+    {"workspace": "infra", "from": "n_log_aggregation",    "to": "n_monitoring",         "kind": "supports"},
+    {"workspace": "infra", "from": "n_ssl",                "to": "n_secrets",            "kind": "relates_to"}
+  ],
+
+  "crossGraphLinks": {
+    "noteToCode": [
+      {"workspace": "backend", "from": "n_jwt",              "to": "src/services/token-service.ts",       "kind": "implemented_in", "project": "api-gateway"},
+      {"workspace": "backend", "from": "n_jwt",              "to": "src/middleware/auth-guard.ts",            "kind": "implemented_in", "project": "api-gateway"},
+      {"workspace": "backend", "from": "n_rate_limiting",    "to": "src/middleware/rate-limiter.ts",        "kind": "implemented_in", "project": "api-gateway"},
+      {"workspace": "backend", "from": "n_circuit_breaker",  "to": "src/services/routing-service.ts",   "kind": "implemented_in", "project": "api-gateway"},
+      {"workspace": "backend", "from": "n_search_algo",      "to": "src/services/search-service.ts",     "kind": "implemented_in", "project": "catalog-service"},
+      {"workspace": "backend", "from": "n_category_tree",    "to": "src/models/category.ts",                  "kind": "implemented_in", "project": "catalog-service"},
+      {"workspace": "backend", "from": "n_slug",             "to": "src/utils/slug.ts",                   "kind": "implemented_in", "project": "catalog-service"},
+      {"workspace": "backend", "from": "n_order_state",      "to": "src/services/order-service.ts",       "kind": "implemented_in", "project": "order-service"},
+      {"workspace": "backend", "from": "n_payment",          "to": "src/services/payment-service.ts",   "kind": "implemented_in", "project": "order-service"},
+      {"workspace": "backend", "from": "n_pricing",          "to": "src/utils/price-calc.ts",      "kind": "implemented_in", "project": "order-service"},
+      {"workspace": "backend", "from": "n_tax_rules",        "to": "src/utils/tax.ts",                   "kind": "implemented_in", "project": "order-service"},
+      {"workspace": "backend", "from": "n_inventory_reservation","to": "src/services/inventory-service.ts","kind": "implemented_in", "project": "catalog-service"},
+      {"workspace": "backend", "from": "n_cors",             "to": "src/middleware/cors-middleware.ts",  "kind": "implemented_in", "project": "api-gateway"},
+      {"workspace": "backend", "from": "n_session",          "to": "src/services/session-service.ts",   "kind": "implemented_in", "project": "api-gateway"},
+
+      {"workspace": "frontend", "from": "n_checkout",        "to": "src/components/Checkout.tsx",              "kind": "implemented_in", "project": "web-store"},
+      {"workspace": "frontend", "from": "n_state_mgmt",      "to": "src/hooks/useCart.ts",                      "kind": "implemented_in", "project": "web-store"},
+      {"workspace": "frontend", "from": "n_search_ux",       "to": "src/components/SearchBar.tsx",            "kind": "implemented_in", "project": "web-store"},
+      {"workspace": "frontend", "from": "n_api_client",      "to": "src/services/api-client.ts",             "kind": "implemented_in", "project": "web-store"},
+      {"workspace": "frontend", "from": "n_admin_dashboard", "to": "src/components/Dashboard.tsx",            "kind": "implemented_in", "project": "admin-panel"},
+      {"workspace": "frontend", "from": "n_csv_export",      "to": "src/services/csv-export.ts",           "kind": "implemented_in", "project": "admin-panel"}
+    ],
+    "noteToDocs": [
+      {"workspace": "backend", "from": "n_order_state",      "to": "docs/order-state-machine.md", "kind": "documented_in", "project": "order-service"},
+      {"workspace": "backend", "from": "n_search_algo",      "to": "docs/search-algorithm.md",    "kind": "documented_in", "project": "catalog-service"},
+      {"workspace": "backend", "from": "n_payment",          "to": "docs/payment-integration.md", "kind": "documented_in", "project": "order-service"},
+      {"workspace": "backend", "from": "n_rate_limiting",    "to": "docs/rate-limiting.md",       "kind": "documented_in", "project": "api-gateway"},
+      {"workspace": "backend", "from": "n_jwt",              "to": "docs/auth-flow.md",           "kind": "documented_in", "project": "api-gateway"}
+    ],
+    "taskToCode": [
+      {"workspace": "backend", "from": "t_fix_webhook",       "to": "src/controllers/payment-controller.ts", "kind": "fixes",      "project": "order-service"},
+      {"workspace": "backend", "from": "t_fix_webhook",       "to": "src/services/payment-service.ts",          "kind": "fixes",      "project": "order-service"},
+      {"workspace": "backend", "from": "t_rate_limit_redis",  "to": "src/middleware/rate-limiter.ts",               "kind": "modifies",   "project": "api-gateway"},
+      {"workspace": "backend", "from": "t_fix_inventory",     "to": "src/services/inventory-service.ts",      "kind": "fixes",      "project": "catalog-service"},
+      {"workspace": "backend", "from": "t_product_search",    "to": "src/services/search-service.ts",            "kind": "implements", "project": "catalog-service"},
+      {"workspace": "backend", "from": "t_shipping_calc",     "to": "src/services/shipping-service.ts",        "kind": "implements", "project": "order-service"},
+      {"workspace": "backend", "from": "t_redis_session",     "to": "src/services/session-service.ts",          "kind": "modifies",   "project": "api-gateway"},
+      {"workspace": "backend", "from": "t_order_cancel",      "to": "src/services/order-service.ts",              "kind": "modifies",   "project": "order-service"},
+      {"workspace": "backend", "from": "t_tax_calc",          "to": "src/utils/tax.ts",                          "kind": "implements", "project": "order-service"},
+
+      {"workspace": "frontend", "from": "t_search_autocomplete","to": "src/components/SearchBar.tsx",                "kind": "modifies",   "project": "web-store"},
+      {"workspace": "frontend", "from": "t_checkout",          "to": "src/components/Checkout.tsx",                    "kind": "implements", "project": "web-store"},
+      {"workspace": "frontend", "from": "t_admin_orders",      "to": "src/components/Dashboard.tsx",                 "kind": "modifies",   "project": "admin-panel"}
+    ],
+    "taskToDocs": [
+      {"workspace": "backend", "from": "t_product_import",  "to": "docs/import-guide.md",        "kind": "documents", "project": "catalog-service"},
+      {"workspace": "backend", "from": "t_order_cancel",     "to": "docs/order-state-machine.md", "kind": "updates",   "project": "order-service"},
+      {"workspace": "backend", "from": "t_webhook_system",   "to": "docs/api-reference.md",       "kind": "updates",   "project": "api-gateway"}
+    ],
+    "taskToKnowledge": [
+      {"workspace": "backend",  "from": "t_fix_webhook",       "to": "n_payment",        "kind": "relates_to"},
+      {"workspace": "backend",  "from": "t_product_search",    "to": "n_search_algo",    "kind": "implements"},
+      {"workspace": "backend",  "from": "t_rate_limit_redis",  "to": "n_rate_limiting",  "kind": "implements"},
+      {"workspace": "backend",  "from": "t_tax_calc",          "to": "n_tax_rules",      "kind": "implements"},
+      {"workspace": "backend",  "from": "t_cart_merge",        "to": "n_cart_merge",     "kind": "implements"},
+
+      {"workspace": "frontend", "from": "t_checkout",          "to": "n_checkout",       "kind": "implements"},
+      {"workspace": "frontend", "from": "t_search_autocomplete","to": "n_search_ux",     "kind": "implements"},
+      {"workspace": "frontend", "from": "t_a11y_audit",        "to": "n_a11y",           "kind": "implements"},
+      {"workspace": "frontend", "from": "t_dark_mode",         "to": "n_design_tokens",  "kind": "relates_to"}
+    ],
+    "skillToCode": [
+      {"workspace": "backend", "from": "s_debug_auth",      "to": "src/middleware/auth-guard.ts",                    "kind": "inspects",   "project": "api-gateway"},
+      {"workspace": "backend", "from": "s_debug_auth",      "to": "src/services/token-service.ts",               "kind": "inspects",   "project": "api-gateway"},
+      {"workspace": "backend", "from": "s_handle_webhook",  "to": "src/controllers/payment-controller.ts",  "kind": "modifies",   "project": "order-service"},
+      {"workspace": "backend", "from": "s_impl_search",     "to": "src/services/search-service.ts",             "kind": "references", "project": "catalog-service"},
+      {"workspace": "backend", "from": "s_redis_cache",     "to": "src/services/session-service.ts",           "kind": "references", "project": "api-gateway"}
+    ],
+    "skillToDocs": [
+      {"workspace": "backend", "from": "s_add_rest", "to": "docs/api-reference.md", "kind": "references", "project": "api-gateway"}
+    ]
+  },
+
+  "taskLinks": [
+    {"workspace": "backend",  "from": "t_product_search",    "to": "t_api_pagination",      "kind": "depends_on"},
+    {"workspace": "backend",  "from": "t_webhook_system",    "to": "t_fix_webhook",         "kind": "related_to"},
+    {"workspace": "backend",  "from": "t_multi_currency",    "to": "t_bulk_pricing",        "kind": "related_to"},
+    {"workspace": "backend",  "from": "t_promo_codes",       "to": "t_bulk_pricing",        "kind": "depends_on"},
+    {"workspace": "backend",  "from": "t_order_cancel",      "to": "t_fix_webhook",         "kind": "blocks"},
+    {"workspace": "backend",  "from": "t_fix_inventory",     "to": "t_product_search",      "kind": "blocks"},
+    {"workspace": "backend",  "from": "t_fix_session_expiry","to": "t_redis_session",       "kind": "depends_on"},
+    {"workspace": "backend",  "from": "t_recommendations",   "to": "t_product_search",      "kind": "depends_on"},
+    {"workspace": "backend",  "from": "t_audit_log",         "to": "t_structured_logging",  "kind": "depends_on"},
+    {"workspace": "backend",  "from": "t_wishlist",          "to": "t_product_search",      "kind": "related_to"},
+
+    {"workspace": "frontend", "from": "t_search_autocomplete","to": "t_infinite_scroll",    "kind": "related_to"},
+    {"workspace": "frontend", "from": "t_checkout",           "to": "t_cart_persist",        "kind": "depends_on"},
+    {"workspace": "frontend", "from": "t_checkout",           "to": "t_saved_addresses",     "kind": "depends_on"},
+    {"workspace": "frontend", "from": "t_analytics_charts",   "to": "t_admin_orders",        "kind": "related_to"},
+    {"workspace": "frontend", "from": "t_dark_mode",          "to": "t_skeletons",           "kind": "blocks"},
+    {"workspace": "frontend", "from": "t_image_gallery",      "to": "t_review_submit",       "kind": "related_to"},
+    {"workspace": "frontend", "from": "t_admin_refund",       "to": "t_admin_orders",        "kind": "depends_on"},
+    {"workspace": "frontend", "from": "t_admin_import",       "to": "t_product_editor",      "kind": "related_to"},
+
+    {"workspace": "infra",    "from": "t_prom_alerting",      "to": "t_staging",             "kind": "depends_on"},
+    {"workspace": "infra",    "from": "t_canary",             "to": "t_staging",             "kind": "depends_on"},
+    {"workspace": "infra",    "from": "t_grafana_biz",        "to": "t_prom_alerting",       "kind": "depends_on"},
+    {"workspace": "infra",    "from": "t_log_rotation",       "to": "t_aws_costs",           "kind": "related_to"}
+  ],
+
+  "skillLinks": [
+    {"workspace": "backend",  "from": "s_deploy_staging",   "to": "s_add_rest",           "kind": "related_to"},
+    {"workspace": "backend",  "from": "s_perf_profile",     "to": "s_add_rest",           "kind": "related_to"},
+    {"workspace": "backend",  "from": "s_db_migration",     "to": "s_integration_tests",  "kind": "depends_on"},
+    {"workspace": "backend",  "from": "s_redis_cache",      "to": "s_perf_profile",       "kind": "related_to"},
+    {"workspace": "backend",  "from": "s_add_rate_limit",   "to": "s_add_rest",           "kind": "related_to"},
+
+    {"workspace": "frontend", "from": "s_custom_hook",      "to": "s_react_component",    "kind": "related_to"},
+    {"workspace": "frontend", "from": "s_debug_render",     "to": "s_opt_bundle",         "kind": "related_to"},
+    {"workspace": "frontend", "from": "s_data_table",       "to": "s_react_component",    "kind": "depends_on"},
+    {"workspace": "frontend", "from": "s_dark_mode_support","to": "s_react_component",    "kind": "related_to"},
+
+    {"workspace": "infra",    "from": "s_sev1",             "to": "s_restore_db",         "kind": "may_require"},
+    {"workspace": "infra",    "from": "s_deploy_prod",      "to": "s_sev1",               "kind": "related_to"},
+    {"workspace": "infra",    "from": "s_scale_traffic",    "to": "s_deploy_prod",        "kind": "related_to"},
+    {"workspace": "infra",    "from": "s_debug_k8s",        "to": "s_sev1",               "kind": "related_to"}
+  ]
+}

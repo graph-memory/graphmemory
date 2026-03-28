@@ -1,0 +1,1 @@
+{"key":"t_refresh_token","title":"Implement Refresh Token Rotation","description":"Rotate refresh tokens on each use. Store token family to detect reuse (potential theft). Invalidate entire family on reuse detection.","status":"done","priority":"high","tags":["security","auth","gateway"],"assignee":"Alex Chen"}

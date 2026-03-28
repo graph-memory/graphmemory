@@ -1,0 +1,1 @@
+{"key":"t_webhook_system","title":"Webhook Delivery System","description":"Implement webhook delivery for order events. HMAC-SHA256 signatures, exponential backoff retry, dead letter queue. Admin API for webhook management.","status":"todo","priority":"high","tags":["feature","webhooks","order-service"],"assignee":"James Wilson"}

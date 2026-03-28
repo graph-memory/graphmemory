@@ -1,0 +1,1 @@
+{"key":"t_kbd_shortcuts","title":"Add Keyboard Shortcuts","description":"Global keyboard shortcuts: / for search, Esc to close modals, Ctrl+K command palette in admin. Use event delegation, show shortcut hints on hover.","status":"backlog","priority":"low","tags":["ux","a11y","web-store"]}

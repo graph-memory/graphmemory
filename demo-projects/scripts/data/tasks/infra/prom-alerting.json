@@ -1,0 +1,1 @@
+{"key":"t_prom_alerting","title":"Configure Prometheus Alerting Rules","description":"Set up alert rules for: error rate > 5%, p99 latency > 2s, pod restarts > 3, disk usage > 80%, certificate expiry < 30 days. PagerDuty integration for critical.","status":"todo","priority":"high","tags":["monitoring","alerting"],"assignee":"Tom Nguyen"}

@@ -1,0 +1,16 @@
+[
+  {"dir": "backend", "id": "alex-chen",    "name": "Alex Chen",    "email": "alex.chen@shopflow.dev",    "role": "Backend Lead"},
+  {"dir": "backend", "id": "maria-garcia", "name": "Maria Garcia", "email": "maria.garcia@shopflow.dev", "role": "Senior Backend Engineer"},
+  {"dir": "backend", "id": "james-wilson", "name": "James Wilson", "email": "james.wilson@shopflow.dev", "role": "Backend Engineer"},
+  {"dir": "backend", "id": "sarah-kim",    "name": "Sarah Kim",    "email": "sarah.kim@shopflow.dev",    "role": "Backend Engineer"},
+  {"dir": "backend", "id": "david-okafor", "name": "David Okafor", "email": "david.okafor@shopflow.dev", "role": "DevOps Engineer"},
+
+  {"dir": "frontend", "id": "emma-johnson", "name": "Emma Johnson", "email": "emma.johnson@shopflow.dev", "role": "Frontend Lead"},
+  {"dir": "frontend", "id": "lucas-brown",  "name": "Lucas Brown",  "email": "lucas.brown@shopflow.dev",  "role": "Senior Frontend Engineer"},
+  {"dir": "frontend", "id": "nina-patel",   "name": "Nina Patel",   "email": "nina.patel@shopflow.dev",   "role": "Frontend Engineer"},
+  {"dir": "frontend", "id": "ryan-taylor",  "name": "Ryan Taylor",  "email": "ryan.taylor@shopflow.dev",  "role": "UI/UX Engineer"},
+
+  {"dir": "infra", "id": "david-okafor", "name": "David Okafor", "email": "david.okafor@shopflow.dev", "role": "DevOps Engineer"},
+  {"dir": "infra", "id": "alex-chen",    "name": "Alex Chen",    "email": "alex.chen@shopflow.dev",    "role": "Backend Lead"},
+  {"dir": "infra", "id": "tom-nguyen",   "name": "Tom Nguyen",   "email": "tom.nguyen@shopflow.dev",   "role": "SRE"}
+]

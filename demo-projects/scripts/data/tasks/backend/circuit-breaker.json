@@ -1,0 +1,1 @@
+{"key":"t_circuit_breaker","title":"Circuit Breaker for Downstream Services","description":"Add circuit breaker pattern to proxy-controller for catalog and order service calls. Prevent cascade failures during service degradation.","status":"review","priority":"high","tags":["resilience","gateway","feature"],"assignee":"Alex Chen"}

@@ -1,0 +1,1 @@
+{"key":"t_error_boundaries","title":"Add Error Boundary Components","description":"Wrap major sections (header, product list, cart, checkout) in error boundaries. Show friendly error message with retry button. Log errors to monitoring.","status":"todo","priority":"medium","tags":["error-handling","ux"],"assignee":"Lucas Brown"}

@@ -1,0 +1,1 @@
+{"key":"t_wishlist","title":"Implement Wishlist API","description":"Add user wishlist: add/remove products, list wishlist items with availability status. Notify user when wishlisted out-of-stock item becomes available. Max 100 items per user.","status":"backlog","priority":"medium","tags":["feature","catalog","user"]}

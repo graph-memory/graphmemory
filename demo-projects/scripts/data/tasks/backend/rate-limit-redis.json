@@ -1,0 +1,1 @@
+{"key":"t_rate_limit_redis","title":"Implement Rate Limit Redis Backend","description":"Current in-memory rate limiter doesnt work with multiple gateway instances. Migrate to Redis-based counter with MULTI/EXEC for atomicity.","status":"todo","priority":"critical","tags":["gateway","rate-limiting","scaling"],"assignee":"Alex Chen"}

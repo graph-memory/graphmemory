@@ -1,0 +1,1 @@
+{"key":"t_waf","title":"Set Up WAF Rules","description":"Configure AWS WAF on CloudFront and ALB. Rules: SQL injection, XSS, rate limiting, geo-blocking for sanctioned countries, bot detection.","status":"todo","priority":"medium","tags":["security","waf","networking"],"assignee":"David Okafor"}

@@ -1,0 +1,1 @@
+{"key":"t_backup_verify","title":"Database Backup Verification","description":"Create monthly automated restore test. Restore latest RDS snapshot to temporary instance, run data integrity checks, send report, tear down.","status":"todo","priority":"high","tags":["database","backup","reliability"],"assignee":"Tom Nguyen"}

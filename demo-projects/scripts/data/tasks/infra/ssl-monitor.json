@@ -1,0 +1,1 @@
+{"key":"t_ssl_monitor","title":"Automate SSL Certificate Renewal Monitoring","description":"Prometheus blackbox exporter probes for cert expiry. Alert at 30 and 7 days before expiry. Auto-renew via cert-manager for internal certs. Dashboard showing all cert statuses.","status":"done","priority":"medium","tags":["ssl","monitoring","automation"],"assignee":"David Okafor"}

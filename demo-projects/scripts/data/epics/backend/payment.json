@@ -1,0 +1,1 @@
+{"key":"e_payment","title":"Payment System Overhaul","description":"Complete rework of payment processing: fix webhook idempotency, add multi-currency support, implement refund automation, and integrate new payment providers. Critical for Q2 revenue targets.","status":"in_progress","priority":"critical","tags":["payment","q2","revenue"]}

@@ -1,0 +1,1 @@
+{"key":"t_structured_logging","title":"Add Structured Logging","description":"Replace console.log with structured JSON logger. Include service name, correlation ID, timestamp, log level. Configure log level via environment variable.","status":"done","priority":"medium","tags":["logging","observability"],"assignee":"David Okafor"}

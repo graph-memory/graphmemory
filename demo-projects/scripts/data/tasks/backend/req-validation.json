@@ -1,0 +1,1 @@
+{"key":"t_req_validation","title":"Add Request Validation Middleware","description":"Create reusable validation middleware using schema definitions. Validate body, query params, and path params. Return detailed 400 errors.","status":"done","priority":"medium","tags":["validation","middleware","gateway"],"assignee":"Alex Chen"}

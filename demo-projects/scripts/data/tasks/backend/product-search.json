@@ -1,0 +1,1 @@
+{"key":"t_product_search","title":"Implement Product Full-Text Search","description":"Add BM25-based search across product title, description, and tags. Include faceted filtering by category, price range, and rating. Autocomplete for search suggestions.","status":"in_progress","priority":"high","tags":["feature","search","catalog-service"],"assignee":"Sarah Kim"}

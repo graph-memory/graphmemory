@@ -1,0 +1,1 @@
+{"key":"t_prometheus","title":"Add Prometheus Metrics Endpoint","description":"Expose /metrics endpoint on all services with request duration histograms, error counters, and active connection gauges.","status":"done","priority":"medium","tags":["monitoring","observability"],"assignee":"David Okafor"}

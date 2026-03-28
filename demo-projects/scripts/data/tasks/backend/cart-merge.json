@@ -1,0 +1,1 @@
+{"key":"t_cart_merge","title":"Implement Cart Merge on Login","description":"When anonymous user logs in, merge anonymous cart with saved cart. Handle conflicts (same product in both carts).","status":"todo","priority":"medium","tags":["feature","cart","order-service"],"assignee":"James Wilson"}

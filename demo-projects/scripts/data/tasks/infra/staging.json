@@ -1,0 +1,1 @@
+{"key":"t_staging","title":"Set Up Staging Environment","description":"Create staging Terraform workspace. Deploy all services to staging namespace. Configure staging database (smaller instance). Set up staging URL and SSL cert.","status":"in_progress","priority":"critical","tags":["infrastructure","staging"],"assignee":"David Okafor"}

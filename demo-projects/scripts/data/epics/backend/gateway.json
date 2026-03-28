@@ -1,0 +1,1 @@
+{"key":"e_gateway","title":"API Gateway Hardening","description":"Strengthen the API gateway: Redis-based rate limiting, Redis session store, circuit breaker improvements, request validation, graceful shutdown. Target: 99.95% uptime SLA.","status":"in_progress","priority":"high","tags":["gateway","reliability","sla"]}

@@ -1,0 +1,1 @@
+{"key":"t_storybook","title":"Add Storybook for Components","description":"Set up Storybook. Create stories for all shared components (ProductCard, SearchBar, Cart, etc.). Include variants, states, and responsive viewports.","status":"backlog","priority":"low","tags":["documentation","components"]}

@@ -1,0 +1,1 @@
+{"key":"t_e2e_checkout","title":"Add E2E Tests for Checkout","description":"Cypress E2E tests covering full checkout flow: browse → add to cart → checkout → mock payment → confirmation. Test both logged-in and guest flows.","status":"backlog","priority":"low","tags":["testing","e2e","checkout"]}

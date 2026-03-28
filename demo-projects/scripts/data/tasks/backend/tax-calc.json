@@ -1,0 +1,1 @@
+{"key":"t_tax_calc","title":"Tax Calculation by Region","description":"Implement tax lookup service supporting US state taxes, EU VAT, and UK VAT. Tax-exempt categories for certain product types.","status":"in_progress","priority":"medium","tags":["feature","tax","order-service"],"assignee":"Maria Garcia"}

@@ -1,0 +1,1 @@
+{"key":"e_production","title":"Production Readiness","description":"Prepare infrastructure for production launch: staging environment, monitoring and alerting, canary deployments, WAF rules, disaster recovery runbook, backup verification. Launch target: end of Q2.","status":"in_progress","priority":"critical","tags":["launch","infrastructure","q2"]}

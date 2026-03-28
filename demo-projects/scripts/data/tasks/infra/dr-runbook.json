@@ -1,0 +1,1 @@
+{"key":"t_dr_runbook","title":"Create Disaster Recovery Runbook","description":"Document full DR procedure: detect outage, failover DNS to DR region, verify service health, data consistency check, failback procedure.","status":"todo","priority":"medium","tags":["disaster-recovery","runbook"],"assignee":"David Okafor"}

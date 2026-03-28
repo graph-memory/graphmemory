@@ -1,0 +1,1 @@
+{"key":"t_fix_session_expiry","title":"Fix Session Expiry Not Clearing Cart Lock","description":"When user session expires during checkout, the cart lock and inventory reservations are not released. Need cleanup job or TTL-based auto-release.","status":"todo","priority":"critical","tags":["bug","session","order-service"],"assignee":"James Wilson"}

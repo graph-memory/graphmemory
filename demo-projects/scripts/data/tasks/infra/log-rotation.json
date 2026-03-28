@@ -1,0 +1,1 @@
+{"key":"t_log_rotation","title":"Set Up Log Rotation and Archival","description":"Configure Fluent Bit log rotation. Archive logs older than 30 days to S3 in Parquet format. Set up CloudWatch Logs retention policies per log group. Estimate storage cost savings.","status":"todo","priority":"medium","tags":["logging","storage","cost"],"assignee":"Tom Nguyen"}

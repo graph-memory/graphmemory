@@ -1,0 +1,1 @@
+{"key":"t_api_pagination","title":"API Response Pagination","description":"Standardize pagination across all list endpoints. Support both cursor-based (default) and offset pagination. Include totalCount, hasNext, nextCursor in response.","status":"done","priority":"medium","tags":["api","convention"],"assignee":"Alex Chen"}

@@ -1,0 +1,1 @@
+{"key":"t_recommendations","title":"Implement Product Recommendations","description":"Add frequently-bought-together and similar-products recommendations. Based on order co-occurrence data. Cache recommendations in Redis with 1h TTL. Display on product detail page.","status":"todo","priority":"medium","tags":["feature","catalog","ml"],"assignee":"Sarah Kim"}

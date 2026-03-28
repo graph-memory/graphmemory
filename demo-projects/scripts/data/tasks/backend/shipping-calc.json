@@ -1,0 +1,1 @@
+{"key":"t_shipping_calc","title":"Add Shipping Rate Calculator","description":"Implement shipping cost calculation based on destination zone, weight, dimensions, and speed. Include free shipping threshold logic.","status":"in_progress","priority":"high","tags":["feature","shipping","order-service"],"assignee":"James Wilson"}

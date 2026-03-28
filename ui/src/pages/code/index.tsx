@@ -155,6 +155,12 @@ export default function CodePage() {
         </Typography>
       )}
 
+      {!searchResults && (
+        <Box sx={{ mb: 2 }}>
+          <PaginationBar page={page} totalPages={totalPages} onPageChange={setPage} onRefresh={loadFiles} />
+        </Box>
+      )}
+
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
       {loading || searching ? (

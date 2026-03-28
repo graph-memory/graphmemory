@@ -11,7 +11,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
 import { useWebSocket } from '@/shared/lib/useWebSocket.ts';
 import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
-import { PageTopBar, StatusBadge, Tags } from '@/shared/ui/index.ts';
+import { PageTopBar, StatusBadge, Tags, PaginationBar } from '@/shared/ui/index.ts';
 import { listEpics, type Epic, type EpicStatus } from '@/entities/epic/index.ts';
 import { PRIORITY_COLORS, PRIORITY_BADGE_COLOR, priorityLabel, type TaskPriority } from '@/entities/task/index.ts';
 
@@ -140,6 +140,10 @@ export default function EpicsPage() {
         {hasFilters && <Button size="small" onClick={() => { setSearchQuery(''); setFilterStatus(''); setFilterPriority(''); }}>Clear</Button>}
       </Box>
 
+      <Box sx={{ mb: 2 }}>
+        <PaginationBar page={1} totalPages={1} onPageChange={() => {}} onRefresh={refresh} />
+      </Box>
+
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
@@ -207,6 +211,9 @@ export default function EpicsPage() {
           })}
         </Box>
       )}
+      <Box sx={{ mt: 2 }}>
+        <PaginationBar page={1} totalPages={1} onPageChange={() => {}} onRefresh={refresh} />
+      </Box>
     </Box>
   );
 }

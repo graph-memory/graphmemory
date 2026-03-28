@@ -176,6 +176,12 @@ export default function FilesPage() {
         </Typography>
       )}
 
+      {!searchResults && (
+        <Box sx={{ mb: 2 }}>
+          <PaginationBar page={page} totalPages={totalPages} onPageChange={setPage} onRefresh={() => loadFiles(currentDir)} />
+        </Box>
+      )}
+
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {loading || searching ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>

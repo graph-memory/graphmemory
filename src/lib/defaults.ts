@@ -41,7 +41,6 @@ export const MAX_UPLOAD_SIZE    = 50 * 1024 * 1024;   // 50 MB (multer)
 export const SIGNATURE_MAX_LEN  = 300;
 
 export const LIST_LIMIT_SMALL   = 10;
-export const LIST_LIMIT_LARGE   = 50;
 export const LIST_PAGE_SIZE     = 25;
 export const LIST_PAGE_SIZE_TABLE = 50;
 

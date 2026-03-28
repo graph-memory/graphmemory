@@ -108,6 +108,12 @@ export default function SkillsPage() {
         </Box>
       )}
 
+      {!searchResults && (
+        <Box sx={{ mb: 2 }}>
+          <PaginationBar page={page} totalPages={totalPages} onPageChange={setPage} onRefresh={refresh} />
+        </Box>
+      )}
+
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {loading || searching ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>

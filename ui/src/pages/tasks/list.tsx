@@ -22,7 +22,7 @@ import {
 } from '@dnd-kit/core';
 import { useWebSocket } from '@/shared/lib/useWebSocket.ts';
 import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
-import { PageTopBar, StatusBadge, ConfirmDialog } from '@/shared/ui/index.ts';
+import { PageTopBar, StatusBadge, ConfirmDialog, PaginationBar } from '@/shared/ui/index.ts';
 import {
   listTasks, updateTask, reorderTask, bulkMoveTasks, bulkUpdatePriority, bulkDeleteTasks,
   COLUMNS, PRIORITY_COLORS, PRIORITY_BADGE_COLOR, priorityLabel, statusLabel,
@@ -681,6 +681,10 @@ export default function TaskListPage() {
         </Paper>
       )}
 
+      <Box sx={{ mb: 2 }}>
+        <PaginationBar page={1} totalPages={1} onPageChange={() => {}} onRefresh={refresh} />
+      </Box>
+
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
@@ -765,6 +769,10 @@ export default function TaskListPage() {
           </DragOverlay>
         </DndContext>
       )}
+
+      <Box sx={{ mt: 2 }}>
+        <PaginationBar page={1} totalPages={1} onPageChange={() => {}} onRefresh={refresh} />
+      </Box>
 
       <ConfirmDialog
         open={!!deleteTarget}

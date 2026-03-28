@@ -139,6 +139,12 @@ export default function DocsPage() {
         </Typography>
       )}
 
+      {!searchResults && (
+        <Box sx={{ mb: 2 }}>
+          <PaginationBar page={page} totalPages={totalPages} onPageChange={setPage} onRefresh={loadTopics} />
+        </Box>
+      )}
+
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
       {loading || searching ? (

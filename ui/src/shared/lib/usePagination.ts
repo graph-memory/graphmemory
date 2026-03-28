@@ -1,7 +1,7 @@
 import { useState } from 'react';
+import { PAGE_SIZE } from './defaults.ts';
 
-export const PAGE_SIZE = 25;
-export const PAGE_SIZE_TABLE = 50;
+export { PAGE_SIZE, PAGE_SIZE_TABLE } from './defaults.ts';
 
 export function usePagination(pageSize = PAGE_SIZE) {
   const [page, setPage] = useState(1);

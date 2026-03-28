@@ -22,7 +22,7 @@ import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-
 import { CSS } from '@dnd-kit/utilities';
 import { useWebSocket } from '@/shared/lib/useWebSocket.ts';
 import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
-import { PageTopBar, StatusBadge, ConfirmDialog } from '@/shared/ui/index.ts';
+import { PageTopBar, StatusBadge, ConfirmDialog, PaginationBar } from '@/shared/ui/index.ts';
 import {
   listTasks, reorderTask, updateTask, deleteTask,
   COLUMNS, PRIORITY_COLORS, PRIORITY_BADGE_COLOR, priorityLabel,
@@ -599,6 +599,10 @@ export default function TaskBoardPage() {
         )}
       </Box>
 
+      <Box sx={{ mb: 2 }}>
+        <PaginationBar page={1} totalPages={1} onPageChange={() => {}} onRefresh={refresh} />
+      </Box>
+
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
@@ -710,6 +714,10 @@ export default function TaskBoardPage() {
           </DragOverlay>
         </DndContext>
       )}
+
+      <Box sx={{ mt: 2 }}>
+        <PaginationBar page={1} totalPages={1} onPageChange={() => {}} onRefresh={refresh} />
+      </Box>
 
       <ConfirmDialog
         open={!!deleteTarget}

@@ -1,4 +1,4 @@
-import { request, qs, unwrapList, type ListResponse } from '@/shared/api/client.ts';
+import { request, qs, unwrapList, unwrapPaginated, type ListResponse, type PaginatedResponse } from '@/shared/api/client.ts';
 
 export interface FileInfo {
   filePath: string;
@@ -11,11 +11,11 @@ export interface FileInfo {
   fileCount: number;
 }
 
-export function listFiles(projectId: string, params?: { directory?: string; extension?: string; language?: string; filter?: string; limit?: number }) {
-  return request<ListResponse<FileInfo>>(`/projects/${projectId}/files${qs({
+export function listFiles(projectId: string, params?: { directory?: string; extension?: string; language?: string; filter?: string; limit?: number; offset?: number }) {
+  return request<PaginatedResponse<FileInfo>>(`/projects/${projectId}/files${qs({
     directory: params?.directory, extension: params?.extension,
-    language: params?.language, filter: params?.filter, limit: params?.limit,
-  })}`).then(unwrapList);
+    language: params?.language, filter: params?.filter, limit: params?.limit, offset: params?.offset,
+  })}`).then(unwrapPaginated);
 }
 
 export function searchFiles(projectId: string, query: string, params?: { topK?: number; minScore?: number }) {

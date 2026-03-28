@@ -10,7 +10,8 @@ import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import SearchIcon from '@mui/icons-material/Search';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
-import { PageTopBar, FilterBar, StatusBadge, EmptyState } from '@/shared/ui/index.ts';
+import { PageTopBar, FilterBar, StatusBadge, EmptyState, PaginationBar } from '@/shared/ui/index.ts';
+import { usePagination, PAGE_SIZE } from '@/shared/lib/usePagination.ts';
 import { listFiles, searchFiles, type FileInfo } from '@/entities/file/index.ts';
 
 function formatSize(bytes?: number) {
@@ -29,6 +30,7 @@ export default function FilesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentDir, setCurrentDir] = useState(searchParams.get('dir') || '.');
+  const { page, setPage, setTotal, totalPages, offset, pageSize } = usePagination(PAGE_SIZE);
   const [searchResults, setSearchResults] = useState<Array<FileInfo & { score: number }> | null>(null);
   const [searching, setSearching] = useState(false);
   const [search, setSearch] = useState(searchParams.get('q') || '');
@@ -45,15 +47,16 @@ export default function FilesPage() {
     setLoading(true);
     setError(null);
     try {
-      const result = await listFiles(projectId, { directory: dir || '.' });
-      setFiles(result);
+      const { items, total: t } = await listFiles(projectId, { directory: dir || '.', limit: pageSize, offset });
+      setFiles(items);
+      setTotal(t);
       setCurrentDir(dir);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
-  }, [projectId]);
+  }, [projectId, pageSize, offset, setTotal]);
 
   useEffect(() => { loadFiles(searchParams.get('dir') || '.'); }, [loadFiles]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -83,6 +86,7 @@ export default function FilesPage() {
   const handleNavigate = (file: FileInfo) => {
     if (file.kind === 'directory') {
       setSearchResults(null);
+      setPage(1);
       updateDirParam(file.filePath);
       loadFiles(file.filePath);
     } else {
@@ -92,6 +96,7 @@ export default function FilesPage() {
 
   const handleBreadcrumb = (path: string) => {
     setSearchResults(null);
+    setPage(1);
     updateDirParam(path);
     loadFiles(path);
   };
@@ -221,6 +226,12 @@ export default function FilesPage() {
             ))}
           </List>
         </Paper>
+      )}
+
+      {!searchResults && (
+        <Box sx={{ mt: 2 }}>
+          <PaginationBar page={page} totalPages={totalPages} onPageChange={setPage} onRefresh={() => loadFiles(currentDir)} />
+        </Box>
       )}
     </Box>
   );

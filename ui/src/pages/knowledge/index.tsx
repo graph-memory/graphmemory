@@ -10,7 +10,8 @@ import CloseIcon from '@mui/icons-material/Close';
 import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
 import { useWebSocket } from '@/shared/lib/useWebSocket.ts';
 import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
-import { PageTopBar, FilterBar, EmptyState } from '@/shared/ui/index.ts';
+import { PageTopBar, FilterBar, EmptyState, PaginationBar } from '@/shared/ui/index.ts';
+import { PAGE_SIZE } from '@/shared/lib/usePagination.ts';
 import { searchNotes, type Note, NoteCard } from '@/entities/note/index.ts';
 import { useNotes } from '@/features/note-crud/index.ts';
 
@@ -19,7 +20,7 @@ export default function KnowledgePage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const canWrite = useCanWrite('knowledge');
-  const { notes, loading, error, refresh } = useNotes(projectId ?? null);
+  const { notes, page, setPage, totalPages, loading, error, refresh } = useNotes(projectId ?? null, PAGE_SIZE);
 
   const [search, setSearch] = useState(searchParams.get('q') || '');
   const [searchResults, setSearchResults] = useState<Array<Note & { score: number }> | null>(null);
@@ -137,6 +138,12 @@ export default function KnowledgePage() {
             />
           ))}
         </Stack>
+      )}
+
+      {!searchResults && (
+        <Box sx={{ mt: 2 }}>
+          <PaginationBar page={page} totalPages={totalPages} onPageChange={setPage} onRefresh={refresh} />
+        </Box>
       )}
     </Box>
   );

@@ -59,7 +59,7 @@ export function QuickCreateDialog({ open, onClose, onCreated, defaultStatus }: Q
       resetForm();
       if (projectId) {
         listTeam(projectId).then(setTeam).catch(() => {});
-        listEpics(projectId).then(list => setEpics(list.filter(e => e.status === 'open' || e.status === 'in_progress'))).catch(() => {});
+        listEpics(projectId).then(({ items: list }) => setEpics(list.filter(e => e.status === 'open' || e.status === 'in_progress'))).catch(() => {});
       }
     }
   }, [open, defaultStatus, projectId]);

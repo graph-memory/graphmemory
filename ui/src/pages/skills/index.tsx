@@ -10,7 +10,8 @@ import CloseIcon from '@mui/icons-material/Close';
 import PsychologyIcon from '@mui/icons-material/Psychology';
 import { useWebSocket } from '@/shared/lib/useWebSocket.ts';
 import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
-import { PageTopBar, FilterBar, EmptyState } from '@/shared/ui/index.ts';
+import { PageTopBar, FilterBar, EmptyState, PaginationBar } from '@/shared/ui/index.ts';
+import { PAGE_SIZE } from '@/shared/lib/usePagination.ts';
 import { searchSkills, type Skill, type SkillSearchResult, SkillCard } from '@/entities/skill/index.ts';
 import { useSkills } from '@/features/skill-crud/index.ts';
 
@@ -19,7 +20,7 @@ export default function SkillsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const canWrite = useCanWrite('skills');
-  const { skills, loading, error, refresh } = useSkills(projectId ?? null);
+  const { skills, page, setPage, totalPages, loading, error, refresh } = useSkills(projectId ?? null, PAGE_SIZE);
 
   const [search, setSearch] = useState(searchParams.get('q') || '');
   const [searchResults, setSearchResults] = useState<SkillSearchResult[] | null>(null);
@@ -137,6 +138,12 @@ export default function SkillsPage() {
             />
           ))}
         </Stack>
+      )}
+
+      {!searchResults && (
+        <Box sx={{ mt: 2 }}>
+          <PaginationBar page={page} totalPages={totalPages} onPageChange={setPage} onRefresh={refresh} />
+        </Box>
       )}
     </Box>
   );

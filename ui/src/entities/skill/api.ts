@@ -1,4 +1,4 @@
-import { request, requestUpload, qs, unwrapList, type ListResponse } from '@/shared/api/client.ts';
+import { request, requestUpload, qs, unwrapList, unwrapPaginated, type ListResponse, type PaginatedResponse } from '@/shared/api/client.ts';
 
 export interface AttachmentMeta {
   filename: string;
@@ -54,8 +54,8 @@ export interface SkillRelation {
   title?: string;
 }
 
-export function listSkills(projectId: string, params?: { source?: string; tag?: string; limit?: number }) {
-  return request<ListResponse<Skill>>(`/projects/${projectId}/skills${qs({ source: params?.source, tag: params?.tag, limit: params?.limit })}`).then(unwrapList);
+export function listSkills(projectId: string, params?: { source?: string; tag?: string; limit?: number; offset?: number }) {
+  return request<PaginatedResponse<Skill>>(`/projects/${projectId}/skills${qs({ source: params?.source, tag: params?.tag, limit: params?.limit, offset: params?.offset })}`).then(unwrapPaginated);
 }
 
 export function getSkill(projectId: string, skillId: string) {

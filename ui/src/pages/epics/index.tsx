@@ -52,8 +52,8 @@ export default function EpicsPage() {
   const refresh = useCallback(async () => {
     if (!projectId) return;
     try {
-      const result = await listEpics(projectId, { limit: 200 });
-      setEpics(result);
+      const { items } = await listEpics(projectId, { limit: 200 });
+      setEpics(items);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
     } finally { setLoading(false); }

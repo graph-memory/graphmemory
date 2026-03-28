@@ -1,4 +1,4 @@
-import { request, requestUpload, qs, unwrapList, type ListResponse } from '@/shared/api/client.ts';
+import { request, requestUpload, qs, unwrapList, unwrapPaginated, type ListResponse, type PaginatedResponse } from '@/shared/api/client.ts';
 
 export type TaskStatus = 'backlog' | 'todo' | 'in_progress' | 'review' | 'done' | 'cancelled';
 export type TaskPriority = 'critical' | 'high' | 'medium' | 'low';
@@ -22,8 +22,8 @@ export interface Task {
   updatedBy?: string;
 }
 
-export function listTasks(projectId: string, params?: { status?: TaskStatus; priority?: TaskPriority; tag?: string; assignee?: string; limit?: number }) {
-  return request<ListResponse<Task>>(`/projects/${projectId}/tasks${qs({ status: params?.status, priority: params?.priority, tag: params?.tag, assignee: params?.assignee, limit: params?.limit })}`).then(unwrapList);
+export function listTasks(projectId: string, params?: { status?: TaskStatus; priority?: TaskPriority; tag?: string; assignee?: string; limit?: number; offset?: number }) {
+  return request<PaginatedResponse<Task>>(`/projects/${projectId}/tasks${qs({ status: params?.status, priority: params?.priority, tag: params?.tag, assignee: params?.assignee, limit: params?.limit, offset: params?.offset })}`).then(unwrapPaginated);
 }
 
 export function getTask(projectId: string, taskId: string) {

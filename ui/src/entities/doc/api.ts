@@ -1,4 +1,4 @@
-import { request, qs, unwrapList, type ListResponse } from '@/shared/api/client.ts';
+import { request, qs, unwrapList, unwrapPaginated, type ListResponse, type PaginatedResponse } from '@/shared/api/client.ts';
 
 export interface DocTopic {
   fileId: string;
@@ -27,8 +27,8 @@ export interface DocNode {
   [key: string]: unknown;
 }
 
-export function listTopics(projectId: string, params?: { filter?: string; limit?: number }) {
-  return request<ListResponse<DocTopic>>(`/projects/${projectId}/docs/topics${qs({ filter: params?.filter, limit: params?.limit })}`).then(unwrapList);
+export function listTopics(projectId: string, params?: { filter?: string; limit?: number; offset?: number }) {
+  return request<PaginatedResponse<DocTopic>>(`/projects/${projectId}/docs/topics${qs({ filter: params?.filter, limit: params?.limit, offset: params?.offset })}`).then(unwrapPaginated);
 }
 
 export function getToc(projectId: string, fileId: string) {

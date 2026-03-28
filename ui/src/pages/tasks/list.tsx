@@ -335,8 +335,8 @@ export default function TaskListPage() {
   const refresh = useCallback(async () => {
     if (!projectId) return;
     try {
-      const result = await listTasks(projectId, { limit: 500 });
-      setTasks(result);
+      const { items } = await listTasks(projectId, { limit: 500 });
+      setTasks(items);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -348,7 +348,7 @@ export default function TaskListPage() {
   useEffect(() => {
     if (!projectId) return;
     listTeam(projectId).then(setTeam).catch(() => {});
-    listEpics(projectId).then(async (list) => {
+    listEpics(projectId).then(async ({ items: list }) => {
       setEpics(list);
       const map = new Map<string, Epic[]>();
       await Promise.all(list.map(async (epic) => {

@@ -1,4 +1,4 @@
-import { request, qs, unwrapList, type ListResponse } from '@/shared/api/client.ts';
+import { request, qs, unwrapList, unwrapPaginated, type ListResponse, type PaginatedResponse } from '@/shared/api/client.ts';
 
 export interface CodeFile {
   fileId: string;
@@ -28,8 +28,8 @@ export interface CodeSearchResult {
   score: number;
 }
 
-export function listCodeFiles(projectId: string, params?: { filter?: string; limit?: number }) {
-  return request<ListResponse<CodeFile>>(`/projects/${projectId}/code/files${qs({ filter: params?.filter, limit: params?.limit })}`).then(unwrapList);
+export function listCodeFiles(projectId: string, params?: { filter?: string; limit?: number; offset?: number }) {
+  return request<PaginatedResponse<CodeFile>>(`/projects/${projectId}/code/files${qs({ filter: params?.filter, limit: params?.limit, offset: params?.offset })}`).then(unwrapPaginated);
 }
 
 export function getFileSymbols(projectId: string, fileId: string) {

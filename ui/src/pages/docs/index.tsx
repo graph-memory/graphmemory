@@ -11,7 +11,8 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import ArticleIcon from '@mui/icons-material/Article';
-import { PageTopBar, FilterBar, StatusBadge, EmptyState } from '@/shared/ui/index.ts';
+import { PageTopBar, FilterBar, StatusBadge, EmptyState, PaginationBar } from '@/shared/ui/index.ts';
+import { usePagination, PAGE_SIZE } from '@/shared/lib/usePagination.ts';
 import { listTopics, getToc, searchDocs, type DocTopic, type DocChunk } from '@/entities/doc/index.ts';
 
 export default function DocsPage() {
@@ -23,6 +24,7 @@ export default function DocsPage() {
   const [topics, setTopics] = useState<DocTopic[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { page, setPage, total, setTotal, totalPages, offset, pageSize } = usePagination(PAGE_SIZE);
 
   const [expandedFile, setExpandedFile] = useState<string | null>(null);
   const [toc, setToc] = useState<DocChunk[]>([]);
@@ -36,15 +38,16 @@ export default function DocsPage() {
     if (!projectId) return;
     setLoading(true);
     try {
-      const data = await listTopics(projectId, { limit: 200 });
-      setTopics(data);
+      const { items, total: t } = await listTopics(projectId, { limit: pageSize, offset });
+      setTopics(items);
+      setTotal(t);
       setError(null);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
-  }, [projectId]);
+  }, [projectId, pageSize, offset, setTotal]);
 
   useEffect(() => { loadTopics(); }, [loadTopics]);
 
@@ -105,7 +108,7 @@ export default function DocsPage() {
         breadcrumbs={[{ label: 'Docs' }]}
         actions={
           <Typography variant="body2" sx={{ color: palette.custom.textMuted }}>
-            {topics.length} files
+            {total} files
           </Typography>
         }
       />
@@ -234,6 +237,12 @@ export default function DocsPage() {
             </Box>
           ))}
         </List>
+      )}
+
+      {!searchResults && (
+        <Box sx={{ mt: 2 }}>
+          <PaginationBar page={page} totalPages={totalPages} onPageChange={setPage} onRefresh={loadTopics} />
+        </Box>
       )}
     </Box>
   );

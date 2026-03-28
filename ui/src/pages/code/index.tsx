@@ -11,7 +11,8 @@ import CodeIcon from '@mui/icons-material/Code';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
-import { PageTopBar, FilterBar, StatusBadge, EmptyState } from '@/shared/ui/index.ts';
+import { PageTopBar, FilterBar, StatusBadge, EmptyState, PaginationBar } from '@/shared/ui/index.ts';
+import { usePagination, PAGE_SIZE } from '@/shared/lib/usePagination.ts';
 import {
   listCodeFiles, getFileSymbols, searchCode,
   type CodeFile, type CodeSymbol, type CodeSearchResult,
@@ -37,6 +38,7 @@ export default function CodePage() {
   const [files, setFiles] = useState<CodeFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { page, setPage, total, setTotal, totalPages, offset, pageSize } = usePagination(PAGE_SIZE);
 
   const [expandedFile, setExpandedFile] = useState<string | null>(null);
   const [symbols, setSymbols] = useState<CodeSymbol[]>([]);
@@ -50,15 +52,16 @@ export default function CodePage() {
     if (!projectId) return;
     setLoading(true);
     try {
-      const data = await listCodeFiles(projectId, { limit: 500 });
-      setFiles(data);
+      const { items, total: t } = await listCodeFiles(projectId, { limit: pageSize, offset });
+      setFiles(items);
+      setTotal(t);
       setError(null);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
-  }, [projectId]);
+  }, [projectId, pageSize, offset, setTotal]);
 
   useEffect(() => { loadFiles(); }, [loadFiles]);
 
@@ -121,7 +124,7 @@ export default function CodePage() {
         breadcrumbs={[{ label: 'Code' }]}
         actions={
           <Typography variant="body2" sx={{ color: palette.custom.textMuted }}>
-            {files.length} files · {totalSymbols} symbols
+            {total} files · {totalSymbols} symbols
           </Typography>
         }
       />
@@ -264,6 +267,12 @@ export default function CodePage() {
             </Box>
           ))}
         </List>
+      )}
+
+      {!searchResults && (
+        <Box sx={{ mt: 2 }}>
+          <PaginationBar page={page} totalPages={totalPages} onPageChange={setPage} onRefresh={loadFiles} />
+        </Box>
       )}
     </Box>
   );

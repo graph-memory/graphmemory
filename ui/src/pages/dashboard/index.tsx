@@ -49,14 +49,14 @@ export default function DashboardPage() {
   const load = useCallback(async () => {
     if (!projectId) return;
     try {
-      const [s, notes, tasks] = await Promise.all([
+      const [s, notesRes, tasksRes] = await Promise.all([
         getProjectStats(projectId),
-        listNotes(projectId, { limit: 5 }).catch(() => []),
-        listTasks(projectId, { limit: 10 }).catch(() => []),
+        listNotes(projectId, { limit: 5 }).catch(() => ({ items: [] as Note[], total: 0 })),
+        listTasks(projectId, { limit: 10 }).catch(() => ({ items: [] as Task[], total: 0 })),
       ]);
       setStats(s);
-      setRecentNotes(notes);
-      setRecentTasks(tasks);
+      setRecentNotes(notesRes.items);
+      setRecentTasks(tasksRes.items);
       setError(null);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));

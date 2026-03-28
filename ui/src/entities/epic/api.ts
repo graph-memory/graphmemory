@@ -1,4 +1,4 @@
-import { request, qs, unwrapList, type ListResponse } from '@/shared/api/client.ts';
+import { request, qs, unwrapList, unwrapPaginated, type ListResponse, type PaginatedResponse } from '@/shared/api/client.ts';
 import type { Task } from '@/entities/task/api.ts';
 
 export type EpicStatus = 'open' | 'in_progress' | 'done' | 'cancelled';
@@ -18,8 +18,8 @@ export interface Epic {
   progress: { done: number; total: number };
 }
 
-export function listEpics(projectId: string, params?: { status?: EpicStatus; priority?: EpicPriority; tag?: string; limit?: number }) {
-  return request<ListResponse<Epic>>(`/projects/${projectId}/epics${qs({ status: params?.status, priority: params?.priority, tag: params?.tag, limit: params?.limit })}`).then(unwrapList);
+export function listEpics(projectId: string, params?: { status?: EpicStatus; priority?: EpicPriority; tag?: string; limit?: number; offset?: number }) {
+  return request<PaginatedResponse<Epic>>(`/projects/${projectId}/epics${qs({ status: params?.status, priority: params?.priority, tag: params?.tag, limit: params?.limit, offset: params?.offset })}`).then(unwrapPaginated);
 }
 
 export function getEpic(projectId: string, epicId: string) {

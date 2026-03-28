@@ -1,4 +1,4 @@
-import { request, requestUpload, qs, unwrapList, type ListResponse } from '@/shared/api/client.ts';
+import { request, requestUpload, qs, unwrapList, unwrapPaginated, type ListResponse, type PaginatedResponse } from '@/shared/api/client.ts';
 
 export interface Note {
   id: string;
@@ -20,8 +20,8 @@ export interface Relation {
   title?: string;
 }
 
-export function listNotes(projectId: string, params?: { tag?: string; limit?: number }) {
-  return request<ListResponse<Note>>(`/projects/${projectId}/knowledge/notes${qs({ tag: params?.tag, limit: params?.limit })}`).then(unwrapList);
+export function listNotes(projectId: string, params?: { tag?: string; limit?: number; offset?: number }) {
+  return request<PaginatedResponse<Note>>(`/projects/${projectId}/knowledge/notes${qs({ tag: params?.tag, limit: params?.limit, offset: params?.offset })}`).then(unwrapPaginated);
 }
 
 export function getNote(projectId: string, noteId: string) {

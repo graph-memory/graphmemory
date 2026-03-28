@@ -90,6 +90,15 @@ export interface ListResponse<T> {
   results: T[];
 }
 
+export interface PaginatedResponse<T> {
+  results: T[];
+  total: number;
+}
+
 export function unwrapList<T>(data: ListResponse<T>): T[] {
   return data.results;
+}
+
+export function unwrapPaginated<T>(data: PaginatedResponse<T>): { items: T[]; total: number } {
+  return { items: data.results, total: data.total };
 }

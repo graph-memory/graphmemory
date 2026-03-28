@@ -51,6 +51,7 @@ async function getClient(p: ProjectInstance, pm: ProjectManager): Promise<Client
   const ws = p.workspaceId ? pm.getWorkspace(p.workspaceId) : undefined;
   const sessionCtx: McpSessionContext = {
     projectId: p.id,
+    projectDescription: p.config.description,
     workspaceId: ws?.id,
     workspaceProjects: ws?.config.projects,
   };

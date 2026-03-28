@@ -98,6 +98,7 @@ export type { EmbedFn, EmbedFns };
 
 export interface McpSessionContext {
   projectId: string;
+  projectDescription?: string;
   workspaceId?: string;
   workspaceProjects?: string[];
   userId?: string;
@@ -645,6 +646,7 @@ export async function startMultiProjectHttpServer(
       : projectManager.getProjectWorkspace(projectId);
     const sessionCtx: McpSessionContext = {
       projectId,
+      projectDescription: project.config.description,
       workspaceId: ws?.id,
       workspaceProjects: ws?.config.projects,
       userId,

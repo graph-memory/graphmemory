@@ -14,6 +14,7 @@ export function register(server: McpServer, ctx?: McpSessionContext): void {
     async () => {
       const result = {
         projectId: ctx?.projectId ?? null,
+        projectDescription: ctx?.projectDescription ?? null,
         workspaceId: ctx?.workspaceId ?? null,
         workspaceProjects: ctx?.workspaceProjects ?? null,
         hasWorkspace: !!ctx?.workspaceId,

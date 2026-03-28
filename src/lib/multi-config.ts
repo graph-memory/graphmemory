@@ -73,6 +73,7 @@ const graphsConfigSchema = z.object({
 
 const projectSchema = z.object({
   projectDir:      z.string(),
+  description:     z.string().optional(),
   graphMemory:     z.string().optional(),
   exclude:         excludeSchema,
   chunkDepth:      z.number().int().positive().optional(),
@@ -282,6 +283,7 @@ export interface GraphConfig {
 
 export interface ProjectConfig {
   projectDir: string;
+  description?: string;
   graphMemory: string;
   exclude: string[];   // accumulated: server + workspace + project
   chunkDepth: number;
@@ -560,6 +562,7 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
 
     projects.set(id, {
       projectDir,
+      description:     raw.description,
       graphMemory,
       exclude:         projectExclude,
       chunkDepth:      raw.chunkDepth      ?? PROJECT_DEFAULTS.chunkDepth,

@@ -1,6 +1,6 @@
 import { useMemo, useEffect } from 'react'
 import {
-  Dialog, DialogTitle, DialogContent, IconButton, TextField,
+  Dialog, DialogTitle, DialogContent, IconButton,
   Typography, Box, useTheme, Tabs, Tab,
 } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
@@ -156,17 +156,13 @@ export function ConnectDialog({ open, onClose, projectId }: ConnectDialogProps) 
           Connect your AI assistant to <strong>{projectId}</strong> via MCP (Model Context Protocol).
         </Typography>
 
-        {authRequired && (
-          <TextField
-            label="API Key"
-            placeholder="Enter your API key"
-            size="small"
-            fullWidth
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            sx={{ mb: 2 }}
-            helperText={apiKey ? 'API key will be included in the config below.' : 'Authentication is enabled. Paste your API key to include it in the config.'}
-          />
+        {authRequired && apiKey && (
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="caption" sx={{ color: palette.custom.textMuted, mb: 0.5, display: 'block' }}>
+              API Key
+            </Typography>
+            <CopyBlock value={apiKey} />
+          </Box>
         )}
 
         <Tabs

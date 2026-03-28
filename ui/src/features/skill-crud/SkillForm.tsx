@@ -5,7 +5,7 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
-import { Section, FormGrid, FormField, FieldLabel, Tags, MarkdownEditor } from '@/shared/ui/index.ts';
+import { Section, FormGrid, FormField, FieldLabel, AppTextField, Tags, MarkdownEditor } from '@/shared/ui/index.ts';
 import type { Skill } from '@/entities/skill/index.ts';
 
 interface SkillFormProps {
@@ -92,8 +92,9 @@ export function SkillForm({ skill, onSubmit, onCancel, submitLabel = 'Save' }: S
       <Section title="Details">
         <FormGrid>
           <FormField fullWidth>
-            <FieldLabel required>Title</FieldLabel>
-            <TextField
+            <AppTextField
+              fieldLabel="Title"
+              required
               autoFocus
               fullWidth
               value={title}

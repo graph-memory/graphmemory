@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import {
-  Box, Button, TextField, Select, MenuItem,
+  Box, Button, Select, MenuItem,
   CircularProgress,
 } from '@mui/material';
-import { Section, FormGrid, FormField, FieldLabel, Tags, MarkdownEditor } from '@/shared/ui/index.ts';
+import { Section, FormGrid, FormField, FieldLabel, AppTextField, Tags, MarkdownEditor } from '@/shared/ui/index.ts';
 import { COLUMNS, PRIORITY_COLORS, type Task, type TaskStatus, type TaskPriority } from '@/entities/task/index.ts';
 
 const STATUS_COLOR: Record<TaskStatus, string> = Object.fromEntries(COLUMNS.map(c => [c.status, c.color])) as Record<TaskStatus, string>;
@@ -97,8 +97,9 @@ export function TaskForm({ task, defaults, onSubmit, onCancel, submitLabel = 'Sa
       <Section title="Details">
         <FormGrid>
           <FormField fullWidth>
-            <FieldLabel required>Title</FieldLabel>
-            <TextField
+            <AppTextField
+              fieldLabel="Title"
+              required
               autoFocus
               fullWidth
               value={title}
@@ -159,8 +160,8 @@ export function TaskForm({ task, defaults, onSubmit, onCancel, submitLabel = 'Sa
             </Select>
           </FormField>
           <FormField>
-            <FieldLabel>Due Date</FieldLabel>
-            <TextField
+            <AppTextField
+              fieldLabel="Due Date"
               fullWidth
               type="date"
               value={dueDate}
@@ -168,8 +169,8 @@ export function TaskForm({ task, defaults, onSubmit, onCancel, submitLabel = 'Sa
             />
           </FormField>
           <FormField>
-            <FieldLabel>Estimate (hours)</FieldLabel>
-            <TextField
+            <AppTextField
+              fieldLabel="Estimate (hours)"
               fullWidth
               type="number"
               value={estimate}

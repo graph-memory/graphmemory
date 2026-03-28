@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import {
-  Box, Button, TextField, Select, MenuItem,
+  Box, Button, Select, MenuItem,
   CircularProgress,
 } from '@mui/material';
-import { Section, FormGrid, FormField, FieldLabel, Tags, MarkdownEditor } from '@/shared/ui/index.ts';
+import { Section, FormGrid, FormField, FieldLabel, AppTextField, Tags, MarkdownEditor } from '@/shared/ui/index.ts';
 import type { Epic, EpicStatus } from '@/entities/epic/index.ts';
 import type { TaskPriority } from '@/entities/task/index.ts';
 import { PRIORITY_COLORS } from '@/entities/task/index.ts';
@@ -61,8 +61,9 @@ export function EpicForm({ epic, onSubmit, onCancel, submitLabel = 'Save' }: Epi
       <Section title="Details">
         <FormGrid>
           <FormField fullWidth>
-            <FieldLabel required>Title</FieldLabel>
-            <TextField
+            <AppTextField
+              fieldLabel="Title"
+              required
               autoFocus fullWidth value={title}
               onChange={e => { setTitle(e.target.value); setTitleError(false); }}
               error={titleError}

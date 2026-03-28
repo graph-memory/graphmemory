@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Box, Typography, Button, Paper, Stack, Chip,
   Alert, CircularProgress, useTheme, alpha,
@@ -226,14 +226,15 @@ function SortableTaskCard({
 export default function TaskBoardPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { palette } = useTheme();
   const canWrite = useCanWrite('tasks');
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [team, setTeam] = useState<TeamMember[]>([]);
-  const [assigneeFilter, setAssigneeFilter] = useState<string>('');
-  const [epicFilter, setEpicFilter] = useState<string>('');
+  const [assigneeFilter, setAssigneeFilter] = useState<string>(searchParams.get('assignee') || '');
+  const [epicFilter, setEpicFilter] = useState<string>(searchParams.get('epic') || '');
   const [epics, setEpics] = useState<Epic[]>([]);
   const [epicTaskIds, setEpicTaskIds] = useState<Set<string> | null>(null);
   const [taskEpicMap, setTaskEpicMap] = useState<Map<string, Epic[]>>(new Map());
@@ -246,9 +247,9 @@ export default function TaskBoardPage() {
   const { visible, toggle: toggleColumn, visibleColumns } = useColumnVisibility();
 
   // Filters
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterPriority, setFilterPriority] = useState<TaskPriority | ''>('');
-  const [filterTag, setFilterTag] = useState('');
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+  const [filterPriority, setFilterPriority] = useState<TaskPriority | ''>((searchParams.get('priority') || '') as TaskPriority | '');
+  const [filterTag, setFilterTag] = useState(searchParams.get('tag') || '');
 
   // Quick create dialog
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
@@ -436,6 +437,17 @@ export default function TaskBoardPage() {
   }, [filteredTasks]);
 
   const hasFilters = searchQuery || filterPriority || filterTag || assigneeFilter || epicFilter;
+
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (searchQuery) next.set('q', searchQuery);
+    if (filterPriority) next.set('priority', filterPriority);
+    if (filterTag) next.set('tag', filterTag);
+    if (assigneeFilter) next.set('assignee', assigneeFilter);
+    if (epicFilter) next.set('epic', epicFilter);
+    setSearchParams(next, { replace: true });
+  }, [searchQuery, filterPriority, filterTag, assigneeFilter, epicFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const activeTask = activeId ? tasks.find(t => t.id === activeId) : null;
 
   return (

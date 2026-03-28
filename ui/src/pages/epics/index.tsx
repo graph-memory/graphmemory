@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Box, Typography, Button, Paper, Alert, CircularProgress,
   LinearProgress, alpha, useTheme, TextField, InputAdornment,
@@ -39,14 +39,15 @@ const PRIORITY_OPTIONS: TaskPriority[] = ['critical', 'high', 'medium', 'low'];
 export default function EpicsPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { palette } = useTheme();
   const canWrite = useCanWrite('tasks');
   const [epics, setEpics] = useState<Epic[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<EpicStatus | ''>('');
-  const [filterPriority, setFilterPriority] = useState<TaskPriority | ''>('');
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+  const [filterStatus, setFilterStatus] = useState<EpicStatus | ''>((searchParams.get('status') || '') as EpicStatus | '');
+  const [filterPriority, setFilterPriority] = useState<TaskPriority | ''>((searchParams.get('priority') || '') as TaskPriority | '');
 
   const refresh = useCallback(async () => {
     if (!projectId) return;
@@ -75,6 +76,14 @@ export default function EpicsPage() {
   }, [epics, searchQuery, filterStatus, filterPriority]);
 
   const hasFilters = searchQuery || filterStatus || filterPriority;
+
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (searchQuery) next.set('q', searchQuery);
+    if (filterStatus) next.set('status', filterStatus);
+    if (filterPriority) next.set('priority', filterPriority);
+    setSearchParams(next, { replace: true });
+  }, [searchQuery, filterStatus, filterPriority]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <Box>

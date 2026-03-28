@@ -312,17 +312,17 @@ export default function TaskListPage() {
 
   const { visible: visibleStatuses, toggle: toggleStatusVisibility } = useColumnVisibility();
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterPriority, setFilterPriority] = useState<TaskPriority | ''>('');
-  const [filterTag, setFilterTag] = useState('');
-  const [assigneeFilter, setAssigneeFilter] = useState<string>('');
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+  const [filterPriority, setFilterPriority] = useState<TaskPriority | ''>((searchParams.get('priority') || '') as TaskPriority | '');
+  const [filterTag, setFilterTag] = useState(searchParams.get('tag') || '');
+  const [assigneeFilter, setAssigneeFilter] = useState<string>(searchParams.get('assignee') || '');
   const [epicFilter, setEpicFilter] = useState<string>(searchParams.get('epic') ?? '');
   const [epics, setEpics] = useState<Epic[]>([]);
   const [epicTaskIds, setEpicTaskIds] = useState<Set<string> | null>(null);
   const [taskEpicMap, setTaskEpicMap] = useState<Map<string, Epic[]>>(new Map());
-  const [sortField, setSortField] = useState<SortField>('order');
-  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [sortField, setSortField] = useState<SortField>((searchParams.get('sort') || 'order') as SortField);
+  const [sortDir, setSortDir] = useState<SortDir>((searchParams.get('dir') || 'asc') as SortDir);
   const [collapsed, setCollapsed] = useState<Set<TaskStatus>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<{ ids: string[]; label: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -518,6 +518,19 @@ export default function TaskListPage() {
   const goToTask = (taskId: string) => navigate(`/${projectId}/tasks/${taskId}`);
 
   const hasFilters = searchQuery || filterPriority || filterTag || assigneeFilter || epicFilter;
+
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (searchQuery) next.set('q', searchQuery);
+    if (filterPriority) next.set('priority', filterPriority);
+    if (filterTag) next.set('tag', filterTag);
+    if (assigneeFilter) next.set('assignee', assigneeFilter);
+    if (epicFilter) next.set('epic', epicFilter);
+    if (sortField !== 'order') next.set('sort', sortField);
+    if (sortDir !== 'asc') next.set('dir', sortDir);
+    setSearchParams(next, { replace: true });
+  }, [searchQuery, filterPriority, filterTag, assigneeFilter, epicFilter, sortField, sortDir]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const totalFiltered = filteredTasks.length;
   const activeTask = activeId ? tasks.find(t => t.id === activeId) : null;
 
@@ -628,7 +641,7 @@ export default function TaskListPage() {
             </Select>
           </FormControl>
         )}
-        {hasFilters && <Button size="small" onClick={() => { setSearchQuery(''); setFilterPriority(''); setFilterTag(''); setAssigneeFilter(''); setEpicFilter(''); }}>Clear</Button>}
+        {hasFilters && <Button size="small" onClick={() => { setSearchQuery(''); setFilterPriority(''); setFilterTag(''); setAssigneeFilter(''); setEpicFilter(''); setSortField('order'); setSortDir('asc'); }}>Clear</Button>}
       </Box>
 
       {/* Bulk actions bar */}

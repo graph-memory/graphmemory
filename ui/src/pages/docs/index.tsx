@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Box, Typography, TextField, InputAdornment, Alert, CircularProgress,
   List, ListItemButton, ListItemIcon, ListItemText, IconButton,
@@ -17,6 +17,7 @@ import { listTopics, getToc, searchDocs, type DocTopic, type DocChunk } from '@/
 export default function DocsPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { palette } = useTheme();
 
   const [topics, setTopics] = useState<DocTopic[]>([]);
@@ -27,7 +28,7 @@ export default function DocsPage() {
   const [toc, setToc] = useState<DocChunk[]>([]);
   const [tocLoading, setTocLoading] = useState(false);
 
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(searchParams.get('q') || '');
   const [searchResults, setSearchResults] = useState<Array<DocChunk & { score: number }> | null>(null);
   const [searching, setSearching] = useState(false);
 
@@ -64,23 +65,38 @@ export default function DocsPage() {
     }
   };
 
-  const handleSearch = async () => {
-    if (!projectId || !search.trim()) {
+  const doSearch = useCallback(async (q: string) => {
+    if (!projectId || !q.trim()) {
       setSearchResults(null);
       return;
     }
     setSearching(true);
     try {
-      const results = await searchDocs(projectId, search.trim(), { topK: 20, minScore: 0.1 });
+      const results = await searchDocs(projectId, q.trim(), { topK: 20, minScore: 0.1 });
       setSearchResults(results);
     } catch { /* ignore */ } finally {
       setSearching(false);
     }
+  }, [projectId]);
+
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (q?.trim()) doSearch(q);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSearch = () => {
+    const next = new URLSearchParams(searchParams);
+    if (search.trim()) next.set('q', search.trim()); else next.delete('q');
+    setSearchParams(next, { replace: true });
+    doSearch(search);
   };
 
   const handleClearSearch = () => {
     setSearch('');
     setSearchResults(null);
+    const next = new URLSearchParams(searchParams);
+    next.delete('q');
+    setSearchParams(next, { replace: true });
   };
 
   return (

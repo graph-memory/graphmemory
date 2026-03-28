@@ -8,6 +8,41 @@ export type TaskPriority = 'critical' | 'high' | 'medium' | 'low';
 export type TaskNodeType = 'task' | 'epic';
 export type EpicStatus = 'open' | 'in_progress' | 'done' | 'cancelled';
 
+// ---------------------------------------------------------------------------
+// Status metadata — declarative flags instead of hardcoded checks
+// ---------------------------------------------------------------------------
+
+export interface StatusMeta {
+  /** Task/epic in this status counts as finished (done, cancelled) */
+  isTerminal: boolean;
+  /** Task/epic in this status counts as started (in_progress, review, done, cancelled) */
+  isStarted: boolean;
+}
+
+export const TASK_STATUS_META: Record<TaskStatus, StatusMeta> = {
+  backlog:     { isTerminal: false, isStarted: false },
+  todo:        { isTerminal: false, isStarted: false },
+  in_progress: { isTerminal: false, isStarted: true },
+  review:      { isTerminal: false, isStarted: true },
+  done:        { isTerminal: true,  isStarted: true },
+  cancelled:   { isTerminal: true,  isStarted: true },
+};
+
+export const EPIC_STATUS_META: Record<EpicStatus, StatusMeta> = {
+  open:        { isTerminal: false, isStarted: false },
+  in_progress: { isTerminal: false, isStarted: true },
+  done:        { isTerminal: true,  isStarted: true },
+  cancelled:   { isTerminal: true,  isStarted: true },
+};
+
+export function isTerminal(status: TaskStatus | EpicStatus): boolean {
+  return (TASK_STATUS_META[status as TaskStatus] ?? EPIC_STATUS_META[status as EpicStatus]).isTerminal;
+}
+
+export function isStarted(status: TaskStatus | EpicStatus): boolean {
+  return (TASK_STATUS_META[status as TaskStatus] ?? EPIC_STATUS_META[status as EpicStatus]).isStarted;
+}
+
 export const PRIORITY_ORDER: Record<TaskPriority, number> = {
   critical: 0,
   high: 1,

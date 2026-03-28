@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import type { TaskGraph, TaskNodeAttributes, TaskEdgeAttributes, TaskCrossGraphType, TaskStatus, TaskPriority, EpicStatus } from '@/graphs/task-types';
 import type { AttachmentMeta } from '@/graphs/attachment-types';
-import { createTaskGraph, PRIORITY_ORDER } from '@/graphs/task-types';
+import { createTaskGraph, PRIORITY_ORDER, isTerminal } from '@/graphs/task-types';
 import { generateId } from '@/graphs/knowledge-types';
 import type { DirectedGraph } from 'graphology';
 import type { EmbedFns, GraphManagerContext, ExternalGraphs } from '@/graphs/manager-types';
@@ -146,9 +146,9 @@ export function reorderTask(
   if (newStatus !== undefined && newStatus !== oldStatus) {
     // Handle status change with completedAt auto-logic
     graph.setNodeAttribute(taskId, 'status', newStatus);
-    if ((newStatus === 'done' || newStatus === 'cancelled') && oldStatus !== 'done' && oldStatus !== 'cancelled') {
+    if (isTerminal(newStatus) && !isTerminal(oldStatus)) {
       graph.setNodeAttribute(taskId, 'completedAt', Date.now());
-    } else if (newStatus !== 'done' && newStatus !== 'cancelled' && (oldStatus === 'done' || oldStatus === 'cancelled')) {
+    } else if (!isTerminal(newStatus) && isTerminal(oldStatus)) {
       graph.setNodeAttribute(taskId, 'completedAt', null);
     }
   }
@@ -258,9 +258,9 @@ export function updateTask(
   if (patch.status !== undefined) {
     const oldStatus = graph.getNodeAttribute(taskId, 'status');
     graph.setNodeAttribute(taskId, 'status', patch.status);
-    if ((patch.status === 'done' || patch.status === 'cancelled') && oldStatus !== 'done' && oldStatus !== 'cancelled') {
+    if (isTerminal(patch.status) && !isTerminal(oldStatus)) {
       graph.setNodeAttribute(taskId, 'completedAt', Date.now());
-    } else if (patch.status !== 'done' && patch.status !== 'cancelled' && (oldStatus === 'done' || oldStatus === 'cancelled')) {
+    } else if (!isTerminal(patch.status) && isTerminal(oldStatus)) {
       graph.setNodeAttribute(taskId, 'completedAt', null);
     }
   }
@@ -289,9 +289,9 @@ export function moveTask(
   const oldStatus = graph.getNodeAttribute(taskId, 'status');
   graph.setNodeAttribute(taskId, 'status', newStatus);
 
-  if ((newStatus === 'done' || newStatus === 'cancelled') && oldStatus !== 'done' && oldStatus !== 'cancelled') {
+  if (isTerminal(newStatus) && !isTerminal(oldStatus)) {
     graph.setNodeAttribute(taskId, 'completedAt', Date.now());
-  } else if (newStatus !== 'done' && newStatus !== 'cancelled' && (oldStatus === 'done' || oldStatus === 'cancelled')) {
+  } else if (!isTerminal(newStatus) && isTerminal(oldStatus)) {
     graph.setNodeAttribute(taskId, 'completedAt', null);
   }
 
@@ -538,7 +538,7 @@ function epicProgress(graph: TaskGraph, epicId: string): { done: number; total: 
     if (isProxy(graph, source)) return;
     total++;
     const s = graph.getNodeAttribute(source, 'status');
-    if (s === 'done' || s === 'cancelled') done++;
+    if (isTerminal(s)) done++;
   });
   return { done, total };
 }
@@ -603,9 +603,9 @@ export function updateEpic(
   if (patch.tags !== undefined) graph.setNodeAttribute(epicId, 'tags', patch.tags);
   if (newStatus !== undefined) {
     graph.setNodeAttribute(epicId, 'status', newStatus as unknown as TaskStatus);
-    if ((newStatus === 'done' || newStatus === 'cancelled') && !graph.getNodeAttribute(epicId, 'completedAt')) {
+    if (isTerminal(newStatus) && !graph.getNodeAttribute(epicId, 'completedAt')) {
       graph.setNodeAttribute(epicId, 'completedAt', now);
-    } else if (newStatus !== 'done' && newStatus !== 'cancelled') {
+    } else if (!isTerminal(newStatus)) {
       graph.setNodeAttribute(epicId, 'completedAt', null);
     }
   }

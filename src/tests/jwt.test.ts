@@ -38,10 +38,14 @@ describe('parseTtl', () => {
   it('parses minutes', () => expect(parseTtl('15m')).toBe(900));
   it('parses hours', () => expect(parseTtl('1h')).toBe(3600));
   it('parses days', () => expect(parseTtl('7d')).toBe(604800));
+  it('parses combined formats', () => {
+    expect(parseTtl('1d2h')).toBe(86400 + 7200);
+    expect(parseTtl('1h30m')).toBe(3600 + 1800);
+  });
   it('throws on invalid format', () => {
-    expect(() => parseTtl('abc')).toThrow('Invalid TTL format');
-    expect(() => parseTtl('15')).toThrow('Invalid TTL format');
-    expect(() => parseTtl('15x')).toThrow('Invalid TTL format');
+    expect(() => parseTtl('abc')).toThrow('Invalid duration');
+    expect(() => parseTtl('15')).toThrow('Invalid duration');
+    expect(() => parseTtl('15x')).toThrow('Invalid duration');
   });
 });
 
@@ -73,8 +77,8 @@ describe('JWT sign / verify', () => {
   });
 
   it('parseTtl rejects zero TTL', () => {
-    expect(() => parseTtl('0s')).toThrow('TTL must be positive');
-    expect(() => parseTtl('0m')).toThrow('TTL must be positive');
+    expect(() => parseTtl('0s')).toThrow('Invalid duration');
+    expect(() => parseTtl('0m')).toThrow('Invalid duration');
   });
 
   it('rejects garbage token', () => {

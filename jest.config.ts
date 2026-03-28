@@ -13,6 +13,7 @@ const config: Config = {
     '^@huggingface/transformers$': '<rootDir>/src/tests/__mocks__/huggingface-transformers.ts',
     '^chokidar$': '<rootDir>/src/tests/__mocks__/chokidar.ts',
     '^mime$': '<rootDir>/src/tests/__mocks__/mime.ts',
+    '^parse-duration$': '<rootDir>/src/tests/__mocks__/parse-duration.ts',
   },
   watchman: false,
   coverageDirectory: 'coverage',

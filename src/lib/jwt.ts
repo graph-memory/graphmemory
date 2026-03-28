@@ -60,22 +60,12 @@ export interface JwtPayload {
   type: 'access' | 'refresh' | 'oauth_access' | 'oauth_refresh';
 }
 
+import { parseDuration } from '@/lib/duration';
+
 /**
- * Parse a TTL string like "15m", "1h", "7d" into seconds.
+ * Parse a TTL string like "15m", "1h", "7d", "1d2h" into seconds.
  */
-export function parseTtl(ttl: string): number {
-  const match = ttl.match(/^(\d+)(s|m|h|d)$/);
-  if (!match) throw new Error(`Invalid TTL format: "${ttl}". Expected e.g. "15m", "1h", "7d"`);
-  const value = parseInt(match[1], 10);
-  if (value <= 0) throw new Error(`TTL must be positive, got "${ttl}"`);
-  switch (match[2]) {
-    case 's': return value;
-    case 'm': return value * 60;
-    case 'h': return value * 3600;
-    case 'd': return value * 86400;
-    default: throw new Error(`Invalid TTL unit: ${match[2]}`);
-  }
-}
+export const parseTtl = parseDuration;
 
 export function signAccessToken(userId: string, secret: string, ttl: string): string {
   const payload: JwtPayload = { userId, type: 'access' };

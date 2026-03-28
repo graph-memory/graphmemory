@@ -1,4 +1,5 @@
 import { createClient, type RedisClientType } from 'redis';
+import { parseDuration } from '@/lib/duration';
 
 export interface RedisConfig {
   enabled: boolean;
@@ -56,14 +57,5 @@ export async function closeRedis(): Promise<void> {
  */
 export function parseRedisTtl(ttl: string): number {
   if (ttl === '0') return 0;
-  const match = ttl.match(/^(\d+)(s|m|h|d)$/);
-  if (!match) throw new Error(`Invalid Redis TTL format: "${ttl}". Expected e.g. "30d", "1h", "0"`);
-  const value = parseInt(match[1], 10);
-  switch (match[2]) {
-    case 's': return value;
-    case 'm': return value * 60;
-    case 'h': return value * 3600;
-    case 'd': return value * 86400;
-    default: throw new Error(`Invalid TTL unit: ${match[2]}`);
-  }
+  return parseDuration(ttl);
 }

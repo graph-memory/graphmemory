@@ -4,7 +4,7 @@ import {
   Box, Button, Select, MenuItem,
   CircularProgress,
 } from '@mui/material';
-import { Section, FormGrid, FormField, FieldLabel, AppTextField, Tags, MarkdownEditor } from '@/shared/ui/index.ts';
+import { Section, FieldLabel, AppTextField, Tags, MarkdownEditor, DetailLayout } from '@/shared/ui/index.ts';
 import { COLUMNS, PRIORITY_COLORS, type Task, type TaskStatus, type TaskPriority } from '@/entities/task/index.ts';
 
 const STATUS_COLOR: Record<TaskStatus, string> = Object.fromEntries(COLUMNS.map(c => [c.status, c.color])) as Record<TaskStatus, string>;
@@ -94,117 +94,89 @@ export function TaskForm({ task, defaults, onSubmit, onCancel, submitLabel = 'Sa
 
   return (
     <Box component="form" id="task-form" onSubmit={e => { e.preventDefault(); handleSubmit(); }} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <Section title="Details">
-        <FormGrid>
-          <FormField fullWidth>
-            <AppTextField
-              fieldLabel="Title"
-              required
-              autoFocus
-              fullWidth
-              value={title}
-              onChange={e => { setTitle(e.target.value); setTitleError(false); }}
-              error={titleError}
-              helperText={titleError ? 'Title is required' : undefined}
-            />
-          </FormField>
-          <FormField fullWidth>
-            <FieldLabel>Description</FieldLabel>
-            <MarkdownEditor value={description} onChange={setDescription} height={250} />
-          </FormField>
-        </FormGrid>
-      </Section>
-
-      <Section title="Properties">
-        <FormGrid>
-          <FormField>
-            <FieldLabel>Status</FieldLabel>
-            <Select
-              fullWidth value={status}
-              onChange={e => setStatus(e.target.value as TaskStatus)}
-              renderValue={v => {
-                const c = STATUS_COLOR[v as TaskStatus];
-                const label = COLUMNS.find(col => col.status === v)?.label ?? v;
-                return <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: c }} />{label}</Box>;
-              }}
-              sx={{ '& .MuiSelect-select': { display: 'flex', alignItems: 'center' } }}
-            >
-              {COLUMNS.map(c => (
-                <MenuItem key={c.status} value={c.status}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: c.color }} />{c.label}
-                  </Box>
-                </MenuItem>
-              ))}
-            </Select>
-          </FormField>
-          <FormField>
-            <FieldLabel>Priority</FieldLabel>
-            <Select
-              fullWidth value={priority}
-              onChange={e => setPriority(e.target.value as TaskPriority)}
-              renderValue={v => {
-                const c = PRIORITY_COLORS[v as TaskPriority];
-                const label = PRIORITY_OPTIONS.find(p => p.value === v)?.label ?? v;
-                return <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: c }} />{label}</Box>;
-              }}
-              sx={{ '& .MuiSelect-select': { display: 'flex', alignItems: 'center' } }}
-            >
-              {PRIORITY_OPTIONS.map(p => (
-                <MenuItem key={p.value} value={p.value}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: PRIORITY_COLORS[p.value] }} />{p.label}
-                  </Box>
-                </MenuItem>
-              ))}
-            </Select>
-          </FormField>
-          <FormField>
-            <AppTextField
-              fieldLabel="Due Date"
-              fullWidth
-              type="date"
-              value={dueDate}
-              onChange={e => setDueDate(e.target.value)}
-            />
-          </FormField>
-          <FormField>
-            <AppTextField
-              fieldLabel="Estimate (hours)"
-              fullWidth
-              type="number"
-              value={estimate}
-              onChange={e => setEstimate(e.target.value)}
-              slotProps={{ input: { inputProps: { min: 0, step: 0.5 } } }}
-            />
-          </FormField>
-          <FormField>
-            <FieldLabel>Assignee</FieldLabel>
-            <Select
-              fullWidth
-              value={assignee}
-              onChange={e => setAssignee(e.target.value)}
-              displayEmpty
-              renderValue={v => {
-                if (!v) return 'Unassigned';
-                const m = team.find(t => t.id === v);
-                return m?.name || v;
-              }}
-            >
-              <MenuItem value="">Unassigned</MenuItem>
-              {team.map(m => <MenuItem key={m.id} value={m.id}>{m.name || m.id}</MenuItem>)}
-            </Select>
-          </FormField>
-          <FormField fullWidth>
-            <Tags
-              tags={tags}
-              editable
-              onAdd={tag => setTags(prev => prev.includes(tag) ? prev : [...prev, tag])}
-              onRemove={tag => setTags(prev => prev.filter(t => t !== tag))}
-            />
-          </FormField>
-        </FormGrid>
-      </Section>
+      <DetailLayout
+        main={
+          <Section title="Details">
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <AppTextField
+                fieldLabel="Title"
+                required
+                autoFocus
+                fullWidth
+                value={title}
+                onChange={e => { setTitle(e.target.value); setTitleError(false); }}
+                error={titleError}
+                helperText={titleError ? 'Title is required' : undefined}
+              />
+              <Box>
+                <FieldLabel>Description</FieldLabel>
+                <MarkdownEditor value={description} onChange={setDescription} height={250} />
+              </Box>
+            </Box>
+          </Section>
+        }
+        sidebar={
+          <Section title="Properties">
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Box>
+                <FieldLabel>Status</FieldLabel>
+                <Select
+                  fullWidth value={status}
+                  onChange={e => setStatus(e.target.value as TaskStatus)}
+                  renderValue={v => {
+                    const c = STATUS_COLOR[v as TaskStatus];
+                    const label = COLUMNS.find(col => col.status === v)?.label ?? v;
+                    return <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: c }} />{label}</Box>;
+                  }}
+                  sx={{ '& .MuiSelect-select': { display: 'flex', alignItems: 'center' } }}
+                >
+                  {COLUMNS.map(c => (
+                    <MenuItem key={c.status} value={c.status}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: c.color }} />{c.label}
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </Select>
+              </Box>
+              <Box>
+                <FieldLabel>Priority</FieldLabel>
+                <Select
+                  fullWidth value={priority}
+                  onChange={e => setPriority(e.target.value as TaskPriority)}
+                  renderValue={v => {
+                    const c = PRIORITY_COLORS[v as TaskPriority];
+                    const label = PRIORITY_OPTIONS.find(p => p.value === v)?.label ?? v;
+                    return <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: c }} />{label}</Box>;
+                  }}
+                  sx={{ '& .MuiSelect-select': { display: 'flex', alignItems: 'center' } }}
+                >
+                  {PRIORITY_OPTIONS.map(p => (
+                    <MenuItem key={p.value} value={p.value}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: PRIORITY_COLORS[p.value] }} />{p.label}
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </Select>
+              </Box>
+              <AppTextField fieldLabel="Due Date" fullWidth type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+              <AppTextField fieldLabel="Estimate (hours)" fullWidth type="number" value={estimate} onChange={e => setEstimate(e.target.value)} slotProps={{ input: { inputProps: { min: 0, step: 0.5 } } }} />
+              <Box>
+                <FieldLabel>Assignee</FieldLabel>
+                <Select
+                  fullWidth value={assignee} onChange={e => setAssignee(e.target.value)} displayEmpty
+                  renderValue={v => { if (!v) return 'Unassigned'; const m = team.find(t => t.id === v); return m?.name || v; }}
+                >
+                  <MenuItem value="">Unassigned</MenuItem>
+                  {team.map(m => <MenuItem key={m.id} value={m.id}>{m.name || m.id}</MenuItem>)}
+                </Select>
+              </Box>
+              <Tags tags={tags} editable onAdd={tag => setTags(prev => prev.includes(tag) ? prev : [...prev, tag])} onRemove={tag => setTags(prev => prev.filter(t => t !== tag))} />
+            </Box>
+          </Section>
+        }
+      />
 
       <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
         <Button onClick={onCancel}>Cancel</Button>

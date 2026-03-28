@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Box, Button, CircularProgress } from '@mui/material';
-import { Section, FormGrid, FormField, FieldLabel, AppTextField, Tags, MarkdownEditor } from '@/shared/ui/index.ts';
+import { DetailLayout, FieldLabel, AppTextField, Tags, MarkdownEditor } from '@/shared/ui/index.ts';
 import type { Note } from '@/entities/note/index.ts';
 
 interface NoteFormProps {
@@ -40,9 +40,9 @@ export function NoteForm({ note, onSubmit, onCancel, submitLabel = 'Save' }: Not
 
   return (
     <Box component="form" id="note-form" onSubmit={e => { e.preventDefault(); handleSubmit(); }} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <Section title="Details">
-        <FormGrid>
-          <FormField fullWidth>
+      <DetailLayout
+        main={
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <AppTextField
               fieldLabel="Title"
               required
@@ -53,21 +53,23 @@ export function NoteForm({ note, onSubmit, onCancel, submitLabel = 'Save' }: Not
               error={titleError}
               helperText={titleError ? 'Title is required' : undefined}
             />
-          </FormField>
-          <FormField fullWidth>
-            <FieldLabel>Content</FieldLabel>
-            <MarkdownEditor value={content} onChange={setContent} height={300} />
-          </FormField>
-          <FormField fullWidth>
+            <Box>
+              <FieldLabel>Content</FieldLabel>
+              <MarkdownEditor value={content} onChange={setContent} height={300} />
+            </Box>
+          </Box>
+        }
+        sidebar={
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <Tags
               tags={tags}
               editable
               onAdd={tag => setTags(prev => prev.includes(tag) ? prev : [...prev, tag])}
               onRemove={tag => setTags(prev => prev.filter(t => t !== tag))}
             />
-          </FormField>
-        </FormGrid>
-      </Section>
+          </Box>
+        }
+      />
 
       <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
         <Button onClick={onCancel}>Cancel</Button>

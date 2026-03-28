@@ -3,7 +3,7 @@ import {
   Box, Button, Select, MenuItem,
   CircularProgress,
 } from '@mui/material';
-import { Section, FormGrid, FormField, FieldLabel, AppTextField, Tags, MarkdownEditor } from '@/shared/ui/index.ts';
+import { Section, FormField, FieldLabel, AppTextField, Tags, MarkdownEditor, DetailLayout } from '@/shared/ui/index.ts';
 import type { Epic, EpicStatus } from '@/entities/epic/index.ts';
 import type { TaskPriority } from '@/entities/task/index.ts';
 import { PRIORITY_COLORS } from '@/entities/task/index.ts';
@@ -58,78 +58,81 @@ export function EpicForm({ epic, onSubmit, onCancel, submitLabel = 'Save' }: Epi
 
   return (
     <Box component="form" id="epic-form" onSubmit={e => { e.preventDefault(); handleSubmit(); }} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <Section title="Details">
-        <FormGrid>
-          <FormField fullWidth>
-            <AppTextField
-              fieldLabel="Title"
-              required
-              autoFocus fullWidth value={title}
-              onChange={e => { setTitle(e.target.value); setTitleError(false); }}
-              error={titleError}
-              helperText={titleError ? 'Title is required' : undefined}
-            />
-          </FormField>
-          <FormField fullWidth>
-            <FieldLabel>Description</FieldLabel>
-            <MarkdownEditor value={description} onChange={setDescription} height={250} />
-          </FormField>
-        </FormGrid>
-      </Section>
-
-      <Section title="Properties">
-        <FormGrid>
-          <FormField>
-            <FieldLabel>Status</FieldLabel>
-            <Select
-              fullWidth value={status}
-              onChange={e => setStatus(e.target.value as EpicStatus)}
-              renderValue={v => {
-                const s = EPIC_STATUSES.find(s => s.value === v);
-                return <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: s?.color }} />{s?.label}</Box>;
-              }}
-              sx={{ '& .MuiSelect-select': { display: 'flex', alignItems: 'center' } }}
-            >
-              {EPIC_STATUSES.map(s => (
-                <MenuItem key={s.value} value={s.value}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: s.color }} />{s.label}
-                  </Box>
-                </MenuItem>
-              ))}
-            </Select>
-          </FormField>
-          <FormField>
-            <FieldLabel>Priority</FieldLabel>
-            <Select
-              fullWidth value={priority}
-              onChange={e => setPriority(e.target.value as TaskPriority)}
-              renderValue={v => {
-                const p = PRIORITY_OPTIONS.find(p => p.value === v);
-                const c = PRIORITY_COLORS[v as TaskPriority];
-                return <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: c }} />{p?.label}</Box>;
-              }}
-              sx={{ '& .MuiSelect-select': { display: 'flex', alignItems: 'center' } }}
-            >
-              {PRIORITY_OPTIONS.map(p => (
-                <MenuItem key={p.value} value={p.value}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: PRIORITY_COLORS[p.value] }} />{p.label}
-                  </Box>
-                </MenuItem>
-              ))}
-            </Select>
-          </FormField>
-          <FormField fullWidth>
-            <Tags
-              tags={tags}
-              editable
-              onAdd={tag => setTags(prev => prev.includes(tag) ? prev : [...prev, tag])}
-              onRemove={tag => setTags(prev => prev.filter(t => t !== tag))}
-            />
-          </FormField>
-        </FormGrid>
-      </Section>
+      <DetailLayout
+        main={
+          <Section title="Details">
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <AppTextField
+                fieldLabel="Title"
+                required
+                autoFocus fullWidth value={title}
+                onChange={e => { setTitle(e.target.value); setTitleError(false); }}
+                error={titleError}
+                helperText={titleError ? 'Title is required' : undefined}
+              />
+              <FormField fullWidth>
+                <FieldLabel>Description</FieldLabel>
+                <MarkdownEditor value={description} onChange={setDescription} height={250} />
+              </FormField>
+            </Box>
+          </Section>
+        }
+        sidebar={
+          <Section title="Properties">
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <FormField>
+                <FieldLabel>Status</FieldLabel>
+                <Select
+                  fullWidth value={status}
+                  onChange={e => setStatus(e.target.value as EpicStatus)}
+                  renderValue={v => {
+                    const s = EPIC_STATUSES.find(s => s.value === v);
+                    return <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: s?.color }} />{s?.label}</Box>;
+                  }}
+                  sx={{ '& .MuiSelect-select': { display: 'flex', alignItems: 'center' } }}
+                >
+                  {EPIC_STATUSES.map(s => (
+                    <MenuItem key={s.value} value={s.value}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: s.color }} />{s.label}
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormField>
+              <FormField>
+                <FieldLabel>Priority</FieldLabel>
+                <Select
+                  fullWidth value={priority}
+                  onChange={e => setPriority(e.target.value as TaskPriority)}
+                  renderValue={v => {
+                    const p = PRIORITY_OPTIONS.find(p => p.value === v);
+                    const c = PRIORITY_COLORS[v as TaskPriority];
+                    return <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: c }} />{p?.label}</Box>;
+                  }}
+                  sx={{ '& .MuiSelect-select': { display: 'flex', alignItems: 'center' } }}
+                >
+                  {PRIORITY_OPTIONS.map(p => (
+                    <MenuItem key={p.value} value={p.value}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: PRIORITY_COLORS[p.value] }} />{p.label}
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormField>
+              <FormField fullWidth>
+                <Tags
+                  tags={tags}
+                  editable
+                  onAdd={tag => setTags(prev => prev.includes(tag) ? prev : [...prev, tag])}
+                  onRemove={tag => setTags(prev => prev.filter(t => t !== tag))}
+                />
+              </FormField>
+            </Box>
+          </Section>
+        }
+      />
 
       <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
         <Button onClick={onCancel}>Cancel</Button>

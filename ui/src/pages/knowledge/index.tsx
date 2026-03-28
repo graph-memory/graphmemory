@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Box, Button, TextField, Stack, InputAdornment, Alert, CircularProgress,
+  Box, Button, TextField, InputAdornment, Alert, CircularProgress,
   IconButton,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
@@ -10,9 +10,9 @@ import CloseIcon from '@mui/icons-material/Close';
 import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
 import { useWebSocket } from '@/shared/lib/useWebSocket.ts';
 import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
-import { PageTopBar, FilterBar, EmptyState, PaginationBar } from '@/shared/ui/index.ts';
+import { PageTopBar, FilterBar, EmptyState, PaginationBar, ConfirmDialog } from '@/shared/ui/index.ts';
 import { PAGE_SIZE } from '@/shared/lib/usePagination.ts';
-import { searchNotes, type Note, NoteCard } from '@/entities/note/index.ts';
+import { searchNotes, deleteNote, type Note, NoteCard } from '@/entities/note/index.ts';
 import { useNotes } from '@/features/note-crud/index.ts';
 
 export default function KnowledgePage() {
@@ -25,6 +25,8 @@ export default function KnowledgePage() {
   const [search, setSearch] = useState(searchParams.get('q') || '');
   const [searchResults, setSearchResults] = useState<Array<Note & { score: number }> | null>(null);
   const [searching, setSearching] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Note | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useWebSocket(projectId ?? null, useCallback((event) => {
     if (event.type.startsWith('note:')) refresh();
@@ -133,7 +135,7 @@ export default function KnowledgePage() {
           }
         />
       ) : (
-        <Stack spacing={2}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
           {displayNotes.map((note) => (
             <NoteCard
               key={note.id}
@@ -141,9 +143,10 @@ export default function KnowledgePage() {
               score={'score' in note ? (note as Note & { score: number }).score : undefined}
               onClick={() => navigate(note.id)}
               onEdit={canWrite ? () => navigate(`${note.id}/edit`) : undefined}
+              onDelete={canWrite ? () => setDeleteTarget(note) : undefined}
             />
           ))}
-        </Stack>
+        </Box>
       )}
 
       {!searchResults && (
@@ -151,6 +154,27 @@ export default function KnowledgePage() {
           <PaginationBar page={page} totalPages={totalPages} onPageChange={setPage} onRefresh={refresh} />
         </Box>
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete note"
+        message={`Delete "${deleteTarget?.title}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        confirmColor="error"
+        loading={deleting}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={async () => {
+          if (!projectId || !deleteTarget) return;
+          setDeleting(true);
+          try {
+            await deleteNote(projectId, deleteTarget.id);
+            setDeleteTarget(null);
+            refresh();
+          } finally {
+            setDeleting(false);
+          }
+        }}
+      />
     </Box>
   );
 }

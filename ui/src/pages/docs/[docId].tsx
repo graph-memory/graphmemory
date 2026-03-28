@@ -6,7 +6,7 @@ import {
 } from '@mui/material';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { getDocNode, getToc, type DocNode, type DocChunk } from '@/entities/doc/index.ts';
-import { PageTopBar, Section, FieldRow, CopyButton, Tags } from '@/shared/ui/index.ts';
+import { PageTopBar, Section, FieldRow, CopyButton, Tags, DetailLayout } from '@/shared/ui/index.ts';
 import { useProjectDir } from '@/shared/lib/useProjectDir.ts';
 
 export default function DocDetailPage() {
@@ -58,90 +58,97 @@ export default function DocDetailPage() {
         ]}
       />
 
-      <Section title="Details" sx={{ mb: 3 }}>
-        <FieldRow label="ID">
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{node.id}</Typography>
-            <CopyButton value={node.id} />
-          </Box>
-        </FieldRow>
-        <FieldRow label="File">
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Link component="button" variant="body2" onClick={() => navigate(`/${projectId}/files/${node.fileId}`)}>
-              {node.fileId}
-            </Link>
-            {projectDir && (
-              <Link
-                href={`vscode://file/${projectDir}/${node.fileId}`}
-                sx={{ display: 'inline-flex', color: palette.custom.textMuted }}
-                title="Open in VS Code"
-              >
-                <OpenInNewIcon sx={{ fontSize: 14 }} />
-              </Link>
+      <DetailLayout
+        main={
+          <>
+            {node.content && (
+              <Section title="Content" sx={{ mb: 3 }}>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    whiteSpace: 'pre-wrap',
+                    fontFamily: node.language ? 'monospace' : 'inherit',
+                    fontSize: node.language ? '0.85rem' : undefined,
+                  }}
+                >
+                  {node.content}
+                </Typography>
+              </Section>
             )}
-          </Box>
-        </FieldRow>
-        <FieldRow label="Level">
-          <Typography variant="body2">{node.level}</Typography>
-        </FieldRow>
-        {node.language && (
-          <FieldRow label="Language">
-            <Typography variant="body2">{node.language}</Typography>
-          </FieldRow>
-        )}
-        {node.symbols && node.symbols.length > 0 && (
-          <FieldRow label="Symbols" divider={false}>
-            <Tags tags={node.symbols} />
-          </FieldRow>
-        )}
-      </Section>
 
-      {node.content && (
-        <Section title="Content" sx={{ mb: 3 }}>
-          <Typography
-            variant="body2"
-            sx={{
-              whiteSpace: 'pre-wrap',
-              fontFamily: node.language ? 'monospace' : 'inherit',
-              fontSize: node.language ? '0.85rem' : undefined,
-            }}
-          >
-            {node.content}
-          </Typography>
-        </Section>
-      )}
-
-      {siblings.length > 1 && (
-        <Section title="In this file">
-          <List dense disablePadding>
-            {siblings.map(chunk => (
-              <ListItemButton
-                key={chunk.id}
-                selected={chunk.id === nodeId}
-                onClick={() => navigate(`/${projectId}/docs/${encodeURIComponent(chunk.id)}`)}
-                sx={{
-                  borderRadius: 1, py: 0.25,
-                  ...(chunk.id === nodeId && {
-                    bgcolor: `${palette.primary.main}14`,
-                  }),
-                }}
-              >
-                <ListItemText
-                  primary={
-                    <Typography
-                      variant="body2"
-                      sx={{ pl: (chunk.level - 1) * 2 }}
-                      fontWeight={chunk.id === nodeId ? 700 : 400}
+            {siblings.length > 1 && (
+              <Section title="In this file">
+                <List dense disablePadding>
+                  {siblings.map(chunk => (
+                    <ListItemButton
+                      key={chunk.id}
+                      selected={chunk.id === nodeId}
+                      onClick={() => navigate(`/${projectId}/docs/${encodeURIComponent(chunk.id)}`)}
+                      sx={{
+                        borderRadius: 1, py: 0.25,
+                        ...(chunk.id === nodeId && {
+                          bgcolor: `${palette.primary.main}14`,
+                        }),
+                      }}
                     >
-                      {chunk.title || chunk.id}
-                    </Typography>
-                  }
-                />
-              </ListItemButton>
-            ))}
-          </List>
-        </Section>
-      )}
+                      <ListItemText
+                        primary={
+                          <Typography
+                            variant="body2"
+                            sx={{ pl: (chunk.level - 1) * 2 }}
+                            fontWeight={chunk.id === nodeId ? 700 : 400}
+                          >
+                            {chunk.title || chunk.id}
+                          </Typography>
+                        }
+                      />
+                    </ListItemButton>
+                  ))}
+                </List>
+              </Section>
+            )}
+          </>
+        }
+        sidebar={
+          <Section title="Details">
+            <FieldRow label="ID">
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{node.id}</Typography>
+                <CopyButton value={node.id} />
+              </Box>
+            </FieldRow>
+            <FieldRow label="File">
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Link component="button" variant="body2" onClick={() => navigate(`/${projectId}/files/${node.fileId}`)}>
+                  {node.fileId}
+                </Link>
+                {projectDir && (
+                  <Link
+                    href={`vscode://file/${projectDir}/${node.fileId}`}
+                    sx={{ display: 'inline-flex', color: palette.custom.textMuted }}
+                    title="Open in VS Code"
+                  >
+                    <OpenInNewIcon sx={{ fontSize: 14 }} />
+                  </Link>
+                )}
+              </Box>
+            </FieldRow>
+            <FieldRow label="Level">
+              <Typography variant="body2">{node.level}</Typography>
+            </FieldRow>
+            {node.language && (
+              <FieldRow label="Language">
+                <Typography variant="body2">{node.language}</Typography>
+              </FieldRow>
+            )}
+            {node.symbols && node.symbols.length > 0 && (
+              <FieldRow label="Symbols" divider={false}>
+                <Tags tags={node.symbols} />
+              </FieldRow>
+            )}
+          </Section>
+        }
+      />
     </Box>
   );
 }

@@ -12,7 +12,7 @@ import { RelationManager } from '@/features/relation-manager/index.ts';
 import { AttachmentSection } from '@/features/attachments/index.ts';
 import { useWebSocket } from '@/shared/lib/useWebSocket.ts';
 import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
-import { PageTopBar, Section, FieldRow, Tags, CopyButton, ConfirmDialog, MarkdownRenderer, DateDisplay } from '@/shared/ui/index.ts';
+import { PageTopBar, Section, FieldRow, Tags, CopyButton, ConfirmDialog, MarkdownRenderer, DateDisplay, DetailLayout } from '@/shared/ui/index.ts';
 
 export default function NoteDetailPage() {
   const { projectId, noteId } = useParams<{ projectId: string; noteId: string }>();
@@ -85,69 +85,79 @@ export default function NoteDetailPage() {
         }
       />
 
-      <Section title="Details" sx={{ mb: 3 }}>
-        <FieldRow label="ID">
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{note.id}</Typography>
-            <CopyButton value={note.id} />
-          </Box>
-        </FieldRow>
-        <FieldRow label="Version">
-          <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>v{note.version}</Typography>
-        </FieldRow>
-        <FieldRow label="Tags">
-          {note.tags.length > 0 ? <Tags tags={note.tags} /> : <Typography variant="body2" color="text.secondary">—</Typography>}
-        </FieldRow>
-        {note.createdBy && (
-          <FieldRow label="Created by">
-            <Typography variant="body2">{note.createdBy}</Typography>
-          </FieldRow>
-        )}
-        {note.updatedBy && note.updatedBy !== note.createdBy && (
-          <FieldRow label="Updated by">
-            <Typography variant="body2">{note.updatedBy}</Typography>
-          </FieldRow>
-        )}
-        <FieldRow label="Created">
-          <DateDisplay value={note.createdAt} showTime showRelative />
-        </FieldRow>
-        <FieldRow label="Updated" divider={!note.content}>
-          <DateDisplay value={note.updatedAt} showTime showRelative />
-        </FieldRow>
-        {note.content && (
-          <FieldRow label="Content" divider={false}>
-            <MarkdownRenderer>{note.content}</MarkdownRenderer>
-          </FieldRow>
-        )}
-      </Section>
+      <DetailLayout
+        main={
+          <>
+            {note.content && (
+              <Section title="Content" sx={{ mb: 3 }}>
+                <MarkdownRenderer>{note.content}</MarkdownRenderer>
+              </Section>
+            )}
+          </>
+        }
+        sidebar={
+          <>
+            <Section title="Details" sx={{ mb: 3 }}>
+              <FieldRow label="ID">
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{note.id}</Typography>
+                  <CopyButton value={note.id} />
+                </Box>
+              </FieldRow>
+              <FieldRow label="Version">
+                <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>v{note.version}</Typography>
+              </FieldRow>
+              <FieldRow label="Tags">
+                {note.tags.length > 0 ? <Tags tags={note.tags} /> : <Typography variant="body2" color="text.secondary">—</Typography>}
+              </FieldRow>
+              {note.createdBy && (
+                <FieldRow label="Created by">
+                  <Typography variant="body2">{note.createdBy}</Typography>
+                </FieldRow>
+              )}
+              {note.updatedBy && note.updatedBy !== note.createdBy && (
+                <FieldRow label="Updated by">
+                  <Typography variant="body2">{note.updatedBy}</Typography>
+                </FieldRow>
+              )}
+              <FieldRow label="Created">
+                <DateDisplay value={note.createdAt} showTime showRelative />
+              </FieldRow>
+              <FieldRow label="Updated" divider={false}>
+                <DateDisplay value={note.updatedAt} showTime showRelative />
+              </FieldRow>
+            </Section>
 
-      <Section title="Attachments" sx={{ mb: 3 }}>
-        <AttachmentSection
-          attachments={attachments}
-          getUrl={(filename) => noteAttachmentUrl(projectId!, noteId!, filename)}
-          onUpload={async (file) => {
-            await uploadNoteAttachment(projectId!, noteId!, file);
-            const atts = await listNoteAttachments(projectId!, noteId!);
-            setAttachments(atts);
-          }}
-          onDelete={async (filename) => {
-            await deleteNoteAttachment(projectId!, noteId!, filename);
-            const atts = await listNoteAttachments(projectId!, noteId!);
-            setAttachments(atts);
-          }}
-          readOnly={!canWrite}
-        />
-      </Section>
+            <Section title="Attachments" sx={{ mb: 3 }}>
+              <AttachmentSection
+                attachments={attachments}
+                getUrl={(filename) => noteAttachmentUrl(projectId!, noteId!, filename)}
+                onUpload={async (file) => {
+                  await uploadNoteAttachment(projectId!, noteId!, file);
+                  const atts = await listNoteAttachments(projectId!, noteId!);
+                  setAttachments(atts);
+                }}
+                onDelete={async (filename) => {
+                  await deleteNoteAttachment(projectId!, noteId!, filename);
+                  const atts = await listNoteAttachments(projectId!, noteId!);
+                  setAttachments(atts);
+                }}
+                readOnly={!canWrite}
+              />
+            </Section>
 
-      <Section title="Relations">
-        <RelationManager
-          projectId={projectId!}
-          entityId={noteId!}
-          entityType="knowledge"
-          relations={relations}
-          onRefresh={load}
-        />
-      </Section>
+            <Section title="Relations">
+              <RelationManager
+                projectId={projectId!}
+                entityId={noteId!}
+                entityType="knowledge"
+                relations={relations}
+                onRefresh={load}
+              />
+            </Section>
+          </>
+        }
+      />
 
       <ConfirmDialog
         open={deleteConfirm}

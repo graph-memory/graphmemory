@@ -11,7 +11,7 @@ import {
   getSymbol, getFileSymbols, getSymbolEdges,
   type CodeSymbol, type CodeEdge,
 } from '@/entities/code/index.ts';
-import { PageTopBar, Section, FieldRow, CopyButton } from '@/shared/ui/index.ts';
+import { PageTopBar, Section, FieldRow, CopyButton, DetailLayout } from '@/shared/ui/index.ts';
 import { useProjectDir } from '@/shared/lib/useProjectDir.ts';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 
@@ -69,58 +69,8 @@ export default function CodeDetailPage() {
   const outEdges = edges.filter(e => e.source === nodeId);
   const inEdges = edges.filter(e => e.target === nodeId);
 
-  return (
-    <Box>
-      <PageTopBar
-        breadcrumbs={[
-          { label: 'Code', to: `/${projectId}/code` },
-          { label: symbol.name || symbol.id },
-        ]}
-      />
-
-      <Section title="Details" sx={{ mb: 3 }}>
-        <FieldRow label="ID">
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{symbol.id}</Typography>
-            <CopyButton value={symbol.id} />
-          </Box>
-        </FieldRow>
-        <FieldRow label="File">
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Link component="button" variant="body2" onClick={() => navigate(`/${projectId}/files/${symbol.fileId}`)}>
-              {symbol.fileId}
-            </Link>
-            {projectDir && (
-              <Link
-                href={`vscode://file/${projectDir}/${symbol.fileId}:${symbol.startLine}`}
-                sx={{ display: 'inline-flex', color: palette.custom.textMuted }}
-                title="Open in VS Code"
-              >
-                <OpenInNewIcon sx={{ fontSize: 14 }} />
-              </Link>
-            )}
-          </Box>
-        </FieldRow>
-        <FieldRow label="Kind">
-          <Chip label={symbol.kind} size="small" color={kindColor(symbol.kind)} variant="outlined" />
-        </FieldRow>
-        <FieldRow label="Lines">
-          <Typography variant="body2">{symbol.startLine}–{symbol.endLine}</Typography>
-        </FieldRow>
-        {symbol.isExported && (
-          <FieldRow label="Exported">
-            <Chip label="yes" size="small" variant="outlined" />
-          </FieldRow>
-        )}
-        {symbol.docComment && (
-          <FieldRow label="Doc" divider={false}>
-            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', color: palette.custom.textMuted }}>
-              {symbol.docComment}
-            </Typography>
-          </FieldRow>
-        )}
-      </Section>
-
+  const main = (
+    <>
       {symbol.signature && (
         <Section title="Signature" sx={{ mb: 3 }}>
           <Typography
@@ -215,6 +165,53 @@ export default function CodeDetailPage() {
           </List>
         </Section>
       )}
+    </>
+  );
+
+  const sidebar = (
+    <>
+      <Section title="Details" sx={{ mb: 3 }}>
+        <FieldRow label="ID">
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{symbol.id}</Typography>
+            <CopyButton value={symbol.id} />
+          </Box>
+        </FieldRow>
+        <FieldRow label="File">
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Link component="button" variant="body2" onClick={() => navigate(`/${projectId}/files/${symbol.fileId}`)}>
+              {symbol.fileId}
+            </Link>
+            {projectDir && (
+              <Link
+                href={`vscode://file/${projectDir}/${symbol.fileId}:${symbol.startLine}`}
+                sx={{ display: 'inline-flex', color: palette.custom.textMuted }}
+                title="Open in VS Code"
+              >
+                <OpenInNewIcon sx={{ fontSize: 14 }} />
+              </Link>
+            )}
+          </Box>
+        </FieldRow>
+        <FieldRow label="Kind">
+          <Chip label={symbol.kind} size="small" color={kindColor(symbol.kind)} variant="outlined" />
+        </FieldRow>
+        <FieldRow label="Lines">
+          <Typography variant="body2">{symbol.startLine}–{symbol.endLine}</Typography>
+        </FieldRow>
+        {symbol.isExported && (
+          <FieldRow label="Exported">
+            <Chip label="yes" size="small" variant="outlined" />
+          </FieldRow>
+        )}
+        {symbol.docComment && (
+          <FieldRow label="Doc" divider={false}>
+            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', color: palette.custom.textMuted }}>
+              {symbol.docComment}
+            </Typography>
+          </FieldRow>
+        )}
+      </Section>
 
       {siblings.filter(s => s.kind !== 'file').length > 1 && (
         <Section title="In this file">
@@ -252,6 +249,19 @@ export default function CodeDetailPage() {
           </List>
         </Section>
       )}
+    </>
+  );
+
+  return (
+    <Box>
+      <PageTopBar
+        breadcrumbs={[
+          { label: 'Code', to: `/${projectId}/code` },
+          { label: symbol.name || symbol.id },
+        ]}
+      />
+
+      <DetailLayout main={main} sidebar={sidebar} />
     </Box>
   );
 }

@@ -21,7 +21,7 @@ import { AttachmentSection } from '@/features/attachments/index.ts';
 import { useWebSocket } from '@/shared/lib/useWebSocket.ts';
 import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
 import {
-  PageTopBar, Section, FieldRow, StatusBadge, Tags, CopyButton, DateDisplay, ConfirmDialog, MarkdownRenderer,
+  PageTopBar, Section, FieldRow, StatusBadge, Tags, CopyButton, DateDisplay, ConfirmDialog, MarkdownRenderer, DetailLayout,
 } from '@/shared/ui/index.ts';
 
 interface TaskDetail extends Task {
@@ -137,175 +137,181 @@ export default function TaskDetailPage() {
         }
       />
 
-      <Section title="Properties" sx={{ mb: 3 }}>
-        <FieldRow label="ID">
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{task.id}</Typography>
-            <CopyButton value={task.id} />
-          </Box>
-        </FieldRow>
-        <FieldRow label="Version">
-          <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>v{task.version}</Typography>
-        </FieldRow>
-        <FieldRow label="Status">
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <StatusBadge label={statusLabel(task.status)} color={STATUS_BADGE_COLOR[task.status]} />
-            {canWrite && (
-              <FormControl size="small" sx={{ minWidth: 140 }}>
-                <InputLabel>Move to</InputLabel>
-                <Select value="" label="Move to" onChange={e => handleMove(e.target.value as TaskStatus)}>
-                  {COLUMNS.filter(c => c.status !== task.status).map(c => (
-                    <MenuItem key={c.status} value={c.status}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: c.color }} />
-                        {c.label}
-                      </Box>
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+      <DetailLayout
+        main={
+          <>
+            {task.description && (
+              <Section title="Description" sx={{ mb: 3 }}>
+                <MarkdownRenderer>{task.description}</MarkdownRenderer>
+              </Section>
             )}
-          </Box>
-        </FieldRow>
-        <FieldRow label="Priority">
-          <StatusBadge label={priorityLabel(task.priority)} color={PRIORITY_BADGE_COLOR[task.priority]} />
-        </FieldRow>
-        <FieldRow label="Tags">
-          {task.tags.length > 0 ? <Tags tags={task.tags} /> : <Typography variant="body2" color="text.secondary">—</Typography>}
-        </FieldRow>
-        <FieldRow label="Epics">
-          {(() => {
-            // Linked epics come directly from relations (survives any state race)
-            const epicLinks = relations.filter(r => r.kind === 'belongs_to');
-            const linkedEpicIds = new Set(epicLinks.map(r => r.toId));
-            // Available epics for "Add to..." dropdown — only open/in_progress, not already linked
-            const availableEpics = epics.filter(e => !linkedEpicIds.has(e.id) && (e.status === 'open' || e.status === 'in_progress'));
-            return (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                {epicLinks.map(r => (
-                  <Box key={r.toId} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <FlagIcon sx={{ fontSize: 16, color: '#1976d2' }} />
-                    <Link component="button" variant="body2" onClick={() => navigate(`/${projectId}/epics/${r.toId}`)}>
-                      {r.title || r.toId}
-                    </Link>
-                    {canWrite && (
-                      <IconButton size="small" sx={{ p: 0.25 }} onClick={async () => {
-                        await unlinkTaskFromEpic(projectId!, r.toId, taskId!);
-                        load();
-                      }}>
-                        <LinkOffIcon sx={{ fontSize: 14 }} />
-                      </IconButton>
-                    )}
-                  </Box>
-                ))}
-                {epicLinks.length === 0 && !canWrite && <Typography variant="body2" color="text.secondary">—</Typography>}
-                {canWrite && availableEpics.length > 0 && (
-                  <FormControl size="small" sx={{ minWidth: 160, mt: 0.5 }}>
-                    <Select
-                      value=""
-                      displayEmpty
-                      renderValue={() => 'Add to epic...'}
-                      onChange={async (e) => {
-                        await linkTaskToEpic(projectId!, e.target.value as string, taskId!);
-                        load();
-                      }}
-                      sx={{ fontSize: '0.85rem' }}
-                    >
-                      {availableEpics.map(e => (
-                        <MenuItem key={e.id} value={e.id}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <FlagIcon sx={{ fontSize: 14, color: e.status === 'open' ? '#1976d2' : '#f57c00' }} />
-                            {e.title}
-                          </Box>
-                        </MenuItem>
+            {hasDeps && (
+              <Section title="Dependencies" sx={{ mb: 3 }}>
+                {renderTaskLinks('Subtasks', task.subtasks)}
+                {renderTaskLinks('Blocked by', task.blockedBy)}
+                {renderTaskLinks('Blocks', task.blocks)}
+                {renderTaskLinks('Related', task.related)}
+              </Section>
+            )}
+          </>
+        }
+        sidebar={
+          <>
+            <Section title="Properties" sx={{ mb: 3 }}>
+              <FieldRow label="ID">
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{task.id}</Typography>
+                  <CopyButton value={task.id} />
+                </Box>
+              </FieldRow>
+              <FieldRow label="Version">
+                <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>v{task.version}</Typography>
+              </FieldRow>
+              <FieldRow label="Status">
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <StatusBadge label={statusLabel(task.status)} color={STATUS_BADGE_COLOR[task.status]} />
+                  {canWrite && (
+                    <FormControl size="small" sx={{ minWidth: 140 }}>
+                      <InputLabel>Move to</InputLabel>
+                      <Select value="" label="Move to" onChange={e => handleMove(e.target.value as TaskStatus)}>
+                        {COLUMNS.filter(c => c.status !== task.status).map(c => (
+                          <MenuItem key={c.status} value={c.status}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: c.color }} />
+                              {c.label}
+                            </Box>
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  )}
+                </Box>
+              </FieldRow>
+              <FieldRow label="Priority">
+                <StatusBadge label={priorityLabel(task.priority)} color={PRIORITY_BADGE_COLOR[task.priority]} />
+              </FieldRow>
+              <FieldRow label="Tags">
+                {task.tags.length > 0 ? <Tags tags={task.tags} /> : <Typography variant="body2" color="text.secondary">—</Typography>}
+              </FieldRow>
+              <FieldRow label="Epics">
+                {(() => {
+                  const epicLinks = relations.filter(r => r.kind === 'belongs_to');
+                  const linkedEpicIds = new Set(epicLinks.map(r => r.toId));
+                  const availableEpics = epics.filter(e => !linkedEpicIds.has(e.id) && (e.status === 'open' || e.status === 'in_progress'));
+                  return (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      {epicLinks.map(r => (
+                        <Box key={r.toId} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <FlagIcon sx={{ fontSize: 16, color: '#1976d2' }} />
+                          <Link component="button" variant="body2" onClick={() => navigate(`/${projectId}/epics/${r.toId}`)}>
+                            {r.title || r.toId}
+                          </Link>
+                          {canWrite && (
+                            <IconButton size="small" sx={{ p: 0.25 }} onClick={async () => {
+                              await unlinkTaskFromEpic(projectId!, r.toId, taskId!);
+                              load();
+                            }}>
+                              <LinkOffIcon sx={{ fontSize: 14 }} />
+                            </IconButton>
+                          )}
+                        </Box>
                       ))}
-                    </Select>
-                  </FormControl>
-                )}
-              </Box>
-            );
-          })()}
-        </FieldRow>
-        {task.dueDate != null && (
-          <FieldRow label="Due Date">
-            <DateDisplay value={task.dueDate} showRelative />
-          </FieldRow>
-        )}
-        {task.estimate != null && (
-          <FieldRow label="Estimate">
-            <Typography variant="body2">{task.estimate}h</Typography>
-          </FieldRow>
-        )}
-        {task.assignee && (
-          <FieldRow label="Assignee">
-            <Typography variant="body2">{team.find(m => m.id === task.assignee)?.name ?? task.assignee}</Typography>
-          </FieldRow>
-        )}
-        {task.completedAt != null && (
-          <FieldRow label="Completed">
-            <DateDisplay value={task.completedAt} showTime showRelative />
-          </FieldRow>
-        )}
-        {task.createdBy && (
-          <FieldRow label="Created by">
-            <Typography variant="body2">{task.createdBy}</Typography>
-          </FieldRow>
-        )}
-        {task.updatedBy && task.updatedBy !== task.createdBy && (
-          <FieldRow label="Updated by">
-            <Typography variant="body2">{task.updatedBy}</Typography>
-          </FieldRow>
-        )}
-        <FieldRow label="Created">
-          <DateDisplay value={task.createdAt} showTime showRelative />
-        </FieldRow>
-        <FieldRow label="Updated" divider={false}>
-          <DateDisplay value={task.updatedAt} showTime showRelative />
-        </FieldRow>
-      </Section>
+                      {epicLinks.length === 0 && !canWrite && <Typography variant="body2" color="text.secondary">—</Typography>}
+                      {canWrite && availableEpics.length > 0 && (
+                        <FormControl size="small" sx={{ minWidth: 160, mt: 0.5 }}>
+                          <Select
+                            value=""
+                            displayEmpty
+                            renderValue={() => 'Add to epic...'}
+                            onChange={async (e) => {
+                              await linkTaskToEpic(projectId!, e.target.value as string, taskId!);
+                              load();
+                            }}
+                            sx={{ fontSize: '0.85rem' }}
+                          >
+                            {availableEpics.map(e => (
+                              <MenuItem key={e.id} value={e.id}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <FlagIcon sx={{ fontSize: 14, color: e.status === 'open' ? '#1976d2' : '#f57c00' }} />
+                                  {e.title}
+                                </Box>
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      )}
+                    </Box>
+                  );
+                })()}
+              </FieldRow>
+              {task.dueDate != null && (
+                <FieldRow label="Due Date">
+                  <DateDisplay value={task.dueDate} showRelative />
+                </FieldRow>
+              )}
+              {task.estimate != null && (
+                <FieldRow label="Estimate">
+                  <Typography variant="body2">{task.estimate}h</Typography>
+                </FieldRow>
+              )}
+              {task.assignee && (
+                <FieldRow label="Assignee">
+                  <Typography variant="body2">{team.find(m => m.id === task.assignee)?.name ?? task.assignee}</Typography>
+                </FieldRow>
+              )}
+              {task.completedAt != null && (
+                <FieldRow label="Completed">
+                  <DateDisplay value={task.completedAt} showTime showRelative />
+                </FieldRow>
+              )}
+              {task.createdBy && (
+                <FieldRow label="Created by">
+                  <Typography variant="body2">{task.createdBy}</Typography>
+                </FieldRow>
+              )}
+              {task.updatedBy && task.updatedBy !== task.createdBy && (
+                <FieldRow label="Updated by">
+                  <Typography variant="body2">{task.updatedBy}</Typography>
+                </FieldRow>
+              )}
+              <FieldRow label="Created">
+                <DateDisplay value={task.createdAt} showTime showRelative />
+              </FieldRow>
+              <FieldRow label="Updated" divider={false}>
+                <DateDisplay value={task.updatedAt} showTime showRelative />
+              </FieldRow>
+            </Section>
 
-      {task.description && (
-        <Section title="Description" sx={{ mb: 3 }}>
-          <MarkdownRenderer>{task.description}</MarkdownRenderer>
-        </Section>
-      )}
+            <Section title="Attachments" sx={{ mb: 3 }}>
+              <AttachmentSection
+                attachments={attachments}
+                getUrl={(filename) => taskAttachmentUrl(projectId!, taskId!, filename)}
+                onUpload={async (file) => {
+                  await uploadTaskAttachment(projectId!, taskId!, file);
+                  const atts = await listTaskAttachments(projectId!, taskId!);
+                  setAttachments(atts);
+                }}
+                onDelete={async (filename) => {
+                  await deleteTaskAttachment(projectId!, taskId!, filename);
+                  const atts = await listTaskAttachments(projectId!, taskId!);
+                  setAttachments(atts);
+                }}
+                readOnly={!canWrite}
+              />
+            </Section>
 
-      {hasDeps && (
-        <Section title="Dependencies" sx={{ mb: 3 }}>
-          {renderTaskLinks('Subtasks', task.subtasks)}
-          {renderTaskLinks('Blocked by', task.blockedBy)}
-          {renderTaskLinks('Blocks', task.blocks)}
-          {renderTaskLinks('Related', task.related)}
-        </Section>
-      )}
-
-      <Section title="Attachments" sx={{ mb: 3 }}>
-        <AttachmentSection
-          attachments={attachments}
-          getUrl={(filename) => taskAttachmentUrl(projectId!, taskId!, filename)}
-          onUpload={async (file) => {
-            await uploadTaskAttachment(projectId!, taskId!, file);
-            const atts = await listTaskAttachments(projectId!, taskId!);
-            setAttachments(atts);
-          }}
-          onDelete={async (filename) => {
-            await deleteTaskAttachment(projectId!, taskId!, filename);
-            const atts = await listTaskAttachments(projectId!, taskId!);
-            setAttachments(atts);
-          }}
-          readOnly={!canWrite}
-        />
-      </Section>
-
-      <Section title="Cross-graph Links">
-        <RelationManager
-          projectId={projectId!}
-          entityId={taskId!}
-          entityType="tasks"
-          relations={relations}
-          onRefresh={load}
-        />
-      </Section>
+            <Section title="Cross-graph Links">
+              <RelationManager
+                projectId={projectId!}
+                entityId={taskId!}
+                entityType="tasks"
+                relations={relations}
+                onRefresh={load}
+              />
+            </Section>
+          </>
+        }
+      />
 
       <ConfirmDialog
         open={deleteConfirm}

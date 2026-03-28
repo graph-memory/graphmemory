@@ -23,6 +23,7 @@ import {
 import { useWebSocket } from '@/shared/lib/useWebSocket.ts';
 import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
 import { PageTopBar, StatusBadge, ConfirmDialog, PaginationBar } from '@/shared/ui/index.ts';
+import { useTableSort, type SortDir } from '@/shared/lib/useTableSort.ts';
 import {
   listTasks, updateTask, reorderTask, bulkMoveTasks, bulkUpdatePriority, bulkDeleteTasks,
   COLUMNS, PRIORITY_COLORS, PRIORITY_BADGE_COLOR, priorityLabel, statusLabel,
@@ -55,7 +56,6 @@ function badgeSelectSx(c: string) {
 }
 
 type SortField = 'title' | 'priority' | 'assignee' | 'dueDate' | 'estimate' | 'order';
-type SortDir = 'asc' | 'desc';
 
 const PRIORITY_ORDER: Record<TaskPriority, number> = { critical: 0, high: 1, medium: 2, low: 3 };
 
@@ -321,8 +321,12 @@ export default function TaskListPage() {
   const [epics, setEpics] = useState<Epic[]>([]);
   const [epicTaskIds, setEpicTaskIds] = useState<Set<string> | null>(null);
   const [taskEpicMap, setTaskEpicMap] = useState<Map<string, Epic[]>>(new Map());
-  const [sortField, setSortField] = useState<SortField>((searchParams.get('sort') || 'order') as SortField);
-  const [sortDir, setSortDir] = useState<SortDir>((searchParams.get('dir') || 'asc') as SortDir);
+  const initSort = searchParams.get('sort') as SortField | null;
+  const initDir = searchParams.get('dir') as SortDir | null;
+  const { sortField, sortDir, handleSort, resetSort } = useTableSort<SortField>(
+    initSort || 'order',
+    initDir || 'asc',
+  );
   const [collapsed, setCollapsed] = useState<Set<TaskStatus>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<{ ids: string[]; label: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -388,6 +392,7 @@ export default function TaskListPage() {
   }, [tasks, searchQuery, filterPriority, filterTag, assigneeFilter, epicTaskIds]);
 
   const compareTasks = useCallback((a: Task, b: Task): number => {
+    if (!sortField || !sortDir) return 0; // no sort — preserve default order
     let cmp = 0;
     switch (sortField) {
       case 'title': cmp = a.title.localeCompare(b.title); break;
@@ -408,9 +413,8 @@ export default function TaskListPage() {
     return map;
   }, [filteredTasks, compareTasks]);
 
-  const handleSort = (field: SortField) => {
-    if (sortField === field) setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
-    else { setSortField(field); setSortDir('asc'); }
+  const handleSortClick = (field: SortField) => {
+    handleSort(field);
   };
 
   const toggleCollapse = (status: TaskStatus) => {
@@ -526,8 +530,8 @@ export default function TaskListPage() {
     if (filterTag) next.set('tag', filterTag);
     if (assigneeFilter) next.set('assignee', assigneeFilter);
     if (epicFilter) next.set('epic', epicFilter);
-    if (sortField !== 'order') next.set('sort', sortField);
-    if (sortDir !== 'asc') next.set('dir', sortDir);
+    if (sortField) next.set('sort', sortField);
+    if (sortDir) next.set('dir', sortDir);
     setSearchParams(next, { replace: true });
   }, [searchQuery, filterPriority, filterTag, assigneeFilter, epicFilter, sortField, sortDir]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -641,7 +645,7 @@ export default function TaskListPage() {
             </Select>
           </FormControl>
         )}
-        {hasFilters && <Button size="small" onClick={() => { setSearchQuery(''); setFilterPriority(''); setFilterTag(''); setAssigneeFilter(''); setEpicFilter(''); setSortField('order'); setSortDir('asc'); }}>Clear</Button>}
+        {hasFilters && <Button size="small" onClick={() => { setSearchQuery(''); setFilterPriority(''); setFilterTag(''); setAssigneeFilter(''); setEpicFilter(''); resetSort(); }}>Clear</Button>}
       </Box>
 
       {/* Bulk actions bar */}
@@ -707,11 +711,11 @@ export default function TaskListPage() {
                     <Checkbox size="small" checked={selected.size === totalFiltered && totalFiltered > 0}
                       indeterminate={selected.size > 0 && selected.size < totalFiltered} onChange={toggleSelectAll} />
                   </TableCell>}
-                  <TableCell><TableSortLabel active={sortField === 'title'} direction={sortField === 'title' ? sortDir : 'asc'} onClick={() => handleSort('title')}>Title</TableSortLabel></TableCell>
+                  <TableCell><TableSortLabel active={sortField === 'title'} direction={sortField === 'title' && sortDir ? sortDir : 'asc'} onClick={() => handleSortClick('title')}>Title</TableSortLabel></TableCell>
                   <TableCell width={90}>Status</TableCell>
-                  <TableCell width={110}><TableSortLabel active={sortField === 'priority'} direction={sortField === 'priority' ? sortDir : 'asc'} onClick={() => handleSort('priority')}>Priority</TableSortLabel></TableCell>
-                  <TableCell width={150}><TableSortLabel active={sortField === 'assignee'} direction={sortField === 'assignee' ? sortDir : 'asc'} onClick={() => handleSort('assignee')}>Assignee</TableSortLabel></TableCell>
-                  <TableCell width={80}><TableSortLabel active={sortField === 'estimate'} direction={sortField === 'estimate' ? sortDir : 'asc'} onClick={() => handleSort('estimate')}>Est.</TableSortLabel></TableCell>
+                  <TableCell width={110}><TableSortLabel active={sortField === 'priority'} direction={sortField === 'priority' && sortDir ? sortDir : 'asc'} onClick={() => handleSortClick('priority')}>Priority</TableSortLabel></TableCell>
+                  <TableCell width={150}><TableSortLabel active={sortField === 'assignee'} direction={sortField === 'assignee' && sortDir ? sortDir : 'asc'} onClick={() => handleSortClick('assignee')}>Assignee</TableSortLabel></TableCell>
+                  <TableCell width={80}><TableSortLabel active={sortField === 'estimate'} direction={sortField === 'estimate' && sortDir ? sortDir : 'asc'} onClick={() => handleSortClick('estimate')}>Est.</TableSortLabel></TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>

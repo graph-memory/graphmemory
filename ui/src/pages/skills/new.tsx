@@ -1,14 +1,17 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Box, Button, Alert } from '@mui/material';
-import { createSkill } from '@/entities/skill/index.ts';
+import { createSkill, uploadSkillAttachment } from '@/entities/skill/index.ts';
 import { SkillForm } from '@/features/skill-crud/SkillForm.tsx';
+import { StagedAttachments } from '@/features/attachments/index.ts';
 import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
-import { PageTopBar } from '@/shared/ui/index.ts';
+import { PageTopBar, Section } from '@/shared/ui/index.ts';
 
 export default function SkillNewPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const canWrite = useCanWrite('skills');
+  const [stagedFiles, setStagedFiles] = useState<File[]>([]);
 
   const handleSubmit = async (data: {
     title: string;
@@ -23,6 +26,9 @@ export default function SkillNewPage() {
   }) => {
     if (!projectId) return;
     const skill = await createSkill(projectId, data);
+    for (const file of stagedFiles) {
+      await uploadSkillAttachment(projectId, skill.id, file).catch(() => {});
+    }
     navigate(`/${projectId}/skills/${skill.id}`);
   };
 
@@ -45,6 +51,13 @@ export default function SkillNewPage() {
         onCancel={() => navigate(`/${projectId}/skills`)}
         submitLabel="Create"
       />
+      <Section title="Attachments" sx={{ mt: 3 }}>
+        <StagedAttachments
+          files={stagedFiles}
+          onAdd={files => setStagedFiles(prev => [...prev, ...files])}
+          onRemove={index => setStagedFiles(prev => prev.filter((_, i) => i !== index))}
+        />
+      </Section>
     </Box>
   );
 }

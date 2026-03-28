@@ -1,16 +1,19 @@
+import { useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Box, Button, Alert } from '@mui/material';
-import { createTask, type TaskStatus, type TaskPriority } from '@/entities/task/index.ts';
+import { createTask, uploadTaskAttachment, type TaskStatus, type TaskPriority } from '@/entities/task/index.ts';
 import { linkTaskToEpic } from '@/entities/epic/index.ts';
 import { TaskForm } from '@/features/task-crud/TaskForm.tsx';
+import { StagedAttachments } from '@/features/attachments/index.ts';
 import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
-import { PageTopBar } from '@/shared/ui/index.ts';
+import { PageTopBar, Section } from '@/shared/ui/index.ts';
 
 export default function TaskNewPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const canWrite = useCanWrite('tasks');
   const [searchParams] = useSearchParams();
+  const [stagedFiles, setStagedFiles] = useState<File[]>([]);
 
   const defaults = {
     title: searchParams.get('title') || undefined,
@@ -26,6 +29,9 @@ export default function TaskNewPage() {
     const task = await createTask(projectId, data);
     if (epicId) {
       await linkTaskToEpic(projectId, epicId, task.id).catch(() => {});
+    }
+    for (const file of stagedFiles) {
+      await uploadTaskAttachment(projectId, task.id, file).catch(() => {});
     }
     navigate(`/${projectId}/tasks/${task.id}`);
   };
@@ -50,6 +56,13 @@ export default function TaskNewPage() {
         onCancel={() => navigate(`/${projectId}/tasks`)}
         submitLabel="Create"
       />
+      <Section title="Attachments" sx={{ mt: 3 }}>
+        <StagedAttachments
+          files={stagedFiles}
+          onAdd={files => setStagedFiles(prev => [...prev, ...files])}
+          onRemove={index => setStagedFiles(prev => prev.filter((_, i) => i !== index))}
+        />
+      </Section>
     </Box>
   );
 }

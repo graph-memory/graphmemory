@@ -3,10 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Alert, CircularProgress, Link, Stack, useTheme,
 } from '@mui/material';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { getFileInfo, type FileInfo } from '@/entities/file/index.ts';
 import { findLinkedNotes } from '@/entities/note/index.ts';
 import { findLinkedTasks } from '@/entities/task/index.ts';
 import { PageTopBar, Section, FieldRow, CopyButton, StatusBadge } from '@/shared/ui/index.ts';
+import { useProjectDir } from '@/shared/lib/useProjectDir.ts';
 import { STATUS_BADGE_COLOR, statusLabel } from '@/entities/task/index.ts';
 import type { TaskStatus } from '@/entities/task/index.ts';
 
@@ -38,6 +40,7 @@ export default function FileDetailPage() {
   const navigate = useNavigate();
   const { palette } = useTheme();
   const [file, setFile] = useState<FileInfo | null>(null);
+  const projectDir = useProjectDir(projectId);
   const [linkedNotes, setLinkedNotes] = useState<LinkedNote[]>([]);
   const [linkedTasks, setLinkedTasks] = useState<LinkedTask[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,6 +88,15 @@ export default function FileDetailPage() {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{file.filePath}</Typography>
             <CopyButton value={file.filePath} />
+            {projectDir && (
+              <Link
+                href={`vscode://file/${projectDir}/${file.filePath}`}
+                sx={{ display: 'inline-flex', color: palette.custom.textMuted }}
+                title="Open in VS Code"
+              >
+                <OpenInNewIcon sx={{ fontSize: 14 }} />
+              </Link>
+            )}
           </Box>
         </FieldRow>
         <FieldRow label="Size">

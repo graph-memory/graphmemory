@@ -4,8 +4,10 @@ import {
   Box, Typography, Alert, CircularProgress,
   Link, List, ListItemButton, ListItemText, useTheme,
 } from '@mui/material';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { getDocNode, getToc, type DocNode, type DocChunk } from '@/entities/doc/index.ts';
 import { PageTopBar, Section, FieldRow, CopyButton, Tags } from '@/shared/ui/index.ts';
+import { useProjectDir } from '@/shared/lib/useProjectDir.ts';
 
 export default function DocDetailPage() {
   const { projectId, docId } = useParams<{ projectId: string; docId: string }>();
@@ -13,6 +15,7 @@ export default function DocDetailPage() {
   const { palette } = useTheme();
   const [node, setNode] = useState<DocNode | null>(null);
   const [siblings, setSiblings] = useState<DocChunk[]>([]);
+  const projectDir = useProjectDir(projectId);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,9 +66,20 @@ export default function DocDetailPage() {
           </Box>
         </FieldRow>
         <FieldRow label="File">
-          <Link component="button" variant="body2" onClick={() => navigate(`/${projectId}/docs`)}>
-            {node.fileId}
-          </Link>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Link component="button" variant="body2" onClick={() => navigate(`/${projectId}/files/${node.fileId}`)}>
+              {node.fileId}
+            </Link>
+            {projectDir && (
+              <Link
+                href={`vscode://file/${projectDir}/${node.fileId}`}
+                sx={{ display: 'inline-flex', color: palette.custom.textMuted }}
+                title="Open in VS Code"
+              >
+                <OpenInNewIcon sx={{ fontSize: 14 }} />
+              </Link>
+            )}
+          </Box>
         </FieldRow>
         <FieldRow label="Level">
           <Typography variant="body2">{node.level}</Typography>

@@ -12,6 +12,8 @@ import {
   type CodeSymbol, type CodeEdge,
 } from '@/entities/code/index.ts';
 import { PageTopBar, Section, FieldRow, CopyButton } from '@/shared/ui/index.ts';
+import { useProjectDir } from '@/shared/lib/useProjectDir.ts';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 
 type ChipColor = 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'info' | 'default';
 
@@ -33,6 +35,7 @@ export default function CodeDetailPage() {
   const [edges, setEdges] = useState<CodeEdge[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const projectDir = useProjectDir(projectId);
 
   useEffect(() => {
     if (!projectId || !symbolId) return;
@@ -83,9 +86,20 @@ export default function CodeDetailPage() {
           </Box>
         </FieldRow>
         <FieldRow label="File">
-          <Link component="button" variant="body2" onClick={() => navigate(`/${projectId}/code`)}>
-            {symbol.fileId}
-          </Link>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Link component="button" variant="body2" onClick={() => navigate(`/${projectId}/files/${symbol.fileId}`)}>
+              {symbol.fileId}
+            </Link>
+            {projectDir && (
+              <Link
+                href={`vscode://file/${projectDir}/${symbol.fileId}:${symbol.startLine}`}
+                sx={{ display: 'inline-flex', color: palette.custom.textMuted }}
+                title="Open in VS Code"
+              >
+                <OpenInNewIcon sx={{ fontSize: 14 }} />
+              </Link>
+            )}
+          </Box>
         </FieldRow>
         <FieldRow label="Kind">
           <Chip label={symbol.kind} size="small" color={kindColor(symbol.kind)} variant="outlined" />

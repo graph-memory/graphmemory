@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Box, Typography, Button, Paper, Alert, CircularProgress,
+  Box, Typography, Button, Alert, CircularProgress,
   LinearProgress, alpha, useTheme, TextField, InputAdornment,
   IconButton, FormControl, Select, MenuItem,
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+  TableSortLabel,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import FlagIcon from '@mui/icons-material/Flag';
@@ -11,7 +13,8 @@ import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
 import { useWebSocket } from '@/shared/lib/useWebSocket.ts';
 import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
-import { PageTopBar, StatusBadge, Tags, PaginationBar } from '@/shared/ui/index.ts';
+import { useTableSort } from '@/shared/lib/useTableSort.ts';
+import { PageTopBar, StatusBadge, Tags, PaginationBar, DateDisplay } from '@/shared/ui/index.ts';
 import { listEpics, type Epic, type EpicStatus } from '@/entities/epic/index.ts';
 import { PRIORITY_COLORS, PRIORITY_BADGE_COLOR, priorityLabel, type TaskPriority } from '@/entities/task/index.ts';
 
@@ -35,6 +38,9 @@ function epicStatusLabel(s: EpicStatus): string {
 
 const STATUS_OPTIONS: EpicStatus[] = ['open', 'in_progress', 'done', 'cancelled'];
 const PRIORITY_OPTIONS: TaskPriority[] = ['critical', 'high', 'medium', 'low'];
+const PRIORITY_ORDER: Record<TaskPriority, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+
+type SortField = 'title' | 'status' | 'priority' | 'progress' | 'created';
 
 export default function EpicsPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -48,6 +54,10 @@ export default function EpicsPage() {
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [filterStatus, setFilterStatus] = useState<EpicStatus | ''>((searchParams.get('status') || '') as EpicStatus | '');
   const [filterPriority, setFilterPriority] = useState<TaskPriority | ''>((searchParams.get('priority') || '') as TaskPriority | '');
+
+  const initSort = searchParams.get('sort') as SortField | null;
+  const initDir = searchParams.get('dir') as 'asc' | 'desc' | null;
+  const { sortField, sortDir, handleSort } = useTableSort<SortField>(initSort, initDir);
 
   const refresh = useCallback(async () => {
     if (!projectId) return;
@@ -75,6 +85,28 @@ export default function EpicsPage() {
     return result;
   }, [epics, searchQuery, filterStatus, filterPriority]);
 
+  const sorted = useMemo(() => {
+    if (!sortField || !sortDir) return filtered;
+    const copy = [...filtered];
+    copy.sort((a, b) => {
+      let cmp = 0;
+      switch (sortField) {
+        case 'title': cmp = a.title.localeCompare(b.title); break;
+        case 'status': cmp = STATUS_OPTIONS.indexOf(a.status) - STATUS_OPTIONS.indexOf(b.status); break;
+        case 'priority': cmp = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]; break;
+        case 'progress': {
+          const pA = a.progress.total > 0 ? a.progress.done / a.progress.total : 0;
+          const pB = b.progress.total > 0 ? b.progress.done / b.progress.total : 0;
+          cmp = pA - pB;
+          break;
+        }
+        case 'created': cmp = a.createdAt - b.createdAt; break;
+      }
+      return sortDir === 'desc' ? -cmp : cmp;
+    });
+    return copy;
+  }, [filtered, sortField, sortDir]);
+
   const hasFilters = searchQuery || filterStatus || filterPriority;
 
   useEffect(() => {
@@ -82,8 +114,16 @@ export default function EpicsPage() {
     if (searchQuery) next.set('q', searchQuery);
     if (filterStatus) next.set('status', filterStatus);
     if (filterPriority) next.set('priority', filterPriority);
+    if (sortField) next.set('sort', sortField);
+    if (sortDir) next.set('dir', sortDir);
     setSearchParams(next, { replace: true });
-  }, [searchQuery, filterStatus, filterPriority]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchQuery, filterStatus, filterPriority, sortField, sortDir]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const sortLabelProps = (field: SortField) => ({
+    active: sortField === field,
+    direction: (sortField === field && sortDir ? sortDir : 'asc') as 'asc' | 'desc',
+    onClick: () => handleSort(field),
+  });
 
   return (
     <Box>
@@ -147,7 +187,7 @@ export default function EpicsPage() {
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
-      ) : filtered.length === 0 ? (
+      ) : sorted.length === 0 ? (
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 6 }}>
           <FlagIcon sx={{ fontSize: 48, color: palette.custom.textMuted, mb: 2 }} />
           <Typography variant="h6" gutterBottom>{epics.length === 0 ? 'No epics yet' : 'No matching epics'}</Typography>
@@ -159,57 +199,71 @@ export default function EpicsPage() {
           )}
         </Box>
       ) : (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-          {filtered.map(epic => {
-            const pct = epic.progress.total > 0 ? (epic.progress.done / epic.progress.total) * 100 : 0;
-            const color = EPIC_STATUS_COLOR[epic.status];
-            return (
-              <Paper
-                key={epic.id}
-                variant="outlined"
-                sx={{
-                  p: 2, cursor: 'pointer',
-                  borderLeft: `4px solid ${color}`,
-                  '&:hover': { borderColor: color, bgcolor: alpha(color, 0.04) },
-                }}
-                onClick={() => navigate(`/${projectId}/epics/${epic.id}`)}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 1 }}>
-                  <Box>
-                    <Typography variant="subtitle1" fontWeight={600}>{epic.title}</Typography>
-                    {epic.description && (
-                      <Typography variant="body2" sx={{ color: palette.custom.textMuted, mt: 0.25 }}>
-                        {epic.description.length > 120 ? epic.description.slice(0, 120) + '...' : epic.description}
-                      </Typography>
-                    )}
-                  </Box>
-                  <Box sx={{ display: 'flex', gap: 0.5, flexShrink: 0, ml: 2 }}>
-                    <StatusBadge label={epicStatusLabel(epic.status)} color={EPIC_STATUS_BADGE[epic.status]} size="small" />
-                    <StatusBadge label={priorityLabel(epic.priority)} color={PRIORITY_BADGE_COLOR[epic.priority]} size="small" />
-                  </Box>
-                </Box>
-
-                {/* Progress */}
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: epic.tags.length > 0 ? 1 : 0 }}>
-                  <LinearProgress
-                    variant="determinate"
-                    value={pct}
-                    sx={{
-                      flex: 1, height: 6, borderRadius: 3,
-                      bgcolor: alpha(color, 0.12),
-                      '& .MuiLinearProgress-bar': { bgcolor: color, borderRadius: 3 },
-                    }}
-                  />
-                  <Typography variant="caption" fontWeight={600} sx={{ color: palette.custom.textMuted, minWidth: 55, textAlign: 'right' }}>
-                    {epic.progress.done}/{epic.progress.total}
-                  </Typography>
-                </Box>
-
-                {epic.tags.length > 0 && <Tags tags={epic.tags} />}
-              </Paper>
-            );
-          })}
-        </Box>
+        <TableContainer>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell><TableSortLabel {...sortLabelProps('title')}>Title</TableSortLabel></TableCell>
+                <TableCell width={120}><TableSortLabel {...sortLabelProps('status')}>Status</TableSortLabel></TableCell>
+                <TableCell width={110}><TableSortLabel {...sortLabelProps('priority')}>Priority</TableSortLabel></TableCell>
+                <TableCell width={160}><TableSortLabel {...sortLabelProps('progress')}>Progress</TableSortLabel></TableCell>
+                <TableCell>Tags</TableCell>
+                <TableCell width={120}><TableSortLabel {...sortLabelProps('created')}>Created</TableSortLabel></TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {sorted.map(epic => {
+                const pct = epic.progress.total > 0 ? (epic.progress.done / epic.progress.total) * 100 : 0;
+                const color = EPIC_STATUS_COLOR[epic.status];
+                return (
+                  <TableRow
+                    key={epic.id}
+                    hover
+                    sx={{ cursor: 'pointer' }}
+                    onClick={() => navigate(`/${projectId}/epics/${epic.id}`)}
+                  >
+                    <TableCell>
+                      <Typography variant="body2" fontWeight={600} noWrap>{epic.title}</Typography>
+                      {epic.description && (
+                        <Typography variant="caption" sx={{ color: palette.custom.textMuted }} noWrap>
+                          {epic.description.length > 80 ? epic.description.slice(0, 80) + '...' : epic.description}
+                        </Typography>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge label={epicStatusLabel(epic.status)} color={EPIC_STATUS_BADGE[epic.status]} size="small" />
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge label={priorityLabel(epic.priority)} color={PRIORITY_BADGE_COLOR[epic.priority]} size="small" />
+                    </TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <LinearProgress
+                          variant="determinate"
+                          value={pct}
+                          sx={{
+                            flex: 1, height: 6, borderRadius: 3,
+                            bgcolor: alpha(color, 0.12),
+                            '& .MuiLinearProgress-bar': { bgcolor: color, borderRadius: 3 },
+                          }}
+                        />
+                        <Typography variant="caption" fontWeight={600} sx={{ color: palette.custom.textMuted, minWidth: 40, textAlign: 'right' }}>
+                          {epic.progress.done}/{epic.progress.total}
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      {epic.tags.length > 0 && <Tags tags={epic.tags} />}
+                    </TableCell>
+                    <TableCell>
+                      <DateDisplay value={epic.createdAt} />
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </TableContainer>
       )}
       <Box sx={{ mt: 2 }}>
         <PaginationBar page={1} totalPages={1} onPageChange={() => {}} onRefresh={refresh} />

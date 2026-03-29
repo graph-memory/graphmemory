@@ -1093,10 +1093,10 @@ describe('REST API — Auth & ACL', () => {
     expect(res.body.error).toMatch(/Invalid API key/);
   });
 
-  it('allows anonymous when no Bearer header (uses defaultAccess)', async () => {
-    // defaultAccess is deny, so anonymous gets denied on graph endpoints
+  it('rejects anonymous when users are configured', async () => {
+    // When users are configured, anonymous requests get 401 (not defaultAccess fallthrough)
     const res = await request(app).get('/api/projects/test/knowledge/notes');
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(401);
   });
 
   it('allows authenticated user with rw access', async () => {
@@ -1226,7 +1226,7 @@ describe('REST API — ACL filtering', () => {
       expect(res.body.results).toHaveLength(0);
     });
 
-    it('anonymous with defaultAccess=deny sees no projects', async () => {
+    it('anonymous gets 401 when users are configured', async () => {
       const project = makeProjectWithAccess({ alice: 'rw' });
       const manager = {
         getProject: (id: string) => id === 'test' ? project : undefined,
@@ -1241,8 +1241,7 @@ describe('REST API — ACL filtering', () => {
       });
 
       const res = await request(app).get('/api/projects');
-      expect(res.status).toBe(200);
-      expect(res.body.results).toHaveLength(0);
+      expect(res.status).toBe(401);
     });
   });
 

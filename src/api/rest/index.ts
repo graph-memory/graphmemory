@@ -269,13 +269,11 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
         return _res.status(401).json({ error: 'Invalid API key' });
       }
 
-      // 3. Expired cookie without Bearer = 401 (triggers client-side refresh)
+      // 3. No valid credentials — reject when users are configured
       if (hasExpiredCookie) {
         return _res.status(401).json({ error: 'Token expired' });
       }
-
-      // 4. No auth = anonymous (uses defaultAccess)
-      next();
+      return _res.status(401).json({ error: 'Authentication required' });
     });
   }
 

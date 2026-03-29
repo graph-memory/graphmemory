@@ -554,6 +554,7 @@ export class ProjectManager extends EventEmitter {
         if (instance.watcher) await instance.watcher.close();
         if (instance.indexer) await instance.indexer.drain();
         if (instance.mcpClientCleanup) await instance.mcpClientCleanup();
+        await instance.mutationQueue.waitForPending();
         this.saveProject(instance);
       } catch (err) {
         process.stderr.write(`[project-manager] Shutdown error for "${instance.id}": ${err}\n`);
@@ -562,6 +563,7 @@ export class ProjectManager extends EventEmitter {
     for (const ws of this.workspaces.values()) {
       try {
         if (ws.mirrorWatcher) await ws.mirrorWatcher.close();
+        await ws.mutationQueue.waitForPending();
         this.saveWorkspace(ws);
       } catch (err) {
         process.stderr.write(`[project-manager] Shutdown error for workspace "${ws.id}": ${err}\n`);

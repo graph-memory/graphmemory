@@ -21,6 +21,15 @@ export class PromiseQueue {
     });
   }
 
+  /**
+   * Wait for all currently enqueued tasks to finish.
+   * Resolves immediately if the queue is empty.
+   */
+  async waitForPending(): Promise<void> {
+    if (!this.running && this.queue.length === 0) return;
+    return this.enqueue(async () => {});
+  }
+
   private async drain(): Promise<void> {
     this.running = true;
     while (this.queue.length > 0) {

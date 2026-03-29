@@ -114,7 +114,9 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
     app.use('/api/embed', searchLimiter);
   }
   if (rl && rl.auth > 0) {
-    app.use('/api/auth/login', rateLimit({ windowMs: RATE_LIMIT_WINDOW_MS, max: rl.auth, standardHeaders: true, legacyHeaders: false, message: rateLimitMsg }));
+    const authLimiter = rateLimit({ windowMs: RATE_LIMIT_WINDOW_MS, max: rl.auth, standardHeaders: true, legacyHeaders: false, message: rateLimitMsg });
+    app.use('/api/auth/login', authLimiter);
+    app.use('/api/oauth/token', authLimiter);
   }
 
   const jwtSecret = serverConfig?.jwtSecret;

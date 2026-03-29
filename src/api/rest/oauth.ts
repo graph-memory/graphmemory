@@ -8,7 +8,10 @@ import { MemorySessionStore, type SessionStore } from '@/lib/session-store';
 function verifyPkce(codeVerifier: string, codeChallenge: string): boolean {
   const hash = crypto.createHash('sha256').update(codeVerifier).digest();
   const computed = hash.toString('base64url');
-  return computed === codeChallenge;
+  const computedBuf = Buffer.from(computed);
+  const challengeBuf = Buffer.from(codeChallenge);
+  if (computedBuf.length !== challengeBuf.length) return false;
+  return crypto.timingSafeEqual(computedBuf, challengeBuf);
 }
 
 function issueTokenPair(userId: string, jwtSecret: string, accessTtl: string, refreshTtl: string): object {

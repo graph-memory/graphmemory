@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Button, Paper, Stack, Chip,
   Alert, CircularProgress, useTheme, useMediaQuery, alpha,
-  IconButton, MenuItem, TextField, InputAdornment, FormControl, Select,
+  IconButton, TextField, InputAdornment,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import ViewKanbanIcon from '@mui/icons-material/ViewKanban';
@@ -22,7 +22,8 @@ import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-
 import { CSS } from '@dnd-kit/utilities';
 import { useWebSocket } from '@/shared/lib/useWebSocket.ts';
 import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
-import { PageTopBar, StatusBadge, ConfirmDialog, PaginationBar } from '@/shared/ui/index.ts';
+import { useFilters } from '@/shared/lib/useFilters.ts';
+import { PageTopBar, StatusBadge, ConfirmDialog, PaginationBar, FilterBar, FilterControl } from '@/shared/ui/index.ts';
 import {
   listTasks, reorderTask, updateTask, deleteTask,
   COLUMNS, PRIORITY_COLORS, PRIORITY_BADGE_COLOR, priorityLabel,
@@ -32,6 +33,7 @@ import { listTeam, type TeamMember } from '@/entities/project/api.ts';
 import { listEpics, listEpicTasks, type Epic } from '@/entities/epic/index.ts';
 import { useColumnVisibility } from './useColumnVisibility.ts';
 import { QuickCreateDialog } from '@/features/task-crud/QuickCreateDialog.tsx';
+import { Select, MenuItem } from '@mui/material';
 
 const DONE_STATUSES: TaskStatus[] = ['done', 'cancelled'];
 const DAY_MS = 86_400_000;
@@ -223,10 +225,19 @@ function SortableTaskCard({
 // Board page
 // ---------------------------------------------------------------------------
 
+type BoardFilterKey = 'q' | 'priority' | 'tag' | 'assignee' | 'epic';
+
+const BOARD_FILTER_DEFS = [
+  { key: 'q', defaultValue: '' },
+  { key: 'priority', defaultValue: '' },
+  { key: 'tag', defaultValue: '' },
+  { key: 'assignee', defaultValue: '' },
+  { key: 'epic', defaultValue: '' },
+];
+
 export default function TaskBoardPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
   const theme = useTheme();
   const { palette } = theme;
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -235,11 +246,11 @@ export default function TaskBoardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [team, setTeam] = useState<TeamMember[]>([]);
-  const [assigneeFilter, setAssigneeFilter] = useState<string>(searchParams.get('assignee') || '');
-  const [epicFilter, setEpicFilter] = useState<string>(searchParams.get('epic') || '');
   const [epics, setEpics] = useState<Epic[]>([]);
   const [epicTaskIds, setEpicTaskIds] = useState<Set<string> | null>(null);
   const [taskEpicMap, setTaskEpicMap] = useState<Map<string, Epic[]>>(new Map());
+
+  const { filters, setFilter, clearAll } = useFilters<BoardFilterKey>(BOARD_FILTER_DEFS);
 
   // DnD state
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -247,11 +258,6 @@ export default function TaskBoardPage() {
 
   // Column visibility
   const { visible, toggle: toggleColumn, visibleColumns } = useColumnVisibility();
-
-  // Filters
-  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
-  const [filterPriority, setFilterPriority] = useState<TaskPriority | ''>((searchParams.get('priority') || '') as TaskPriority | '');
-  const [filterTag, setFilterTag] = useState(searchParams.get('tag') || '');
 
   // Quick create dialog
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
@@ -300,9 +306,9 @@ export default function TaskBoardPage() {
   }, [projectId]);
 
   useEffect(() => {
-    if (!projectId || !epicFilter) { setEpicTaskIds(null); return; }
-    listEpicTasks(projectId, epicFilter).then(tasks => setEpicTaskIds(new Set(tasks.map(t => t.id)))).catch(() => setEpicTaskIds(null));
-  }, [projectId, epicFilter]);
+    if (!projectId || !filters.epic) { setEpicTaskIds(null); return; }
+    listEpicTasks(projectId, filters.epic).then(tasks => setEpicTaskIds(new Set(tasks.map(t => t.id)))).catch(() => setEpicTaskIds(null));
+  }, [projectId, filters.epic]);
 
   useWebSocket(projectId ?? null, useCallback((event) => {
     if (event.type.startsWith('task:')) refresh();
@@ -402,27 +408,27 @@ export default function TaskBoardPage() {
 
   const filteredTasks = useMemo(() => {
     let filtered = tasks;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
+    if (filters.q) {
+      const q = filters.q.toLowerCase();
       filtered = filtered.filter(t =>
         t.title.toLowerCase().includes(q) ||
         (t.description && t.description.toLowerCase().includes(q))
       );
     }
-    if (filterPriority) {
-      filtered = filtered.filter(t => t.priority === filterPriority);
+    if (filters.priority) {
+      filtered = filtered.filter(t => t.priority === filters.priority);
     }
-    if (filterTag) {
-      filtered = filtered.filter(t => t.tags?.includes(filterTag));
+    if (filters.tag) {
+      filtered = filtered.filter(t => t.tags?.includes(filters.tag));
     }
-    if (assigneeFilter) {
-      filtered = filtered.filter(t => t.assignee === assigneeFilter);
+    if (filters.assignee) {
+      filtered = filtered.filter(t => t.assignee === filters.assignee);
     }
     if (epicTaskIds) {
       filtered = filtered.filter(t => epicTaskIds.has(t.id));
     }
     return filtered;
-  }, [tasks, searchQuery, filterPriority, filterTag, assigneeFilter, epicTaskIds]);
+  }, [tasks, filters.q, filters.priority, filters.tag, filters.assignee, epicTaskIds]);
 
   const grouped = useMemo(() => {
     const map = new Map<TaskStatus, Task[]>();
@@ -438,17 +444,25 @@ export default function TaskBoardPage() {
     return map;
   }, [filteredTasks]);
 
-  const hasFilters = searchQuery || filterPriority || filterTag || assigneeFilter || epicFilter;
-
-  useEffect(() => {
-    const next = new URLSearchParams();
-    if (searchQuery) next.set('q', searchQuery);
-    if (filterPriority) next.set('priority', filterPriority);
-    if (filterTag) next.set('tag', filterTag);
-    if (assigneeFilter) next.set('assignee', assigneeFilter);
-    if (epicFilter) next.set('epic', epicFilter);
-    setSearchParams(next, { replace: true });
-  }, [searchQuery, filterPriority, filterTag, assigneeFilter, epicFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Build active filters for chips
+  const activeFilterChips = useMemo(() => {
+    const chips: Array<{ key: string; label: string; color?: string; onClear: () => void }> = [];
+    if (filters.priority) {
+      chips.push({ key: 'priority', label: priorityLabel(filters.priority as TaskPriority), color: PRIORITY_COLORS[filters.priority as TaskPriority], onClear: () => setFilter('priority', '') });
+    }
+    if (filters.tag) {
+      chips.push({ key: 'tag', label: `#${filters.tag}`, onClear: () => setFilter('tag', '') });
+    }
+    if (filters.assignee) {
+      const m = team.find(t => t.id === filters.assignee);
+      chips.push({ key: 'assignee', label: `@${m?.name || filters.assignee}`, onClear: () => setFilter('assignee', '') });
+    }
+    if (filters.epic) {
+      const ep = epics.find(e => e.id === filters.epic);
+      chips.push({ key: 'epic', label: ep?.title || filters.epic, onClear: () => setFilter('epic', '') });
+    }
+    return chips;
+  }, [filters, team, epics, setFilter]);
 
   const activeTask = activeId ? tasks.find(t => t.id === activeId) : null;
 
@@ -495,111 +509,64 @@ export default function TaskBoardPage() {
       />
 
       {/* Filter bar */}
-      <Box sx={{
-        display: 'flex', alignItems: 'center', gap: 1.5,
-        px: 2, py: 1, bgcolor: palette.custom.surfaceMuted,
-        borderRadius: 1, mb: 2,
-      }}>
+      <FilterBar activeFilters={activeFilterChips} onClearAll={clearAll}>
         <TextField
           size="small"
           placeholder="Search tasks..."
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
+          value={filters.q}
+          onChange={e => setFilter('q', e.target.value)}
           slotProps={{
             input: {
               startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" sx={{ color: palette.custom.textMuted }} /></InputAdornment>,
-              endAdornment: searchQuery ? (
+              endAdornment: filters.q ? (
                 <InputAdornment position="end">
-                  <IconButton size="small" onClick={() => setSearchQuery('')}><CloseIcon fontSize="small" /></IconButton>
+                  <IconButton size="small" onClick={() => setFilter('q', '')}><CloseIcon fontSize="small" /></IconButton>
                 </InputAdornment>
               ) : undefined,
             },
           }}
           sx={{ minWidth: 200, flex: 1, maxWidth: 350 }}
         />
-        <FormControl size="small" sx={{ minWidth: 120 }}>
-          <Select
-            value={filterPriority}
-            onChange={e => setFilterPriority(e.target.value as TaskPriority | '')}
-            displayEmpty
-            renderValue={v => v ? priorityLabel(v as TaskPriority) : 'Priority'}
-            sx={{ color: filterPriority ? undefined : palette.custom.textMuted }}
-          >
-            <MenuItem value="">All priorities</MenuItem>
-            {(['critical', 'high', 'medium', 'low'] as const).map(p => (
-              <MenuItem key={p} value={p}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: PRIORITY_COLORS[p] }} />
-                  {priorityLabel(p)}
-                </Box>
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        {allTags.length > 0 && (
-          <FormControl size="small" sx={{ minWidth: 120 }}>
-            <Select
-              value={filterTag}
-              onChange={e => setFilterTag(e.target.value)}
-              displayEmpty
-              renderValue={v => v || 'Tag'}
-              sx={{ color: filterTag ? undefined : palette.custom.textMuted }}
-            >
-              <MenuItem value="">All tags</MenuItem>
-              {allTags.map(tag => <MenuItem key={tag} value={tag}>{tag}</MenuItem>)}
-            </Select>
-          </FormControl>
-        )}
-        {team.length > 0 && (
-          <FormControl size="small" sx={{ minWidth: 120 }}>
-            <Select
-              value={assigneeFilter}
-              onChange={e => setAssigneeFilter(e.target.value)}
-              displayEmpty
-              renderValue={v => {
-                if (!v) return 'Assignee';
-                const m = team.find(t => t.id === v);
-                return m?.name || v;
-              }}
-              sx={{ color: assigneeFilter ? undefined : palette.custom.textMuted }}
-            >
-              <MenuItem value="">All</MenuItem>
-              {team.map(m => <MenuItem key={m.id} value={m.id}>{m.name || m.id}</MenuItem>)}
-            </Select>
-          </FormControl>
-        )}
-        {epics.length > 0 && (
-          <FormControl size="small" sx={{ minWidth: 120 }}>
-            <Select
-              name="filter-epic"
-              value={epicFilter}
-              onChange={e => setEpicFilter(e.target.value)}
-              displayEmpty
-              renderValue={v => {
-                if (!v) return 'Epic';
-                const ep = epics.find(e => e.id === v);
-                return ep?.title || v;
-              }}
-              sx={{ color: epicFilter ? undefined : palette.custom.textMuted }}
-            >
-              <MenuItem value="">All epics</MenuItem>
-              {epics.map(e => (
-                <MenuItem key={e.id} value={e.id}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <FlagIcon sx={{ fontSize: 14, color: e.status === 'open' ? '#1976d2' : e.status === 'in_progress' ? '#f57c00' : e.status === 'done' ? '#388e3c' : '#d32f2f' }} />
-                    {e.title}
-                  </Box>
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        )}
-        {hasFilters && (
-          <Button size="small" onClick={() => { setSearchQuery(''); setFilterPriority(''); setFilterTag(''); setAssigneeFilter(''); setEpicFilter(''); }}>
-            Clear
-          </Button>
-        )}
-      </Box>
+        <FilterControl
+          name="filter-priority"
+          value={filters.priority}
+          onChange={v => setFilter('priority', v)}
+          placeholder="Priority"
+          allLabel="All priorities"
+          options={(['critical', 'high', 'medium', 'low'] as const).map(p => ({ value: p, label: priorityLabel(p), color: PRIORITY_COLORS[p] }))}
+        />
+        <FilterControl
+          name="filter-tag"
+          value={filters.tag}
+          onChange={v => setFilter('tag', v)}
+          placeholder="Tag"
+          allLabel="All tags"
+          options={allTags.map(tag => ({ value: tag, label: tag }))}
+          visible={allTags.length > 0}
+        />
+        <FilterControl
+          name="filter-assignee"
+          value={filters.assignee}
+          onChange={v => setFilter('assignee', v)}
+          placeholder="Assignee"
+          allLabel="All"
+          options={team.map(m => ({ value: m.id, label: m.name || m.id }))}
+          visible={team.length > 0}
+        />
+        <FilterControl
+          name="filter-epic"
+          value={filters.epic}
+          onChange={v => setFilter('epic', v)}
+          placeholder="Epic"
+          allLabel="All epics"
+          options={epics.map(e => ({
+            value: e.id,
+            label: e.title,
+            icon: <FlagIcon sx={{ fontSize: 14, color: e.status === 'open' ? '#1976d2' : e.status === 'in_progress' ? '#f57c00' : e.status === 'done' ? '#388e3c' : '#d32f2f' }} />,
+          }))}
+          visible={epics.length > 0}
+        />
+      </FilterBar>
 
       <Box sx={{ mb: 2 }}>
         <PaginationBar page={1} totalPages={1} onPageChange={() => {}} onRefresh={refresh} />
@@ -695,10 +662,10 @@ export default function TaskBoardPage() {
                           onDelete={setDeleteTarget}
                           palette={palette}
                           taskEpics={taskEpicMap.get(task.id)}
-                          onTagClick={setFilterTag}
-                          activeTag={filterTag}
-                          onAssigneeClick={setAssigneeFilter}
-                          onEpicClick={setEpicFilter}
+                          onTagClick={t => setFilter('tag', t)}
+                          activeTag={filters.tag}
+                          onAssigneeClick={id => setFilter('assignee', id)}
+                          onEpicClick={id => setFilter('epic', id)}
                           onPriorityChange={async (p) => {
                             setTasks(prev => prev.map(t => t.id === task.id ? { ...t, priority: p } : t));
                             try { await updateTask(projectId!, task.id, { priority: p }); } catch { refresh(); }

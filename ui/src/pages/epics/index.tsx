@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Box, Typography, Button, Alert, CircularProgress,
   LinearProgress, alpha, useTheme, TextField, InputAdornment,
-  IconButton, FormControl, Select, MenuItem,
+  IconButton,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   TableSortLabel,
 } from '@mui/material';
@@ -14,7 +14,8 @@ import CloseIcon from '@mui/icons-material/Close';
 import { useWebSocket } from '@/shared/lib/useWebSocket.ts';
 import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
 import { useTableSort } from '@/shared/lib/useTableSort.ts';
-import { PageTopBar, StatusBadge, Tags, PaginationBar, DateDisplay } from '@/shared/ui/index.ts';
+import { useFilters } from '@/shared/lib/useFilters.ts';
+import { PageTopBar, StatusBadge, Tags, PaginationBar, DateDisplay, FilterBar, FilterControl } from '@/shared/ui/index.ts';
 import { listEpics, type Epic, type EpicStatus } from '@/entities/epic/index.ts';
 import { PRIORITY_COLORS, PRIORITY_BADGE_COLOR, priorityLabel, type TaskPriority } from '@/entities/task/index.ts';
 
@@ -42,22 +43,40 @@ const PRIORITY_ORDER: Record<TaskPriority, number> = { critical: 0, high: 1, med
 
 type SortField = 'title' | 'status' | 'priority' | 'progress' | 'created';
 
+type EpicFilterKey = 'q' | 'status' | 'priority';
+
+const EPIC_FILTER_DEFS = [
+  { key: 'q', defaultValue: '' },
+  { key: 'status', defaultValue: '' },
+  { key: 'priority', defaultValue: '' },
+];
+
 export default function EpicsPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const { palette } = useTheme();
   const canWrite = useCanWrite('tasks');
   const [epics, setEpics] = useState<Epic[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
-  const [filterStatus, setFilterStatus] = useState<EpicStatus | ''>((searchParams.get('status') || '') as EpicStatus | '');
-  const [filterPriority, setFilterPriority] = useState<TaskPriority | ''>((searchParams.get('priority') || '') as TaskPriority | '');
+
+  const { filters, setFilter, clearAll } = useFilters<EpicFilterKey>(EPIC_FILTER_DEFS);
 
   const initSort = searchParams.get('sort') as SortField | null;
   const initDir = searchParams.get('dir') as 'asc' | 'desc' | null;
-  const { sortField, sortDir, handleSort } = useTableSort<SortField>(initSort, initDir);
+  const { sortField, sortDir, handleSort, resetSort } = useTableSort<SortField>(initSort, initDir);
+
+  // Sync sort params to URL (useFilters handles filter params)
+  const [, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (sortField) next.set('sort', sortField); else next.delete('sort');
+      if (sortDir) next.set('dir', sortDir); else next.delete('dir');
+      return next;
+    }, { replace: true });
+  }, [sortField, sortDir]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refresh = useCallback(async () => {
     if (!projectId) return;
@@ -76,14 +95,14 @@ export default function EpicsPage() {
 
   const filtered = useMemo(() => {
     let result = epics;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
+    if (filters.q) {
+      const q = filters.q.toLowerCase();
       result = result.filter(e => e.title.toLowerCase().includes(q) || e.description?.toLowerCase().includes(q));
     }
-    if (filterStatus) result = result.filter(e => e.status === filterStatus);
-    if (filterPriority) result = result.filter(e => e.priority === filterPriority);
+    if (filters.status) result = result.filter(e => e.status === filters.status);
+    if (filters.priority) result = result.filter(e => e.priority === filters.priority);
     return result;
-  }, [epics, searchQuery, filterStatus, filterPriority]);
+  }, [epics, filters.q, filters.status, filters.priority]);
 
   const sorted = useMemo(() => {
     if (!sortField || !sortDir) return filtered;
@@ -107,17 +126,19 @@ export default function EpicsPage() {
     return copy;
   }, [filtered, sortField, sortDir]);
 
-  const hasFilters = searchQuery || filterStatus || filterPriority;
+  // Build active filters for chips
+  const activeFilterChips = useMemo(() => {
+    const chips: Array<{ key: string; label: string; color?: string; onClear: () => void }> = [];
+    if (filters.status) {
+      chips.push({ key: 'status', label: epicStatusLabel(filters.status as EpicStatus), color: EPIC_STATUS_COLOR[filters.status as EpicStatus], onClear: () => setFilter('status', '') });
+    }
+    if (filters.priority) {
+      chips.push({ key: 'priority', label: priorityLabel(filters.priority as TaskPriority), color: PRIORITY_COLORS[filters.priority as TaskPriority], onClear: () => setFilter('priority', '') });
+    }
+    return chips;
+  }, [filters, setFilter]);
 
-  useEffect(() => {
-    const next = new URLSearchParams();
-    if (searchQuery) next.set('q', searchQuery);
-    if (filterStatus) next.set('status', filterStatus);
-    if (filterPriority) next.set('priority', filterPriority);
-    if (sortField) next.set('sort', sortField);
-    if (sortDir) next.set('dir', sortDir);
-    setSearchParams(next, { replace: true });
-  }, [searchQuery, filterStatus, filterPriority, sortField, sortDir]); // eslint-disable-line react-hooks/exhaustive-deps
+  const handleClearAll = () => { clearAll(); resetSort(); };
 
   const sortLabelProps = (field: SortField) => ({
     active: sortField === field,
@@ -137,48 +158,33 @@ export default function EpicsPage() {
       />
 
       {/* Filter bar */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 2, py: 1, bgcolor: palette.custom.surfaceMuted, borderRadius: 1, mb: 2 }}>
+      <FilterBar activeFilters={activeFilterChips} onClearAll={handleClearAll}>
         <TextField
-          size="small" placeholder="Search epics..." value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
+          size="small" placeholder="Search epics..." value={filters.q}
+          onChange={e => setFilter('q', e.target.value)}
           slotProps={{ input: {
             startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" sx={{ color: palette.custom.textMuted }} /></InputAdornment>,
-            endAdornment: searchQuery ? <InputAdornment position="end"><IconButton size="small" onClick={() => setSearchQuery('')}><CloseIcon fontSize="small" /></IconButton></InputAdornment> : undefined,
+            endAdornment: filters.q ? <InputAdornment position="end"><IconButton size="small" onClick={() => setFilter('q', '')}><CloseIcon fontSize="small" /></IconButton></InputAdornment> : undefined,
           }}}
           sx={{ minWidth: 200, flex: 1, maxWidth: 350 }}
         />
-        <FormControl size="small" sx={{ minWidth: 130 }}>
-          <Select name="filter-epic-status" value={filterStatus} onChange={e => setFilterStatus(e.target.value as EpicStatus | '')} displayEmpty
-            renderValue={v => v ? epicStatusLabel(v as EpicStatus) : 'Status'}
-            sx={{ color: filterStatus ? undefined : palette.custom.textMuted }}>
-            <MenuItem value="">All statuses</MenuItem>
-            {STATUS_OPTIONS.map(s => (
-              <MenuItem key={s} value={s}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: EPIC_STATUS_COLOR[s] }} />
-                  {epicStatusLabel(s)}
-                </Box>
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <FormControl size="small" sx={{ minWidth: 120 }}>
-          <Select name="filter-epic-priority" value={filterPriority} onChange={e => setFilterPriority(e.target.value as TaskPriority | '')} displayEmpty
-            renderValue={v => v ? priorityLabel(v as TaskPriority) : 'Priority'}
-            sx={{ color: filterPriority ? undefined : palette.custom.textMuted }}>
-            <MenuItem value="">All priorities</MenuItem>
-            {PRIORITY_OPTIONS.map(p => (
-              <MenuItem key={p} value={p}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: PRIORITY_COLORS[p] }} />
-                  {priorityLabel(p)}
-                </Box>
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        {hasFilters && <Button size="small" onClick={() => { setSearchQuery(''); setFilterStatus(''); setFilterPriority(''); }}>Clear</Button>}
-      </Box>
+        <FilterControl
+          name="filter-epic-status"
+          value={filters.status}
+          onChange={v => setFilter('status', v)}
+          placeholder="Status"
+          allLabel="All statuses"
+          options={STATUS_OPTIONS.map(s => ({ value: s, label: epicStatusLabel(s), color: EPIC_STATUS_COLOR[s] }))}
+        />
+        <FilterControl
+          name="filter-epic-priority"
+          value={filters.priority}
+          onChange={v => setFilter('priority', v)}
+          placeholder="Priority"
+          allLabel="All priorities"
+          options={PRIORITY_OPTIONS.map(p => ({ value: p, label: priorityLabel(p), color: PRIORITY_COLORS[p] }))}
+        />
+      </FilterBar>
 
       <Box sx={{ mb: 2 }}>
         <PaginationBar page={1} totalPages={1} onPageChange={() => {}} onRefresh={refresh} />

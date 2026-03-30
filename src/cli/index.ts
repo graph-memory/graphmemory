@@ -201,7 +201,6 @@ program
       }
     }
 
-    const hasUsers = Object.keys(mc.users).length > 0;
     const manager = new ProjectManager(mc.server, cacheFactory, hasUsers);
 
     // Build workspace membership lookup

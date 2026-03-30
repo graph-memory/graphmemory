@@ -1,19 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Box, Typography, Button, Alert, CircularProgress, Link, IconButton,
-  FormControl, InputLabel, Select, MenuItem, Stack,
+  Box, Typography, Button, Alert, CircularProgress, Link,
+  FormControl, InputLabel, Select, MenuItem, Stack, alpha,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import FlagIcon from '@mui/icons-material/Flag';
-import LinkOffIcon from '@mui/icons-material/LinkOff';
 import { listEpics, linkTaskToEpic, unlinkTaskFromEpic, type Epic } from '@/entities/epic/index.ts';
 import {
-  getTask, deleteTask, moveTask, listTaskRelations,
+  getTask, updateTask, deleteTask, moveTask, listTaskRelations,
   listTaskAttachments, uploadTaskAttachment, deleteTaskAttachment, taskAttachmentUrl,
   type Task, type TaskStatus, type TaskRelation, type AttachmentMeta,
-  COLUMNS, STATUS_BADGE_COLOR, PRIORITY_BADGE_COLOR, statusLabel, priorityLabel,
+  COLUMNS, STATUS_BADGE_COLOR, PRIORITY_BADGE_COLOR, PRIORITY_COLORS, statusLabel, priorityLabel, type TaskPriority,
 } from '@/entities/task/index.ts';
 import { listTeam, type TeamMember } from '@/entities/project/api.ts';
 import { RelationManager } from '@/features/relation-manager/index.ts';
@@ -34,6 +33,8 @@ interface TaskDetail extends Task {
 export default function TaskDetailPage() {
   const { projectId, taskId } = useParams<{ projectId: string; taskId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const from = searchParams.get('from');
   const canWrite = useCanWrite('tasks');
   const [task, setTask] = useState<TaskDetail | null>(null);
   const [relations, setRelations] = useState<TaskRelation[]>([]);
@@ -121,12 +122,14 @@ export default function TaskDetailPage() {
       <PageTopBar
         breadcrumbs={[
           { label: 'Tasks', to: `/${projectId}/tasks` },
+          ...(from === 'board' ? [{ label: 'Board', to: `/${projectId}/tasks/board` }] :
+              from === 'list' ? [{ label: 'List', to: `/${projectId}/tasks/list` }] : []),
           { label: task.title },
         ]}
         actions={
           canWrite ? (
             <>
-              <Button variant="contained" color="success" startIcon={<EditIcon />} onClick={() => navigate(`/${projectId}/tasks/${taskId}/edit`)}>
+              <Button variant="contained" color="success" startIcon={<EditIcon />} onClick={() => navigate(`/${projectId}/tasks/${taskId}/edit${from ? `?from=${from}` : ''}`)}>
                 Edit
               </Button>
               <Button color="error" startIcon={<DeleteIcon />} onClick={() => setDeleteConfirm(true)}>
@@ -153,6 +156,34 @@ export default function TaskDetailPage() {
                 {renderTaskLinks('Related', task.related)}
               </Section>
             )}
+
+            <Section title="Attachments" sx={{ mb: 3 }}>
+              <AttachmentSection
+                attachments={attachments}
+                getUrl={(filename) => taskAttachmentUrl(projectId!, taskId!, filename)}
+                onUpload={async (file) => {
+                  await uploadTaskAttachment(projectId!, taskId!, file);
+                  const atts = await listTaskAttachments(projectId!, taskId!);
+                  setAttachments(atts);
+                }}
+                onDelete={async (filename) => {
+                  await deleteTaskAttachment(projectId!, taskId!, filename);
+                  const atts = await listTaskAttachments(projectId!, taskId!);
+                  setAttachments(atts);
+                }}
+                readOnly={!canWrite}
+              />
+            </Section>
+
+            <Section title="Cross-graph Links">
+              <RelationManager
+                projectId={projectId!}
+                entityId={taskId!}
+                entityType="tasks"
+                relations={relations}
+                onRefresh={load}
+              />
+            </Section>
           </>
         }
         sidebar={
@@ -188,59 +219,94 @@ export default function TaskDetailPage() {
                 </Box>
               </FieldRow>
               <FieldRow label="Priority">
-                <StatusBadge label={priorityLabel(task.priority)} color={PRIORITY_BADGE_COLOR[task.priority]} />
+                {canWrite ? (
+                  <Select
+                    size="small"
+                    value={task.priority}
+                    onChange={async (e) => {
+                      const p = e.target.value as TaskPriority;
+                      setTask(prev => prev ? { ...prev, priority: p } : prev);
+                      await updateTask(projectId!, taskId!, { priority: p });
+                      load();
+                    }}
+                    variant="standard"
+                    disableUnderline
+                    sx={{
+                      bgcolor: alpha(PRIORITY_COLORS[task.priority], 0.12),
+                      color: PRIORITY_COLORS[task.priority],
+                      fontWeight: 600, fontSize: '0.75rem', borderRadius: '999px',
+                      border: `1px solid ${alpha(PRIORITY_COLORS[task.priority], 0.3)}`,
+                      height: 26, minWidth: 70,
+                      '& .MuiSelect-select': { py: '2px', px: 1.2, display: 'flex', alignItems: 'center' },
+                      '& .MuiSelect-icon': { fontSize: '1rem', color: PRIORITY_COLORS[task.priority], right: 4 },
+                      '&:before, &:after': { display: 'none' },
+                    }}
+                  >
+                    {(['critical', 'high', 'medium', 'low'] as const).map(p => (
+                      <MenuItem key={p} value={p}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: PRIORITY_COLORS[p] }} />
+                          {priorityLabel(p)}
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                ) : (
+                  <StatusBadge label={priorityLabel(task.priority)} color={PRIORITY_BADGE_COLOR[task.priority]} />
+                )}
               </FieldRow>
               <FieldRow label="Tags">
                 {task.tags.length > 0 ? <Tags tags={task.tags} /> : <Typography variant="body2" color="text.secondary">—</Typography>}
               </FieldRow>
-              <FieldRow label="Epics">
+              <FieldRow label="Epic">
                 {(() => {
-                  const epicLinks = relations.filter(r => r.kind === 'belongs_to');
-                  const linkedEpicIds = new Set(epicLinks.map(r => r.toId));
-                  const availableEpics = epics.filter(e => !linkedEpicIds.has(e.id) && (e.status === 'open' || e.status === 'in_progress'));
-                  return (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                      {epicLinks.map(r => (
-                        <Box key={r.toId} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <FlagIcon sx={{ fontSize: 16, color: '#1976d2' }} />
-                          <Link component="button" variant="body2" onClick={() => navigate(`/${projectId}/tasks/epics/${r.toId}`)}>
-                            {r.title || r.toId}
-                          </Link>
-                          {canWrite && (
-                            <IconButton size="small" sx={{ p: 0.25 }} onClick={async () => {
-                              await unlinkTaskFromEpic(projectId!, r.toId, taskId!);
-                              load();
-                            }}>
-                              <LinkOffIcon sx={{ fontSize: 14 }} />
-                            </IconButton>
-                          )}
+                  const epicLink = relations.find(r => r.kind === 'belongs_to');
+                  const currentEpicId = epicLink?.toId ?? '';
+                  const selectableEpics = epics.filter(e => e.status === 'open' || e.status === 'in_progress' || e.id === currentEpicId);
+                  if (!canWrite) {
+                    if (!epicLink) return <Typography variant="body2" color="text.secondary">—</Typography>;
+                    return (
+                      <Link component="button" variant="body2" onClick={() => navigate(`/${projectId}/tasks/epics/${epicLink.toId}`)}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <FlagIcon sx={{ fontSize: 14, color: '#1976d2' }} />
+                          {epicLink.title || epicLink.toId}
                         </Box>
+                      </Link>
+                    );
+                  }
+                  return (
+                    <Select
+                      size="small"
+                      value={currentEpicId}
+                      displayEmpty
+                      onChange={async (e) => {
+                        const newEpicId = e.target.value as string;
+                        if (epicLink) await unlinkTaskFromEpic(projectId!, epicLink.toId, taskId!);
+                        if (newEpicId) await linkTaskToEpic(projectId!, newEpicId, taskId!);
+                        load();
+                      }}
+                      renderValue={(v) => {
+                        if (!v) return <Typography variant="body2" color="text.secondary">No epic</Typography>;
+                        const ep = epics.find(e => e.id === v);
+                        return (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <FlagIcon sx={{ fontSize: 14, color: '#1976d2' }} />
+                            {ep?.title ?? v}
+                          </Box>
+                        );
+                      }}
+                      sx={{ fontSize: '0.85rem', minWidth: 160 }}
+                    >
+                      <MenuItem value="">No epic</MenuItem>
+                      {selectableEpics.map(e => (
+                        <MenuItem key={e.id} value={e.id}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <FlagIcon sx={{ fontSize: 14, color: e.status === 'open' ? '#1976d2' : '#f57c00' }} />
+                            {e.title}
+                          </Box>
+                        </MenuItem>
                       ))}
-                      {epicLinks.length === 0 && !canWrite && <Typography variant="body2" color="text.secondary">—</Typography>}
-                      {canWrite && availableEpics.length > 0 && (
-                        <FormControl size="small" sx={{ minWidth: 160, mt: 0.5 }}>
-                          <Select
-                            value=""
-                            displayEmpty
-                            renderValue={() => 'Add to epic...'}
-                            onChange={async (e) => {
-                              await linkTaskToEpic(projectId!, e.target.value as string, taskId!);
-                              load();
-                            }}
-                            sx={{ fontSize: '0.85rem' }}
-                          >
-                            {availableEpics.map(e => (
-                              <MenuItem key={e.id} value={e.id}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                  <FlagIcon sx={{ fontSize: 14, color: e.status === 'open' ? '#1976d2' : '#f57c00' }} />
-                                  {e.title}
-                                </Box>
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                      )}
-                    </Box>
+                    </Select>
                   );
                 })()}
               </FieldRow>
@@ -280,34 +346,6 @@ export default function TaskDetailPage() {
               <FieldRow label="Updated" divider={false}>
                 <DateDisplay value={task.updatedAt} showTime showRelative />
               </FieldRow>
-            </Section>
-
-            <Section title="Attachments" sx={{ mb: 3 }}>
-              <AttachmentSection
-                attachments={attachments}
-                getUrl={(filename) => taskAttachmentUrl(projectId!, taskId!, filename)}
-                onUpload={async (file) => {
-                  await uploadTaskAttachment(projectId!, taskId!, file);
-                  const atts = await listTaskAttachments(projectId!, taskId!);
-                  setAttachments(atts);
-                }}
-                onDelete={async (filename) => {
-                  await deleteTaskAttachment(projectId!, taskId!, filename);
-                  const atts = await listTaskAttachments(projectId!, taskId!);
-                  setAttachments(atts);
-                }}
-                readOnly={!canWrite}
-              />
-            </Section>
-
-            <Section title="Cross-graph Links">
-              <RelationManager
-                projectId={projectId!}
-                entityId={taskId!}
-                entityType="tasks"
-                relations={relations}
-                onRefresh={load}
-              />
             </Section>
           </>
         }

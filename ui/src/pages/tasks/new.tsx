@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { Box, Button, Alert } from '@mui/material';
+import { Box, Alert } from '@mui/material';
 import { createTask, uploadTaskAttachment, type TaskStatus, type TaskPriority } from '@/entities/task/index.ts';
 import { linkTaskToEpic } from '@/entities/epic/index.ts';
 import { TaskForm } from '@/features/task-crud/TaskForm.tsx';
@@ -41,13 +41,14 @@ export default function TaskNewPage() {
       <PageTopBar
         breadcrumbs={[
           { label: 'Tasks', to: `/${projectId}/tasks` },
+          ...(() => {
+            const from = searchParams.get('from');
+            if (from === 'board') return [{ label: 'Board', to: `/${projectId}/tasks/board` }];
+            if (from === 'list') return [{ label: 'List', to: `/${projectId}/tasks/list` }];
+            return [];
+          })(),
           { label: 'Create' },
         ]}
-        actions={
-          <Button variant="contained" form="task-form" type="submit" disabled={!canWrite}>
-            Create
-          </Button>
-        }
       />
       {!canWrite && <Alert severity="warning" sx={{ mb: 2 }}>Read-only access — you cannot create tasks.</Alert>}
       <TaskForm
@@ -55,14 +56,16 @@ export default function TaskNewPage() {
         onSubmit={handleSubmit}
         onCancel={() => navigate(`/${projectId}/tasks`)}
         submitLabel="Create"
+        extraMain={
+          <Section title="Attachments" sx={{ mt: 3 }}>
+            <StagedAttachments
+              files={stagedFiles}
+              onAdd={files => setStagedFiles(prev => [...prev, ...files])}
+              onRemove={index => setStagedFiles(prev => prev.filter((_, i) => i !== index))}
+            />
+          </Section>
+        }
       />
-      <Section title="Attachments" sx={{ mt: 3 }}>
-        <StagedAttachments
-          files={stagedFiles}
-          onAdd={files => setStagedFiles(prev => [...prev, ...files])}
-          onRemove={index => setStagedFiles(prev => prev.filter((_, i) => i !== index))}
-        />
-      </Section>
     </Box>
   );
 }

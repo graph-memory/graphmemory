@@ -9,17 +9,17 @@ import type { TaskPriority } from '@/entities/task/index.ts';
 import { PRIORITY_COLORS } from '@/entities/task/index.ts';
 
 const EPIC_STATUSES: { value: EpicStatus; label: string; color: string }[] = [
-  { value: 'open', color: '#1976d2', label: 'Open' },
-  { value: 'in_progress', color: '#f57c00', label: 'In Progress' },
-  { value: 'done', color: '#388e3c', label: 'Done' },
-  { value: 'cancelled', color: '#d32f2f', label: 'Cancelled' },
+  { value: 'open', color: '#1976d2', label: 'OPEN' },
+  { value: 'in_progress', color: '#f57c00', label: 'IN PROGRESS' },
+  { value: 'done', color: '#388e3c', label: 'DONE' },
+  { value: 'cancelled', color: '#d32f2f', label: 'CANCELLED' },
 ];
 
 const PRIORITY_OPTIONS: { value: TaskPriority; label: string }[] = [
-  { value: 'critical', label: 'Critical' },
-  { value: 'high', label: 'High' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'low', label: 'Low' },
+  { value: 'critical', label: 'CRITICAL' },
+  { value: 'high', label: 'HIGH' },
+  { value: 'medium', label: 'MEDIUM' },
+  { value: 'low', label: 'LOW' },
 ];
 
 interface EpicFormProps {

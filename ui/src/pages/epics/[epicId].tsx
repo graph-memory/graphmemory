@@ -15,7 +15,7 @@ import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
 import { useWebSocket } from '@/shared/lib/useWebSocket.ts';
 import {
   PageTopBar, Section, FieldRow, StatusBadge, Tags, CopyButton,
-  DateDisplay, ConfirmDialog, MarkdownRenderer,
+  DateDisplay, ConfirmDialog, MarkdownRenderer, DetailLayout,
 } from '@/shared/ui/index.ts';
 
 const EPIC_STATUS_COLOR: Record<string, string> = {
@@ -33,7 +33,7 @@ const EPIC_STATUS_BADGE: Record<string, 'primary' | 'warning' | 'success' | 'err
 };
 
 function epicStatusLabel(s: string): string {
-  return { open: 'Open', in_progress: 'In Progress', done: 'Done', cancelled: 'Cancelled' }[s] ?? s;
+  return { open: 'OPEN', in_progress: 'IN PROGRESS', done: 'DONE', cancelled: 'CANCELLED' }[s] ?? s.toUpperCase();
 }
 
 export default function EpicDetailPage() {
@@ -88,6 +88,7 @@ export default function EpicDetailPage() {
     <Box>
       <PageTopBar
         breadcrumbs={[
+          { label: 'Tasks', to: `/${projectId}/tasks` },
           { label: 'Epics', to: `/${projectId}/tasks/epics` },
           { label: epic.title },
         ]}
@@ -101,99 +102,108 @@ export default function EpicDetailPage() {
         }
       />
 
-      {/* Progress bar */}
-      <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-          <Typography variant="subtitle2">Progress</Typography>
-          <Typography variant="body2" fontWeight={600} sx={{ color: palette.custom.textMuted }}>
-            {epic.progress.done} / {epic.progress.total} tasks done
-          </Typography>
-        </Box>
-        <LinearProgress
-          variant="determinate"
-          value={progressPct}
-          sx={{
-            height: 8, borderRadius: 4,
-            bgcolor: alpha(EPIC_STATUS_COLOR[epic.status] ?? '#616161', 0.15),
-            '& .MuiLinearProgress-bar': { bgcolor: EPIC_STATUS_COLOR[epic.status] ?? '#616161', borderRadius: 4 },
-          }}
-        />
-      </Paper>
+      <DetailLayout
+        main={
+          <>
+            {epic.description && (
+              <Section title="Description" sx={{ mb: 3 }}>
+                <MarkdownRenderer>{epic.description}</MarkdownRenderer>
+              </Section>
+            )}
 
-      <Section title="Properties" sx={{ mb: 3 }}>
-        <FieldRow label="ID">
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{epic.id}</Typography>
-            <CopyButton value={epic.id} />
-          </Box>
-        </FieldRow>
-        <FieldRow label="Status">
-          <StatusBadge label={epicStatusLabel(epic.status)} color={EPIC_STATUS_BADGE[epic.status] ?? 'neutral'} />
-        </FieldRow>
-        <FieldRow label="Priority">
-          <StatusBadge label={priorityLabel(epic.priority)} color={PRIORITY_BADGE_COLOR[epic.priority]} />
-        </FieldRow>
-        <FieldRow label="Tags"><Tags tags={epic.tags} /></FieldRow>
-        <FieldRow label="Created"><DateDisplay value={epic.createdAt} showTime /></FieldRow>
-        <FieldRow label="Updated"><DateDisplay value={epic.updatedAt} showTime showRelative /></FieldRow>
-      </Section>
+            <Section
+              title={`Tasks (${tasks.length})`}
+              action={tasks.length > 0 ? (
+                <Button size="small" startIcon={<ViewListIcon />} onClick={() => navigate(`/${projectId}/tasks/list?epic=${epicId}`)}>
+                  View in list
+                </Button>
+              ) : undefined}
+            >
+              {tasks.length === 0 ? (
+                <Typography variant="body2" sx={{ color: palette.custom.textMuted, py: 2 }}>
+                  No tasks linked to this epic yet.
+                </Typography>
+              ) : (
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Title</TableCell>
+                      <TableCell width={120}>Status</TableCell>
+                      <TableCell width={100}>Priority</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {tasks.map(task => (
+                      <TableRow
+                        key={task.id}
+                        hover
+                        sx={{ cursor: 'pointer' }}
+                        onClick={() => navigate(`/${projectId}/tasks/${task.id}`)}
+                      >
+                        <TableCell>
+                          <Typography variant="body2" fontWeight={500}>{task.title}</Typography>
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge
+                            label={statusLabel(task.status)}
+                            color={({ backlog: 'neutral', todo: 'primary', in_progress: 'warning', review: 'primary', done: 'success', cancelled: 'error' } as const)[task.status]}
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge label={priorityLabel(task.priority)} color={PRIORITY_BADGE_COLOR[task.priority]} size="small" />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </Section>
+          </>
+        }
+        sidebar={
+          <>
+            {/* Progress */}
+            <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                <Typography variant="caption" sx={{ color: palette.custom.textMuted }}>Progress</Typography>
+                <Typography variant="body2" fontWeight={600} sx={{ color: palette.custom.textMuted }}>
+                  {epic.progress.done} / {epic.progress.total}
+                </Typography>
+              </Box>
+              <LinearProgress
+                variant="determinate"
+                value={progressPct}
+                sx={{
+                  height: 6, borderRadius: 3,
+                  bgcolor: alpha(EPIC_STATUS_COLOR[epic.status] ?? '#616161', 0.15),
+                  '& .MuiLinearProgress-bar': { bgcolor: EPIC_STATUS_COLOR[epic.status] ?? '#616161', borderRadius: 3 },
+                }}
+              />
+            </Paper>
 
-      {epic.description && (
-        <Section title="Description" sx={{ mb: 3 }}>
-          <MarkdownRenderer>{epic.description}</MarkdownRenderer>
-        </Section>
-      )}
-
-      <Section
-        title={`Tasks (${tasks.length})`}
-        action={tasks.length > 0 ? (
-          <Button size="small" startIcon={<ViewListIcon />} onClick={() => navigate(`/${projectId}/tasks/list?epic=${epicId}`)}>
-            View in list
-          </Button>
-        ) : undefined}
-      >
-        {tasks.length === 0 ? (
-          <Typography variant="body2" sx={{ color: palette.custom.textMuted, py: 2 }}>
-            No tasks linked to this epic yet.
-          </Typography>
-        ) : (
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Title</TableCell>
-                <TableCell width={120}>Status</TableCell>
-                <TableCell width={100}>Priority</TableCell>
-                <TableCell>Tags</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {tasks.map(task => (
-                <TableRow
-                  key={task.id}
-                  hover
-                  sx={{ cursor: 'pointer' }}
-                  onClick={() => navigate(`/${projectId}/tasks/${task.id}`)}
-                >
-                  <TableCell>
-                    <Typography variant="body2" fontWeight={500}>{task.title}</Typography>
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge
-                      label={statusLabel(task.status)}
-                      color={({ backlog: 'neutral', todo: 'primary', in_progress: 'warning', review: 'primary', done: 'success', cancelled: 'error' } as const)[task.status]}
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge label={priorityLabel(task.priority)} color={PRIORITY_BADGE_COLOR[task.priority]} size="small" />
-                  </TableCell>
-                  <TableCell>{task.tags?.length > 0 && <Tags tags={task.tags} />}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </Section>
+            <Section title="Properties" sx={{ mb: 3 }}>
+              <FieldRow label="ID">
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{epic.id}</Typography>
+                  <CopyButton value={epic.id} />
+                </Box>
+              </FieldRow>
+              <FieldRow label="Status">
+                <StatusBadge label={epicStatusLabel(epic.status)} color={EPIC_STATUS_BADGE[epic.status] ?? 'neutral'} />
+              </FieldRow>
+              <FieldRow label="Priority">
+                <StatusBadge label={priorityLabel(epic.priority)} color={PRIORITY_BADGE_COLOR[epic.priority]} />
+              </FieldRow>
+              <FieldRow label="Tags">
+                {epic.tags.length > 0 ? <Tags tags={epic.tags} /> : <Typography variant="body2" color="text.secondary">—</Typography>}
+              </FieldRow>
+              <FieldRow label="Created"><DateDisplay value={epic.createdAt} showTime showRelative /></FieldRow>
+              <FieldRow label="Updated" divider={false}><DateDisplay value={epic.updatedAt} showTime showRelative /></FieldRow>
+            </Section>
+          </>
+        }
+      />
 
       <ConfirmDialog
         open={deleteOpen}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Box, Button, CircularProgress, Alert } from '@mui/material';
+import { Box, CircularProgress, Alert } from '@mui/material';
 import { getEpic, updateEpic, type Epic } from '@/entities/epic/index.ts';
 import { EpicForm } from '@/features/epic-crud/EpicForm.tsx';
 import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
@@ -35,13 +35,11 @@ export default function EpicEditPage() {
     <Box>
       <PageTopBar
         breadcrumbs={[
+          { label: 'Tasks', to: `/${projectId}/tasks` },
           { label: 'Epics', to: `/${projectId}/tasks/epics` },
           { label: epic.title, to: `/${projectId}/tasks/epics/${epicId}` },
           { label: 'Edit' },
         ]}
-        actions={
-          <Button variant="contained" form="epic-form" type="submit" disabled={!canWrite}>Save</Button>
-        }
       />
       {!canWrite && <Alert severity="warning" sx={{ mb: 2 }}>Read-only access.</Alert>}
       <EpicForm

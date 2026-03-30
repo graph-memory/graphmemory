@@ -22,7 +22,7 @@ import {
 } from '@dnd-kit/core';
 import { useWebSocket } from '@/shared/lib/useWebSocket.ts';
 import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
-import { PageTopBar, StatusBadge, ConfirmDialog, PaginationBar, FilterBar, FilterControl } from '@/shared/ui/index.ts';
+import { StatusBadge, ConfirmDialog, PaginationBar, FilterBar, FilterControl } from '@/shared/ui/index.ts';
 import type { SortDir } from '@/shared/lib/useTableSort.ts';
 import { useFilters } from '@/shared/lib/useFilters.ts';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
@@ -338,7 +338,12 @@ export default function TaskListPage() {
 
   const { visible: visibleStatuses, toggle: toggleStatusVisibility } = useColumnVisibility();
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [groupBy, setGroupBy] = useState<GroupByField>(loadGroupBy);
+  const [groupBy, setGroupBy] = useState<GroupByField>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlGroup = params.get('group');
+    if (urlGroup && ['status', 'priority', 'assignee', 'tag', 'epic', 'none'].includes(urlGroup)) return urlGroup as GroupByField;
+    return loadGroupBy();
+  });
   const handleGroupByChange = useCallback((value: string) => {
     const v = value as GroupByField;
     setGroupBy(v);
@@ -564,7 +569,7 @@ export default function TaskListPage() {
 
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
 
-  const goToTask = (taskId: string) => navigate(`/${projectId}/tasks/${taskId}`);
+  const goToTask = (taskId: string) => navigate(`/${projectId}/tasks/${taskId}?from=list`);
 
   // Build active filters for chips
   const activeFilterChips = useMemo(() => {
@@ -593,12 +598,6 @@ export default function TaskListPage() {
 
   return (
     <Box>
-      <PageTopBar
-        breadcrumbs={[{ label: 'Tasks' }]}
-        actions={canWrite ? (
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setQuickCreateOpen(true)}>New Task</Button>
-        ) : undefined}
-      />
       <TasksTabs />
 
       {/* Filter bar */}
@@ -732,6 +731,9 @@ export default function TaskListPage() {
           </Box>
         )}
         <Box sx={{ flex: 1 }} />
+        {canWrite && (
+          <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={() => setQuickCreateOpen(true)}>New Task</Button>
+        )}
         <PaginationBar page={1} totalPages={1} onPageChange={() => {}} onRefresh={refresh} />
       </Box>
 

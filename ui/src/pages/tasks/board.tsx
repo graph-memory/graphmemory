@@ -23,7 +23,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useWebSocket } from '@/shared/lib/useWebSocket.ts';
 import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
 import { useFilters } from '@/shared/lib/useFilters.ts';
-import { PageTopBar, StatusBadge, ConfirmDialog, PaginationBar, FilterBar, FilterControl } from '@/shared/ui/index.ts';
+import { StatusBadge, ConfirmDialog, PaginationBar, FilterBar, FilterControl } from '@/shared/ui/index.ts';
 import {
   listTasks, reorderTask, updateTask, deleteTask,
   COLUMNS, PRIORITY_COLORS, PRIORITY_BADGE_COLOR, priorityLabel,
@@ -479,14 +479,6 @@ export default function TaskBoardPage() {
 
   return (
     <Box>
-      <PageTopBar
-        breadcrumbs={[{ label: 'Tasks' }]}
-        actions={canWrite ? (
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => { setQuickCreateStatus(undefined); setQuickCreateOpen(true); }}>
-            New Task
-          </Button>
-        ) : undefined}
-      />
       <TasksTabs />
 
       {/* Filter bar */}
@@ -575,6 +567,11 @@ export default function TaskBoardPage() {
           })}
         </Box>
         <Box sx={{ flex: 1 }} />
+        {canWrite && (
+          <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={() => { setQuickCreateStatus(undefined); setQuickCreateOpen(true); }}>
+            New Task
+          </Button>
+        )}
         <PaginationBar page={1} totalPages={1} onPageChange={() => {}} onRefresh={refresh} />
       </Box>
 
@@ -589,7 +586,7 @@ export default function TaskBoardPage() {
             {canWrite ? 'Create your first task to get started' : 'No tasks yet'}
           </Typography>
           {canWrite && (
-            <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate(`/${projectId}/tasks/new`)}>
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate(`/${projectId}/tasks/new?from=board`)}>
               New Task
             </Button>
           )}
@@ -664,8 +661,8 @@ export default function TaskBoardPage() {
                             task={task}
                             team={team}
                             canWrite={canWrite}
-                            onNavigate={(id) => navigate(`/${projectId}/tasks/${id}`)}
-                            onEdit={(id) => navigate(`/${projectId}/tasks/${id}/edit`)}
+                            onNavigate={(id) => navigate(`/${projectId}/tasks/${id}?from=board`)}
+                            onEdit={(id) => navigate(`/${projectId}/tasks/${id}/edit?from=board`)}
                             onDelete={setDeleteTarget}
                             palette={palette}
                             taskEpics={taskEpicMap.get(task.id)}

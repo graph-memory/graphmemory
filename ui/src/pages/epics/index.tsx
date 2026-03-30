@@ -14,7 +14,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import { useWebSocket } from '@/shared/lib/useWebSocket.ts';
 import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
 import { useFilters } from '@/shared/lib/useFilters.ts';
-import { PageTopBar, StatusBadge, Tags, PaginationBar, DateDisplay, FilterBar, FilterControl } from '@/shared/ui/index.ts';
+import { StatusBadge, Tags, PaginationBar, DateDisplay, FilterBar, FilterControl } from '@/shared/ui/index.ts';
 import { listEpics, type Epic, type EpicStatus } from '@/entities/epic/index.ts';
 import { PRIORITY_COLORS, PRIORITY_BADGE_COLOR, priorityLabel, type TaskPriority } from '@/entities/task/index.ts';
 import { TasksTabs } from '@/pages/tasks/TasksTabs.tsx';
@@ -34,7 +34,7 @@ const EPIC_STATUS_BADGE: Record<EpicStatus, 'primary' | 'warning' | 'success' | 
 };
 
 function epicStatusLabel(s: EpicStatus): string {
-  return { open: 'Open', in_progress: 'In Progress', done: 'Done', cancelled: 'Cancelled' }[s];
+  return { open: 'OPEN', in_progress: 'IN PROGRESS', done: 'DONE', cancelled: 'CANCELLED' }[s];
 }
 
 const STATUS_OPTIONS: EpicStatus[] = ['open', 'in_progress', 'done', 'cancelled'];
@@ -142,14 +142,6 @@ export default function EpicsPage() {
 
   return (
     <Box>
-      <PageTopBar
-        breadcrumbs={[{ label: 'Tasks', to: `/${projectId}/tasks` }, { label: 'Epics' }]}
-        actions={canWrite ? (
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate(`/${projectId}/tasks/epics/new`)}>
-            New Epic
-          </Button>
-        ) : undefined}
-      />
       <TasksTabs />
 
       {/* Filter bar */}
@@ -181,7 +173,13 @@ export default function EpicsPage() {
         />
       </FilterBar>
 
-      <Box sx={{ mb: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+        <Box sx={{ flex: 1 }} />
+        {canWrite && (
+          <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={() => navigate(`/${projectId}/tasks/epics/new`)} sx={{ mr: 1 }}>
+            New Epic
+          </Button>
+        )}
         <PaginationBar page={1} totalPages={1} onPageChange={() => {}} onRefresh={refresh} />
       </Box>
 

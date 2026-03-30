@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Button, TextField, Select, MenuItem, Box, IconButton,
@@ -28,6 +28,7 @@ interface QuickCreateDialogProps {
 
 export function QuickCreateDialog({ open, onClose, onCreated, defaultStatus }: QuickCreateDialogProps) {
   const { projectId } = useParams<{ projectId: string }>();
+  const { pathname } = useLocation();
   const navigate = useNavigate();
   const { palette } = useTheme();
   const titleRef = useRef<HTMLInputElement>(null);
@@ -103,6 +104,8 @@ export function QuickCreateDialog({ open, onClose, onCreated, defaultStatus }: Q
     if (epicId) params.set('epicId', epicId);
     if (tags.length) params.set('tags', tags.join(','));
     onClose();
+    if (pathname.includes('/tasks/board')) params.set('from', 'board');
+    else if (pathname.includes('/tasks/list')) params.set('from', 'list');
     navigate(`/${projectId}/tasks/new?${params.toString()}`);
   };
 

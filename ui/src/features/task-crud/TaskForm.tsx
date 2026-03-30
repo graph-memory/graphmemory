@@ -11,10 +11,10 @@ import { listEpics, linkTaskToEpic, unlinkTaskFromEpic, type Epic } from '@/enti
 
 const STATUS_COLOR: Record<TaskStatus, string> = Object.fromEntries(COLUMNS.map(c => [c.status, c.color])) as Record<TaskStatus, string>;
 const PRIORITY_OPTIONS: { value: TaskPriority; label: string }[] = [
-  { value: 'critical', label: 'Critical' },
-  { value: 'high', label: 'High' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'low', label: 'Low' },
+  { value: 'critical', label: 'CRITICAL' },
+  { value: 'high', label: 'HIGH' },
+  { value: 'medium', label: 'MEDIUM' },
+  { value: 'low', label: 'LOW' },
 ];
 import { listTeam, type TeamMember } from '@/entities/project/api.ts';
 
@@ -32,9 +32,10 @@ interface TaskFormProps {
   onSubmit: (data: { title: string; description: string; status: TaskStatus; priority: TaskPriority; tags: string[]; dueDate?: number | null; estimate?: number | null; assignee?: string | null }) => Promise<void>;
   onCancel: () => void;
   submitLabel?: string;
+  extraMain?: React.ReactNode;
 }
 
-export function TaskForm({ task, defaults, onSubmit, onCancel, submitLabel = 'Save' }: TaskFormProps) {
+export function TaskForm({ task, defaults, onSubmit, onCancel, submitLabel = 'Save', extraMain }: TaskFormProps) {
   const { projectId } = useParams<{ projectId: string }>();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -46,8 +47,8 @@ export function TaskForm({ task, defaults, onSubmit, onCancel, submitLabel = 'Sa
   const [assignee, setAssignee] = useState<string>('');
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [epics, setEpics] = useState<Epic[]>([]);
-  const [selectedEpicIds, setSelectedEpicIds] = useState<string[]>([]);
-  const [initialEpicIds, setInitialEpicIds] = useState<string[]>([]);
+  const [selectedEpicId, setSelectedEpicId] = useState<string>('');
+  const [initialEpicId, setInitialEpicId] = useState<string>('');
   const [saving, setSaving] = useState(false);
   const [titleError, setTitleError] = useState(false);
 
@@ -79,9 +80,9 @@ export function TaskForm({ task, defaults, onSubmit, onCancel, submitLabel = 'Sa
   useEffect(() => {
     if (!projectId || !task) return;
     listTaskRelations(projectId, task.id).then(rels => {
-      const epicIds = rels.filter(r => r.kind === 'belongs_to').map(r => r.toId);
-      setSelectedEpicIds(epicIds);
-      setInitialEpicIds(epicIds);
+      const epicId = rels.find(r => r.kind === 'belongs_to')?.toId ?? '';
+      setSelectedEpicId(epicId);
+      setInitialEpicId(epicId);
     }).catch(() => {});
   }, [projectId, task]);
 
@@ -103,16 +104,12 @@ export function TaskForm({ task, defaults, onSubmit, onCancel, submitLabel = 'Sa
         assignee: assignee || null,
       });
 
-      // Sync epic links after save
-      if (projectId) {
+      // Sync epic link after save
+      if (projectId && selectedEpicId !== initialEpicId) {
         const taskId = task?.id ?? (result as any)?.id;
         if (taskId) {
-          const toLink = selectedEpicIds.filter(id => !initialEpicIds.includes(id));
-          const toUnlink = initialEpicIds.filter(id => !selectedEpicIds.includes(id));
-          await Promise.all([
-            ...toLink.map(epicId => linkTaskToEpic(projectId, epicId, taskId)),
-            ...toUnlink.map(epicId => unlinkTaskFromEpic(projectId, epicId, taskId)),
-          ]);
+          if (initialEpicId) await unlinkTaskFromEpic(projectId, initialEpicId, taskId);
+          if (selectedEpicId) await linkTaskToEpic(projectId, selectedEpicId, taskId);
         }
       }
     } finally {
@@ -124,6 +121,7 @@ export function TaskForm({ task, defaults, onSubmit, onCancel, submitLabel = 'Sa
     <Box component="form" id="task-form" onSubmit={e => { e.preventDefault(); handleSubmit(); }} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       <DetailLayout
         main={
+          <>
           <Section title="Details">
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <AppTextField
@@ -142,6 +140,8 @@ export function TaskForm({ task, defaults, onSubmit, onCancel, submitLabel = 'Sa
               </Box>
             </Box>
           </Section>
+          {extraMain}
+        </>
         }
         sidebar={
           <Section title="Properties">
@@ -202,17 +202,19 @@ export function TaskForm({ task, defaults, onSubmit, onCancel, submitLabel = 'Sa
               </Box>
               {epics.length > 0 && (
                 <Box>
-                  <FieldLabel>Epics</FieldLabel>
+                  <FieldLabel>Epic</FieldLabel>
                   <Select
-                    fullWidth multiple value={selectedEpicIds}
-                    onChange={e => setSelectedEpicIds(e.target.value as string[])}
+                    fullWidth value={selectedEpicId}
+                    onChange={e => setSelectedEpicId(e.target.value as string)}
                     displayEmpty
-                    renderValue={selected => {
-                      if ((selected as string[]).length === 0) return 'No epic';
-                      return (selected as string[]).map(id => epics.find(e => e.id === id)?.title ?? id).join(', ');
+                    renderValue={v => {
+                      if (!v) return 'No epic';
+                      const ep = epics.find(e => e.id === v);
+                      return ep?.title ?? v;
                     }}
                   >
-                    {epics.filter(e => e.status === 'open' || e.status === 'in_progress' || selectedEpicIds.includes(e.id)).map(e => (
+                    <MenuItem value="">No epic</MenuItem>
+                    {epics.filter(e => e.status === 'open' || e.status === 'in_progress' || e.id === selectedEpicId).map(e => (
                       <MenuItem key={e.id} value={e.id}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <FlagIcon sx={{ fontSize: 14, color: e.status === 'open' ? '#1976d2' : e.status === 'in_progress' ? '#f57c00' : '#388e3c' }} />

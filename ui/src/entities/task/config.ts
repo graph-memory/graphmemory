@@ -1,12 +1,12 @@
 import type { TaskStatus, TaskPriority } from './api.ts';
 
 export const COLUMNS: { status: TaskStatus; label: string; color: string }[] = [
-  { status: 'backlog', label: 'Backlog', color: '#616161' },
-  { status: 'todo', label: 'To Do', color: '#1976d2' },
-  { status: 'in_progress', label: 'In Progress', color: '#f57c00' },
-  { status: 'review', label: 'Review', color: '#7b1fa2' },
-  { status: 'done', label: 'Done', color: '#388e3c' },
-  { status: 'cancelled', label: 'Cancelled', color: '#d32f2f' },
+  { status: 'backlog', label: 'BACKLOG', color: '#616161' },
+  { status: 'todo', label: 'TO DO', color: '#1976d2' },
+  { status: 'in_progress', label: 'IN PROGRESS', color: '#f57c00' },
+  { status: 'review', label: 'REVIEW', color: '#7b1fa2' },
+  { status: 'done', label: 'DONE', color: '#388e3c' },
+  { status: 'cancelled', label: 'CANCELLED', color: '#d32f2f' },
 ];
 
 export const PRIORITY_COLORS: Record<TaskPriority, string> = {
@@ -33,9 +33,9 @@ export const PRIORITY_BADGE_COLOR: Record<TaskPriority, 'error' | 'warning' | 'p
 };
 
 export function statusLabel(status: TaskStatus): string {
-  return COLUMNS.find(c => c.status === status)?.label ?? status;
+  return COLUMNS.find(c => c.status === status)?.label ?? status.toUpperCase();
 }
 
 export function priorityLabel(priority: TaskPriority): string {
-  return priority.charAt(0).toUpperCase() + priority.slice(1);
+  return priority.toUpperCase().replace('_', ' ');
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Box, Button, Alert } from '@mui/material';
+import { Box, Alert } from '@mui/material';
 import { createNote, uploadNoteAttachment } from '@/entities/note/index.ts';
 import { NoteForm } from '@/features/note-crud/NoteForm.tsx';
 import { StagedAttachments } from '@/features/attachments/index.ts';
@@ -29,11 +29,6 @@ export default function NoteNewPage() {
           { label: 'Knowledge', to: `/${projectId}/knowledge` },
           { label: 'Create' },
         ]}
-        actions={
-          <Button variant="contained" form="note-form" type="submit" disabled={!canWrite}>
-            Create
-          </Button>
-        }
       />
       {!canWrite && <Alert severity="warning" sx={{ mb: 2 }}>Read-only access — you cannot create notes.</Alert>}
       <NoteForm

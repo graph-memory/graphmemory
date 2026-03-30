@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { COLUMNS, type TaskStatus } from '@/entities/task/index.ts';
 
 const STORAGE_KEY = 'kanban-visible-columns';
@@ -17,7 +18,12 @@ function loadVisible(): Set<TaskStatus> {
 }
 
 export function useColumnVisibility() {
-  const [visible, setVisible] = useState<Set<TaskStatus>>(loadVisible);
+  const [searchParams] = useSearchParams();
+  const [visible, setVisible] = useState<Set<TaskStatus>>(() => {
+    const urlStatuses = searchParams.getAll('status').filter(s => ALL_STATUSES.includes(s as TaskStatus)) as TaskStatus[];
+    if (urlStatuses.length > 0) return new Set(urlStatuses);
+    return loadVisible();
+  });
 
   const toggle = useCallback((status: TaskStatus) => {
     setVisible(prev => {

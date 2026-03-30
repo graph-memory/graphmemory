@@ -304,7 +304,7 @@ function DraggableTaskRow({
 // Main page
 // ---------------------------------------------------------------------------
 
-type TaskFilterKey = 'q' | 'priority' | 'tag' | 'assignee' | 'epic' | 'groupBy' | 'sort' | 'dir';
+type TaskFilterKey = 'q' | 'priority' | 'tag' | 'assignee' | 'epic' | 'sort' | 'dir';
 
 const TASK_FILTER_DEFS = [
   { key: 'q', defaultValue: '' },
@@ -314,8 +314,16 @@ const TASK_FILTER_DEFS = [
   { key: 'epic', defaultValue: '' },
   { key: 'sort', defaultValue: 'order', persistent: true },
   { key: 'dir', defaultValue: 'asc', persistent: true },
-  { key: 'groupBy', defaultValue: 'status', persistent: true },
 ];
+
+const GROUP_BY_STORAGE_KEY = 'tasks-list-group-by';
+function loadGroupBy(): GroupByField {
+  try {
+    const raw = localStorage.getItem(GROUP_BY_STORAGE_KEY);
+    if (raw && ['status', 'priority', 'assignee', 'tag', 'epic', 'none'].includes(raw)) return raw as GroupByField;
+  } catch { /* ignore */ }
+  return 'status';
+}
 
 export default function TaskListPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -329,6 +337,12 @@ export default function TaskListPage() {
 
   const { visible: visibleStatuses, toggle: toggleStatusVisibility } = useColumnVisibility();
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [groupBy, setGroupBy] = useState<GroupByField>(loadGroupBy);
+  const handleGroupByChange = useCallback((value: string) => {
+    const v = value as GroupByField;
+    setGroupBy(v);
+    localStorage.setItem(GROUP_BY_STORAGE_KEY, v);
+  }, []);
 
   const { filters, setFilter, setFilters, clearAll } = useFilters<TaskFilterKey>(TASK_FILTER_DEFS);
 
@@ -422,7 +436,7 @@ export default function TaskListPage() {
     return sortDir === 'desc' ? -cmp : cmp;
   }, [sortField, sortDir]);
 
-  const groupBy = (filters.groupBy || 'status') as GroupByField;
+  // groupBy is stored in localStorage, not URL
   const groupContext = useMemo<GroupContext>(() => ({ team, epics, taskEpicMap }), [team, epics, taskEpicMap]);
   const { groups, tasksByGroup } = useGroupedTasks(filteredTasks, groupBy, groupContext, compareTasks);
   const currentGroupConfig = GROUP_CONFIGS[groupBy];
@@ -679,7 +693,7 @@ export default function TaskListPage() {
           <Select
             name="group-by"
             value={groupBy}
-            onChange={e => setFilter('groupBy', e.target.value)}
+            onChange={e => handleGroupByChange(e.target.value)}
             variant="outlined"
             sx={{ fontSize: '0.8rem', height: 32, '& .MuiSelect-select': { py: '4px' } }}
             renderValue={v => `Group: ${GROUP_BY_OPTIONS.find(o => o.value === v)?.label ?? v}`}

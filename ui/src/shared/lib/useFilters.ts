@@ -14,6 +14,10 @@ export interface UseFiltersResult<K extends string = string> {
   clearAll: () => void;
   hasActiveFilters: boolean;
   activeFilterKeys: K[];
+  /** Get raw searchParams for reading non-filter URL params */
+  searchParams: URLSearchParams;
+  /** Update URL params directly — use for non-filter params like sort */
+  setSearchParams: ReturnType<typeof useSearchParams>[1];
 }
 
 export function useFilters<K extends string = string>(defs: FilterDef[]): UseFiltersResult<K> {
@@ -36,7 +40,7 @@ export function useFilters<K extends string = string>(defs: FilterDef[]): UseFil
       const next = new URLSearchParams(prev);
       for (const def of defsRef.current) {
         const urlKey = def.urlKey ?? def.key;
-        const value = updates[def.key] ?? prev.get(urlKey) ?? def.defaultValue;
+        const value = def.key in updates ? updates[def.key] : prev.get(urlKey);
         if (value && value !== def.defaultValue) {
           next.set(urlKey, value);
         } else {
@@ -72,5 +76,5 @@ export function useFilters<K extends string = string>(defs: FilterDef[]): UseFil
 
   const hasActiveFilters = activeFilterKeys.length > 0;
 
-  return { filters: filters as Record<K, string>, setFilter, clearFilter, clearAll, hasActiveFilters, activeFilterKeys };
+  return { filters: filters as Record<K, string>, setFilter, clearFilter, clearAll, hasActiveFilters, activeFilterKeys, searchParams, setSearchParams };
 }

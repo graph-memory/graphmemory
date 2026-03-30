@@ -1,5 +1,5 @@
 import { Fragment, useState, useEffect, useCallback, useMemo } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Button, Paper, Chip, Alert, CircularProgress,
   useTheme, alpha, IconButton, Checkbox, Tooltip,
@@ -327,9 +327,8 @@ export default function TaskListPage() {
 
   const { visible: visibleStatuses, toggle: toggleStatusVisibility } = useColumnVisibility();
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [searchParams] = useSearchParams();
 
-  const { filters, setFilter, clearAll } = useFilters<TaskFilterKey>(TASK_FILTER_DEFS);
+  const { filters, setFilter, clearAll, searchParams, setSearchParams } = useFilters<TaskFilterKey>(TASK_FILTER_DEFS);
 
   const [epics, setEpics] = useState<Epic[]>([]);
   const [epicTaskIds, setEpicTaskIds] = useState<Set<string> | null>(null);
@@ -345,7 +344,6 @@ export default function TaskListPage() {
   const [deleting, setDeleting] = useState(false);
 
   // Sync sort params to URL (useFilters handles filter params)
-  const [, setSearchParams] = useSearchParams();
   useEffect(() => {
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
@@ -353,7 +351,7 @@ export default function TaskListPage() {
       if (sortDir) next.set('dir', sortDir); else next.delete('dir');
       return next;
     }, { replace: true });
-  }, [sortField, sortDir]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sortField, sortDir, setSearchParams]);
 
   // DnD state
   const [activeId, setActiveId] = useState<string | null>(null);

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Button, Alert, CircularProgress,
   LinearProgress, alpha, useTheme, TextField, InputAdornment,
@@ -54,21 +54,19 @@ const EPIC_FILTER_DEFS = [
 export default function EpicsPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const { palette } = useTheme();
   const canWrite = useCanWrite('tasks');
   const [epics, setEpics] = useState<Epic[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const { filters, setFilter, clearAll } = useFilters<EpicFilterKey>(EPIC_FILTER_DEFS);
+  const { filters, setFilter, clearAll, searchParams, setSearchParams } = useFilters<EpicFilterKey>(EPIC_FILTER_DEFS);
 
   const initSort = searchParams.get('sort') as SortField | null;
   const initDir = searchParams.get('dir') as 'asc' | 'desc' | null;
   const { sortField, sortDir, handleSort, resetSort } = useTableSort<SortField>(initSort, initDir);
 
   // Sync sort params to URL (useFilters handles filter params)
-  const [, setSearchParams] = useSearchParams();
   useEffect(() => {
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
@@ -76,7 +74,7 @@ export default function EpicsPage() {
       if (sortDir) next.set('dir', sortDir); else next.delete('dir');
       return next;
     }, { replace: true });
-  }, [sortField, sortDir]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sortField, sortDir, setSearchParams]);
 
   const refresh = useCallback(async () => {
     if (!projectId) return;

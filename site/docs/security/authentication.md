@@ -58,6 +58,19 @@ When you open the UI with authentication enabled, you see a login page.
 3. On success, the server sets two **httpOnly cookies** containing JWT tokens
 4. The UI loads and you have full access according to your permissions
 
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant UI as Web UI
+    participant S as Server
+    U->>UI: Enter email + password
+    UI->>S: POST /api/auth/login
+    S->>S: Resolve user, verify scrypt hash
+    S->>S: Sign JWT (access 15m + refresh 7d)
+    S-->>UI: Set httpOnly cookies
+    UI-->>U: App loads (AuthGate passes)
+```
+
 ### JWT tokens
 
 Two tokens are issued as secure cookies:
@@ -238,6 +251,16 @@ When a request arrives, the server checks credentials in this order:
 1. **JWT cookie** -- if a `jwtSecret` is configured, check the `mgm_access` cookie
 2. **Bearer token** -- check the `Authorization: Bearer` header; accepts both API keys (`mgm-...`) and OAuth access tokens (JWT type `oauth_access`)
 3. **Anonymous** -- if neither is present, the request uses `server.defaultAccess` permissions
+
+```mermaid
+flowchart TD
+    R[Incoming request] --> J{JWT cookie present?}
+    J -->|valid| ID1[Use JWT identity]
+    J -->|missing/invalid| B{Bearer token?}
+    B -->|API key| ID2[Use API key identity]
+    B -->|OAuth token| ID3[Use OAuth identity]
+    B -->|none| ANON[Anonymous — use defaultAccess]
+```
 
 The first successful match determines the user identity for the request.
 

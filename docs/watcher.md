@@ -89,6 +89,26 @@ Updated description from IDE...
 
 The watcher detects the change, parses the file, updates the TaskGraph, and the change appears in the web UI via WebSocket push.
 
+## Bidirectional sync overview
+
+```mermaid
+flowchart LR
+    subgraph ProjectWatcher["Project Watcher"]
+        PW[chokidar watches projectDir]
+        PW --> PD[Dispatch to docs/code/file queues]
+    end
+
+    subgraph MirrorWatcher["Mirror Watcher"]
+        MW[chokidar watches .notes/.tasks/.skills]
+        MW --> MC{Our write?}
+        MC -->|Yes, skip| SKIP[MirrorWriteTracker match]
+        MC -->|No, external| IMP[Import to graph]
+    end
+
+    Graph <-->|mirror write| ProjectWatcher
+    Graph <-->|import| MirrorWatcher
+```
+
 ## Real-time flow
 
 ```

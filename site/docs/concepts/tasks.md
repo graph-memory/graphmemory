@@ -45,6 +45,21 @@ backlog → todo → in_progress → review → done
                                        → cancelled
 ```
 
+```mermaid
+stateDiagram-v2
+    [*] --> backlog: create (default)
+    backlog --> todo: prioritize
+    todo --> in_progress: start work
+    in_progress --> review: submit
+    review --> done: approve
+    review --> in_progress: request changes
+    backlog --> cancelled: won't do
+    todo --> cancelled: skip
+    in_progress --> cancelled: abandon
+    done --> [*]
+    cancelled --> [*]
+```
+
 | Status | Meaning |
 |--------|---------|
 | `backlog` | Identified but not prioritized yet |

@@ -32,6 +32,19 @@ When a user accesses a graph, their effective permission is resolved through a 5
 5. server.defaultAccess       ← fallback
 ```
 
+```mermaid
+flowchart TD
+    A[Request access to graph] --> B{graph.access[userId]?}
+    B -->|found| R1[Return permission]
+    B -->|not found| C{project.access[userId]?}
+    C -->|found| R2[Return permission]
+    C -->|not found| D{workspace.access[userId]?}
+    D -->|found| R3[Return permission]
+    D -->|not found| E{server.access[userId]?}
+    E -->|found| R4[Return permission]
+    E -->|not found| F[Return server.defaultAccess]
+```
+
 This means you can set a broad default and override it at any level.
 
 ## Default behavior

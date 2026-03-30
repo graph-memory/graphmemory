@@ -27,6 +27,19 @@ notes_create_link({
 
 This creates a proxy node `@code::src/lib/auth.ts::loginUser` in the Knowledge graph, with an edge from your note to that proxy.
 
+```mermaid
+graph LR
+    subgraph KnowledgeGraph
+        Note["note: auth-notes"]
+        Proxy["proxy: @code::loginUser"]
+    end
+    subgraph CodeGraph
+        Symbol["symbol: loginUser()"]
+    end
+    Note -->|references| Proxy
+    Proxy -.->|resolves to| Symbol
+```
+
 ## Proxy node format
 
 Proxy IDs follow the pattern `@{graph}::{nodeId}`:

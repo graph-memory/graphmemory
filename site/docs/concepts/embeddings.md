@@ -127,6 +127,23 @@ Additionally, ONNX Runtime session options are tuned to reduce memory overhead d
 
 During initial indexing, Graph Memory processes graphs in a fixed order: **docs → files → code**. Each phase completes before the next begins. Because models are loaded lazily, this means only one embedding model is resident in memory at a time during indexing.
 
+```mermaid
+graph LR
+    subgraph Phase1["Phase 1: Docs"]
+        D1[Scan docs] --> D2[Embed with bge-m3]
+        D2 --> D3[Drain queue]
+    end
+    subgraph Phase2["Phase 2: Files"]
+        F1[Scan files] --> F2[Embed with bge-m3]
+        F2 --> F3[Drain queue]
+    end
+    subgraph Phase3["Phase 3: Code"]
+        C1[Scan code] --> C2[Embed with jina-code]
+        C2 --> C3[Drain queue]
+    end
+    Phase1 --> Phase2 --> Phase3
+```
+
 For multi-project setups where each project has its own model configuration, this reduces peak memory by up to **~3 GB** compared to loading all models simultaneously. Projects are indexed sequentially as well, so the memory footprint stays flat regardless of how many projects are configured.
 
 :::tip

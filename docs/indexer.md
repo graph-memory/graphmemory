@@ -4,17 +4,20 @@ The indexer (`src/cli/indexer.ts`) walks the project directory and dispatches fi
 
 ## Architecture
 
-```
-File detected (scan or watch event)
-  ↓ micromatch pattern matching
-  ↓
-┌────────────────┬────────────────┬────────────────┐
-│   docsQueue    │   codeQueue    │   fileQueue    │
-│                │                │                │
-│ parseFile()    │ parseCodeFile()│ fs.stat()      │
-│ embedBatch()   │ embedBatch()   │ embed()        │
-│ updateFile()   │ updateCodeFile │ updateFileEntry │
-└────────────────┴────────────────┴────────────────┘
+```mermaid
+flowchart TD
+    FILE[File detected] --> MATCH{Pattern matching}
+    MATCH -->|docs patterns| DQ[Docs Queue]
+    MATCH -->|code patterns| CQ[Code Queue]
+    MATCH -->|all files| FQ[File Index Queue]
+
+    DQ --> DP[parseFile + embedBatch]
+    CQ --> CP[parseCodeFile + embedBatch]
+    FQ --> FP[fs.stat + embed]
+
+    DP --> DG[Update DocGraph]
+    CP --> CG[Update CodeGraph]
+    FP --> FG[Update FileIndexGraph]
 ```
 
 ## Three-phase sequential indexing

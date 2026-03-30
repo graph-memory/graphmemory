@@ -2,63 +2,60 @@
 
 ## High-level diagram
 
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│                              CLI                                     │
-│                   src/cli/index.ts (Commander)                       │
-│                                                                      │
-│   index ──── scan + embed + save + exit                              │
-│   serve ──── HTTP server + MCP + REST API + UI + WebSocket           │
-│   users ──── user management (add users to config)                   │
-└──────────────────────────┬───────────────────────────────────────────┘
-                           │
-            ┌──────────────┴──────────────┐
-            ▼                              ▼
-     ┌─────────────┐            ┌──────────────────┐
-     │ YAML Config │            │ ProjectManager   │
-     │ (Zod valid) │            │ (multi-project)  │
-     └──────┬──────┘            └────────┬─────────┘
-            │                            │
-            ▼                            ▼
-     ┌──────────────────────────────────────────┐
-     │           ProjectIndexer                 │
-     │   3 serial queues: docs / code / files   │
-     │   chokidar watcher for live updates      │
-     └──────────────────┬───────────────────────┘
-                        │
-                        ▼
-     ┌──────────────────────────────────────────┐
-     │         Embedding (transformers.js)      │
-     │   embed() / embedBatch() / loadModel()   │
-     │   named registry + model deduplication   │
-     └──────────────────┬───────────────────────┘
-                        │
-                        ▼
-     ┌──────────────────────────────────────────┐
-     │           Graphs (Graphology)            │
-     │                                          │
-     │   DocGraph ────── markdown chunks        │
-     │   CodeGraph ───── AST symbols            │
-     │   KnowledgeGraph  user notes + facts     │
-     │   FileIndexGraph  all project files      │
-     │   TaskGraph ───── tasks + kanban          │
-     │   SkillGraph ──── reusable recipes       │
-     └──────────────────┬───────────────────────┘
-                        │
-     ┌──────────────────┴───────────────────────┐
-     │        Graph Managers (unified API)       │
-     │                                          │
-     │   embed + CRUD + dirty + events          │
-     │   + cross-graph cleanup                  │
-     └──────────────────┬───────────────────────┘
-                        │
-         ┌──────────────┼──────────────┐
-         ▼              ▼              ▼
-     ┌────────┐   ┌──────────┐   ┌──────────┐
-     │  MCP   │   │ REST API │   │    UI    │
-     │ Tools  │   │ Express  │   │  React   │
-     │ (70)   │   │ + WS     │   │  + Vite  │
-     └────────┘   └──────────┘   └──────────┘
+```mermaid
+graph TD
+    CLI["CLI (commander)"]
+    Config["YAML Config"]
+    PM["ProjectManager"]
+
+    CLI --> Config
+    CLI --> PM
+
+    subgraph Indexer["ProjectIndexer"]
+        DQ["docs queue"]
+        CQ["code queue"]
+        FQ["files queue"]
+    end
+
+    PM --> Indexer
+
+    subgraph Embed["Embedding Layer"]
+        ONNX["ONNX Runtime"]
+        Models["bge-m3 / jina-code"]
+    end
+
+    Indexer --> Embed
+
+    subgraph Graphs
+        DocG["DocGraph"]
+        CodeG["CodeGraph"]
+        KG["KnowledgeGraph"]
+        TG["TaskGraph"]
+        SG["SkillGraph"]
+        FIG["FileIndexGraph"]
+    end
+
+    Embed --> Graphs
+
+    subgraph Managers["Graph Managers"]
+        DM["DocGraphManager"]
+        CM["CodeGraphManager"]
+        KM["KnowledgeGraphManager"]
+        TM["TaskGraphManager"]
+        SM["SkillGraphManager"]
+        FM["FileIndexGraphManager"]
+    end
+
+    Graphs --> Managers
+
+    subgraph API["API Layer"]
+        MCP["MCP Tools (70)"]
+        REST["REST Routes"]
+        WS["WebSocket"]
+        UI["Web UI"]
+    end
+
+    Managers --> API
 ```
 
 ## Layers

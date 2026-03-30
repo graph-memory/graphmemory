@@ -6,6 +6,21 @@ All graph searches use the same hybrid algorithm combining BM25 keyword search a
 
 ## Hybrid search algorithm
 
+```mermaid
+flowchart TD
+    Q[Search query] --> E[Compute query embedding]
+    E --> P{Score all nodes}
+    P --> BM25[BM25 keyword score]
+    P --> VEC[Vector cosine similarity]
+    BM25 --> RRF[Reciprocal Rank Fusion]
+    VEC --> RRF
+    RRF --> SEED[Select top seeds]
+    SEED --> BFS[BFS graph expansion]
+    BFS --> MERGE[Merge & deduplicate]
+    MERGE --> FILTER[Filter by minScore]
+    FILTER --> RESULT[Return top maxResults]
+```
+
 ### Step 1: Score all nodes
 
 Two scoring methods run in parallel:

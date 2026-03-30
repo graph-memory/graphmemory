@@ -24,7 +24,6 @@ import CableIcon from '@mui/icons-material/Cable';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import AssignmentIcon from '@mui/icons-material/Assignment';
-import FlagIcon from '@mui/icons-material/Flag';
 import { useProjects, type WorkspaceInfo } from '@/entities/project/index.ts';
 import { useThemeMode } from '@/shared/lib/ThemeModeContext.tsx';
 import { WsProvider } from '@/shared/lib/useWebSocket.ts';
@@ -57,7 +56,6 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', icon: <DashboardIcon />, path: 'dashboard', color: { dark: '#569cd6', light: '#1976d2' } },
   { label: 'Tasks', icon: <AssignmentIcon />, path: 'tasks', color: { dark: '#ce9178', light: '#d84315' } },
-  { label: 'Epics', icon: <FlagIcon />, path: 'epics', color: { dark: '#ce9178', light: '#d84315' } },
   { label: 'Knowledge', icon: <LightbulbIcon />, path: 'knowledge', color: { dark: '#dcdcaa', light: '#b8860b' } },
   { label: 'Skills', icon: <PsychologyIcon />, path: 'skills', color: { dark: '#c586c0', light: '#9c27b0' } },
   { label: 'Docs', icon: <DescriptionIcon />, path: 'docs', color: { dark: '#9cdcfe', light: '#0288d1' } },

@@ -69,10 +69,10 @@ export default function App() {
           <Route path="tasks/new" element={<TaskNewPage />} />
           <Route path="tasks/:taskId/edit" element={<TaskEditPage />} />
           <Route path="tasks/:taskId" element={<TaskDetailPage />} />
-          <Route path="epics" element={<EpicsPage />} />
-          <Route path="epics/new" element={<EpicNewPage />} />
-          <Route path="epics/:epicId/edit" element={<EpicEditPage />} />
-          <Route path="epics/:epicId" element={<EpicDetailPage />} />
+          <Route path="tasks/epics" element={<EpicsPage />} />
+          <Route path="tasks/epics/new" element={<EpicNewPage />} />
+          <Route path="tasks/epics/:epicId/edit" element={<EpicEditPage />} />
+          <Route path="tasks/epics/:epicId" element={<EpicDetailPage />} />
           <Route path="skills" element={<SkillsPage />} />
           <Route path="skills/new" element={<SkillNewPage />} />
           <Route path="skills/:skillId/edit" element={<SkillEditPage />} />

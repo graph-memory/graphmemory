@@ -3,11 +3,13 @@ import { Tabs, Tab, Box } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import ViewListIcon from '@mui/icons-material/ViewList';
 import ViewKanbanIcon from '@mui/icons-material/ViewKanban';
+import FlagIcon from '@mui/icons-material/Flag';
 
 const TABS = [
   { label: 'Summary', value: 'summary', icon: <DashboardIcon fontSize="small" /> },
   { label: 'List', value: 'list', icon: <ViewListIcon fontSize="small" /> },
   { label: 'Board', value: 'board', icon: <ViewKanbanIcon fontSize="small" /> },
+  { label: 'Epics', value: 'epics', icon: <FlagIcon fontSize="small" /> },
 ] as const;
 
 export function TasksTabs() {
@@ -15,7 +17,7 @@ export function TasksTabs() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
-  const current = TABS.find(t => pathname.endsWith(`/tasks/${t.value}`))?.value ?? 'summary';
+  const current = TABS.find(t => pathname.includes(`/tasks/${t.value}`))?.value ?? 'summary';
 
   return (
     <Box sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}>

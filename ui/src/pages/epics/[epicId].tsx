@@ -75,7 +75,7 @@ export default function EpicDetailPage() {
     setDeleting(true);
     try {
       await deleteEpic(projectId, epicId);
-      navigate(`/${projectId}/epics`);
+      navigate(`/${projectId}/tasks/epics`);
     } finally { setDeleting(false); }
   };
 
@@ -88,13 +88,13 @@ export default function EpicDetailPage() {
     <Box>
       <PageTopBar
         breadcrumbs={[
-          { label: 'Epics', to: `/${projectId}/epics` },
+          { label: 'Epics', to: `/${projectId}/tasks/epics` },
           { label: epic.title },
         ]}
         actions={
           canWrite ? (
             <>
-              <Button startIcon={<EditIcon />} onClick={() => navigate(`/${projectId}/epics/${epicId}/edit`)}>Edit</Button>
+              <Button startIcon={<EditIcon />} onClick={() => navigate(`/${projectId}/tasks/epics/${epicId}/edit`)}>Edit</Button>
               <Button startIcon={<DeleteIcon />} color="error" onClick={() => setDeleteOpen(true)}>Delete</Button>
             </>
           ) : undefined

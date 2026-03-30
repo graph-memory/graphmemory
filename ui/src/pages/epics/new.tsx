@@ -13,14 +13,14 @@ export default function EpicNewPage() {
   const handleSubmit = async (data: Parameters<typeof createEpic>[1]) => {
     if (!projectId) return;
     const epic = await createEpic(projectId, data);
-    navigate(`/${projectId}/epics/${epic.id}`);
+    navigate(`/${projectId}/tasks/epics/${epic.id}`);
   };
 
   return (
     <Box>
       <PageTopBar
         breadcrumbs={[
-          { label: 'Epics', to: `/${projectId}/epics` },
+          { label: 'Epics', to: `/${projectId}/tasks/epics` },
           { label: 'Create' },
         ]}
         actions={
@@ -32,7 +32,7 @@ export default function EpicNewPage() {
       {!canWrite && <Alert severity="warning" sx={{ mb: 2 }}>Read-only access.</Alert>}
       <EpicForm
         onSubmit={handleSubmit}
-        onCancel={() => navigate(`/${projectId}/epics`)}
+        onCancel={() => navigate(`/${projectId}/tasks/epics`)}
         submitLabel="Create"
       />
     </Box>

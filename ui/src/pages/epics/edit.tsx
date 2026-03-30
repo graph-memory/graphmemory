@@ -25,7 +25,7 @@ export default function EpicEditPage() {
   const handleSubmit = async (data: Parameters<typeof updateEpic>[2]) => {
     if (!projectId || !epicId) return;
     await updateEpic(projectId, epicId, data);
-    navigate(`/${projectId}/epics/${epicId}`);
+    navigate(`/${projectId}/tasks/epics/${epicId}`);
   };
 
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>;
@@ -35,8 +35,8 @@ export default function EpicEditPage() {
     <Box>
       <PageTopBar
         breadcrumbs={[
-          { label: 'Epics', to: `/${projectId}/epics` },
-          { label: epic.title, to: `/${projectId}/epics/${epicId}` },
+          { label: 'Epics', to: `/${projectId}/tasks/epics` },
+          { label: epic.title, to: `/${projectId}/tasks/epics/${epicId}` },
           { label: 'Edit' },
         ]}
         actions={
@@ -47,7 +47,7 @@ export default function EpicEditPage() {
       <EpicForm
         epic={epic}
         onSubmit={handleSubmit}
-        onCancel={() => navigate(`/${projectId}/epics/${epicId}`)}
+        onCancel={() => navigate(`/${projectId}/tasks/epics/${epicId}`)}
       />
     </Box>
   );

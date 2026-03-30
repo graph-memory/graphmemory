@@ -17,6 +17,7 @@ import { useFilters } from '@/shared/lib/useFilters.ts';
 import { PageTopBar, StatusBadge, Tags, PaginationBar, DateDisplay, FilterBar, FilterControl } from '@/shared/ui/index.ts';
 import { listEpics, type Epic, type EpicStatus } from '@/entities/epic/index.ts';
 import { PRIORITY_COLORS, PRIORITY_BADGE_COLOR, priorityLabel, type TaskPriority } from '@/entities/task/index.ts';
+import { TasksTabs } from '@/pages/tasks/TasksTabs.tsx';
 
 const EPIC_STATUS_COLOR: Record<EpicStatus, string> = {
   open: '#1976d2',
@@ -142,13 +143,14 @@ export default function EpicsPage() {
   return (
     <Box>
       <PageTopBar
-        breadcrumbs={[{ label: 'Epics' }]}
+        breadcrumbs={[{ label: 'Tasks', to: `/${projectId}/tasks` }, { label: 'Epics' }]}
         actions={canWrite ? (
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate(`/${projectId}/epics/new`)}>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate(`/${projectId}/tasks/epics/new`)}>
             New Epic
           </Button>
         ) : undefined}
       />
+      <TasksTabs />
 
       {/* Filter bar */}
       <FilterBar activeFilters={activeFilterChips} onClearAll={handleClearAll}>
@@ -194,7 +196,7 @@ export default function EpicsPage() {
             {epics.length === 0 && canWrite ? 'Create your first epic to group related tasks' : ''}
           </Typography>
           {epics.length === 0 && canWrite && (
-            <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate(`/${projectId}/epics/new`)}>New Epic</Button>
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate(`/${projectId}/tasks/epics/new`)}>New Epic</Button>
           )}
         </Box>
       ) : (
@@ -219,7 +221,7 @@ export default function EpicsPage() {
                     key={epic.id}
                     hover
                     sx={{ cursor: 'pointer' }}
-                    onClick={() => navigate(`/${projectId}/epics/${epic.id}`)}
+                    onClick={() => navigate(`/${projectId}/tasks/epics/${epic.id}`)}
                   >
                     <TableCell>
                       <Typography variant="body2" fontWeight={600} noWrap>{epic.title}</Typography>

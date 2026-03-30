@@ -203,7 +203,7 @@ export default function TaskDetailPage() {
                       {epicLinks.map(r => (
                         <Box key={r.toId} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <FlagIcon sx={{ fontSize: 16, color: '#1976d2' }} />
-                          <Link component="button" variant="body2" onClick={() => navigate(`/${projectId}/epics/${r.toId}`)}>
+                          <Link component="button" variant="body2" onClick={() => navigate(`/${projectId}/tasks/epics/${r.toId}`)}>
                             {r.title || r.toId}
                           </Link>
                           {canWrite && (

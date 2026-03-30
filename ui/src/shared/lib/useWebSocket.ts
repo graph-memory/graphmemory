@@ -74,14 +74,31 @@ function createWsManager(): WsManager {
         reconnectTimer = setTimeout(async () => {
           if (disposed) return;
           try {
-            const res = await fetch('/api/auth/refresh', { method: 'POST', credentials: 'include' });
+            // Check if auth is required before trying refresh
+            const statusRes = await fetch('/api/auth/status', { credentials: 'include' });
             if (disposed) return;
-            if (res.ok) {
-              doConnect();
-              return;
+            if (statusRes.ok) {
+              const statusData = await statusRes.json();
+              if (!statusData.required || statusData.authenticated) {
+                // Auth not needed or already valid — just reconnect
+                doConnect();
+                return;
+              }
+              // Auth required but not authenticated — try refresh
+              const refreshRes = await fetch('/api/auth/refresh', { method: 'POST', credentials: 'include' });
+              if (disposed) return;
+              if (refreshRes.ok) {
+                doConnect();
+                return;
+              }
+              // Refresh failed — auth truly expired
+              setStatus('disconnected');
+              triggerAuthFailure();
+            } else {
+              // Server returned error for status check — retry with backoff
+              reconnectDelay = Math.min(reconnectDelay * 2, RECONNECT_MAX_MS);
+              reconnectTimer = setTimeout(() => { if (!disposed) doConnect(); }, reconnectDelay);
             }
-            setStatus('disconnected');
-            triggerAuthFailure();
           } catch {
             if (disposed) return;
             reconnectDelay = Math.min(reconnectDelay * 2, RECONNECT_MAX_MS);

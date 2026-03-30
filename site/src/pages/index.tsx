@@ -40,8 +40,8 @@ const clients = [
 const prodFeatures = [
   {title: 'Auth & Security', href: '/docs/security/authentication', items: ['JWT + API keys', 'scrypt passwords', 'Rate limiting']},
   {title: 'Access Control', href: '/docs/security/access-control', items: ['5-level ACL', 'Per-graph readonly', 'Per-user permissions']},
-  {title: 'Scale', href: '/docs/guides/multi-project', items: ['Multi-project', 'Shared workspaces', 'Real-time sync']},
-  {title: 'Deploy', href: '/docs/getting-started/docker', items: ['npm package', 'Docker multi-arch', 'Zero-config mode']},
+  {title: 'Scale', href: '/docs/guides/multi-project', items: ['Multi-project', 'Shared workspaces', 'Real-time WebSocket sync']},
+  {title: 'Deploy', href: '/docs/getting-started/docker', items: ['npm package', 'Docker multi-arch', 'Structured Pino logging']},
 ];
 
 /* ─── Typing animation ─── */
@@ -99,7 +99,7 @@ function Hero() {
         <p className={s.heroSub}>
           Semantic graph memory for AI&#8209;powered development.<br />
           Index docs, code, and files into six interconnected graphs.<br />
-          Query with 70 MCP tools or the built&#8209;in Web UI.
+          Query with 70 MCP tools or the real&#8209;time Web UI.
         </p>
         <div className={s.terminal} onClick={copy} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); copy(); } }}>
           <div className={s.termHeader}>
@@ -284,9 +284,11 @@ function Production() {
 function WebUI() {
   const screens = [
     {title: 'Dashboard', desc: 'Stats, recent activity, quick actions', img: '/img/screenshots/dashboard-dark.png'},
-    {title: 'Kanban Board', desc: 'Drag-drop tasks across columns', img: '/img/screenshots/tasks-kanban-dark.png'},
-    {title: 'Graph Visualization', desc: 'Interactive Cytoscape.js force-directed graph', img: '/img/screenshots/graph-dark.png'},
-    {title: 'Unified Search', desc: 'One query across all graphs', img: '/img/screenshots/search-dark.png'},
+    {title: 'Kanban Board', desc: 'Drag-drop tasks across status columns', img: '/img/screenshots/tasks-kanban-dark.png'},
+    {title: 'Task List', desc: 'Grouping, filters with chips, sorting', img: '/img/screenshots/tasks-list-dark.png'},
+    {title: 'Epics', desc: 'Group tasks into epics, track progress', img: '/img/screenshots/epics-dark.png'},
+    {title: 'Unified Search', desc: 'One query across all six graphs', img: '/img/screenshots/search-dark.png'},
+    {title: 'Knowledge', desc: 'Persistent notes with relations and links', img: '/img/screenshots/knowledge-dark.png'},
   ];
   return (
     <section className={s.sec}>
@@ -349,11 +351,11 @@ function Features() {
   const features = [
     {
       label: 'Task Management',
-      title: 'Kanban Board with AI Integration',
-      desc: 'Full kanban workflow — your AI assistant creates, moves, and links tasks while you work. Priorities, assignees, due dates, estimates, and cross-graph linking to code and docs.',
-      bullets: ['Drag-and-drop across 6 statuses', 'Cross-graph links to code symbols and docs', 'File mirror — edit .tasks/ in your IDE', 'Optimistic locking for team concurrency'],
-      img: '/img/screenshots/tasks-kanban-dark.png',
-      alt: 'Kanban board with tasks',
+      title: 'Kanban, List View & Epics',
+      desc: 'Full kanban board with drag-and-drop, plus a list view with grouping by any field — status, priority, assignee, tag, or epic. Organize work with epics that track progress across tasks.',
+      bullets: ['Kanban board + sortable list with grouping', 'Epics — group tasks, track completion %', 'Filter chips — see active filters at a glance', 'Real-time sync via WebSocket'],
+      img: '/img/screenshots/tasks-list-dark.png',
+      alt: 'Task list with grouping and filters',
       href: '/docs/concepts/tasks',
     },
     {

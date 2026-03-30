@@ -23,7 +23,7 @@ import {
 import { useWebSocket } from '@/shared/lib/useWebSocket.ts';
 import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
 import { PageTopBar, StatusBadge, ConfirmDialog, PaginationBar, FilterBar, FilterControl } from '@/shared/ui/index.ts';
-import { useTableSort, type SortDir } from '@/shared/lib/useTableSort.ts';
+import type { SortDir } from '@/shared/lib/useTableSort.ts';
 import { useFilters } from '@/shared/lib/useFilters.ts';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import {
@@ -304,7 +304,7 @@ function DraggableTaskRow({
 // Main page
 // ---------------------------------------------------------------------------
 
-type TaskFilterKey = 'q' | 'priority' | 'tag' | 'assignee' | 'epic' | 'groupBy';
+type TaskFilterKey = 'q' | 'priority' | 'tag' | 'assignee' | 'epic' | 'groupBy' | 'sort' | 'dir';
 
 const TASK_FILTER_DEFS = [
   { key: 'q', defaultValue: '' },
@@ -312,6 +312,8 @@ const TASK_FILTER_DEFS = [
   { key: 'tag', defaultValue: '' },
   { key: 'assignee', defaultValue: '' },
   { key: 'epic', defaultValue: '' },
+  { key: 'sort', defaultValue: 'order' },
+  { key: 'dir', defaultValue: 'asc' },
   { key: 'groupBy', defaultValue: 'status' },
 ];
 
@@ -328,30 +330,23 @@ export default function TaskListPage() {
   const { visible: visibleStatuses, toggle: toggleStatusVisibility } = useColumnVisibility();
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  const { filters, setFilter, clearAll, searchParams, setSearchParams } = useFilters<TaskFilterKey>(TASK_FILTER_DEFS);
+  const { filters, setFilter, setFilters, clearAll } = useFilters<TaskFilterKey>(TASK_FILTER_DEFS);
 
   const [epics, setEpics] = useState<Epic[]>([]);
   const [epicTaskIds, setEpicTaskIds] = useState<Set<string> | null>(null);
   const [taskEpicMap, setTaskEpicMap] = useState<Map<string, Epic[]>>(new Map());
-  const initSort = searchParams.get('sort') as SortField | null;
-  const initDir = searchParams.get('dir') as SortDir | null;
-  const { sortField, sortDir, handleSort, resetSort } = useTableSort<SortField>(
-    initSort || 'order',
-    initDir || 'asc',
-  );
+
+  const sortField = (filters.sort || null) as SortField | null;
+  const sortDir = (filters.dir || null) as SortDir | null;
+  const handleSort = useCallback((field: SortField) => {
+    if (sortField !== field) { setFilters({ sort: field, dir: 'asc' }); return; }
+    if (sortDir === 'asc') { setFilters({ sort: field, dir: 'desc' }); return; }
+    setFilters({ sort: '', dir: '' });
+  }, [sortField, sortDir, setFilters]);
+
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<{ ids: string[]; label: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
-
-  // Sync sort params to URL (useFilters handles filter params)
-  useEffect(() => {
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev);
-      if (sortField) next.set('sort', sortField); else next.delete('sort');
-      if (sortDir) next.set('dir', sortDir); else next.delete('dir');
-      return next;
-    }, { replace: true });
-  }, [sortField, sortDir, setSearchParams]);
 
   // DnD state
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -579,7 +574,7 @@ export default function TaskListPage() {
   const totalFiltered = filteredTasks.length;
   const activeTask = activeId ? tasks.find(t => t.id === activeId) : null;
 
-  const handleClearAll = () => { clearAll(); resetSort(); };
+  const handleClearAll = () => { clearAll(); };
 
   return (
     <Box>

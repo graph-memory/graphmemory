@@ -13,7 +13,6 @@ import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
 import { useWebSocket } from '@/shared/lib/useWebSocket.ts';
 import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
-import { useTableSort } from '@/shared/lib/useTableSort.ts';
 import { useFilters } from '@/shared/lib/useFilters.ts';
 import { PageTopBar, StatusBadge, Tags, PaginationBar, DateDisplay, FilterBar, FilterControl } from '@/shared/ui/index.ts';
 import { listEpics, type Epic, type EpicStatus } from '@/entities/epic/index.ts';
@@ -43,12 +42,14 @@ const PRIORITY_ORDER: Record<TaskPriority, number> = { critical: 0, high: 1, med
 
 type SortField = 'title' | 'status' | 'priority' | 'progress' | 'created';
 
-type EpicFilterKey = 'q' | 'status' | 'priority';
+type EpicFilterKey = 'q' | 'status' | 'priority' | 'sort' | 'dir';
 
 const EPIC_FILTER_DEFS = [
   { key: 'q', defaultValue: '' },
   { key: 'status', defaultValue: '' },
   { key: 'priority', defaultValue: '' },
+  { key: 'sort', defaultValue: '' },
+  { key: 'dir', defaultValue: '' },
 ];
 
 export default function EpicsPage() {
@@ -60,21 +61,15 @@ export default function EpicsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const { filters, setFilter, clearAll, searchParams, setSearchParams } = useFilters<EpicFilterKey>(EPIC_FILTER_DEFS);
+  const { filters, setFilter, setFilters, clearAll } = useFilters<EpicFilterKey>(EPIC_FILTER_DEFS);
 
-  const initSort = searchParams.get('sort') as SortField | null;
-  const initDir = searchParams.get('dir') as 'asc' | 'desc' | null;
-  const { sortField, sortDir, handleSort, resetSort } = useTableSort<SortField>(initSort, initDir);
-
-  // Sync sort params to URL (useFilters handles filter params)
-  useEffect(() => {
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev);
-      if (sortField) next.set('sort', sortField); else next.delete('sort');
-      if (sortDir) next.set('dir', sortDir); else next.delete('dir');
-      return next;
-    }, { replace: true });
-  }, [sortField, sortDir, setSearchParams]);
+  const sortField = (filters.sort || null) as SortField | null;
+  const sortDir = (filters.dir || null) as 'asc' | 'desc' | null;
+  const handleSort = useCallback((field: SortField) => {
+    if (sortField !== field) { setFilters({ sort: field, dir: 'asc' }); return; }
+    if (sortDir === 'asc') { setFilters({ sort: field, dir: 'desc' }); return; }
+    setFilters({ sort: '', dir: '' });
+  }, [sortField, sortDir, setFilters]);
 
   const refresh = useCallback(async () => {
     if (!projectId) return;
@@ -136,7 +131,7 @@ export default function EpicsPage() {
     return chips;
   }, [filters, setFilter]);
 
-  const handleClearAll = () => { clearAll(); resetSort(); };
+  const handleClearAll = () => { clearAll(); };
 
   const sortLabelProps = (field: SortField) => ({
     active: sortField === field,

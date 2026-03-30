@@ -10,20 +10,27 @@ export interface FilterDef {
 export interface UseFiltersResult<K extends string = string> {
   filters: Record<K, string>;
   setFilter: (key: K, value: string) => void;
+  /** Set multiple filters atomically (single URL update) */
+  setFilters: (updates: Partial<Record<K, string>>) => void;
   clearFilter: (key: K) => void;
   clearAll: () => void;
   hasActiveFilters: boolean;
   activeFilterKeys: K[];
-  /** Get raw searchParams for reading non-filter URL params */
-  searchParams: URLSearchParams;
-  /** Update URL params directly — use for non-filter params like sort */
-  setSearchParams: ReturnType<typeof useSearchParams>[1];
 }
 
 export function useFilters<K extends string = string>(defs: FilterDef[]): UseFiltersResult<K> {
   const [searchParams, setSearchParams] = useSearchParams();
   const defsRef = useRef(defs);
   defsRef.current = defs;
+
+  // Managed filter keys — these are owned by useFilters
+  const managedKeys = useMemo(() => {
+    const s = new Set<string>();
+    for (const def of defs) s.add(def.urlKey ?? def.key);
+    return s;
+  }, [defs]);
+  const managedKeysRef = useRef(managedKeys);
+  managedKeysRef.current = managedKeys;
 
   // Read filters directly from URL — single source of truth
   const filters = useMemo(() => {
@@ -35,17 +42,26 @@ export function useFilters<K extends string = string>(defs: FilterDef[]): UseFil
     return result;
   }, [searchParams, defs]);
 
-  const updateUrl = useCallback((updates: Record<string, string>) => {
+  // Core URL updater — only touches managed filter keys, preserves everything else
+  const updateUrl = useCallback((updates: Record<string, string>, extraDeletes?: string[]) => {
     setSearchParams(prev => {
-      const next = new URLSearchParams(prev);
+      const next = new URLSearchParams();
+      // Copy non-managed params as-is
+      for (const [k, v] of prev.entries()) {
+        if (!managedKeysRef.current.has(k)) next.set(k, v);
+      }
+      // Apply extra deletes (for sort reset etc.)
+      if (extraDeletes) {
+        for (const k of extraDeletes) next.delete(k);
+      }
+      // Set managed filter params
       for (const def of defsRef.current) {
         const urlKey = def.urlKey ?? def.key;
         const value = def.key in updates ? updates[def.key] : prev.get(urlKey);
         if (value && value !== def.defaultValue) {
           next.set(urlKey, value);
-        } else {
-          next.delete(urlKey);
         }
+        // else: don't set = effectively deleted
       }
       return next;
     }, { replace: true });
@@ -53,6 +69,10 @@ export function useFilters<K extends string = string>(defs: FilterDef[]): UseFil
 
   const setFilter = useCallback((key: K, value: string) => {
     updateUrl({ [key]: value });
+  }, [updateUrl]);
+
+  const setFilters = useCallback((updates: Partial<Record<K, string>>) => {
+    updateUrl(updates as Record<string, string>);
   }, [updateUrl]);
 
   const clearFilter = useCallback((key: K) => {
@@ -76,5 +96,5 @@ export function useFilters<K extends string = string>(defs: FilterDef[]): UseFil
 
   const hasActiveFilters = activeFilterKeys.length > 0;
 
-  return { filters: filters as Record<K, string>, setFilter, clearFilter, clearAll, hasActiveFilters, activeFilterKeys, searchParams, setSearchParams };
+  return { filters: filters as Record<K, string>, setFilter, setFilters, clearFilter, clearAll, hasActiveFilters, activeFilterKeys };
 }

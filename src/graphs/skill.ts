@@ -945,6 +945,7 @@ export class SkillGraphManager {
     const ok = createSkillRelation(this._graph, fromId, toId, kind);
     if (ok) {
       this.ctx.markDirty();
+      this.ctx.emit('skill:relation:added', { projectId: this.ctx.projectId, skillId: fromId, toId, kind });
       const dir = this.skillsDir;
       if (dir) {
         const fromAttrs = this._graph.getNodeAttributes(fromId);
@@ -970,6 +971,7 @@ export class SkillGraphManager {
     }
     if (ok) {
       this.ctx.markDirty();
+      this.ctx.emit('skill:relation:added', { projectId: this.ctx.projectId, skillId, toId: targetId, kind, targetGraph });
       const dir = this.skillsDir;
       if (dir) {
         const attrs = this._graph.getNodeAttributes(skillId);
@@ -1047,6 +1049,7 @@ export class SkillGraphManager {
     }
     if (ok) {
       this.ctx.markDirty();
+      this.ctx.emit('skill:relation:deleted', { projectId: this.ctx.projectId, skillId, toId: targetId, kind, targetGraph });
       const dir = this.skillsDir;
       if (dir) {
         // skillId might actually be a noteId/taskId for incoming mirrors — use the real skill node
@@ -1075,6 +1078,7 @@ export class SkillGraphManager {
     const ok = deleteSkillRelation(this._graph, fromId, toId);
     if (ok) {
       this.ctx.markDirty();
+      this.ctx.emit('skill:relation:deleted', { projectId: this.ctx.projectId, skillId: fromId, toId, kind });
       const dir = this.skillsDir;
       if (dir) {
         const fromAttrs = this._graph.getNodeAttributes(fromId);

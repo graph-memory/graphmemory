@@ -689,6 +689,7 @@ export class KnowledgeGraphManager {
     }
     if (ok) {
       this.ctx.markDirty();
+      this.ctx.emit('note:relation:added', { projectId: this.ctx.projectId, noteId: fromId, toId, kind, targetGraph });
       const dir = this.notesDir;
       if (dir) {
         const attrs = this._graph.getNodeAttributes(fromId);
@@ -756,6 +757,7 @@ export class KnowledgeGraphManager {
     }
     if (ok) {
       this.ctx.markDirty();
+      this.ctx.emit('note:relation:deleted', { projectId: this.ctx.projectId, noteId: fromId, toId, kind, targetGraph });
       const dir = this.notesDir;
       if (dir) {
         const realNoteId = this._graph.hasNode(fromId) && !isProxy(this._graph, fromId) ? fromId : toId;

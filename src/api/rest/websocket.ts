@@ -81,10 +81,13 @@ export function attachWebSocket(
 
   const events = [
     'note:created', 'note:updated', 'note:deleted',
+    'note:relation:added', 'note:relation:deleted',
     'note:attachment:added', 'note:attachment:deleted',
     'task:created', 'task:updated', 'task:deleted', 'task:moved',
+    'task:relation:added', 'task:relation:deleted',
     'task:attachment:added', 'task:attachment:deleted',
     'skill:created', 'skill:updated', 'skill:deleted',
+    'skill:relation:added', 'skill:relation:deleted',
     'skill:attachment:added', 'skill:attachment:deleted',
     'project:indexed',
   ];

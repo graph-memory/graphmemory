@@ -1280,6 +1280,7 @@ export class TaskGraphManager {
     const ok = createTaskRelation(this._graph, fromId, toId, kind);
     if (ok) {
       this.ctx.markDirty();
+      this.ctx.emit('task:relation:added', { projectId: this.ctx.projectId, taskId: fromId, toId, kind });
       const dir = this.tasksDir;
       if (dir) {
         const fromAttrs = this._graph.getNodeAttributes(fromId);
@@ -1301,6 +1302,7 @@ export class TaskGraphManager {
     }
     if (ok) {
       this.ctx.markDirty();
+      this.ctx.emit('task:relation:added', { projectId: this.ctx.projectId, taskId, toId: targetId, kind, targetGraph });
       const dir = this.tasksDir;
       if (dir) {
         const attrs = this._graph.getNodeAttributes(taskId);
@@ -1364,6 +1366,7 @@ export class TaskGraphManager {
     }
     if (ok) {
       this.ctx.markDirty();
+      this.ctx.emit('task:relation:deleted', { projectId: this.ctx.projectId, taskId, toId: targetId, kind, targetGraph });
       const dir = this.tasksDir;
       if (dir) {
         // taskId might actually be a noteId for incoming mirrors — use the real task node
@@ -1392,6 +1395,7 @@ export class TaskGraphManager {
     const ok = deleteTaskRelation(this._graph, fromId, toId);
     if (ok) {
       this.ctx.markDirty();
+      this.ctx.emit('task:relation:deleted', { projectId: this.ctx.projectId, taskId: fromId, toId, kind });
       const dir = this.tasksDir;
       if (dir) {
         const fromAttrs = this._graph.getNodeAttributes(fromId);

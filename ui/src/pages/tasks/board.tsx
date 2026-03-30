@@ -14,13 +14,13 @@ import CloseIcon from '@mui/icons-material/Close';
 import FlagIcon from '@mui/icons-material/Flag';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import {
-  DndContext, closestCenter, pointerWithin, rectIntersection,
+  DndContext, closestCenter, pointerWithin,
   PointerSensor, useSensor, useSensors,
   DragOverlay, useDroppable,
   type DragStartEvent, type DragEndEvent, type DragOverEvent,
   type CollisionDetection,
 } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useWebSocket } from '@/shared/lib/useWebSocket.ts';
 import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
@@ -52,15 +52,6 @@ function dueDateInfo(dueDate: number | null, status: TaskStatus): { label: strin
   return null;
 }
 
-/** Compute a new order value for inserting at a given index in a sorted list. */
-function computeOrderAt(items: Task[], index: number): number {
-  if (items.length === 0) return 0;
-  if (index <= 0) return (items[0]?.order ?? 0) - 1000;
-  if (index >= items.length) return (items[items.length - 1]?.order ?? 0) + 1000;
-  const before = items[index - 1]?.order ?? 0;
-  const after = items[index]?.order ?? before + 2000;
-  return Math.floor((before + after) / 2);
-}
 
 // ---------------------------------------------------------------------------
 // Sortable card wrapper
@@ -237,17 +228,19 @@ function DroppableColumn({ status, children }: { status: string; children: React
 const COLUMN_IDS = new Set<string>(COLUMNS.map(c => c.status));
 
 const boardCollisionDetection: CollisionDetection = (args) => {
-  // First try closestCenter — finds nearest sortable card
-  const centerCollisions = closestCenter(args);
-  const cardHit = centerCollisions.find(c => !COLUMN_IDS.has(c.id as string));
+  // pointerWithin returns all droppables the pointer is inside of (cards + columns)
+  const collisions = pointerWithin(args);
+
+  // Prefer card over column (card is more specific)
+  const cardHit = collisions.find(c => !COLUMN_IDS.has(c.id as string));
   if (cardHit) return [cardHit];
 
-  // Fallback: pointerWithin — finds column droppable
-  const pointerCollisions = pointerWithin(args);
-  const columnHit = pointerCollisions.find(c => COLUMN_IDS.has(c.id as string));
+  // No card — return column (empty column or gap between cards)
+  const columnHit = collisions.find(c => COLUMN_IDS.has(c.id as string));
   if (columnHit) return [columnHit];
 
-  return rectIntersection(args);
+  // Last resort — closest by center
+  return closestCenter(args);
 };
 
 // ---------------------------------------------------------------------------
@@ -284,7 +277,7 @@ export default function TaskBoardPage() {
   // DnD state
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overColumn, setOverColumn] = useState<TaskStatus | null>(null);
-  const pendingOps = useRef(0);
+  const dragStartSnapshot = useRef<Task | null>(null);
 
   // Column visibility
   const { visible, toggle: toggleColumn, visibleColumns } = useColumnVisibility();
@@ -341,43 +334,55 @@ export default function TaskBoardPage() {
   }, [projectId, filters.epic]);
 
   useWebSocket(projectId ?? null, useCallback((event) => {
-    if (event.type.startsWith('task:') && pendingOps.current === 0) refresh();
-  }, [refresh]));
+    if (event.type.startsWith('task:') && !activeId) refresh();
+  }, [refresh, activeId]));
 
   // --- DnD handlers ---
+
+  // Find which column an overId belongs to
+  const findColumnForId = useCallback((id: string): TaskStatus | null => {
+    if (COLUMN_IDS.has(id)) return id as TaskStatus;
+    const task = tasks.find(t => t.id === id);
+    return task?.status ?? null;
+  }, [tasks]);
+
   const handleDragStart = (event: DragStartEvent) => {
+    const task = tasks.find(t => t.id === event.active.id);
+    dragStartSnapshot.current = task ? { ...task } : null;
     setActiveId(event.active.id as string);
   };
 
   const handleDragOver = (event: DragOverEvent) => {
-    const { over } = event;
+    const { active, over } = event;
     if (!over) { setOverColumn(null); return; }
 
-    // Determine which column we're over
-    const overId = over.id as string;
-    // Check if over a column droppable (status name)
-    const col = COLUMNS.find(c => c.status === overId);
-    if (col) { setOverColumn(col.status); return; }
-    // Otherwise over a task card — find its column
-    const overTask = tasks.find(t => t.id === overId);
-    if (overTask) { setOverColumn(overTask.status); return; }
-    setOverColumn(null);
+    const activeColumn = findColumnForId(active.id as string);
+    const overColumn_ = findColumnForId(over.id as string);
+    setOverColumn(overColumn_);
+
+    // Move task between columns live (so SortableContext updates)
+    if (activeColumn && overColumn_ && activeColumn !== overColumn_) {
+      setTasks(prev => prev.map(t =>
+        t.id === active.id ? { ...t, status: overColumn_ } : t
+      ));
+    }
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
+    const snapshot = dragStartSnapshot.current;
     setActiveId(null);
     setOverColumn(null);
+    dragStartSnapshot.current = null;
 
-    if (!over || !projectId || !canWrite) return;
+    if (!over || !projectId || !canWrite || !snapshot) return;
     if (active.id === over.id) return;
 
+    const overId = over.id as string;
     const activeTask = tasks.find(t => t.id === active.id);
     if (!activeTask) return;
 
-    const overId = over.id as string;
-
-    // Determine target status: either directly a column, or the column of the task we're over
+    // Determine target status
     let targetStatus: TaskStatus = activeTask.status;
     const col = COLUMNS.find(c => c.status === overId);
     if (col) {
@@ -387,34 +392,51 @@ export default function TaskBoardPage() {
       if (overTask) targetStatus = overTask.status;
     }
 
-    // Get sorted tasks in target column
+    // Get sorted tasks in target column (including the dragged task)
     const columnTasks = tasks
-      .filter(t => t.status === targetStatus && t.id !== activeTask.id)
+      .filter(t => t.status === targetStatus)
       .sort((a, b) => a.order - b.order);
 
     // Compute new order
     let newOrder: number;
     if (col) {
-      // Dropped on the column itself (not on a card) — append to end
-      newOrder = columnTasks.length > 0 ? columnTasks[columnTasks.length - 1].order + 1000 : 0;
+      // Dropped on the column itself — append to end
+      const others = columnTasks.filter(t => t.id !== activeTask.id);
+      newOrder = others.length > 0 ? others[others.length - 1].order + 1000 : 0;
     } else {
-      // Dropped on a specific card — insert before it
+      // Dropped on a specific card — use arrayMove to get final order
+      const activeIdx = columnTasks.findIndex(t => t.id === active.id);
       const overIdx = columnTasks.findIndex(t => t.id === overId);
-      newOrder = computeOrderAt(columnTasks, overIdx >= 0 ? overIdx : columnTasks.length);
+      if (activeIdx < 0 || overIdx < 0) {
+        const others = columnTasks.filter(t => t.id !== activeTask.id);
+        newOrder = others.length > 0 ? others[others.length - 1].order + 1000 : 0;
+      } else {
+        const reordered = arrayMove(columnTasks, activeIdx, overIdx);
+        const newIdx = reordered.findIndex(t => t.id === active.id);
+        // Compute order based on neighbors in the reordered list
+        const prev = newIdx > 0 ? reordered[newIdx - 1].order : null;
+        const next = newIdx < reordered.length - 1 ? reordered[newIdx + 1].order : null;
+        if (prev == null && next == null) newOrder = 0;
+        else if (prev == null) newOrder = next! - 1000;
+        else if (next == null) newOrder = prev + 1000;
+        else newOrder = Math.floor((prev + next) / 2);
+      }
     }
 
-    // Optimistic update
+    // Check if anything actually changed
+    const statusChanged = targetStatus !== snapshot.status;
+    const orderChanged = newOrder !== snapshot.order;
+    if (!statusChanged && !orderChanged) return;
+
+    // Optimistic update — apply final status + order
     setTasks(prev => prev.map(t =>
       t.id === activeTask.id ? { ...t, status: targetStatus, order: newOrder } : t
     ));
 
-    pendingOps.current++;
     try {
-      await reorderTask(projectId, activeTask.id, newOrder, targetStatus !== activeTask.status ? targetStatus : undefined);
+      await reorderTask(projectId, activeTask.id, newOrder, statusChanged ? targetStatus : undefined);
     } catch {
       refresh();
-    } finally {
-      pendingOps.current--;
     }
   };
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 export interface FilterDef {
@@ -18,23 +18,25 @@ export interface UseFiltersResult<K extends string = string> {
 
 export function useFilters<K extends string = string>(defs: FilterDef[]): UseFiltersResult<K> {
   const [searchParams, setSearchParams] = useSearchParams();
+  const defsRef = useRef(defs);
+  defsRef.current = defs;
 
-  const [filters, setFilters] = useState<Record<string, string>>(() => {
-    const initial: Record<string, string> = {};
+  // Read filters directly from URL — single source of truth
+  const filters = useMemo(() => {
+    const result: Record<string, string> = {};
     for (const def of defs) {
       const urlKey = def.urlKey ?? def.key;
-      initial[def.key] = searchParams.get(urlKey) || def.defaultValue;
+      result[def.key] = searchParams.get(urlKey) || def.defaultValue;
     }
-    return initial;
-  });
+    return result;
+  }, [searchParams, defs]);
 
-  // Sync filters → URL params (only filter params, not sort)
-  useEffect(() => {
+  const updateUrl = useCallback((updates: Record<string, string>) => {
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
-      for (const def of defs) {
+      for (const def of defsRef.current) {
         const urlKey = def.urlKey ?? def.key;
-        const value = filters[def.key];
+        const value = updates[def.key] ?? prev.get(urlKey) ?? def.defaultValue;
         if (value && value !== def.defaultValue) {
           next.set(urlKey, value);
         } else {
@@ -43,26 +45,24 @@ export function useFilters<K extends string = string>(defs: FilterDef[]): UseFil
       }
       return next;
     }, { replace: true });
-  }, [filters]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [setSearchParams]);
 
   const setFilter = useCallback((key: K, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
-  }, []);
+    updateUrl({ [key]: value });
+  }, [updateUrl]);
 
   const clearFilter = useCallback((key: K) => {
-    setFilters(prev => {
-      const def = defs.find(d => d.key === key);
-      return { ...prev, [key]: def?.defaultValue ?? '' };
-    });
-  }, [defs]);
+    const def = defsRef.current.find(d => d.key === key);
+    updateUrl({ [key]: def?.defaultValue ?? '' });
+  }, [updateUrl]);
 
   const clearAll = useCallback(() => {
     const cleared: Record<string, string> = {};
-    for (const def of defs) {
+    for (const def of defsRef.current) {
       cleared[def.key] = def.defaultValue;
     }
-    setFilters(cleared);
-  }, [defs]);
+    updateUrl(cleared);
+  }, [updateUrl]);
 
   const activeFilterKeys = useMemo(() => {
     return defs

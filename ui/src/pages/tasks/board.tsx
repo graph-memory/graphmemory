@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Box, Typography, Button, Paper, Stack, Chip,
-  Alert, CircularProgress, useTheme, alpha,
+  Alert, CircularProgress, useTheme, useMediaQuery, alpha,
   IconButton, MenuItem, TextField, InputAdornment, FormControl, Select,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
@@ -227,7 +227,9 @@ export default function TaskBoardPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { palette } = useTheme();
+  const theme = useTheme();
+  const { palette } = theme;
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const canWrite = useCanWrite('tasks');
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -618,6 +620,15 @@ export default function TaskBoardPage() {
               New Task
             </Button>
           )}
+        </Box>
+      ) : isMobile ? (
+        <Box sx={{ textAlign: 'center', py: 4 }}>
+          <Typography variant="body1" sx={{ mb: 2, color: palette.custom.textMuted }}>
+            Kanban board works best on larger screens.
+          </Typography>
+          <Button variant="outlined" onClick={() => navigate(`/${projectId}/tasks`)}>
+            Switch to List View
+          </Button>
         </Box>
       ) : (
         <DndContext

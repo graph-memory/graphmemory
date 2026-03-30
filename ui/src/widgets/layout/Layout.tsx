@@ -332,20 +332,18 @@ export default function Layout() {
               />
             )}
           </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {projectId && <WsStatusIndicator />}
-            <Button
-              variant="outlined"
-              size="small"
-              color="primary"
-              startIcon={<CableIcon />}
-              onClick={() => setConnectOpen(true)}
-              disabled={!projectId}
-              sx={{ textTransform: 'none' }}
-            >
-              Connect
-            </Button>
-          </Box>
+          <Button
+            variant="outlined"
+            size="small"
+            color="primary"
+            startIcon={<CableIcon />}
+            onClick={() => setConnectOpen(true)}
+            disabled={!projectId}
+            sx={{ textTransform: 'none' }}
+          >
+            Connect
+            {projectId && <Box sx={{ ml: 1, display: 'flex' }}><WsStatusIndicator /></Box>}
+          </Button>
           <IconButton color="inherit" onClick={toggle} title={`Switch to ${mode === 'dark' ? 'light' : 'dark'} mode`}>
             {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
           </IconButton>

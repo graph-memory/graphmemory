@@ -378,11 +378,11 @@ function Features() {
     },
     {
       label: 'Connecting the Dots',
-      title: 'Cross-Graph Links',
-      desc: 'Link a task to the code it affects. Connect a note to the doc it references. Graph Memory creates phantom proxy nodes that bridge all graphs into one connected web.',
-      bullets: ['Link any node to any other graph', 'Automatic cleanup when targets are removed', 'Workspace-wide links across projects', 'Navigate from code → docs → tasks → knowledge'],
-      img: '/img/screenshots/graph-dark.png',
-      alt: 'Graph visualization with cross-graph links',
+      title: 'Epics & Cross-Graph Links',
+      desc: 'Group tasks into epics to track progress across features. Link any node to any other graph — tasks to code, notes to docs, skills to symbols. Everything stays connected.',
+      bullets: ['Epics with progress tracking', 'Link any node to any other graph', 'Workspace-wide links across projects', 'Navigate from code → docs → tasks → knowledge'],
+      img: '/img/screenshots/epics-dark.png',
+      alt: 'Epics with linked tasks',
       href: '/docs/concepts/cross-graph-links',
     },
   ];

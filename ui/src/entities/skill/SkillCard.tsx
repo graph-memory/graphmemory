@@ -36,8 +36,17 @@ export function SkillCard({ skill, score, onClick, onEdit }: SkillCardProps) {
               )}
             </Box>
             {skill.description && (
-              <Typography variant="body2" sx={{ color: palette.custom.textMuted }} noWrap>
-                {skill.description}
+              <Typography
+                variant="body2"
+                sx={{
+                  color: palette.custom.textMuted,
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                }}
+              >
+                {skill.description.replace(/^#+\s*/gm, '').replace(/[*_`]/g, '').trim()}
               </Typography>
             )}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>

@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Box, Button, TextField, Stack, InputAdornment, Alert, CircularProgress,
+  Box, Button, TextField, InputAdornment, Alert, CircularProgress,
   IconButton,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
@@ -133,7 +133,7 @@ export default function SkillsPage() {
           }
         />
       ) : (
-        <Stack spacing={2}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
           {displaySkills.map((skill) => (
             <SkillCard
               key={skill.id}
@@ -143,7 +143,7 @@ export default function SkillsPage() {
               onEdit={canWrite ? () => navigate(`${skill.id}/edit`) : undefined}
             />
           ))}
-        </Stack>
+        </Box>
       )}
 
       {!searchResults && (

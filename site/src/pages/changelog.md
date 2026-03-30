@@ -5,6 +5,51 @@ description: Graph Memory release history and version changes.
 
 # Changelog
 
+## v1.9.0
+
+**March 2026**
+
+### New
+
+- **Pino structured logging** — replaced all `process.stderr.write` calls with Pino logger. Pretty output by default, `LOG_JSON=1` for production. Configurable via `--log-level` flag (fatal/error/warn/info/debug/trace). Removed `--debug` flag
+- **Task list grouping** — group tasks by any field: status, priority, assignee, tag, epic, or flat view. Drag-and-drop between groups changes the field value. Grouping preference saved in local storage
+- **Unified filter system** — reusable `useFilters` hook, `FilterControl` select wrapper, and `FilterChip` components. Active filters shown as removable chips below controls. Migrated Tasks (board + list) and Epics pages
+- **WebSocket connection indicator** — colored dot inside the Connect button shows real-time connection state (green = connected, yellow pulsing = reconnecting, red = disconnected)
+- **Sidebar colorization** — each navigation item has a unique icon color (VS Code palette). Tasks moved to 2nd position in nav order
+- **Epics** — full epic management: backend, REST API, 8 MCP tools, UI pages (list, detail, create, edit), task↔epic linking, progress tracking, filters
+- **Bulk task operations** — MCP tools for bulk move, priority change, and delete
+- **Task board** — kanban with @dnd-kit drag-and-drop, column visibility chips, inline creation, quick actions
+- **Task list view** — table with sorting, bulk selection, DnD reordering, status toggle chips
+- **Backup CLI command** — `graphmemory backup` exports graph data and mirror files to tar.gz
+- **Pagination** — offset-based pagination on all list endpoints and UI pages
+- **Quick create dialog** — two-column layout with description, "Create & New" button
+- **AI Prompt Builder** — generate optimized system prompts with 14 scenarios, 8 roles, 6 styles, per-tool priority control
+- **File attachments** — support attachments during entity creation (tasks, notes, skills)
+- **Two-column layouts** — detail pages (content 65% / sidebar 35%) and create/edit forms
+- **Parse-duration** — human-readable time strings for config values (e.g. `30d`, `15m`)
+- **VS Code deep links** — `vscode://` links for files in code/docs graphs
+
+### Fixes
+
+- **Missing WebSocket events** — added epic:created/updated/deleted/linked/unlinked and task:reordered to WS broadcast (were emitted but never sent to clients)
+- **BM25 Unicode support** — tokenizer now handles Cyrillic, CJK, Arabic, and other scripts
+- **Graph version migration** — preserve user data (knowledge, tasks, skills) on version/embedding config change instead of discarding
+- **WebSocket access control** — broadcast filters events by user access level
+- **Security** — reject anonymous requests when users configured, rate limit OAuth endpoint, timing-safe PKCE, Docker non-root user + healthcheck
+- **Dependency vulnerabilities** — resolved 5 npm audit issues
+- **Mutation queue drain** — drain queue before saving on shutdown
+- **Event emission** — emit events for relation create/delete operations
+
+### Tests
+
+- WebSocket server tests (connect, broadcast, events, auth, debounce, filtering)
+- MCP epic CRUD tests, bulk task tests
+- BM25 Unicode, graph migration, version conflict, relation events
+- Mirror-watcher, file-import, events-log, team, promise-queue tests
+- **Total: 1918 tests across 54 suites**
+
+---
+
 ## v1.8.2
 
 **March 2026**

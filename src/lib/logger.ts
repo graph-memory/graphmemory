@@ -1,10 +1,11 @@
 import pino from 'pino';
 
 const DEFAULT_LEVEL = process.env.LOG_LEVEL ?? 'info';
+const useJson = process.env.LOG_JSON === '1';
 
 const logger = pino({
   level: DEFAULT_LEVEL,
-  ...(process.env.LOG_PRETTY === '1' && {
+  ...(!useJson && {
     transport: { target: 'pino-pretty' },
   }),
 });

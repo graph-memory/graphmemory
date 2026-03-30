@@ -50,6 +50,37 @@ describe('tokenize', () => {
   it('handles single word', () => {
     expect(tokenize('jwt')).toEqual(['jwt']);
   });
+
+  // Unicode support
+  it('tokenizes Cyrillic text', () => {
+    expect(tokenize('Создать задачу')).toEqual(['создать', 'задачу']);
+  });
+
+  it('tokenizes mixed Latin + Cyrillic', () => {
+    expect(tokenize('Mixed русский text')).toEqual(['mixed', 'русский', 'text']);
+  });
+
+  it('tokenizes CJK text', () => {
+    const tokens = tokenize('データ分析');
+    expect(tokens.length).toBeGreaterThan(0);
+    expect(tokens[0]).toContain('データ');
+  });
+
+  it('tokenizes Arabic text', () => {
+    const tokens = tokenize('مرحبا بالعالم');
+    expect(tokens.length).toBe(2);
+  });
+
+  it('BM25 finds Cyrillic documents', () => {
+    type Doc = { text: string };
+    const idx = new BM25Index<Doc>((d) => d.text);
+    idx.addDocument('d1', { text: 'Создать новую задачу' });
+    idx.addDocument('d2', { text: 'English only document' });
+
+    const scores = idx.score('задачу');
+    expect(scores.has('d1')).toBe(true);
+    expect(scores.has('d2')).toBe(false);
+  });
 });
 
 describe('BM25Index', () => {

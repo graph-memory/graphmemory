@@ -289,6 +289,8 @@ function WebUI() {
     {title: 'Epics', desc: 'Group tasks into epics, track progress', img: '/img/screenshots/epics-dark.png'},
     {title: 'Unified Search', desc: 'One query across all six graphs', img: '/img/screenshots/search-dark.png'},
     {title: 'Knowledge', desc: 'Persistent notes with relations and links', img: '/img/screenshots/knowledge-dark.png'},
+    {title: 'Skills', desc: 'Reusable recipes with steps and triggers', img: '/img/screenshots/skills-dark.png'},
+    {title: 'Prompt Builder', desc: 'Generate optimized system prompts', img: '/img/screenshots/prompts-simple-dark.png'},
   ];
   return (
     <section className={s.sec}>

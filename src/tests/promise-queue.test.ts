@@ -42,6 +42,27 @@ describe('PromiseQueue', () => {
     expect(await p3).toBe('recovered');
   });
 
+  it('waitForPending resolves immediately when empty', async () => {
+    const queue = new PromiseQueue();
+    await queue.waitForPending(); // should not hang
+  });
+
+  it('waitForPending waits for in-flight tasks', async () => {
+    const queue = new PromiseQueue();
+    const order: number[] = [];
+
+    queue.enqueue(async () => {
+      await new Promise(r => setTimeout(r, 50));
+      order.push(1);
+    });
+    queue.enqueue(async () => {
+      order.push(2);
+    });
+
+    await queue.waitForPending();
+    expect(order).toEqual([1, 2]);
+  });
+
   it('prevents concurrent execution (simulates race condition)', async () => {
     const queue = new PromiseQueue();
     let counter = 0;

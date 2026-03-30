@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Button, Paper, Stack, Chip,
@@ -57,10 +57,10 @@ function dueDateInfo(dueDate: number | null, status: TaskStatus): { label: strin
 // Sortable card wrapper
 // ---------------------------------------------------------------------------
 
-function SortableTaskCard({
-  task, team, canWrite, onNavigate, onEdit, onDelete, palette, taskEpics, onTagClick, activeTag, onAssigneeClick, onPriorityChange, onEpicClick,
+const SortableTaskCard = memo(function SortableTaskCard({
+  task, teamMap, canWrite, onNavigate, onEdit, onDelete, palette, taskEpics, onTagClick, activeTag, onAssigneeClick, onPriorityChange, onEpicClick,
 }: {
-  task: Task; team: TeamMember[]; canWrite: boolean;
+  task: Task; teamMap: Map<string, TeamMember>; canWrite: boolean;
   onNavigate: (id: string) => void; onEdit: (id: string) => void; onDelete: (t: Task) => void;
   palette: any; taskEpics?: Epic[]; onTagClick: (tag: string) => void; activeTag?: string; onAssigneeClick: (id: string) => void; onPriorityChange: (p: TaskPriority) => void; onEpicClick: (id: string) => void;
 }) {
@@ -159,7 +159,7 @@ function SortableTaskCard({
             onClick={(e: React.MouseEvent) => { e.stopPropagation(); onAssigneeClick(task.assignee!); }}
             sx={{ color: palette.custom.textMuted, cursor: 'pointer', '&:hover': { textDecoration: 'underline', color: palette.text.primary } }}
           >
-            @{team.find(m => m.id === task.assignee)?.name ?? task.assignee}
+            @{teamMap.get(task.assignee!)?.name ?? task.assignee}
           </Typography>
         )}
         {task.estimate != null && (
@@ -213,7 +213,7 @@ function SortableTaskCard({
       ) : null}
     </Paper>
   );
-}
+});
 
 // ---------------------------------------------------------------------------
 // Droppable column wrapper — makes the entire column a valid drop target
@@ -273,6 +273,15 @@ export default function TaskBoardPage() {
   const [taskEpicMap, setTaskEpicMap] = useState<Map<string, Epic[]>>(new Map());
 
   const { filters, setFilter, clearAll } = useFilters<BoardFilterKey>(BOARD_FILTER_DEFS);
+
+  const teamMap = useMemo(() => new Map(team.map(m => [m.id, m])), [team]);
+
+  // Stable callbacks for card props
+  const handleCardNavigate = useCallback((id: string) => navigate(`/${projectId}/tasks/${id}?from=board`), [navigate, projectId]);
+  const handleCardEdit = useCallback((id: string) => navigate(`/${projectId}/tasks/${id}/edit?from=board`), [navigate, projectId]);
+  const handleTagClick = useCallback((t: string) => setFilter('tag', t), [setFilter]);
+  const handleAssigneeClick = useCallback((id: string) => setFilter('assignee', id), [setFilter]);
+  const handleEpicClick = useCallback((id: string) => setFilter('epic', id), [setFilter]);
 
   // DnD state
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -510,7 +519,7 @@ export default function TaskBoardPage() {
       chips.push({ key: 'tag', label: `#${filters.tag}`, onClear: () => setFilter('tag', '') });
     }
     if (filters.assignee) {
-      const m = team.find(t => t.id === filters.assignee);
+      const m = teamMap.get(filters.assignee);
       chips.push({ key: 'assignee', label: `@${m?.name || filters.assignee}`, onClear: () => setFilter('assignee', '') });
     }
     if (filters.epic) {
@@ -520,7 +529,7 @@ export default function TaskBoardPage() {
     return chips;
   }, [filters, team, epics, setFilter]);
 
-  const activeTask = activeId ? tasks.find(t => t.id === activeId) : null;
+  const activeTask = useMemo(() => activeId ? tasks.find(t => t.id === activeId) : null, [activeId, tasks]);
 
   return (
     <Box>
@@ -704,17 +713,17 @@ export default function TaskBoardPage() {
                           <SortableTaskCard
                             key={task.id}
                             task={task}
-                            team={team}
+                            teamMap={teamMap}
                             canWrite={canWrite}
-                            onNavigate={(id) => navigate(`/${projectId}/tasks/${id}?from=board`)}
-                            onEdit={(id) => navigate(`/${projectId}/tasks/${id}/edit?from=board`)}
+                            onNavigate={handleCardNavigate}
+                            onEdit={handleCardEdit}
                             onDelete={setDeleteTarget}
                             palette={palette}
                             taskEpics={taskEpicMap.get(task.id)}
-                            onTagClick={t => setFilter('tag', t)}
+                            onTagClick={handleTagClick}
                             activeTag={filters.tag}
-                            onAssigneeClick={id => setFilter('assignee', id)}
-                            onEpicClick={id => setFilter('epic', id)}
+                            onAssigneeClick={handleAssigneeClick}
+                            onEpicClick={handleEpicClick}
                             onPriorityChange={async (p) => {
                               setTasks(prev => prev.map(t => t.id === task.id ? { ...t, priority: p } : t));
                               try { await updateTask(projectId!, task.id, { priority: p }); } catch { refresh(); }

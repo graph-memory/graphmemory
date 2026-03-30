@@ -1,4 +1,4 @@
-import { Fragment, useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Fragment, useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Button, Paper, Chip, Alert, CircularProgress,
@@ -28,7 +28,6 @@ import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
 import { StatusBadge, ConfirmDialog, PaginationBar, FilterBar, FilterControl } from '@/shared/ui/index.ts';
 import type { SortDir } from '@/shared/lib/useTableSort.ts';
 import { useFilters } from '@/shared/lib/useFilters.ts';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import {
   listTasks, updateTask, reorderTask, bulkMoveTasks, bulkUpdatePriority, bulkDeleteTasks,
   COLUMNS, PRIORITY_COLORS, PRIORITY_BADGE_COLOR, priorityLabel, statusLabel,
@@ -158,11 +157,11 @@ function TailDropZone({ groupKey, color, dndEnabled }: { groupKey: string; color
 // Draggable + droppable task row
 // ---------------------------------------------------------------------------
 
-function SortableTaskRow({
-  task, team, canWrite, selected, onToggleSelect, onNavigate, palette,
+const SortableTaskRow = memo(function SortableTaskRow({
+  task, teamMap, canWrite, selected, onToggleSelect, onNavigate, palette,
   onInlineStatus, onInlinePriority, groupColor, taskEpics, onTagClick, activeTag, onAssigneeClick, onEpicClick,
 }: {
-  task: Task; team: TeamMember[]; canWrite: boolean; selected: boolean;
+  task: Task; teamMap: Map<string, TeamMember>; canWrite: boolean; selected: boolean;
   onToggleSelect: () => void; onNavigate: () => void; palette: any;
   onInlineStatus: (status: TaskStatus) => void; onInlinePriority: (priority: TaskPriority) => void;
   groupColor: string; taskEpics?: Epic[]; onTagClick: (tag: string) => void; activeTag?: string; onAssigneeClick: (id: string) => void; onEpicClick: (id: string) => void;
@@ -181,8 +180,8 @@ function SortableTaskRow({
       sx={{
         cursor: canWrite ? 'grab' : 'pointer',
         opacity: isDragging ? 0.35 : 1,
-        borderLeft: `3px solid ${alpha(groupColor, 0.5)}`,
-        bgcolor: alpha(groupColor, 0.03),
+        borderLeft: groupColor && groupColor !== 'transparent' ? `3px solid ${alpha(groupColor, 0.5)}` : undefined,
+        bgcolor: groupColor && groupColor !== 'transparent' ? alpha(groupColor, 0.03) : undefined,
         transition: 'opacity 0.15s',
         touchAction: 'none',
       }}
@@ -288,7 +287,7 @@ function SortableTaskRow({
             onClick={(e: React.MouseEvent) => { e.stopPropagation(); onAssigneeClick(task.assignee!); }}
             sx={{ color: palette.custom.textMuted, cursor: 'pointer', '&:hover': { textDecoration: 'underline', color: palette.text.primary } }}
           >
-            @{team.find(m => m.id === task.assignee)?.name ?? task.assignee}
+            @{teamMap.get(task.assignee!)?.name ?? task.assignee}
           </Typography>
         )}
       </TableCell>
@@ -305,7 +304,7 @@ function SortableTaskRow({
       </TableCell>
     </TableRow>
   );
-}
+});
 
 // ---------------------------------------------------------------------------
 // Main page
@@ -327,7 +326,7 @@ const GROUP_BY_STORAGE_KEY = 'tasks-list-group-by';
 function loadGroupBy(): GroupByField {
   try {
     const raw = localStorage.getItem(GROUP_BY_STORAGE_KEY);
-    if (raw && ['status', 'priority', 'assignee', 'tag', 'epic', 'none'].includes(raw)) return raw as GroupByField;
+    if (raw && ['status', 'priority', 'assignee', 'epic', 'none'].includes(raw)) return raw as GroupByField;
   } catch { /* ignore */ }
   return 'status';
 }
@@ -347,7 +346,7 @@ export default function TaskListPage() {
   const [groupBy, setGroupBy] = useState<GroupByField>(() => {
     const params = new URLSearchParams(window.location.search);
     const urlGroup = params.get('group');
-    if (urlGroup && ['status', 'priority', 'assignee', 'tag', 'epic', 'none'].includes(urlGroup)) return urlGroup as GroupByField;
+    if (urlGroup && ['status', 'priority', 'assignee', 'epic', 'none'].includes(urlGroup)) return urlGroup as GroupByField;
     return loadGroupBy();
   });
   const handleGroupByChange = useCallback((value: string) => {
@@ -357,6 +356,13 @@ export default function TaskListPage() {
   }, []);
 
   const { filters, setFilter, setFilters, clearAll } = useFilters<TaskFilterKey>(TASK_FILTER_DEFS);
+
+  const teamMap = useMemo(() => new Map(team.map(m => [m.id, m])), [team]);
+
+  // Stable callbacks for row props
+  const handleTagClick = useCallback((t: string) => setFilter('tag', t), [setFilter]);
+  const handleAssigneeClick = useCallback((id: string) => setFilter('assignee', id), [setFilter]);
+  const handleEpicClick = useCallback((id: string) => setFilter('epic', id), [setFilter]);
 
   const [epics, setEpics] = useState<Epic[]>([]);
   const [epicTaskIds, setEpicTaskIds] = useState<Set<string> | null>(null);
@@ -616,7 +622,7 @@ export default function TaskListPage() {
       chips.push({ key: 'tag', label: `#${filters.tag}`, onClear: () => setFilter('tag', '') });
     }
     if (filters.assignee) {
-      const m = team.find(t => t.id === filters.assignee);
+      const m = teamMap.get(filters.assignee);
       chips.push({ key: 'assignee', label: `@${m?.name || filters.assignee}`, onClear: () => setFilter('assignee', '') });
     }
     if (filters.epic) {
@@ -627,7 +633,7 @@ export default function TaskListPage() {
   }, [filters, team, epics, setFilter]);
 
   const totalFiltered = filteredTasks.length;
-  const activeTask = activeId ? tasks.find(t => t.id === activeId) : null;
+  const activeTask = useMemo(() => activeId ? tasks.find(t => t.id === activeId) : null, [activeId, tasks]);
 
   const handleClearAll = () => { clearAll(); };
 
@@ -786,12 +792,7 @@ export default function TaskListPage() {
         </Box>
       ) : (
         <DndContext sensors={sensors} collisionDetection={listCollisionDetection} onDragStart={currentGroupConfig.dndEnabled ? handleDragStart : undefined} onDragOver={currentGroupConfig.dndEnabled ? handleDragOver : undefined} onDragEnd={currentGroupConfig.dndEnabled ? handleDragEnd : undefined}>
-          {groupBy === 'tag' && (
-            <Alert severity="info" icon={<InfoOutlinedIcon fontSize="small" />} sx={{ mb: 1, py: 0 }}>
-              Tasks may appear in multiple groups
-            </Alert>
-          )}
-          <TableContainer component={Paper} variant="outlined">
+<TableContainer component={Paper} variant="outlined">
             <Table size="small">
               <TableHead>
                 <TableRow>
@@ -817,7 +818,7 @@ export default function TaskListPage() {
                           <SortableTaskRow
                             key={task.id}
                             task={task}
-                            team={team}
+                            teamMap={teamMap}
                             canWrite={canWrite}
                             selected={selected.has(task.id)}
                             groupColor="transparent"
@@ -827,10 +828,10 @@ export default function TaskListPage() {
                             onInlinePriority={p => handleInlinePriority(task, p)}
                             palette={palette}
                             taskEpics={taskEpicMap.get(task.id)}
-                            onTagClick={t => setFilter('tag', t)}
+                            onTagClick={handleTagClick}
                             activeTag={filters.tag}
-                            onAssigneeClick={id => setFilter('assignee', id)}
-                            onEpicClick={id => setFilter('epic', id)}
+                            onAssigneeClick={handleAssigneeClick}
+                            onEpicClick={handleEpicClick}
                           />
                         ))}
                       </SortableContext>
@@ -859,7 +860,7 @@ export default function TaskListPage() {
                             <SortableTaskRow
                               key={task.id}
                               task={task}
-                              team={team}
+                              teamMap={teamMap}
                               canWrite={canWrite}
                               selected={selected.has(task.id)}
                               groupColor={color}
@@ -869,10 +870,10 @@ export default function TaskListPage() {
                               onInlinePriority={p => handleInlinePriority(task, p)}
                               palette={palette}
                               taskEpics={taskEpicMap.get(task.id)}
-                              onTagClick={t => setFilter('tag', t)}
+                              onTagClick={handleTagClick}
                               activeTag={filters.tag}
-                              onAssigneeClick={id => setFilter('assignee', id)}
-                              onEpicClick={id => setFilter('epic', id)}
+                              onAssigneeClick={handleAssigneeClick}
+                              onEpicClick={handleEpicClick}
                             />
                           ))}
                         </SortableContext>

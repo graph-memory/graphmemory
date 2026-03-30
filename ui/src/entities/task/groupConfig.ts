@@ -4,7 +4,7 @@ import type { Epic } from '@/entities/epic/api.ts';
 import { COLUMNS, PRIORITY_COLORS, priorityLabel } from './config.ts';
 import { updateTask } from './api.ts';
 
-export type GroupByField = 'status' | 'priority' | 'assignee' | 'tag' | 'epic' | 'none';
+export type GroupByField = 'status' | 'priority' | 'assignee' | 'epic' | 'none';
 
 export interface GroupDefinition {
   key: string;
@@ -97,26 +97,6 @@ export const GROUP_CONFIGS: Record<GroupByField, GroupConfig> = {
     },
   },
 
-  tag: {
-    field: 'tag',
-    getKeys: (task) => (task.tags && task.tags.length > 0 ? task.tags : []),
-    buildGroups: (tasks) => {
-      const tagSet = new Set<string>();
-      for (const t of tasks) {
-        if (t.tags) for (const tag of t.tags) tagSet.add(tag);
-      }
-      return [...tagSet].sort().map((tag, i) => ({
-        key: tag,
-        label: `#${tag}`,
-        color: '#7b1fa2',
-        sortOrder: i,
-      }));
-    },
-    nullGroupLabel: 'No tags',
-    nullGroupColor: '#616161',
-    dndEnabled: false,
-  },
-
   epic: {
     field: 'epic',
     getKeys: (_task, context) => {
@@ -156,7 +136,6 @@ export const GROUP_BY_OPTIONS: { value: GroupByField; label: string }[] = [
   { value: 'status', label: 'Status' },
   { value: 'priority', label: 'Priority' },
   { value: 'assignee', label: 'Assignee' },
-  { value: 'tag', label: 'Tag' },
   { value: 'epic', label: 'Epic' },
   { value: 'none', label: 'None' },
 ];

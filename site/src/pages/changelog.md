@@ -5,6 +5,51 @@ description: Graph Memory release history and version changes.
 
 # Changelog
 
+## v1.9.2
+
+**March 2026**
+
+### New
+
+- **Tasks tabs navigation** — Summary, List, Board, and Epics as tabs within a single Tasks section. Epics moved from top-level nav to Tasks tab at `/tasks/epics`
+- **Task Summary dashboard** — 6 stat cards (Total, Active, Completed, Overdue, In Review, Unassigned), breakdowns by status/priority, by assignee, by epic with progress bars, recently updated tasks, upcoming & overdue deadlines. All clickable with URL filters
+- **Epic selector in task forms** — single-select epic dropdown in create/edit forms with auto link/unlink on save
+- **Inline priority editing** — pill-badge priority selector on task detail view
+- **Attachments in edit forms** — upload/delete attachments during task, note, and skill editing (previously only on detail view)
+- **Skills grid layout** — 2-column card grid with 3-dot menu (Edit/Delete), matching Knowledge layout
+- **Epic detail two-column layout** — description + tasks list on left, progress bar + properties on right
+- **Context-aware breadcrumbs** — task pages show origin (Board/List) via URL `?from=` param, persists through navigation
+- **Column visibility from URL** — `/tasks/list?status=review` sets visible columns, `/tasks/list?group=assignee` sets grouping
+
+### Fixes
+
+- **Board drag & drop rewrite** — SortableContext per column with `useDroppable`, custom collision detection (cards over columns), `arrayMove` for correct position, live cross-column movement in `handleDragOver`, WebSocket refresh suppressed during drag
+- **List drag & drop rewrite** — migrated from `useDraggable`/`useDroppable` to `SortableContext`/`useSortable` with visual row displacement during drag, same `arrayMove` approach as board
+- **Docker healthcheck** — replaced `node -e "fetch(...)"` with `curl -f` (no Node process spawn)
+- **Duplicate submit buttons** — removed redundant Create/Save buttons from PageTopBar on all create/edit pages
+- **Attachments/relations in main column** — moved from sidebar to main content area on task, note, and skill detail views
+- **Uppercase status/priority labels** — consistent uppercase labels across all views (board, list, forms, badges, summary, epics)
+- **FieldRow vertical layout** — label above value with dividers (instead of side-by-side)
+
+### Performance
+
+- **React.memo on card/row components** — `SortableTaskCard` and `SortableTaskRow` wrapped in `memo`
+- **Stable callback props** — extracted inline callbacks to `useCallback` to prevent unnecessary re-renders
+- **Team lookup map** — replaced `team.find()` (O(n)) with `Map<id, TeamMember>` (O(1)) per card render
+- **Memoized activeTask** — `useMemo` instead of `.find()` on every render
+
+---
+
+## v1.9.1
+
+**March 2026**
+
+### Fixes
+
+- **npm ci dependencies** — resolved dependency installation issues
+
+---
+
 ## v1.9.0
 
 **March 2026**

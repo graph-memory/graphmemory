@@ -26,6 +26,8 @@ FROM node:24-slim
 
 WORKDIR /app
 
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
@@ -41,7 +43,7 @@ ENV NODE_ENV=production
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-  CMD node -e "fetch('http://localhost:3000/api/auth/status').then(r=>{if(!r.ok)throw r.status}).catch(()=>process.exit(1))"
+  CMD curl -f http://localhost:3000/api/auth/status || exit 1
 
 ENTRYPOINT ["node", "dist/cli/index.js"]
 CMD ["serve", "--config", "/data/config/graph-memory.yaml"]

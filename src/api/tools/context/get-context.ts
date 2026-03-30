@@ -8,7 +8,8 @@ export function register(server: McpServer, ctx?: McpSessionContext): void {
       description:
         'Returns the current project and workspace context. ' +
         'Use this to discover which project you are connected to, whether it is part of a workspace, ' +
-        'and which other projects are available in the workspace (for cross-graph links with projectId).',
+        'and which other projects are available in the workspace (for cross-graph links with projectId). ' +
+        'Returns { projectId, projectDescription, workspaceId, workspaceProjects: string[] | null, hasWorkspace: boolean }.',
       inputSchema: {},
     },
     async () => {

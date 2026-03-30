@@ -14,7 +14,7 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
         'Use create_relation to link notes together.',
       inputSchema: {
         title:   z.string().min(1).max(MAX_TITLE_LEN).describe('Short title for the note, e.g. "Auth uses JWT tokens"'),
-        content: z.string().min(1).max(MAX_NOTE_CONTENT_LEN).describe('Full text content of the note'),
+        content: z.string().max(MAX_NOTE_CONTENT_LEN).describe('Full text content of the note (markdown)'),
         tags:    z.array(z.string().max(MAX_TAG_LEN)).max(MAX_TAGS_COUNT).optional().describe('Optional tags for filtering, e.g. ["architecture", "decision"]'),
       },
     },

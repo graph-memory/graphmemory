@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { KnowledgeGraphManager } from '@/graphs/knowledge';
 import { MAX_TITLE_LEN, MAX_NOTE_CONTENT_LEN, MAX_TAG_LEN, MAX_TAGS_COUNT } from '@/lib/defaults';
 
-export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
+export function register(server: McpServer, mgr: KnowledgeGraphManager, resolveAuthor: () => string): void {
   server.registerTool(
     'notes_create',
     {
@@ -19,7 +19,8 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
       },
     },
     async ({ title, content, tags }) => {
-      const noteId = await mgr.createNote(title, content, tags ?? []);
+      const author = resolveAuthor();
+      const noteId = await mgr.createNote(title, content, tags ?? [], author);
       return { content: [{ type: 'text', text: JSON.stringify({ noteId }, null, 2) }] };
     },
   );

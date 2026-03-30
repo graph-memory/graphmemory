@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { TaskGraphManager } from '@/graphs/task';
 
-export function register(server: McpServer, mgr: TaskGraphManager): void {
+export function register(server: McpServer, mgr: TaskGraphManager, resolveAuthor: () => string): void {
   server.registerTool(
     'tasks_link',
     {
@@ -18,7 +18,8 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
       },
     },
     async ({ fromId, toId, kind }) => {
-      const created = mgr.linkTasks(fromId, toId, kind);
+      const author = resolveAuthor();
+      const created = mgr.linkTasks(fromId, toId, kind, author);
       if (!created) {
         return { content: [{ type: 'text', text: 'Could not create relation — one or both tasks not found, or relation already exists.' }], isError: true };
       }

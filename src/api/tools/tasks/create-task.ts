@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { TaskGraphManager } from '@/graphs/task';
 import { MAX_TITLE_LEN, MAX_DESCRIPTION_LEN, MAX_TAG_LEN, MAX_TAGS_COUNT, MAX_ASSIGNEE_LEN } from '@/lib/defaults';
 
-export function register(server: McpServer, mgr: TaskGraphManager): void {
+export function register(server: McpServer, mgr: TaskGraphManager, resolveAuthor: () => string): void {
   server.registerTool(
     'tasks_create',
     {
@@ -26,11 +26,12 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
       },
     },
     async ({ title, description, priority, status, tags, dueDate, estimate, assignee, order }) => {
+      const author = resolveAuthor();
       const taskId = await mgr.createTask(
         title, description,
         status ?? 'backlog', priority,
         tags ?? [], dueDate ?? null, estimate ?? null,
-        assignee ?? null, order,
+        assignee ?? null, order, author,
       );
       return { content: [{ type: 'text', text: JSON.stringify({ taskId }, null, 2) }] };
     },

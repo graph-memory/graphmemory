@@ -5,6 +5,23 @@ description: Graph Memory release history and version changes.
 
 # Changelog
 
+## v1.9.4
+
+**March 2026**
+
+### New
+
+- **Per-user author attribution** — when authentication is configured, all mutations (create, update, delete, link, attachment) record the authenticated user as author (`createdBy`/`updatedBy`) instead of the static config `author`. Falls back to config author when auth is disabled
+- **Team from users config** — `GET /api/projects/:id/team` returns users from config when auth is enabled, instead of reading `.team/` directory files. `.team/` files still used when auth is disabled
+- **Author in all mirror events** — relation and attachment events in `events.jsonl` now include `by` field for audit trail
+
+### Tests
+
+- **29 new tests** — author flow: `resolveRequestAuthor`, mirror `by` field, manager author override for Task/Knowledge/Skill managers
+- **Total: 1947 tests across 55 suites**
+
+---
+
 ## v1.9.3
 
 **March 2026**

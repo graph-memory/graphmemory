@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { SkillGraphManager } from '@/graphs/skill';
 import { MAX_TARGET_NODE_ID_LEN, MAX_PROJECT_ID_LEN } from '@/lib/defaults';
 
-export function register(server: McpServer, mgr: SkillGraphManager): void {
+export function register(server: McpServer, mgr: SkillGraphManager, resolveAuthor: () => string): void {
   server.registerTool(
     'skills_delete_link',
     {
@@ -20,15 +20,16 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
       },
     },
     async ({ skillId, targetId, targetGraph, projectId }) => {
+      const author = resolveAuthor();
       if (targetGraph) {
-        const deleted = mgr.deleteCrossLink(skillId, targetId, targetGraph, projectId);
+        const deleted = mgr.deleteCrossLink(skillId, targetId, targetGraph, projectId, author);
         if (!deleted) {
           return { content: [{ type: 'text', text: 'Cross-graph link not found.' }], isError: true };
         }
         return { content: [{ type: 'text', text: JSON.stringify({ skillId, targetId, targetGraph, deleted: true }, null, 2) }] };
       }
       // Same-graph skill-to-skill link
-      const deleted = mgr.deleteSkillLink(skillId, targetId);
+      const deleted = mgr.deleteSkillLink(skillId, targetId, author);
       if (!deleted) {
         return { content: [{ type: 'text', text: 'Link not found.' }], isError: true };
       }

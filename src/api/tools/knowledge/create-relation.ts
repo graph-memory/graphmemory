@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { KnowledgeGraphManager } from '@/graphs/knowledge';
 import { MAX_LINK_KIND_LEN, MAX_PROJECT_ID_LEN } from '@/lib/defaults';
 
-export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
+export function register(server: McpServer, mgr: KnowledgeGraphManager, resolveAuthor: () => string): void {
   server.registerTool(
     'notes_create_link',
     {
@@ -22,7 +22,8 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
       },
     },
     async ({ fromId, toId, kind, targetGraph, projectId }) => {
-      const created = mgr.createRelation(fromId, toId, kind, targetGraph, projectId);
+      const author = resolveAuthor();
+      const created = mgr.createRelation(fromId, toId, kind, targetGraph, projectId, author);
 
       if (!created) {
         const msg = targetGraph

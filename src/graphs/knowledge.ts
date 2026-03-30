@@ -626,9 +626,10 @@ export class KnowledgeGraphManager {
 
   // -- Write (mutations with embed + dirty + emit + cross-graph cleanup) --
 
-  async createNote(title: string, content: string, tags: string[] = []): Promise<string> {
+  async createNote(title: string, content: string, tags: string[] = [], author?: string): Promise<string> {
+    const by = author ?? this.ctx.author;
     const embedding = await this.embedFns.document(`${title} ${content}`);
-    const noteId = createNote(this._graph, title, content, tags, embedding, this.ctx.author);
+    const noteId = createNote(this._graph, title, content, tags, embedding, by);
     this._bm25Index.addDocument(noteId, this._graph.getNodeAttributes(noteId));
     this.ctx.markDirty();
     this.ctx.emit('note:created', { projectId: this.ctx.projectId, noteId });
@@ -641,13 +642,14 @@ export class KnowledgeGraphManager {
     return noteId;
   }
 
-  async updateNote(noteId: string, patch: { title?: string; content?: string; tags?: string[] }, expectedVersion?: number): Promise<boolean> {
+  async updateNote(noteId: string, patch: { title?: string; content?: string; tags?: string[] }, expectedVersion?: number, author?: string): Promise<boolean> {
+    const by = author ?? this.ctx.author;
     const existing = getNote(this._graph, noteId);
     if (!existing) return false;
 
     const embedText = `${patch.title ?? existing.title} ${patch.content ?? existing.content}`;
     const embedding = await this.embedFns.document(embedText);
-    updateNote(this._graph, noteId, patch, embedding, this.ctx.author, expectedVersion);
+    updateNote(this._graph, noteId, patch, embedding, by, expectedVersion);
     this._bm25Index.updateDocument(noteId, this._graph.getNodeAttributes(noteId));
     this.ctx.markDirty();
     this.ctx.emit('note:updated', { projectId: this.ctx.projectId, noteId });
@@ -655,13 +657,13 @@ export class KnowledgeGraphManager {
     if (dir) {
       const attrs = this._graph.getNodeAttributes(noteId);
       const relations = listRelations(this._graph, noteId, this.ext);
-      mirrorNoteUpdate(dir, noteId, { ...patch, by: this.ctx.author }, attrs, relations);
+      mirrorNoteUpdate(dir, noteId, { ...patch, by }, attrs, relations);
       this.recordMirrorWrites(noteId);
     }
     return true;
   }
 
-  deleteNote(noteId: string): boolean {
+  deleteNote(noteId: string, _author?: string): boolean {
     if (this.notesDir) deleteMirrorDir(this.notesDir, noteId);
 
     this._bm25Index.removeDocument(noteId);
@@ -684,7 +686,8 @@ export class KnowledgeGraphManager {
     return true;
   }
 
-  createRelation(fromId: string, toId: string, kind: string, targetGraph?: CrossGraphType, projectId?: string): boolean {
+  createRelation(fromId: string, toId: string, kind: string, targetGraph?: CrossGraphType, projectId?: string, author?: string): boolean {
+    const by = author ?? this.ctx.author;
     const pid = projectId || this.ctx.projectId;
     let ok: boolean;
     if (targetGraph) {
@@ -704,14 +707,15 @@ export class KnowledgeGraphManager {
       if (dir) {
         const attrs = this._graph.getNodeAttributes(fromId);
         const relations = listRelations(this._graph, fromId, this.ext);
-        mirrorNoteRelation(dir, fromId, 'add', kind, toId, attrs, relations, targetGraph);
+        mirrorNoteRelation(dir, fromId, 'add', kind, toId, attrs, relations, targetGraph, by);
         this.recordMirrorWrites(fromId);
       }
     }
     return ok;
   }
 
-  deleteRelation(fromId: string, toId: string, targetGraph?: CrossGraphType, projectId?: string): boolean {
+  deleteRelation(fromId: string, toId: string, targetGraph?: CrossGraphType, projectId?: string, author?: string): boolean {
+    const by = author ?? this.ctx.author;
     const pid = projectId || this.ctx.projectId;
     // Read edge kind before deleting — check both directions for cross-graph
     let kind = '';
@@ -774,7 +778,7 @@ export class KnowledgeGraphManager {
         if (this._graph.hasNode(realNoteId) && !isProxy(this._graph, realNoteId)) {
           const attrs = this._graph.getNodeAttributes(realNoteId);
           const relations = listRelations(this._graph, realNoteId, this.ext);
-          mirrorNoteRelation(dir, realNoteId, 'remove', kind, toId, attrs, relations, targetGraph);
+          mirrorNoteRelation(dir, realNoteId, 'remove', kind, toId, attrs, relations, targetGraph, by);
           this.recordMirrorWrites(realNoteId);
         }
       }
@@ -784,7 +788,8 @@ export class KnowledgeGraphManager {
 
   // -- Attachments --
 
-  addAttachment(noteId: string, filename: string, data: Buffer): AttachmentMeta | null {
+  addAttachment(noteId: string, filename: string, data: Buffer, author?: string): AttachmentMeta | null {
+    const by = author ?? this.ctx.author;
     const dir = this.notesDir;
     if (!dir) return null;
     if (!this._graph.hasNode(noteId) || isProxy(this._graph, noteId)) return null;
@@ -798,7 +803,7 @@ export class KnowledgeGraphManager {
 
     writeAttachment(dir, noteId, safe, data);
     this.mirrorTracker?.recordWrite(path.join(dir, noteId, 'attachments', safe));
-    mirrorAttachmentEvent(path.join(dir, noteId), 'add', safe);
+    mirrorAttachmentEvent(path.join(dir, noteId), 'add', safe, by);
     this.mirrorTracker?.recordWrite(path.join(dir, noteId, 'events.jsonl'));
 
     const attachments = scanAttachments(path.join(dir, noteId));
@@ -810,7 +815,8 @@ export class KnowledgeGraphManager {
     return attachments.find(a => a.filename === safe) ?? null;
   }
 
-  removeAttachment(noteId: string, filename: string): boolean {
+  removeAttachment(noteId: string, filename: string, author?: string): boolean {
+    const by = author ?? this.ctx.author;
     const dir = this.notesDir;
     if (!dir) return false;
     if (!this._graph.hasNode(noteId) || isProxy(this._graph, noteId)) return false;
@@ -820,7 +826,7 @@ export class KnowledgeGraphManager {
     if (!deleted) return false;
 
     this.mirrorTracker?.recordWrite(path.join(dir, noteId, 'attachments', safe));
-    mirrorAttachmentEvent(path.join(dir, noteId), 'remove', safe);
+    mirrorAttachmentEvent(path.join(dir, noteId), 'remove', safe, by);
     this.mirrorTracker?.recordWrite(path.join(dir, noteId, 'events.jsonl'));
 
     const attachments = scanAttachments(path.join(dir, noteId));

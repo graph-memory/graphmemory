@@ -11,7 +11,7 @@ import { createRestApp } from '@/api/rest/index';
 import { attachWebSocket } from '@/api/rest/websocket';
 import { resolveUserFromBearer, resolveAccess, canWrite, canRead } from '@/lib/access';
 import { MAX_BODY_SIZE, SESSION_SWEEP_INTERVAL_MS } from '@/lib/defaults';
-import { GRAPH_NAMES, type GraphName, type AccessLevel } from '@/lib/multi-config';
+import { GRAPH_NAMES, type GraphName, type AccessLevel, resolveRequestAuthor, type UserConfig } from '@/lib/multi-config';
 import type { DocGraph } from '@/graphs/docs';
 import { DocGraphManager } from '@/graphs/docs';
 import type { CodeGraph } from '@/graphs/code-types';
@@ -190,6 +190,7 @@ export function createMcpServer(
   readonlyGraphs?: Set<string>,
   userAccess?: Map<string, AccessLevel>,
   getSessionId?: () => string | undefined,
+  users?: Record<string, UserConfig>,
 ): McpServer {
   // Backward-compat: single EmbedFn → use for both document and query
   const defaultPair: EmbedFns = { document: (q) => embed(q, ''), query: (q) => embed(q, '') };
@@ -221,6 +222,7 @@ export function createMcpServer(
   );
   // Mutation tools are registered through mutServer to serialize concurrent writes
   const mutServer = mutationQueue ? createMutationServer(server, mutationQueue, getSessionId) : server;
+  const resolveAuthor = () => resolveRequestAuthor(sessionContext?.userId, users);
 
   // Check if mutation tools should be registered for a graph:
   // - graph must not be readonly (global setting — tools hidden for all)
@@ -298,13 +300,13 @@ export function createMcpServer(
     listRelations.register(server, knowledgeMgr);
     findLinkedNotes.register(server, knowledgeMgr);
     if (canMutate('knowledge')) {
-      createNote.register(mutServer, knowledgeMgr);
-      updateNote.register(mutServer, knowledgeMgr);
-      deleteNote.register(mutServer, knowledgeMgr);
-      createRelation.register(mutServer, knowledgeMgr);
-      deleteRelation.register(mutServer, knowledgeMgr);
-      addNoteAttachment.register(mutServer, knowledgeMgr);
-      removeNoteAttachment.register(mutServer, knowledgeMgr);
+      createNote.register(mutServer, knowledgeMgr, resolveAuthor);
+      updateNote.register(mutServer, knowledgeMgr, resolveAuthor);
+      deleteNote.register(mutServer, knowledgeMgr, resolveAuthor);
+      createRelation.register(mutServer, knowledgeMgr, resolveAuthor);
+      deleteRelation.register(mutServer, knowledgeMgr, resolveAuthor);
+      addNoteAttachment.register(mutServer, knowledgeMgr, resolveAuthor);
+      removeNoteAttachment.register(mutServer, knowledgeMgr, resolveAuthor);
     }
   }
 
@@ -319,19 +321,19 @@ export function createMcpServer(
     searchTasksTool.register(server, taskMgr);
     findLinkedTasks.register(server, taskMgr);
     if (canMutate('tasks')) {
-      createTask.register(mutServer, taskMgr);
-      updateTask.register(mutServer, taskMgr);
-      deleteTask.register(mutServer, taskMgr);
-      moveTask.register(mutServer, taskMgr);
-      reorderTaskTool.register(mutServer, taskMgr);
-      linkTask.register(mutServer, taskMgr);
-      createTaskLink.register(mutServer, taskMgr);
-      deleteTaskLink.register(mutServer, taskMgr);
-      bulkMove.register(mutServer, taskMgr);
-      bulkPriority.register(mutServer, taskMgr);
-      bulkDelete.register(mutServer, taskMgr);
-      addTaskAttachment.register(mutServer, taskMgr);
-      removeTaskAttachment.register(mutServer, taskMgr);
+      createTask.register(mutServer, taskMgr, resolveAuthor);
+      updateTask.register(mutServer, taskMgr, resolveAuthor);
+      deleteTask.register(mutServer, taskMgr, resolveAuthor);
+      moveTask.register(mutServer, taskMgr, resolveAuthor);
+      reorderTaskTool.register(mutServer, taskMgr, resolveAuthor);
+      linkTask.register(mutServer, taskMgr, resolveAuthor);
+      createTaskLink.register(mutServer, taskMgr, resolveAuthor);
+      deleteTaskLink.register(mutServer, taskMgr, resolveAuthor);
+      bulkMove.register(mutServer, taskMgr, resolveAuthor);
+      bulkPriority.register(mutServer, taskMgr, resolveAuthor);
+      bulkDelete.register(mutServer, taskMgr, resolveAuthor);
+      addTaskAttachment.register(mutServer, taskMgr, resolveAuthor);
+      removeTaskAttachment.register(mutServer, taskMgr, resolveAuthor);
     }
 
     // Epic tools (same graph, same access)
@@ -339,11 +341,11 @@ export function createMcpServer(
     listEpicsTool.register(server, taskMgr);
     searchEpicsTool.register(server, taskMgr);
     if (canMutate('tasks')) {
-      createEpicTool.register(mutServer, taskMgr);
-      updateEpicTool.register(mutServer, taskMgr);
-      deleteEpicTool.register(mutServer, taskMgr);
-      linkEpicTaskTool.register(mutServer, taskMgr);
-      unlinkEpicTaskTool.register(mutServer, taskMgr);
+      createEpicTool.register(mutServer, taskMgr, resolveAuthor);
+      updateEpicTool.register(mutServer, taskMgr, resolveAuthor);
+      deleteEpicTool.register(mutServer, taskMgr, resolveAuthor);
+      linkEpicTaskTool.register(mutServer, taskMgr, resolveAuthor);
+      unlinkEpicTaskTool.register(mutServer, taskMgr, resolveAuthor);
     }
   }
 
@@ -359,15 +361,15 @@ export function createMcpServer(
     findLinkedSkills.register(server, skillMgr);
     recallSkills.register(server, skillMgr);
     if (canMutate('skills')) {
-      createSkillTool.register(mutServer, skillMgr);
-      updateSkillTool.register(mutServer, skillMgr);
-      deleteSkillTool.register(mutServer, skillMgr);
-      linkSkill.register(mutServer, skillMgr);
-      createSkillLink.register(mutServer, skillMgr);
-      deleteSkillLink.register(mutServer, skillMgr);
-      addSkillAttachment.register(mutServer, skillMgr);
-      removeSkillAttachment.register(mutServer, skillMgr);
-      bumpSkillUsage.register(mutServer, skillMgr);
+      createSkillTool.register(mutServer, skillMgr, resolveAuthor);
+      updateSkillTool.register(mutServer, skillMgr, resolveAuthor);
+      deleteSkillTool.register(mutServer, skillMgr, resolveAuthor);
+      linkSkill.register(mutServer, skillMgr, resolveAuthor);
+      createSkillLink.register(mutServer, skillMgr, resolveAuthor);
+      deleteSkillLink.register(mutServer, skillMgr, resolveAuthor);
+      addSkillAttachment.register(mutServer, skillMgr, resolveAuthor);
+      removeSkillAttachment.register(mutServer, skillMgr, resolveAuthor);
+      bumpSkillUsage.register(mutServer, skillMgr, resolveAuthor);
     }
   }
 
@@ -684,6 +686,7 @@ export async function startMultiProjectHttpServer(
       mcpReadonlyGraphs,
       mcpUserAccess,
       () => transport.sessionId,
+      users,
     );
     await mcpServer.connect(transport);
     await transport.handleRequest(req, res, body);

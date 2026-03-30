@@ -90,9 +90,12 @@ export class ProjectManager extends EventEmitter {
   private autoSaveInterval: ReturnType<typeof setInterval> | undefined;
   private cacheFactory?: EmbeddingCacheFactory;
 
-  constructor(private serverConfig: ServerConfig, cacheFactory?: EmbeddingCacheFactory) {
+  private hasUsers: boolean;
+
+  constructor(private serverConfig: ServerConfig, cacheFactory?: EmbeddingCacheFactory, hasUsers = false) {
     super();
     this.cacheFactory = cacheFactory;
+    this.hasUsers = hasUsers;
   }
 
   // ---------------------------------------------------------------------------
@@ -132,7 +135,7 @@ export class ProjectManager extends EventEmitter {
     const ctx: GraphManagerContext = {
       markDirty: () => {
         wsInstance.dirty = true;
-        if (!_authorEnsured) {
+        if (!_authorEnsured && !this.hasUsers) {
           _authorEnsured = true;
           ensureAuthorInTeam(path.join(config.mirrorDir, '.team'), config.author);
         }
@@ -272,7 +275,7 @@ export class ProjectManager extends EventEmitter {
     const ctx: GraphManagerContext = {
       markDirty: () => {
         instance.dirty = true;
-        if (!_authorEnsured) {
+        if (!_authorEnsured && !this.hasUsers) {
           _authorEnsured = true;
           ensureAuthorInTeam(path.join(config.projectDir, '.team'), config.author);
         }

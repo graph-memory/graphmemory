@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { KnowledgeGraphManager } from '@/graphs/knowledge';
 
-export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
+export function register(server: McpServer, mgr: KnowledgeGraphManager, resolveAuthor: () => string): void {
   server.registerTool(
     'notes_remove_attachment',
     {
@@ -18,7 +18,8 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
       },
     },
     async ({ noteId, filename }) => {
-      const ok = mgr.removeAttachment(noteId, filename);
+      const author = resolveAuthor();
+      const ok = mgr.removeAttachment(noteId, filename, author);
       if (!ok) {
         return { content: [{ type: 'text', text: JSON.stringify({ error: 'Attachment not found' }) }], isError: true };
       }

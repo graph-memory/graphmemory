@@ -4,7 +4,7 @@ import type { KnowledgeGraphManager } from '@/graphs/knowledge';
 import { VersionConflictError } from '@/graphs/manager-types';
 import { MAX_TITLE_LEN, MAX_NOTE_CONTENT_LEN, MAX_TAG_LEN, MAX_TAGS_COUNT } from '@/lib/defaults';
 
-export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
+export function register(server: McpServer, mgr: KnowledgeGraphManager, resolveAuthor: () => string): void {
   server.registerTool(
     'notes_update',
     {
@@ -22,8 +22,9 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
       },
     },
     async ({ noteId, title, content, tags, expectedVersion }) => {
+      const author = resolveAuthor();
       try {
-        const updated = await mgr.updateNote(noteId, { title, content, tags }, expectedVersion);
+        const updated = await mgr.updateNote(noteId, { title, content, tags }, expectedVersion, author);
         if (!updated) {
           return { content: [{ type: 'text', text: 'Note not found' }], isError: true };
         }

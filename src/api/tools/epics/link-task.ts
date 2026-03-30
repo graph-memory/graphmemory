@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { TaskGraphManager } from '@/graphs/task';
 
-export function register(server: McpServer, mgr: TaskGraphManager): void {
+export function register(server: McpServer, mgr: TaskGraphManager, resolveAuthor: () => string): void {
   server.registerTool(
     'epics_link_task',
     {
@@ -13,7 +13,8 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
       },
     },
     async ({ taskId, epicId }) => {
-      const ok = mgr.linkTaskToEpic(taskId, epicId);
+      const author = resolveAuthor();
+      const ok = mgr.linkTaskToEpic(taskId, epicId, author);
       if (!ok) return { content: [{ type: 'text', text: 'Failed to link — task or epic not found, or already linked' }], isError: true };
       return { content: [{ type: 'text', text: JSON.stringify({ taskId, epicId, linked: true }, null, 2) }] };
     },

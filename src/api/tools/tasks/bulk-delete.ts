@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { TaskGraphManager } from '@/graphs/task';
 
-export function register(server: McpServer, mgr: TaskGraphManager): void {
+export function register(server: McpServer, mgr: TaskGraphManager, resolveAuthor: () => string): void {
   server.registerTool(
     'tasks_bulk_delete',
     {
@@ -15,9 +15,10 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
       },
     },
     async ({ taskIds }) => {
+      const author = resolveAuthor();
       const deleted: string[] = [];
       for (const id of taskIds) {
-        if (mgr.deleteTask(id)) deleted.push(id);
+        if (mgr.deleteTask(id, author)) deleted.push(id);
       }
       return { content: [{ type: 'text', text: JSON.stringify({ deleted }, null, 2) }] };
     },

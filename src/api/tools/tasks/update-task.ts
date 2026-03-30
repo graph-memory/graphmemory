@@ -4,7 +4,7 @@ import type { TaskGraphManager } from '@/graphs/task';
 import { VersionConflictError } from '@/graphs/manager-types';
 import { MAX_TITLE_LEN, MAX_DESCRIPTION_LEN, MAX_TAG_LEN, MAX_TAGS_COUNT, MAX_ASSIGNEE_LEN } from '@/lib/defaults';
 
-export function register(server: McpServer, mgr: TaskGraphManager): void {
+export function register(server: McpServer, mgr: TaskGraphManager, resolveAuthor: () => string): void {
   server.registerTool(
     'tasks_update',
     {
@@ -40,7 +40,8 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
       if (assignee !== undefined) patch.assignee = assignee;
 
       try {
-        const updated = await mgr.updateTask(taskId, patch, expectedVersion);
+        const author = resolveAuthor();
+        const updated = await mgr.updateTask(taskId, patch, expectedVersion, author);
         if (!updated) {
           return { content: [{ type: 'text', text: 'Task not found' }], isError: true };
         }

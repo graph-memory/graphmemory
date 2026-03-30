@@ -7,7 +7,7 @@ import {
   MAX_SKILL_TRIGGER_LEN, MAX_SKILL_TRIGGERS_COUNT,
 } from '@/lib/defaults';
 
-export function register(server: McpServer, mgr: SkillGraphManager): void {
+export function register(server: McpServer, mgr: SkillGraphManager, resolveAuthor: () => string): void {
   server.registerTool(
     'skills_create',
     {
@@ -29,10 +29,11 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
       },
     },
     async ({ title, description, steps, triggers, inputHints, filePatterns, tags, source, confidence }) => {
+      const author = resolveAuthor();
       const skillId = await mgr.createSkill(
         title, description,
         steps ?? [], triggers ?? [], inputHints ?? [], filePatterns ?? [],
-        tags ?? [], source ?? 'user', confidence ?? 1,
+        tags ?? [], source ?? 'user', confidence ?? 1, author,
       );
       return { content: [{ type: 'text', text: JSON.stringify({ skillId }, null, 2) }] };
     },

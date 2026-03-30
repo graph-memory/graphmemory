@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { SkillGraphManager } from '@/graphs/skill';
 import { MAX_TARGET_NODE_ID_LEN, MAX_LINK_KIND_LEN, MAX_PROJECT_ID_LEN } from '@/lib/defaults';
 
-export function register(server: McpServer, mgr: SkillGraphManager): void {
+export function register(server: McpServer, mgr: SkillGraphManager, resolveAuthor: () => string): void {
   server.registerTool(
     'skills_create_link',
     {
@@ -21,15 +21,16 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
       },
     },
     async ({ skillId, targetId, targetGraph, kind, projectId }) => {
+      const author = resolveAuthor();
       if (targetGraph) {
-        const created = mgr.createCrossLink(skillId, targetId, targetGraph, kind, projectId);
+        const created = mgr.createCrossLink(skillId, targetId, targetGraph, kind, projectId, author);
         if (!created) {
           return { content: [{ type: 'text', text: 'Could not create cross-graph link — skill not found, target not found, or link already exists.' }], isError: true };
         }
         return { content: [{ type: 'text', text: JSON.stringify({ skillId, targetId, targetGraph, kind, created: true }, null, 2) }] };
       }
       // Same-graph skill-to-skill link
-      const created = mgr.linkSkills(skillId, targetId, kind);
+      const created = mgr.linkSkills(skillId, targetId, kind, author);
       if (!created) {
         return { content: [{ type: 'text', text: 'Could not create link — one or both skills not found, or link already exists.' }], isError: true };
       }

@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { SkillGraphManager } from '@/graphs/skill';
 
-export function register(server: McpServer, mgr: SkillGraphManager): void {
+export function register(server: McpServer, mgr: SkillGraphManager, resolveAuthor: () => string): void {
   server.registerTool(
     'skills_remove_attachment',
     {
@@ -18,7 +18,8 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
       },
     },
     async ({ skillId, filename }) => {
-      const ok = mgr.removeAttachment(skillId, filename);
+      const author = resolveAuthor();
+      const ok = mgr.removeAttachment(skillId, filename, author);
       if (!ok) {
         return { content: [{ type: 'text', text: JSON.stringify({ error: 'Attachment not found' }) }], isError: true };
       }

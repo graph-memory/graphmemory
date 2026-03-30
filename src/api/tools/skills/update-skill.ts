@@ -8,7 +8,7 @@ import {
   MAX_SKILL_TRIGGER_LEN, MAX_SKILL_TRIGGERS_COUNT,
 } from '@/lib/defaults';
 
-export function register(server: McpServer, mgr: SkillGraphManager): void {
+export function register(server: McpServer, mgr: SkillGraphManager, resolveAuthor: () => string): void {
   server.registerTool(
     'skills_update',
     {
@@ -42,8 +42,9 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
       if (source !== undefined) patch.source = source;
       if (confidence !== undefined) patch.confidence = confidence;
 
+      const author = resolveAuthor();
       try {
-        const updated = await mgr.updateSkill(skillId, patch, expectedVersion);
+        const updated = await mgr.updateSkill(skillId, patch, expectedVersion, author);
         if (!updated) {
           return { content: [{ type: 'text', text: 'Skill not found' }], isError: true };
         }

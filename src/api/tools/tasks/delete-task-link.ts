@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { TaskGraphManager } from '@/graphs/task';
 import { MAX_TARGET_NODE_ID_LEN, MAX_PROJECT_ID_LEN } from '@/lib/defaults';
 
-export function register(server: McpServer, mgr: TaskGraphManager): void {
+export function register(server: McpServer, mgr: TaskGraphManager, resolveAuthor: () => string): void {
   server.registerTool(
     'tasks_delete_link',
     {
@@ -20,15 +20,16 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
       },
     },
     async ({ taskId, targetId, targetGraph, projectId }) => {
+      const author = resolveAuthor();
       if (targetGraph) {
-        const deleted = mgr.deleteCrossLink(taskId, targetId, targetGraph, projectId);
+        const deleted = mgr.deleteCrossLink(taskId, targetId, targetGraph, projectId, author);
         if (!deleted) {
           return { content: [{ type: 'text', text: 'Cross-graph link not found.' }], isError: true };
         }
         return { content: [{ type: 'text', text: JSON.stringify({ taskId, targetId, targetGraph, deleted: true }, null, 2) }] };
       }
       // Same-graph task-to-task link
-      const deleted = mgr.deleteTaskLink(taskId, targetId);
+      const deleted = mgr.deleteTaskLink(taskId, targetId, author);
       if (!deleted) {
         return { content: [{ type: 'text', text: 'Link not found.' }], isError: true };
       }

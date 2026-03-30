@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { TaskGraphManager } from '@/graphs/task';
 import { VersionConflictError } from '@/graphs/manager-types';
 
-export function register(server: McpServer, mgr: TaskGraphManager): void {
+export function register(server: McpServer, mgr: TaskGraphManager, resolveAuthor: () => string): void {
   server.registerTool(
     'tasks_move',
     {
@@ -21,7 +21,8 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
     },
     async ({ taskId, status, expectedVersion }) => {
       try {
-        const moved = mgr.moveTask(taskId, status, expectedVersion);
+        const author = resolveAuthor();
+        const moved = mgr.moveTask(taskId, status, expectedVersion, undefined, author);
         if (!moved) {
           return { content: [{ type: 'text', text: 'Task not found' }], isError: true };
         }

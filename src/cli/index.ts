@@ -57,7 +57,8 @@ program
       const reindex = !!opts.reindex;
       if (reindex) log.info('Re-indexing from scratch');
 
-      const manager = new ProjectManager(mc.server);
+      const hasUsers = Object.keys(mc.users).length > 0;
+      const manager = new ProjectManager(mc.server, undefined, hasUsers);
 
       // Build workspace membership lookup
       const projectWorkspace = new Map<string, string>();
@@ -200,7 +201,8 @@ program
       }
     }
 
-    const manager = new ProjectManager(mc.server, cacheFactory);
+    const hasUsers = Object.keys(mc.users).length > 0;
+    const manager = new ProjectManager(mc.server, cacheFactory, hasUsers);
 
     // Build workspace membership lookup
     const projectWorkspace = new Map<string, string>();

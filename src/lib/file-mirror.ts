@@ -427,6 +427,7 @@ export function mirrorNoteRelation(
   attrs: NoteAttrs,
   relations: RelationLike[],
   graph?: string,
+  by?: string,
 ): void {
   try {
     const safeId = sanitizeEntityId(noteId);
@@ -435,6 +436,7 @@ export function mirrorNoteRelation(
     const eventsPath = path.join(entityDir, 'events.jsonl');
     const event: Record<string, unknown> = { op: 'relation', action, kind, to };
     if (graph) event.graph = graph;
+    if (by) event.by = by;
     appendEvent(eventsPath, event as Parameters<typeof appendEvent>[1]);
     _regenerateNoteSnapshot(notesDir, noteId, attrs, relations);
   } catch (err) {
@@ -451,6 +453,7 @@ export function mirrorTaskRelation(
   attrs: TaskAttrs,
   relations: RelationLike[],
   graph?: string,
+  by?: string,
 ): void {
   try {
     const safeId = sanitizeEntityId(taskId);
@@ -459,6 +462,7 @@ export function mirrorTaskRelation(
     const eventsPath = path.join(entityDir, 'events.jsonl');
     const event: Record<string, unknown> = { op: 'relation', action, kind, to };
     if (graph) event.graph = graph;
+    if (by) event.by = by;
     appendEvent(eventsPath, event as Parameters<typeof appendEvent>[1]);
     _regenerateTaskSnapshot(tasksDir, taskId, attrs, relations);
   } catch (err) {
@@ -475,6 +479,7 @@ export function mirrorSkillRelation(
   attrs: SkillAttrs,
   relations: RelationLike[],
   graph?: string,
+  by?: string,
 ): void {
   try {
     const safeId = sanitizeEntityId(skillId);
@@ -483,6 +488,7 @@ export function mirrorSkillRelation(
     const eventsPath = path.join(entityDir, 'events.jsonl');
     const event: Record<string, unknown> = { op: 'relation', action, kind, to };
     if (graph) event.graph = graph;
+    if (by) event.by = by;
     appendEvent(eventsPath, event as Parameters<typeof appendEvent>[1]);
     _regenerateSkillSnapshot(skillsDir, skillId, attrs, relations);
   } catch (err) {
@@ -495,10 +501,13 @@ export function mirrorAttachmentEvent(
   entityDir: string,
   action: 'add' | 'remove',
   file: string,
+  by?: string,
 ): void {
   try {
     const eventsPath = path.join(entityDir, 'events.jsonl');
-    appendEvent(eventsPath, { op: 'attachment', action, file } as Parameters<typeof appendEvent>[1]);
+    const event: Record<string, unknown> = { op: 'attachment', action, file };
+    if (by) event.by = by;
+    appendEvent(eventsPath, event as Parameters<typeof appendEvent>[1]);
   } catch (err) {
     log.error({ err }, 'failed to mirror attachment event');
   }

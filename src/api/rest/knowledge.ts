@@ -7,10 +7,11 @@ import { validateBody, validateQuery, createNoteSchema, updateNoteSchema, create
 import { requireWriteAccess } from '@/api/rest/index';
 import { VersionConflictError } from '@/graphs/manager-types';
 import { MAX_UPLOAD_SIZE } from '@/lib/defaults';
+import { resolveRequestAuthor, type UserConfig } from '@/lib/multi-config';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_UPLOAD_SIZE } });
 
-export function createKnowledgeRouter(): Router {
+export function createKnowledgeRouter(users?: Record<string, UserConfig>): Router {
   const router = Router({ mergeParams: true });
 
   function getProject(req: any) {
@@ -60,8 +61,9 @@ export function createKnowledgeRouter(): Router {
     try {
       const p = getProject(req);
       const { title, content, tags } = req.body;
+      const author = resolveRequestAuthor(req.userId, users);
       const created = await p.mutationQueue.enqueue(async () => {
-        const noteId = await p.knowledgeManager.createNote(title, content, tags);
+        const noteId = await p.knowledgeManager.createNote(title, content, tags, author);
         return p.knowledgeManager.getNote(noteId);
       });
       res.status(201).json(created);
@@ -74,8 +76,9 @@ export function createKnowledgeRouter(): Router {
       const p = getProject(req);
       const noteId = req.params.noteId as string;
       const { version, ...patch } = req.body;
+      const author = resolveRequestAuthor(req.userId, users);
       const result = await p.mutationQueue.enqueue(async () => {
-        const ok = await p.knowledgeManager.updateNote(noteId, patch, version);
+        const ok = await p.knowledgeManager.updateNote(noteId, patch, version, author);
         if (!ok) return null;
         return p.knowledgeManager.getNote(noteId);
       });
@@ -94,8 +97,9 @@ export function createKnowledgeRouter(): Router {
     try {
       const p = getProject(req);
       const noteId = req.params.noteId as string;
+      const author = resolveRequestAuthor(req.userId, users);
       const ok = await p.mutationQueue.enqueue(async () => {
-        return p.knowledgeManager.deleteNote(noteId);
+        return p.knowledgeManager.deleteNote(noteId, author);
       });
       if (!ok) return res.status(404).json({ error: 'Note not found' });
       res.status(204).end();
@@ -107,8 +111,9 @@ export function createKnowledgeRouter(): Router {
     try {
       const p = getProject(req);
       const { fromId, toId, kind, targetGraph, projectId } = req.body;
+      const author = resolveRequestAuthor(req.userId, users);
       const ok = await p.mutationQueue.enqueue(async () => {
-        return p.knowledgeManager.createRelation(fromId, toId, kind, targetGraph, projectId);
+        return p.knowledgeManager.createRelation(fromId, toId, kind, targetGraph, projectId, author);
       });
       if (!ok) return res.status(400).json({ error: 'Failed to create relation' });
       res.status(201).json({ fromId, toId, kind, targetGraph: targetGraph || undefined });
@@ -120,8 +125,9 @@ export function createKnowledgeRouter(): Router {
     try {
       const p = getProject(req);
       const { fromId, toId, targetGraph, projectId } = req.body;
+      const author = resolveRequestAuthor(req.userId, users);
       const ok = await p.mutationQueue.enqueue(async () => {
-        return p.knowledgeManager.deleteRelation(fromId, toId, targetGraph, projectId);
+        return p.knowledgeManager.deleteRelation(fromId, toId, targetGraph, projectId, author);
       });
       if (!ok) return res.status(404).json({ error: 'Relation not found' });
       res.status(204).end();
@@ -157,9 +163,10 @@ export function createKnowledgeRouter(): Router {
       const file = req.file;
       if (!file) return res.status(400).json({ error: 'No file uploaded' });
       const filename = attachmentFilenameSchema.parse(file.originalname);
+      const author = resolveRequestAuthor(req.userId, users);
 
       const meta = await p.mutationQueue.enqueue(async () => {
-        return p.knowledgeManager.addAttachment(noteId, filename, file.buffer);
+        return p.knowledgeManager.addAttachment(noteId, filename, file.buffer, author);
       });
       if (!meta) return res.status(404).json({ error: 'Note not found' });
       res.status(201).json(meta);
@@ -198,8 +205,9 @@ export function createKnowledgeRouter(): Router {
       const p = getProject(req);
       const noteId = req.params.noteId as string;
       const filename = attachmentFilenameSchema.parse(req.params.filename);
+      const author = resolveRequestAuthor(req.userId, users);
       const ok = await p.mutationQueue.enqueue(async () => {
-        return p.knowledgeManager.removeAttachment(noteId, filename);
+        return p.knowledgeManager.removeAttachment(noteId, filename, author);
       });
       if (!ok) return res.status(404).json({ error: 'Attachment not found' });
       res.status(204).end();

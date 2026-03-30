@@ -5,7 +5,7 @@ import { z } from 'zod';
 import type { KnowledgeGraphManager } from '@/graphs/knowledge';
 import { MAX_UPLOAD_SIZE } from '@/lib/defaults';
 
-export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
+export function register(server: McpServer, mgr: KnowledgeGraphManager, resolveAuthor: () => string): void {
   server.registerTool(
     'notes_add_attachment',
     {
@@ -52,7 +52,8 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
 
       const data = fs.readFileSync(realResolved);
       const filename = path.basename(resolved);
-      const meta = mgr.addAttachment(noteId, filename, data);
+      const author = resolveAuthor();
+      const meta = mgr.addAttachment(noteId, filename, data, author);
 
       if (!meta) {
         return { content: [{ type: 'text', text: JSON.stringify({ error: 'Note not found or no project dir' }) }], isError: true };

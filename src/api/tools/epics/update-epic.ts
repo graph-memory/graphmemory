@@ -4,7 +4,7 @@ import type { TaskGraphManager } from '@/graphs/task';
 import type { EpicStatus } from '@/graphs/task-types';
 import { MAX_TITLE_LEN, MAX_DESCRIPTION_LEN, MAX_TAG_LEN, MAX_TAGS_COUNT } from '@/lib/defaults';
 
-export function register(server: McpServer, mgr: TaskGraphManager): void {
+export function register(server: McpServer, mgr: TaskGraphManager, resolveAuthor: () => string): void {
   server.registerTool(
     'epics_update',
     {
@@ -25,7 +25,8 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
       if (description !== undefined) patch.description = description;
       if (priority !== undefined) patch.priority = priority;
       if (tags !== undefined) patch.tags = tags;
-      const ok = await mgr.updateEpic(epicId, patch, status as EpicStatus | undefined, version);
+      const author = resolveAuthor();
+      const ok = await mgr.updateEpic(epicId, patch, status as EpicStatus | undefined, version, author);
       if (!ok) return { content: [{ type: 'text', text: 'Epic not found' }], isError: true };
       return { content: [{ type: 'text', text: JSON.stringify({ epicId, updated: true }, null, 2) }] };
     },

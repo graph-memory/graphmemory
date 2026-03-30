@@ -5,7 +5,7 @@ import { z } from 'zod';
 import type { SkillGraphManager } from '@/graphs/skill';
 import { MAX_UPLOAD_SIZE } from '@/lib/defaults';
 
-export function register(server: McpServer, mgr: SkillGraphManager): void {
+export function register(server: McpServer, mgr: SkillGraphManager, resolveAuthor: () => string): void {
   server.registerTool(
     'skills_add_attachment',
     {
@@ -52,7 +52,8 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
 
       const data = fs.readFileSync(realResolved);
       const filename = path.basename(resolved);
-      const meta = mgr.addAttachment(skillId, filename, data);
+      const author = resolveAuthor();
+      const meta = mgr.addAttachment(skillId, filename, data, author);
 
       if (!meta) {
         return { content: [{ type: 'text', text: JSON.stringify({ error: 'Skill not found or no project dir' }) }], isError: true };

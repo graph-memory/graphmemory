@@ -335,6 +335,17 @@ export function formatAuthor(author: AuthorConfig): string {
   return `${author.name} <${author.email}>`;
 }
 
+/**
+ * Resolve author string from an authenticated user.
+ * Returns formatted "Name <email>" when userId maps to a known user, otherwise ''.
+ */
+export function resolveRequestAuthor(userId?: string, users?: Record<string, UserConfig>): string {
+  if (!userId || !users) return '';
+  const user = users[userId];
+  if (!user) return '';
+  return formatAuthor({ name: user.name, email: user.email });
+}
+
 // ---------------------------------------------------------------------------
 // Defaults
 // ---------------------------------------------------------------------------

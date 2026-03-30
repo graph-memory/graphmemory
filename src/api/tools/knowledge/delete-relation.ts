@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { KnowledgeGraphManager } from '@/graphs/knowledge';
 import { MAX_PROJECT_ID_LEN } from '@/lib/defaults';
 
-export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
+export function register(server: McpServer, mgr: KnowledgeGraphManager, resolveAuthor: () => string): void {
   server.registerTool(
     'notes_delete_link',
     {
@@ -19,7 +19,8 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
       },
     },
     async ({ fromId, toId, targetGraph, projectId }) => {
-      const deleted = mgr.deleteRelation(fromId, toId, targetGraph, projectId);
+      const author = resolveAuthor();
+      const deleted = mgr.deleteRelation(fromId, toId, targetGraph, projectId, author);
 
       if (!deleted) {
         return { content: [{ type: 'text', text: 'Relation not found.' }], isError: true };

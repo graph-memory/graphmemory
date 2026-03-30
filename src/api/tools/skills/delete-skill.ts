@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { SkillGraphManager } from '@/graphs/skill';
 
-export function register(server: McpServer, mgr: SkillGraphManager): void {
+export function register(server: McpServer, mgr: SkillGraphManager, resolveAuthor: () => string): void {
   server.registerTool(
     'skills_delete',
     {
@@ -15,7 +15,8 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
       },
     },
     async ({ skillId }) => {
-      const deleted = mgr.deleteSkill(skillId);
+      const author = resolveAuthor();
+      const deleted = mgr.deleteSkill(skillId, author);
       if (!deleted) {
         return { content: [{ type: 'text', text: 'Skill not found' }], isError: true };
       }

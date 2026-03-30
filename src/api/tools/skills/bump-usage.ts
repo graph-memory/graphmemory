@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { SkillGraphManager } from '@/graphs/skill';
 
-export function register(server: McpServer, mgr: SkillGraphManager): void {
+export function register(server: McpServer, mgr: SkillGraphManager, resolveAuthor: () => string): void {
   server.registerTool(
     'skills_bump_usage',
     {
@@ -14,7 +14,8 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
       },
     },
     async ({ skillId }) => {
-      const ok = mgr.bumpUsage(skillId);
+      const author = resolveAuthor();
+      const ok = mgr.bumpUsage(skillId, author);
       if (!ok) {
         return { content: [{ type: 'text', text: 'Skill not found' }], isError: true };
       }

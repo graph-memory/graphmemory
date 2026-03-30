@@ -7,10 +7,11 @@ import { validateBody, validateQuery, createTaskSchema, updateTaskSchema, moveTa
 import { requireWriteAccess } from '@/api/rest/index';
 import { VersionConflictError } from '@/graphs/manager-types';
 import { MAX_UPLOAD_SIZE } from '@/lib/defaults';
+import { resolveRequestAuthor, type UserConfig } from '@/lib/multi-config';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_UPLOAD_SIZE } });
 
-export function createTasksRouter(): Router {
+export function createTasksRouter(users?: Record<string, UserConfig>): Router {
   const router = Router({ mergeParams: true });
 
   function getProject(req: any) {
@@ -69,9 +70,10 @@ export function createTasksRouter(): Router {
   router.post('/', requireWriteAccess, validateBody(createTaskSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
+      const author = resolveRequestAuthor(req.userId, users);
       const { title, description, status, priority, tags, dueDate, estimate, assignee, order } = req.body;
       const created = await p.mutationQueue.enqueue(async () => {
-        const taskId = await p.taskManager.createTask(title, description, status, priority, tags, dueDate, estimate, assignee ?? null, order);
+        const taskId = await p.taskManager.createTask(title, description, status, priority, tags, dueDate, estimate, assignee ?? null, order, author);
         return p.taskManager.getTask(taskId);
       });
       res.status(201).json(created);
@@ -82,11 +84,12 @@ export function createTasksRouter(): Router {
   router.post('/bulk/move', requireWriteAccess, validateBody(bulkMoveSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
+      const author = resolveRequestAuthor(req.userId, users);
       const { taskIds, status } = req.body;
       const results = await p.mutationQueue.enqueue(async () => {
         const moved: string[] = [];
         for (const id of taskIds) {
-          if (p.taskManager.moveTask(id, status)) moved.push(id);
+          if (p.taskManager.moveTask(id, status, undefined, undefined, author)) moved.push(id);
         }
         return moved;
       });
@@ -98,11 +101,12 @@ export function createTasksRouter(): Router {
   router.post('/bulk/priority', requireWriteAccess, validateBody(bulkPrioritySchema), async (req, res, next) => {
     try {
       const p = getProject(req);
+      const author = resolveRequestAuthor(req.userId, users);
       const { taskIds, priority } = req.body;
       const results = await p.mutationQueue.enqueue(async () => {
         const updated: string[] = [];
         for (const id of taskIds) {
-          if (await p.taskManager.updateTask(id, { priority })) updated.push(id);
+          if (await p.taskManager.updateTask(id, { priority }, undefined, author)) updated.push(id);
         }
         return updated;
       });
@@ -114,11 +118,12 @@ export function createTasksRouter(): Router {
   router.post('/bulk/delete', requireWriteAccess, validateBody(bulkDeleteSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
+      const author = resolveRequestAuthor(req.userId, users);
       const { taskIds } = req.body;
       const results = await p.mutationQueue.enqueue(async () => {
         const deleted: string[] = [];
         for (const id of taskIds) {
-          if (p.taskManager.deleteTask(id)) deleted.push(id);
+          if (p.taskManager.deleteTask(id, author)) deleted.push(id);
         }
         return deleted;
       });
@@ -130,10 +135,11 @@ export function createTasksRouter(): Router {
   router.put('/:taskId', requireWriteAccess, validateBody(updateTaskSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
+      const author = resolveRequestAuthor(req.userId, users);
       const taskId = req.params.taskId as string;
       const { version, ...patch } = req.body;
       const result = await p.mutationQueue.enqueue(async () => {
-        const ok = await p.taskManager.updateTask(taskId, patch, version);
+        const ok = await p.taskManager.updateTask(taskId, patch, version, author);
         if (!ok) return null;
         return p.taskManager.getTask(taskId);
       });
@@ -151,10 +157,11 @@ export function createTasksRouter(): Router {
   router.post('/:taskId/move', requireWriteAccess, validateBody(moveTaskSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
+      const author = resolveRequestAuthor(req.userId, users);
       const taskId = req.params.taskId as string;
       const { status, version, order } = req.body;
       const result = await p.mutationQueue.enqueue(async () => {
-        const ok = p.taskManager.moveTask(taskId, status, version, order);
+        const ok = p.taskManager.moveTask(taskId, status, version, order, author);
         if (!ok) return null;
         return p.taskManager.getTask(taskId);
       });
@@ -172,10 +179,11 @@ export function createTasksRouter(): Router {
   router.post('/:taskId/reorder', requireWriteAccess, validateBody(reorderTaskSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
+      const author = resolveRequestAuthor(req.userId, users);
       const taskId = req.params.taskId as string;
       const { order, status } = req.body;
       const result = await p.mutationQueue.enqueue(async () => {
-        const ok = p.taskManager.reorderTask(taskId, order, status);
+        const ok = p.taskManager.reorderTask(taskId, order, status, author);
         if (!ok) return null;
         return p.taskManager.getTask(taskId);
       });
@@ -188,9 +196,10 @@ export function createTasksRouter(): Router {
   router.delete('/:taskId', requireWriteAccess, async (req, res, next) => {
     try {
       const p = getProject(req);
+      const author = resolveRequestAuthor(req.userId, users);
       const taskId = req.params.taskId as string;
       const ok = await p.mutationQueue.enqueue(async () => {
-        return p.taskManager.deleteTask(taskId);
+        return p.taskManager.deleteTask(taskId, author);
       });
       if (!ok) return res.status(404).json({ error: 'Task not found' });
       res.status(204).end();
@@ -201,12 +210,13 @@ export function createTasksRouter(): Router {
   router.post('/links', requireWriteAccess, validateBody(createTaskLinkSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
+      const author = resolveRequestAuthor(req.userId, users);
       const { fromId, toId, kind, targetGraph, projectId } = req.body;
       const ok = await p.mutationQueue.enqueue(async () => {
         if (targetGraph) {
-          return p.taskManager.createCrossLink(fromId, toId, targetGraph, kind, projectId);
+          return p.taskManager.createCrossLink(fromId, toId, targetGraph, kind, projectId, author);
         } else {
-          return p.taskManager.linkTasks(fromId, toId, kind);
+          return p.taskManager.linkTasks(fromId, toId, kind, author);
         }
       });
       if (!ok) return res.status(400).json({ error: 'Failed to create link' });
@@ -218,12 +228,13 @@ export function createTasksRouter(): Router {
   router.delete('/links', requireWriteAccess, validateBody(createTaskLinkSchema.pick({ fromId: true, toId: true, targetGraph: true, projectId: true })), async (req, res, next) => {
     try {
       const p = getProject(req);
+      const author = resolveRequestAuthor(req.userId, users);
       const { fromId, toId, targetGraph, projectId } = req.body;
       const ok = await p.mutationQueue.enqueue(async () => {
         if (targetGraph) {
-          return p.taskManager.deleteCrossLink(fromId, toId, targetGraph, projectId);
+          return p.taskManager.deleteCrossLink(fromId, toId, targetGraph, projectId, author);
         } else {
-          return p.taskManager.deleteTaskLink(fromId, toId);
+          return p.taskManager.deleteTaskLink(fromId, toId, author);
         }
       });
       if (!ok) return res.status(404).json({ error: 'Link not found' });
@@ -246,13 +257,14 @@ export function createTasksRouter(): Router {
   router.post('/:taskId/attachments', requireWriteAccess, upload.single('file'), async (req, res, next) => {
     try {
       const p = getProject(req);
+      const author = resolveRequestAuthor(req.userId, users);
       const taskId = req.params.taskId as string;
       const file = req.file;
       if (!file) return res.status(400).json({ error: 'No file uploaded' });
       const filename = attachmentFilenameSchema.parse(file.originalname);
 
       const meta = await p.mutationQueue.enqueue(async () => {
-        return p.taskManager.addAttachment(taskId, filename, file.buffer);
+        return p.taskManager.addAttachment(taskId, filename, file.buffer, author);
       });
       if (!meta) return res.status(404).json({ error: 'Task not found' });
       res.status(201).json(meta);
@@ -289,10 +301,11 @@ export function createTasksRouter(): Router {
   router.delete('/:taskId/attachments/:filename', requireWriteAccess, async (req, res, next) => {
     try {
       const p = getProject(req);
+      const author = resolveRequestAuthor(req.userId, users);
       const taskId = req.params.taskId as string;
       const filename = attachmentFilenameSchema.parse(req.params.filename);
       const ok = await p.mutationQueue.enqueue(async () => {
-        return p.taskManager.removeAttachment(taskId, filename);
+        return p.taskManager.removeAttachment(taskId, filename, author);
       });
       if (!ok) return res.status(404).json({ error: 'Attachment not found' });
       res.status(204).end();

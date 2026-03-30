@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { SkillGraphManager } from '@/graphs/skill';
 
-export function register(server: McpServer, mgr: SkillGraphManager): void {
+export function register(server: McpServer, mgr: SkillGraphManager, resolveAuthor: () => string): void {
   server.registerTool(
     'skills_link',
     {
@@ -18,7 +18,8 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
       },
     },
     async ({ fromId, toId, kind }) => {
-      const created = mgr.linkSkills(fromId, toId, kind);
+      const author = resolveAuthor();
+      const created = mgr.linkSkills(fromId, toId, kind, author);
       if (!created) {
         return { content: [{ type: 'text', text: 'Could not create relation — one or both skills not found, or relation already exists.' }], isError: true };
       }

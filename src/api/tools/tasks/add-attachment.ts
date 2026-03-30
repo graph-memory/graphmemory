@@ -5,7 +5,7 @@ import { z } from 'zod';
 import type { TaskGraphManager } from '@/graphs/task';
 import { MAX_UPLOAD_SIZE } from '@/lib/defaults';
 
-export function register(server: McpServer, mgr: TaskGraphManager): void {
+export function register(server: McpServer, mgr: TaskGraphManager, resolveAuthor: () => string): void {
   server.registerTool(
     'tasks_add_attachment',
     {
@@ -52,7 +52,8 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
 
       const data = fs.readFileSync(realResolved);
       const filename = path.basename(resolved);
-      const meta = mgr.addAttachment(taskId, filename, data);
+      const author = resolveAuthor();
+      const meta = mgr.addAttachment(taskId, filename, data, author);
 
       if (!meta) {
         return { content: [{ type: 'text', text: JSON.stringify({ error: 'Task not found or no project dir' }) }], isError: true };

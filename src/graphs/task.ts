@@ -1195,9 +1195,11 @@ export class TaskGraphManager {
     estimate: number | null = null,
     assignee: string | null = null,
     order?: number,
+    author?: string,
   ): Promise<string> {
+    const by = author ?? this.ctx.author;
     const embedding = await this.embedFns.document(`${title} ${description}`);
-    const taskId = createTask(this._graph, title, description, status, priority, tags, embedding, dueDate, estimate, this.ctx.author, assignee, order);
+    const taskId = createTask(this._graph, title, description, status, priority, tags, embedding, dueDate, estimate, by, assignee, order);
     this._bm25Index.addDocument(taskId, this._graph.getNodeAttributes(taskId));
     this.ctx.markDirty();
     this.ctx.emit('task:created', { projectId: this.ctx.projectId, taskId });
@@ -1213,13 +1215,14 @@ export class TaskGraphManager {
   async updateTask(taskId: string, patch: {
     title?: string; description?: string; status?: TaskStatus; priority?: TaskPriority;
     tags?: string[]; dueDate?: number | null; estimate?: number | null; assignee?: string | null;
-  }, expectedVersion?: number): Promise<boolean> {
+  }, expectedVersion?: number, author?: string): Promise<boolean> {
+    const by = author ?? this.ctx.author;
     const existing = getTask(this._graph, taskId);
     if (!existing) return false;
 
     const embedText = `${patch.title ?? existing.title} ${patch.description ?? existing.description}`;
     const embedding = await this.embedFns.document(embedText);
-    updateTask(this._graph, taskId, patch, embedding, this.ctx.author, expectedVersion);
+    updateTask(this._graph, taskId, patch, embedding, by, expectedVersion);
     this._bm25Index.updateDocument(taskId, this._graph.getNodeAttributes(taskId));
     this.ctx.markDirty();
     this.ctx.emit('task:updated', { projectId: this.ctx.projectId, taskId });
@@ -1227,13 +1230,13 @@ export class TaskGraphManager {
     if (dir) {
       const attrs = this._graph.getNodeAttributes(taskId);
       const relations = listTaskRelations(this._graph, taskId, this.ext);
-      mirrorTaskUpdate(dir, taskId, { ...patch, by: this.ctx.author }, attrs, relations);
+      mirrorTaskUpdate(dir, taskId, { ...patch, by }, attrs, relations);
       this.recordMirrorWrites(taskId);
     }
     return true;
   }
 
-  deleteTask(taskId: string): boolean {
+  deleteTask(taskId: string, _author?: string): boolean {
     if (this.tasksDir) deleteMirrorDir(this.tasksDir, taskId);
 
     this._bm25Index.removeDocument(taskId);
@@ -1256,7 +1259,8 @@ export class TaskGraphManager {
     return true;
   }
 
-  moveTask(taskId: string, status: TaskStatus, expectedVersion?: number, targetOrder?: number): boolean {
+  moveTask(taskId: string, status: TaskStatus, expectedVersion?: number, targetOrder?: number, author?: string): boolean {
+    const by = author ?? this.ctx.author;
     const ok = moveTask(this._graph, taskId, status, expectedVersion, targetOrder);
     if (!ok) return false;
     this.ctx.markDirty();
@@ -1265,13 +1269,14 @@ export class TaskGraphManager {
     if (dir) {
       const attrs = this._graph.getNodeAttributes(taskId);
       const relations = listTaskRelations(this._graph, taskId, this.ext);
-      mirrorTaskUpdate(dir, taskId, { status, completedAt: attrs.completedAt, by: this.ctx.author }, attrs, relations);
+      mirrorTaskUpdate(dir, taskId, { status, completedAt: attrs.completedAt, by }, attrs, relations);
       this.recordMirrorWrites(taskId);
     }
     return true;
   }
 
-  reorderTask(taskId: string, order: number, status?: TaskStatus): boolean {
+  reorderTask(taskId: string, order: number, status?: TaskStatus, author?: string): boolean {
+    const by = author ?? this.ctx.author;
     const ok = reorderTask(this._graph, taskId, order, status);
     if (!ok) return false;
     this.ctx.markDirty();
@@ -1280,13 +1285,14 @@ export class TaskGraphManager {
     if (dir) {
       const attrs = this._graph.getNodeAttributes(taskId);
       const relations = listTaskRelations(this._graph, taskId, this.ext);
-      mirrorTaskUpdate(dir, taskId, { order, ...(status ? { status, completedAt: attrs.completedAt } : {}), by: this.ctx.author }, attrs, relations);
+      mirrorTaskUpdate(dir, taskId, { order, ...(status ? { status, completedAt: attrs.completedAt } : {}), by }, attrs, relations);
       this.recordMirrorWrites(taskId);
     }
     return true;
   }
 
-  linkTasks(fromId: string, toId: string, kind: string): boolean {
+  linkTasks(fromId: string, toId: string, kind: string, author?: string): boolean {
+    const by = author ?? this.ctx.author;
     const ok = createTaskRelation(this._graph, fromId, toId, kind);
     if (ok) {
       this.ctx.markDirty();
@@ -1295,14 +1301,15 @@ export class TaskGraphManager {
       if (dir) {
         const fromAttrs = this._graph.getNodeAttributes(fromId);
         const fromRels = listTaskRelations(this._graph, fromId, this.ext);
-        mirrorTaskRelation(dir, fromId, 'add', kind, toId, fromAttrs, fromRels);
+        mirrorTaskRelation(dir, fromId, 'add', kind, toId, fromAttrs, fromRels, undefined, by);
         this.recordMirrorWrites(fromId);
       }
     }
     return ok;
   }
 
-  createCrossLink(taskId: string, targetId: string, targetGraph: TaskCrossGraphType, kind: string, projectId?: string): boolean {
+  createCrossLink(taskId: string, targetId: string, targetGraph: TaskCrossGraphType, kind: string, projectId?: string, author?: string): boolean {
+    const by = author ?? this.ctx.author;
     const pid = projectId || this.ctx.projectId;
     const extGraph = resolveExternalGraph(this.ext, targetGraph, pid);
     const ok = createCrossRelation(this._graph, taskId, targetGraph, targetId, kind, extGraph, pid);
@@ -1317,14 +1324,15 @@ export class TaskGraphManager {
       if (dir) {
         const attrs = this._graph.getNodeAttributes(taskId);
         const relations = listTaskRelations(this._graph, taskId, this.ext);
-        mirrorTaskRelation(dir, taskId, 'add', kind, targetId, attrs, relations, targetGraph);
+        mirrorTaskRelation(dir, taskId, 'add', kind, targetId, attrs, relations, targetGraph, by);
         this.recordMirrorWrites(taskId);
       }
     }
     return ok;
   }
 
-  deleteCrossLink(taskId: string, targetId: string, targetGraph: TaskCrossGraphType, projectId?: string): boolean {
+  deleteCrossLink(taskId: string, targetId: string, targetGraph: TaskCrossGraphType, projectId?: string, author?: string): boolean {
+    const by = author ?? this.ctx.author;
     const pid = projectId || this.ctx.projectId;
     // Read edge kind before deleting — check both directions
     let kind = '';
@@ -1384,7 +1392,7 @@ export class TaskGraphManager {
         if (this._graph.hasNode(realTaskId) && !isProxy(this._graph, realTaskId)) {
           const attrs = this._graph.getNodeAttributes(realTaskId);
           const relations = listTaskRelations(this._graph, realTaskId, this.ext);
-          mirrorTaskRelation(dir, realTaskId, 'remove', kind, targetId, attrs, relations, targetGraph);
+          mirrorTaskRelation(dir, realTaskId, 'remove', kind, targetId, attrs, relations, targetGraph, by);
           this.recordMirrorWrites(realTaskId);
         }
       }
@@ -1392,7 +1400,8 @@ export class TaskGraphManager {
     return ok;
   }
 
-  deleteTaskLink(fromId: string, toId: string): boolean {
+  deleteTaskLink(fromId: string, toId: string, author?: string): boolean {
+    const by = author ?? this.ctx.author;
     // Read edge kind before deleting
     let kind = '';
     try {
@@ -1410,7 +1419,7 @@ export class TaskGraphManager {
       if (dir) {
         const fromAttrs = this._graph.getNodeAttributes(fromId);
         const fromRels = listTaskRelations(this._graph, fromId, this.ext);
-        mirrorTaskRelation(dir, fromId, 'remove', kind, toId, fromAttrs, fromRels);
+        mirrorTaskRelation(dir, fromId, 'remove', kind, toId, fromAttrs, fromRels, undefined, by);
         this.recordMirrorWrites(fromId);
       }
     }
@@ -1419,7 +1428,8 @@ export class TaskGraphManager {
 
   // -- Attachments --
 
-  addAttachment(taskId: string, filename: string, data: Buffer): AttachmentMeta | null {
+  addAttachment(taskId: string, filename: string, data: Buffer, author?: string): AttachmentMeta | null {
+    const by = author ?? this.ctx.author;
     const dir = this.tasksDir;
     if (!dir) return null;
     if (!this._graph.hasNode(taskId) || isProxy(this._graph, taskId)) return null;
@@ -1434,7 +1444,7 @@ export class TaskGraphManager {
 
     writeAttachment(dir, taskId, safe, data);
     this.mirrorTracker?.recordWrite(path.join(entityDir, 'attachments', safe));
-    mirrorAttachmentEvent(entityDir, 'add', safe);
+    mirrorAttachmentEvent(entityDir, 'add', safe, by);
     this.mirrorTracker?.recordWrite(path.join(entityDir, 'events.jsonl'));
 
     const attachments = scanAttachments(entityDir);
@@ -1446,7 +1456,8 @@ export class TaskGraphManager {
     return attachments.find(a => a.filename === safe) ?? null;
   }
 
-  removeAttachment(taskId: string, filename: string): boolean {
+  removeAttachment(taskId: string, filename: string, author?: string): boolean {
+    const by = author ?? this.ctx.author;
     const dir = this.tasksDir;
     if (!dir) return false;
     if (!this._graph.hasNode(taskId) || isProxy(this._graph, taskId)) return false;
@@ -1457,7 +1468,7 @@ export class TaskGraphManager {
     if (!deleted) return false;
 
     this.mirrorTracker?.recordWrite(path.join(entityDir, 'attachments', safe));
-    mirrorAttachmentEvent(entityDir, 'remove', safe);
+    mirrorAttachmentEvent(entityDir, 'remove', safe, by);
     this.mirrorTracker?.recordWrite(path.join(entityDir, 'events.jsonl'));
 
     const attachments = scanAttachments(entityDir);
@@ -1661,9 +1672,11 @@ export class TaskGraphManager {
     status: EpicStatus = 'open',
     priority: TaskPriority = 'medium',
     tags: string[] = [],
+    author?: string,
   ): Promise<string> {
+    const by = author ?? this.ctx.author;
     const embedding = await this.embedFns.document(`${title}\n${description}`);
-    const epicId = createEpic(this._graph, title, description, status, priority, tags, embedding, this.ctx.author);
+    const epicId = createEpic(this._graph, title, description, status, priority, tags, embedding, by);
     this._bm25Index.addDocument(epicId, this._graph.getNodeAttributes(epicId));
     this.ctx.markDirty();
     this.ctx.emit('epic:created', { projectId: this.ctx.projectId, epicId, title, status });
@@ -1680,8 +1693,10 @@ export class TaskGraphManager {
     patch: Partial<Pick<TaskNodeAttributes, 'title' | 'description' | 'priority' | 'tags'>>,
     newStatus?: EpicStatus,
     expectedVersion?: number,
+    author?: string,
   ): Promise<boolean> {
-    const ok = updateEpic(this._graph, epicId, patch, newStatus, expectedVersion, this.ctx.author);
+    const by = author ?? this.ctx.author;
+    const ok = updateEpic(this._graph, epicId, patch, newStatus, expectedVersion, by);
     if (!ok) return false;
     if (patch.title !== undefined || patch.description !== undefined || patch.tags !== undefined) {
       const attrs = this._graph.getNodeAttributes(epicId);
@@ -1695,13 +1710,13 @@ export class TaskGraphManager {
     if (dir) {
       const attrs = this._graph.getNodeAttributes(epicId);
       const relations = listTaskRelations(this._graph, epicId, this.ext);
-      mirrorTaskUpdate(dir, epicId, { ...patch, ...(newStatus ? { status: newStatus as unknown as TaskStatus } : {}), by: this.ctx.author }, attrs, relations);
+      mirrorTaskUpdate(dir, epicId, { ...patch, ...(newStatus ? { status: newStatus as unknown as TaskStatus } : {}), by }, attrs, relations);
       this.recordEpicMirrorWrites(epicId);
     }
     return true;
   }
 
-  deleteEpic(epicId: string): boolean {
+  deleteEpic(epicId: string, _author?: string): boolean {
     const dir = this.epicsDir;
     if (dir) deleteMirrorDir(dir, epicId);
     this._bm25Index.removeDocument(epicId);
@@ -1729,7 +1744,8 @@ export class TaskGraphManager {
     return results.filter(r => this._graph.hasNode(r.id) && this._graph.getNodeAttribute(r.id, 'nodeType') === 'epic');
   }
 
-  linkTaskToEpic(taskId: string, epicId: string): boolean {
+  linkTaskToEpic(taskId: string, epicId: string, author?: string): boolean {
+    const by = author ?? this.ctx.author;
     const ok = linkTaskToEpic(this._graph, taskId, epicId);
     if (!ok) return false;
     this.ctx.markDirty();
@@ -1739,13 +1755,14 @@ export class TaskGraphManager {
     if (dir && this._graph.hasNode(taskId) && !isProxy(this._graph, taskId)) {
       const attrs = this._graph.getNodeAttributes(taskId);
       const relations = listTaskRelations(this._graph, taskId, this.ext);
-      mirrorTaskRelation(dir, taskId, 'add', 'belongs_to', epicId, attrs, relations);
+      mirrorTaskRelation(dir, taskId, 'add', 'belongs_to', epicId, attrs, relations, undefined, by);
       this.recordMirrorWrites(taskId);
     }
     return true;
   }
 
-  unlinkTaskFromEpic(taskId: string, epicId: string): boolean {
+  unlinkTaskFromEpic(taskId: string, epicId: string, author?: string): boolean {
+    const by = author ?? this.ctx.author;
     const ok = unlinkTaskFromEpic(this._graph, taskId, epicId);
     if (!ok) return false;
     this.ctx.markDirty();
@@ -1755,7 +1772,7 @@ export class TaskGraphManager {
     if (dir && this._graph.hasNode(taskId) && !isProxy(this._graph, taskId)) {
       const attrs = this._graph.getNodeAttributes(taskId);
       const relations = listTaskRelations(this._graph, taskId, this.ext);
-      mirrorTaskRelation(dir, taskId, 'remove', 'belongs_to', epicId, attrs, relations);
+      mirrorTaskRelation(dir, taskId, 'remove', 'belongs_to', epicId, attrs, relations, undefined, by);
       this.recordMirrorWrites(taskId);
     }
     return true;

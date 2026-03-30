@@ -404,6 +404,12 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
       );
       if (!hasAnyAccess) return res.status(403).json({ error: 'Access denied' });
     }
+    // When auth is configured, team = users from config (no .team/ files needed)
+    if (hasUsers) {
+      const members = Object.entries(users).map(([id, u]) => ({ id, name: u.name, email: u.email }));
+      return res.json({ results: members });
+    }
+    // No auth — read from .team/ directory
     const p = req.project!;
     const ws = p.workspaceId ? projectManager.getWorkspace(p.workspaceId) : undefined;
     const baseDir = ws ? ws.config.mirrorDir : p.config.projectDir;
@@ -460,10 +466,10 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
 
   // Mount domain routers (gated by manager existence + read access)
   // Mutation endpoints (POST/PUT/DELETE) inside routers check req.accessLevel for write access
-  app.use('/api/projects/:projectId/knowledge', ...graphMiddleware('knowledgeManager', 'knowledge'), createKnowledgeRouter());
-  app.use('/api/projects/:projectId/tasks', ...graphMiddleware('taskManager', 'tasks'), createTasksRouter());
-  app.use('/api/projects/:projectId/epics', ...graphMiddleware('taskManager', 'tasks'), createEpicsRouter());
-  app.use('/api/projects/:projectId/skills', ...graphMiddleware('skillManager', 'skills'), createSkillsRouter());
+  app.use('/api/projects/:projectId/knowledge', ...graphMiddleware('knowledgeManager', 'knowledge'), createKnowledgeRouter(users));
+  app.use('/api/projects/:projectId/tasks', ...graphMiddleware('taskManager', 'tasks'), createTasksRouter(users));
+  app.use('/api/projects/:projectId/epics', ...graphMiddleware('taskManager', 'tasks'), createEpicsRouter(users));
+  app.use('/api/projects/:projectId/skills', ...graphMiddleware('skillManager', 'skills'), createSkillsRouter(users));
   app.use('/api/projects/:projectId/docs', ...graphMiddleware('docManager', 'docs'), createDocsRouter());
   app.use('/api/projects/:projectId/code', ...graphMiddleware('codeManager', 'code'), createCodeRouter());
   app.use('/api/projects/:projectId/files', ...graphMiddleware('fileIndexManager', 'files'), createFilesRouter());

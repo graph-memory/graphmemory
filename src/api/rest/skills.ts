@@ -7,10 +7,11 @@ import { validateBody, validateQuery, createSkillSchema, updateSkillSchema, crea
 import { requireWriteAccess } from '@/api/rest/index';
 import { VersionConflictError } from '@/graphs/manager-types';
 import { MAX_UPLOAD_SIZE } from '@/lib/defaults';
+import { resolveRequestAuthor, type UserConfig } from '@/lib/multi-config';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_UPLOAD_SIZE } });
 
-export function createSkillsRouter(): Router {
+export function createSkillsRouter(users?: Record<string, UserConfig>): Router {
   const router = Router({ mergeParams: true });
 
   function getProject(req: any) {
@@ -87,8 +88,9 @@ export function createSkillsRouter(): Router {
     try {
       const p = getProject(req);
       const { title, description, steps, triggers, inputHints, filePatterns, tags, source, confidence } = req.body;
+      const author = resolveRequestAuthor(req.userId, users);
       const created = await p.mutationQueue.enqueue(async () => {
-        const skillId = await p.skillManager.createSkill(title, description, steps, triggers, inputHints, filePatterns, tags, source, confidence);
+        const skillId = await p.skillManager.createSkill(title, description, steps, triggers, inputHints, filePatterns, tags, source, confidence, author);
         return p.skillManager.getSkill(skillId);
       });
       res.status(201).json(created);
@@ -101,8 +103,9 @@ export function createSkillsRouter(): Router {
       const p = getProject(req);
       const skillId = req.params.skillId as string;
       const { version, ...patch } = req.body;
+      const author = resolveRequestAuthor(req.userId, users);
       const result = await p.mutationQueue.enqueue(async () => {
-        const ok = await p.skillManager.updateSkill(skillId, patch, version);
+        const ok = await p.skillManager.updateSkill(skillId, patch, version, author);
         if (!ok) return null;
         return p.skillManager.getSkill(skillId);
       });
@@ -121,8 +124,9 @@ export function createSkillsRouter(): Router {
     try {
       const p = getProject(req);
       const skillId = req.params.skillId as string;
+      const author = resolveRequestAuthor(req.userId, users);
       const result = await p.mutationQueue.enqueue(async () => {
-        const ok = p.skillManager.bumpUsage(skillId);
+        const ok = p.skillManager.bumpUsage(skillId, author);
         if (!ok) return null;
         return p.skillManager.getSkill(skillId);
       });
@@ -136,8 +140,9 @@ export function createSkillsRouter(): Router {
     try {
       const p = getProject(req);
       const skillId = req.params.skillId as string;
+      const author = resolveRequestAuthor(req.userId, users);
       const ok = await p.mutationQueue.enqueue(async () => {
-        return p.skillManager.deleteSkill(skillId);
+        return p.skillManager.deleteSkill(skillId, author);
       });
       if (!ok) return res.status(404).json({ error: 'Skill not found' });
       res.status(204).end();
@@ -149,11 +154,12 @@ export function createSkillsRouter(): Router {
     try {
       const p = getProject(req);
       const { fromId, toId, kind, targetGraph, projectId } = req.body;
+      const author = resolveRequestAuthor(req.userId, users);
       const ok = await p.mutationQueue.enqueue(async () => {
         if (targetGraph) {
-          return p.skillManager.createCrossLink(fromId, toId, targetGraph, kind, projectId);
+          return p.skillManager.createCrossLink(fromId, toId, targetGraph, kind, projectId, author);
         } else {
-          return p.skillManager.linkSkills(fromId, toId, kind);
+          return p.skillManager.linkSkills(fromId, toId, kind, author);
         }
       });
       if (!ok) return res.status(400).json({ error: 'Failed to create link' });
@@ -166,11 +172,12 @@ export function createSkillsRouter(): Router {
     try {
       const p = getProject(req);
       const { fromId, toId, targetGraph, projectId } = req.body;
+      const author = resolveRequestAuthor(req.userId, users);
       const ok = await p.mutationQueue.enqueue(async () => {
         if (targetGraph) {
-          return p.skillManager.deleteCrossLink(fromId, toId, targetGraph, projectId);
+          return p.skillManager.deleteCrossLink(fromId, toId, targetGraph, projectId, author);
         } else {
-          return p.skillManager.deleteSkillLink(fromId, toId);
+          return p.skillManager.deleteSkillLink(fromId, toId, author);
         }
       });
       if (!ok) return res.status(404).json({ error: 'Link not found' });
@@ -197,9 +204,10 @@ export function createSkillsRouter(): Router {
       const file = req.file;
       if (!file) return res.status(400).json({ error: 'No file uploaded' });
       const filename = attachmentFilenameSchema.parse(file.originalname);
+      const author = resolveRequestAuthor(req.userId, users);
 
       const meta = await p.mutationQueue.enqueue(async () => {
-        return p.skillManager.addAttachment(skillId, filename, file.buffer);
+        return p.skillManager.addAttachment(skillId, filename, file.buffer, author);
       });
       if (!meta) return res.status(404).json({ error: 'Skill not found' });
       res.status(201).json(meta);
@@ -238,8 +246,9 @@ export function createSkillsRouter(): Router {
       const p = getProject(req);
       const skillId = req.params.skillId as string;
       const filename = attachmentFilenameSchema.parse(req.params.filename);
+      const author = resolveRequestAuthor(req.userId, users);
       const ok = await p.mutationQueue.enqueue(async () => {
-        return p.skillManager.removeAttachment(skillId, filename);
+        return p.skillManager.removeAttachment(skillId, filename, author);
       });
       if (!ok) return res.status(404).json({ error: 'Attachment not found' });
       res.status(204).end();

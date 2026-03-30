@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { TaskGraphManager } from '@/graphs/task';
 
-export function register(server: McpServer, mgr: TaskGraphManager): void {
+export function register(server: McpServer, mgr: TaskGraphManager, resolveAuthor: () => string): void {
   server.registerTool(
     'tasks_reorder',
     {
@@ -18,7 +18,8 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
       },
     },
     async ({ taskId, order, status }) => {
-      const ok = mgr.reorderTask(taskId, order, status);
+      const author = resolveAuthor();
+      const ok = mgr.reorderTask(taskId, order, status, author);
       if (!ok) {
         return { content: [{ type: 'text', text: 'Task not found' }], isError: true };
       }

@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { TaskGraphManager } from '@/graphs/task';
 import { MAX_TARGET_NODE_ID_LEN, MAX_LINK_KIND_LEN, MAX_PROJECT_ID_LEN } from '@/lib/defaults';
 
-export function register(server: McpServer, mgr: TaskGraphManager): void {
+export function register(server: McpServer, mgr: TaskGraphManager, resolveAuthor: () => string): void {
   server.registerTool(
     'tasks_create_link',
     {
@@ -21,15 +21,16 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
       },
     },
     async ({ taskId, targetId, targetGraph, kind, projectId }) => {
+      const author = resolveAuthor();
       if (targetGraph) {
-        const created = mgr.createCrossLink(taskId, targetId, targetGraph, kind, projectId);
+        const created = mgr.createCrossLink(taskId, targetId, targetGraph, kind, projectId, author);
         if (!created) {
           return { content: [{ type: 'text', text: 'Could not create cross-graph link — task not found, target not found, or link already exists.' }], isError: true };
         }
         return { content: [{ type: 'text', text: JSON.stringify({ taskId, targetId, targetGraph, kind, created: true }, null, 2) }] };
       }
       // Same-graph task-to-task link
-      const created = mgr.linkTasks(taskId, targetId, kind);
+      const created = mgr.linkTasks(taskId, targetId, kind, author);
       if (!created) {
         return { content: [{ type: 'text', text: 'Could not create link — one or both tasks not found, or link already exists.' }], isError: true };
       }

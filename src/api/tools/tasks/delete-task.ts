@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { TaskGraphManager } from '@/graphs/task';
 
-export function register(server: McpServer, mgr: TaskGraphManager): void {
+export function register(server: McpServer, mgr: TaskGraphManager, resolveAuthor: () => string): void {
   server.registerTool(
     'tasks_delete',
     {
@@ -15,7 +15,8 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
       },
     },
     async ({ taskId }) => {
-      const deleted = mgr.deleteTask(taskId);
+      const author = resolveAuthor();
+      const deleted = mgr.deleteTask(taskId, author);
       if (!deleted) {
         return { content: [{ type: 'text', text: 'Task not found' }], isError: true };
       }

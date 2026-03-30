@@ -48,8 +48,8 @@ const EPIC_FILTER_DEFS = [
   { key: 'q', defaultValue: '' },
   { key: 'status', defaultValue: '' },
   { key: 'priority', defaultValue: '' },
-  { key: 'sort', defaultValue: '' },
-  { key: 'dir', defaultValue: '' },
+  { key: 'sort', defaultValue: '', persistent: true },
+  { key: 'dir', defaultValue: '', persistent: true },
 ];
 
 export default function EpicsPage() {

@@ -5,6 +5,8 @@ export interface FilterDef {
   key: string;
   defaultValue: string;
   urlKey?: string;
+  /** If true, clearAll() will not reset this key */
+  persistent?: boolean;
 }
 
 export interface UseFiltersResult<K extends string = string> {
@@ -83,14 +85,14 @@ export function useFilters<K extends string = string>(defs: FilterDef[]): UseFil
   const clearAll = useCallback(() => {
     const cleared: Record<string, string> = {};
     for (const def of defsRef.current) {
-      cleared[def.key] = def.defaultValue;
+      if (!def.persistent) cleared[def.key] = def.defaultValue;
     }
     updateUrl(cleared);
   }, [updateUrl]);
 
   const activeFilterKeys = useMemo(() => {
     return defs
-      .filter(def => filters[def.key] !== def.defaultValue)
+      .filter(def => !def.persistent && filters[def.key] !== def.defaultValue)
       .map(def => def.key) as K[];
   }, [filters, defs]);
 

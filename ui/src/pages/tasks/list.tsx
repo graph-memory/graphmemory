@@ -312,9 +312,9 @@ const TASK_FILTER_DEFS = [
   { key: 'tag', defaultValue: '' },
   { key: 'assignee', defaultValue: '' },
   { key: 'epic', defaultValue: '' },
-  { key: 'sort', defaultValue: 'order' },
-  { key: 'dir', defaultValue: 'asc' },
-  { key: 'groupBy', defaultValue: 'status' },
+  { key: 'sort', defaultValue: 'order', persistent: true },
+  { key: 'dir', defaultValue: 'asc', persistent: true },
+  { key: 'groupBy', defaultValue: 'status', persistent: true },
 ];
 
 export default function TaskListPage() {

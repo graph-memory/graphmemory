@@ -580,53 +580,9 @@ export default function TaskListPage() {
     <Box>
       <PageTopBar
         breadcrumbs={[{ label: 'Tasks' }, { label: 'List' }]}
-        actions={
-          <>
-            <FormControl size="small" sx={{ minWidth: 110 }}>
-              <Select
-                name="group-by"
-                value={groupBy}
-                onChange={e => setFilter('groupBy', e.target.value)}
-                variant="outlined"
-                sx={{ fontSize: '0.8rem', height: 32, '& .MuiSelect-select': { py: '4px' } }}
-                renderValue={v => `Group: ${GROUP_BY_OPTIONS.find(o => o.value === v)?.label ?? v}`}
-              >
-                {GROUP_BY_OPTIONS.map(o => (
-                  <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            {groupBy === 'status' && (
-              <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
-                {COLUMNS.map(({ status, label, color }) => {
-                  const isOn = visibleStatuses.has(status);
-                  return (
-                    <Chip
-                      key={status}
-                      label={label}
-                      size="small"
-                      onClick={() => toggleStatusVisibility(status)}
-                      disabled={isOn && visibleStatuses.size === 1}
-                      sx={{
-                        height: 26, fontWeight: 600, fontSize: '0.7rem', cursor: 'pointer',
-                        bgcolor: isOn ? alpha(color, 0.22) : 'transparent',
-                        color: isOn ? color : palette.custom.textMuted,
-                        border: isOn ? `1.5px solid ${alpha(color, 0.6)}` : '1.5px solid transparent',
-                        textDecoration: isOn ? 'none' : 'line-through',
-                        opacity: isOn ? 1 : 0.45,
-                        '&:hover': { bgcolor: alpha(color, 0.1), opacity: 1 },
-                        '& .MuiChip-label': { px: 1 },
-                      }}
-                    />
-                  );
-                })}
-              </Box>
-            )}
-            {canWrite && (
-              <Button variant="contained" startIcon={<AddIcon />} onClick={() => setQuickCreateOpen(true)}>New Task</Button>
-            )}
-          </>
-        }
+        actions={canWrite ? (
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setQuickCreateOpen(true)}>New Task</Button>
+        ) : undefined}
       />
 
       {/* Filter bar */}
@@ -718,7 +674,48 @@ export default function TaskListPage() {
         </Paper>
       )}
 
-      <Box sx={{ mb: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+        <FormControl size="small" sx={{ minWidth: 110 }}>
+          <Select
+            name="group-by"
+            value={groupBy}
+            onChange={e => setFilter('groupBy', e.target.value)}
+            variant="outlined"
+            sx={{ fontSize: '0.8rem', height: 32, '& .MuiSelect-select': { py: '4px' } }}
+            renderValue={v => `Group: ${GROUP_BY_OPTIONS.find(o => o.value === v)?.label ?? v}`}
+          >
+            {GROUP_BY_OPTIONS.map(o => (
+              <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        {groupBy === 'status' && (
+          <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+            {COLUMNS.map(({ status, label, color }) => {
+              const isOn = visibleStatuses.has(status);
+              return (
+                <Chip
+                  key={status}
+                  label={label}
+                  size="small"
+                  onClick={() => toggleStatusVisibility(status)}
+                  disabled={isOn && visibleStatuses.size === 1}
+                  sx={{
+                    height: 26, fontWeight: 600, fontSize: '0.7rem', cursor: 'pointer',
+                    bgcolor: isOn ? alpha(color, 0.22) : 'transparent',
+                    color: isOn ? color : palette.custom.textMuted,
+                    border: isOn ? `1.5px solid ${alpha(color, 0.6)}` : '1.5px solid transparent',
+                    textDecoration: isOn ? 'none' : 'line-through',
+                    opacity: isOn ? 1 : 0.45,
+                    '&:hover': { bgcolor: alpha(color, 0.1), opacity: 1 },
+                    '& .MuiChip-label': { px: 1 },
+                  }}
+                />
+              );
+            })}
+          </Box>
+        )}
+        <Box sx={{ flex: 1 }} />
         <PaginationBar page={1} totalPages={1} onPageChange={() => {}} onRefresh={refresh} />
       </Box>
 

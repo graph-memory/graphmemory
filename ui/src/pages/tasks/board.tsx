@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Button, Paper, Stack, Chip,
@@ -284,6 +284,7 @@ export default function TaskBoardPage() {
   // DnD state
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overColumn, setOverColumn] = useState<TaskStatus | null>(null);
+  const pendingOps = useRef(0);
 
   // Column visibility
   const { visible, toggle: toggleColumn, visibleColumns } = useColumnVisibility();
@@ -340,7 +341,7 @@ export default function TaskBoardPage() {
   }, [projectId, filters.epic]);
 
   useWebSocket(projectId ?? null, useCallback((event) => {
-    if (event.type.startsWith('task:')) refresh();
+    if (event.type.startsWith('task:') && pendingOps.current === 0) refresh();
   }, [refresh]));
 
   // --- DnD handlers ---
@@ -407,10 +408,13 @@ export default function TaskBoardPage() {
       t.id === activeTask.id ? { ...t, status: targetStatus, order: newOrder } : t
     ));
 
+    pendingOps.current++;
     try {
       await reorderTask(projectId, activeTask.id, newOrder, targetStatus !== activeTask.status ? targetStatus : undefined);
     } catch {
       refresh();
+    } finally {
+      pendingOps.current--;
     }
   };
 

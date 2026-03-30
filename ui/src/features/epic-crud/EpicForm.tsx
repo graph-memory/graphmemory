@@ -72,7 +72,7 @@ export function EpicForm({ epic, onSubmit, onCancel, submitLabel = 'Save' }: Epi
               />
               <FormField fullWidth>
                 <FieldLabel>Description</FieldLabel>
-                <MarkdownEditor value={description} onChange={setDescription} height={250} />
+                <MarkdownEditor value={description} onChange={setDescription} height={400} />
               </FormField>
             </Box>
           </Section>

@@ -138,7 +138,7 @@ export function TaskForm({ task, defaults, onSubmit, onCancel, submitLabel = 'Sa
               />
               <Box>
                 <FieldLabel>Description</FieldLabel>
-                <MarkdownEditor value={description} onChange={setDescription} height={250} />
+                <MarkdownEditor value={description} onChange={setDescription} height={400} />
               </Box>
             </Box>
           </Section>

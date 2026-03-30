@@ -13,7 +13,7 @@ export function FieldLabel({ children, required, sx }: FieldLabelProps) {
       variant="caption"
       sx={{
         display: 'block',
-        mb: 0.75,
+        mb: 0.25,
         fontWeight: 600,
         textTransform: 'uppercase',
         letterSpacing: '0.05em',

@@ -7,10 +7,10 @@ const MDEditor = lazy(() => import('@uiw/react-md-editor'));
 interface MarkdownEditorProps {
   value: string;
   onChange: (value: string) => void;
-  height?: number;
+  height?: number | string;
 }
 
-export function MarkdownEditor({ value, onChange, height = 300 }: MarkdownEditorProps) {
+export function MarkdownEditor({ value, onChange, height = 400 }: MarkdownEditorProps) {
   const { palette } = useTheme();
   const colorMode = palette.mode;
 

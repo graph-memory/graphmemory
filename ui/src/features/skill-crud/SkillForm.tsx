@@ -104,7 +104,7 @@ export function SkillForm({ skill, onSubmit, onCancel, submitLabel = 'Save' }: S
             />
             <Box>
               <FieldLabel>Description</FieldLabel>
-              <MarkdownEditor value={description} onChange={setDescription} height={200} />
+              <MarkdownEditor value={description} onChange={setDescription} height={400} />
             </Box>
 
             <Section title="Steps">

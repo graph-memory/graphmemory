@@ -18,7 +18,7 @@ export function Section({ title, action, children, sx }: SectionProps) {
           alignItems: 'center',
           justifyContent: 'space-between',
           px: 2,
-          py: 1.5,
+          py: 1,
           bgcolor: palette.custom.surfaceMuted,
           flexShrink: 0,
         }}

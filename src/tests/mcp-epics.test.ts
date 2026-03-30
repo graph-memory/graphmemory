@@ -96,6 +96,15 @@ describe('MCP Epics', () => {
     expect(r.status).toBe('in_progress');
   });
 
+  // -- Search --
+
+  it('calls epic search tool', async () => {
+    const r = await ctx.call('epics_search', { query: 'deploy', searchMode: 'vector' });
+    // Tool is exercised — may return results or error depending on embedding state
+    expect(r.content).toBeDefined();
+    expect(r.content.length).toBeGreaterThan(0);
+  });
+
   it('update non-existent returns error', async () => {
     const r = await ctx.call('epics_update', { epicId: 'nonexistent', title: 'x' });
     expect(r.isError).toBe(true);

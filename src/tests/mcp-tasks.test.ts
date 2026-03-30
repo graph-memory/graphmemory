@@ -941,3 +941,79 @@ describe('Epic CRUD tools', () => {
     expect(tasks.every((t: any) => t.id !== ep.epicId)).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Bulk operations
+// ---------------------------------------------------------------------------
+
+describe('MCP bulk task operations', () => {
+  let call: McpTestContext['call'];
+  let close: McpTestContext['close'];
+  const ids: string[] = [];
+
+  beforeAll(async () => {
+    const embedFn = createFakeEmbed([['alpha', 1], ['beta', 2], ['gamma', 3]]);
+    const ctx = await setupMcpClient({ taskGraph: createTaskGraph(), embedFn });
+    call = ctx.call;
+    close = ctx.close;
+
+    // Create 3 tasks
+    for (const title of ['Alpha task', 'Beta task', 'Gamma task']) {
+      const r = json<CreateResult>(await call('tasks_create', { title, description: 'desc', priority: 'medium' }));
+      ids.push(r.taskId);
+    }
+  });
+
+  afterAll(async () => { await close(); });
+
+  it('bulk moves tasks to a new status', async () => {
+    const r = json<{ moved: string[] }>(await call('tasks_bulk_move', { taskIds: ids, status: 'in_progress' }));
+    expect(r.moved).toHaveLength(3);
+    expect(r.moved).toEqual(expect.arrayContaining(ids));
+  });
+
+  it('verifies tasks were moved', async () => {
+    for (const id of ids) {
+      const t = json<any>(await call('tasks_get', { taskId: id }));
+      expect(t.status).toBe('in_progress');
+    }
+  });
+
+  it('bulk moves with non-existent IDs — skips missing', async () => {
+    const r = json<{ moved: string[] }>(await call('tasks_bulk_move', {
+      taskIds: [ids[0], 'nonexistent-task'],
+      status: 'review',
+    }));
+    expect(r.moved).toHaveLength(1);
+    expect(r.moved[0]).toBe(ids[0]);
+  });
+
+  it('bulk updates priority', async () => {
+    const r = json<{ updated: string[] }>(await call('tasks_bulk_priority', { taskIds: ids, priority: 'high' }));
+    expect(r.updated).toHaveLength(3);
+  });
+
+  it('verifies priority was updated', async () => {
+    for (const id of ids) {
+      const t = json<any>(await call('tasks_get', { taskId: id }));
+      expect(t.priority).toBe('high');
+    }
+  });
+
+  it('bulk deletes tasks', async () => {
+    const r = json<{ deleted: string[] }>(await call('tasks_bulk_delete', { taskIds: [ids[1], ids[2]] }));
+    expect(r.deleted).toHaveLength(2);
+  });
+
+  it('verifies deletion', async () => {
+    const list = jsonList<any>(await call('tasks_list', {}));
+    expect(list.find((t: any) => t.id === ids[1])).toBeUndefined();
+    expect(list.find((t: any) => t.id === ids[2])).toBeUndefined();
+    expect(list.find((t: any) => t.id === ids[0])).toBeDefined();
+  });
+
+  it('bulk delete with non-existent IDs — skips missing', async () => {
+    const r = json<{ deleted: string[] }>(await call('tasks_bulk_delete', { taskIds: ['nonexistent'] }));
+    expect(r.deleted).toHaveLength(0);
+  });
+});

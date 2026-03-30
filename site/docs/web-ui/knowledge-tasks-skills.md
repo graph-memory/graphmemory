@@ -92,6 +92,9 @@ The filter bar lets you narrow the board by:
 - **Priority** -- show only tasks of a specific priority level
 - **Tags** -- filter by one or more tags
 - **Assignee** -- show only tasks assigned to a specific person
+- **Epic** -- show only tasks linked to a specific epic
+
+Active filters appear as removable chips below the filter controls. Click the **×** on a chip to remove that filter, or **Clear all** to reset all filters at once.
 
 ### Task ordering
 
@@ -99,7 +102,20 @@ Within each status column, tasks are sorted by priority and due date by default.
 
 ### List view
 
-In addition to the kanban board, a **list view** presents all tasks in a flat, sortable table. Toggle between board and list views using the view switcher at the top of the Tasks page.
+In addition to the kanban board, a **list view** presents all tasks in a sortable table with collapsible groups.
+
+#### Grouping
+
+The list view supports grouping tasks by different fields via the **Group by** dropdown:
+
+- **Status** (default) — groups by task status (Backlog, To Do, In Progress, etc.)
+- **Priority** — groups by priority level (Critical, High, Medium, Low)
+- **Assignee** — groups by team member, with an "Unassigned" group for tasks without an assignee
+- **Tag** — groups by tag (tasks with multiple tags appear in multiple groups)
+- **Epic** — groups by parent epic
+- **None** — flat table without group headers
+
+When grouping by Status, Priority, or Assignee, you can drag tasks between groups to change the field value. Grouping preference is saved in local storage.
 
 ### Task detail view
 

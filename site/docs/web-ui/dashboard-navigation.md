@@ -71,6 +71,16 @@ A toggle in the header bar switches between light and dark mode. Your preference
 
 When authentication is enabled, a logout button appears in the header bar. Clicking it clears your JWT cookies and returns you to the login page.
 
+### Connection status
+
+A small colored dot in the header shows the WebSocket connection state:
+
+- **Green** — connected, real-time updates active
+- **Yellow (pulsing)** — connecting or reconnecting
+- **Red** — disconnected
+
+Hover over the dot for a tooltip with the current status.
+
 ### Connect button
 
 The header bar includes a **Connect** button that opens a dialog showing how to configure your MCP client (Claude Desktop, Cursor, Windsurf, or others) to connect to this Graph Memory server.

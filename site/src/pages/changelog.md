@@ -125,7 +125,7 @@ description: Graph Memory release history and version changes.
 
 - **OAuth 2.0 `client_credentials`** flow for MCP chat clients (Claude.ai). Discovery at `GET /.well-known/oauth-authorization-server`, token exchange at `POST /api/oauth/token`
 - **Array syntax for `include` patterns** — `include` field now accepts YAML array of globs
-- **`--debug` CLI flag** — logs MCP tool calls and responses to stderr
+- **`--log-level` CLI flag** — configurable log level (fatal/error/warn/info/debug/trace)
 
 ### Changes
 

@@ -35,6 +35,13 @@ graphmemory serve --reindex
 | `--reindex` | `false` | Discard saved graphs, re-index everything |
 | `--log-level` | `info` | Log level: fatal/error/warn/info/debug/trace |
 
+### Environment variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LOG_LEVEL` | `info` | Log level threshold (also settable via `--log-level`) |
+| `LOG_JSON` | `0` | Set to `1` for JSON log output (recommended for Docker/production) |
+
 ### What happens on startup
 
 1. Reads config, creates project manager

@@ -72,7 +72,7 @@ const config: Config = {
         operatingSystem: 'Cross-platform',
         url: 'https://graphmemory.dev',
         downloadUrl: 'https://www.npmjs.com/package/@graphmemory/server',
-        softwareVersion: '1.3.1',
+        softwareVersion: '1.8.2',
         author: {
           '@type': 'Organization',
           name: 'Graph Memory',

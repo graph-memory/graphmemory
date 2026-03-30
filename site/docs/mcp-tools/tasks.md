@@ -2,13 +2,13 @@
 title: "Task Tools"
 sidebar_label: "Tasks"
 sidebar_position: 9
-description: "14 MCP tools for managing tasks — create, update, move, reorder, link, search, and attach files to tasks with Kanban workflow support."
+description: "17 MCP tools for managing tasks — create, update, move, reorder, bulk operations, link, search, and attach files to tasks with Kanban workflow support."
 keywords: [task tools, tasks_create, tasks_move, tasks_link, kanban, task management, cross-graph links]
 ---
 
 # Task Tools
 
-These 14 tools manage the **task graph** — a Kanban-style task system with priorities, assignees, due dates, and cross-graph context. Tasks are mirrored to `.tasks/` markdown files for IDE access.
+These 17 tools manage the **task graph** — a Kanban-style task system with priorities, assignees, due dates, and cross-graph context. Tasks are mirrored to `.tasks/` markdown files for IDE access.
 
 :::info
 These tools are **always available**. Mutation tools (marked below) are hidden when the task graph is set to `readonly`.
@@ -193,6 +193,62 @@ Sets the display order of tasks within a status column. Pass an ordered array of
 ### When to use
 
 Use `tasks_reorder` when the priority-based default sort is not sufficient and you need manual control over task ordering within a column, such as arranging a sprint backlog or ordering items for a review queue.
+
+---
+
+## tasks_bulk_move {#tasks_bulk_move}
+
+> **Mutation** — hidden in readonly mode
+
+Move multiple tasks to a new status in one operation.
+
+### Parameters
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `taskIds` | Yes | Array of task IDs to move (1–100) |
+| `status` | Yes | Target status for all tasks |
+
+### Returns
+
+`{ moved }` — array of task IDs that were successfully moved. Tasks that don't exist are silently skipped.
+
+---
+
+## tasks_bulk_priority {#tasks_bulk_priority}
+
+> **Mutation** — hidden in readonly mode
+
+Update priority for multiple tasks in one operation.
+
+### Parameters
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `taskIds` | Yes | Array of task IDs to update (1–100) |
+| `priority` | Yes | New priority for all tasks |
+
+### Returns
+
+`{ updated }` — array of task IDs that were successfully updated.
+
+---
+
+## tasks_bulk_delete {#tasks_bulk_delete}
+
+> **Mutation** — hidden in readonly mode
+
+Delete multiple tasks in one operation. This action is irreversible.
+
+### Parameters
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `taskIds` | Yes | Array of task IDs to delete (1–100) |
+
+### Returns
+
+`{ deleted }` — array of task IDs that were successfully deleted.
 
 ---
 

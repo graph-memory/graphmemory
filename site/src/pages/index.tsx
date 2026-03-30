@@ -25,7 +25,7 @@ const toolGroups = [
   {group: 'Code', count: 5, color: '#f57c00', href: '/docs/mcp-tools/code'},
   {group: 'File Index', count: 3, color: '#388e3c', href: '/docs/mcp-tools/file-index'},
   {group: 'Knowledge', count: 12, color: '#f9a825', href: '/docs/mcp-tools/knowledge'},
-  {group: 'Tasks', count: 14, color: '#1976d2', href: '/docs/mcp-tools/tasks'},
+  {group: 'Tasks', count: 17, color: '#1976d2', href: '/docs/mcp-tools/tasks'},
   {group: 'Epics', count: 8, color: '#0288d1', href: '/docs/mcp-tools/epics'},
   {group: 'Skills', count: 14, color: '#9c27b0', href: '/docs/mcp-tools/skills'},
 ];

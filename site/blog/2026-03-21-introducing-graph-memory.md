@@ -3,7 +3,7 @@ slug: introducing-graph-memory
 title: "Introducing Graph Memory: Semantic Code Memory for AI Assistants"
 authors: [graphmemory]
 tags: [release, mcp, announcement]
-description: "Graph Memory v1.3 — an MCP server that turns your project into a queryable semantic knowledge base with 67 AI tools."
+description: "Graph Memory v1.3 — an MCP server that turns your project into a queryable semantic knowledge base with 70 AI tools."
 ---
 
 We're excited to announce **Graph Memory** — an MCP server that turns any project directory into a queryable semantic knowledge base for AI assistants.
@@ -27,7 +27,7 @@ Graph Memory builds **six interconnected graphs** from your project:
 - **Skill Graph** — reusable recipes and procedures with triggers and usage tracking
 - **File Index** — every project file with metadata and directory hierarchy
 
-These graphs are interconnected. A note can link to a code symbol. A task can reference a doc section. A skill can point to the files it modifies. Your AI assistant navigates these connections through **67 MCP tools**.
+These graphs are interconnected. A note can link to a code symbol. A task can reference a doc section. A skill can point to the files it modifies. Your AI assistant navigates these connections through **70 MCP tools**.
 
 ## Getting started
 

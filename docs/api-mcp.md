@@ -2,7 +2,7 @@
 
 **Files**: `src/api/index.ts`, `src/api/tools/`
 
-67 MCP tools exposed via HTTP transport.
+70 MCP tools exposed via HTTP transport.
 
 ## Authentication
 
@@ -33,7 +33,7 @@ The set of tools registered for an MCP session depends on:
 | Code | 5 | code graph enabled | `tools/code/` |
 | File index | 3 | file index enabled | `tools/file-index/` |
 | Knowledge | 12 | knowledge graph enabled | `tools/knowledge/` |
-| Tasks | 14 | task graph enabled | `tools/tasks/` |
+| Tasks | 17 | task graph enabled | `tools/tasks/` |
 | Epics | 8 | task graph enabled | `tools/epics/` |
 | Skills | 14 | skill graph enabled | `tools/skills/` |
 
@@ -123,6 +123,9 @@ Requires both DocGraph and CodeGraph to be enabled. Bridges code definitions wit
 | `tasks_add_attachment` | `taskId`, `filePath` (absolute path on disk) | `{ filename, mimeType, size, addedAt }` |
 | `tasks_remove_attachment` | `taskId`, `filename` | `{ deleted: filename }` |
 | `tasks_reorder` | `taskId`, `beforeId?`, `afterId?` | `{ taskId, order }` |
+| `tasks_bulk_move` | `taskIds` (array, 1–100), `status` | `{ moved: string[] }` |
+| `tasks_bulk_priority` | `taskIds` (array, 1–100), `priority` | `{ updated: string[] }` |
+| `tasks_bulk_delete` | `taskIds` (array, 1–100) | `{ deleted: string[] }` |
 
 ## Epic tools
 

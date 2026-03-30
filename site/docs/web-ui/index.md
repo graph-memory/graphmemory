@@ -34,7 +34,7 @@ The UI is organized into dedicated pages, each accessible from the sidebar:
 | **Files** | Navigate the file index with metadata and directory hierarchy |
 | **Search** | Unified semantic search across all graphs in one query |
 | **Prompts** | Generate AI system prompts with scenario presets, roles, and graph selection |
-| **Tools** | Browse and live-test all 67 MCP tools from your browser |
+| **Tools** | Browse and live-test all 70 MCP tools from your browser |
 | **Help** | Built-in searchable documentation with getting-started guides and concept explanations |
 
 When authentication is configured, a **Login** page is shown before any other content. See [Authentication](/docs/security/authentication) for setup details.

@@ -57,7 +57,7 @@
      ┌────────┐   ┌──────────┐   ┌──────────┐
      │  MCP   │   │ REST API │   │    UI    │
      │ Tools  │   │ Express  │   │  React   │
-     │ (67)   │   │ + WS     │   │  + Vite  │
+     │ (70)   │   │ + WS     │   │  + Vite  │
      └────────┘   └──────────┘   └──────────┘
 ```
 
@@ -91,7 +91,7 @@ Entry point: `src/cli/index.ts` (Commander.js). Three main commands (`index`, `m
 
 Three interfaces to the graph layer:
 
-- **MCP Tools** (`src/api/tools/`) — 67 tools exposed via MCP protocol (HTTP)
+- **MCP Tools** (`src/api/tools/`) — 70 tools exposed via MCP protocol (HTTP)
 - **REST API** (`src/api/rest/`) — Express routes for CRUD + search
 - **WebSocket** (`src/api/rest/websocket.ts`) — real-time event push
 
@@ -171,7 +171,7 @@ src/
       file-index/            # 3 MCP file index tools
       context/               # 1 MCP context tool
   tests/
-    *.test.ts                # Jest test suites (44 suites, 1706 tests)
+    *.test.ts                # Jest test suites (45 suites, 1809 tests)
     helpers.ts               # Test utilities (fakeEmbed, setupMcpClient)
     __mocks__/               # Jest mocks for ESM-only packages
     fixtures/                # Test fixtures (markdown, TypeScript)

@@ -61,7 +61,7 @@ Add to your `.mcp.json`:
 
 ## 4. Start asking questions
 
-Once connected, your AI assistant has access to 67 tools. Try asking:
+Once connected, your AI assistant has access to 70 tools. Try asking:
 
 - *"What does this project do?"* — uses `docs_search` and `docs_list_files` to find docs
 - *"Show me all exported functions in auth.ts"* — uses `code_get_file_symbols`
@@ -84,5 +84,5 @@ Graph Memory creates six interconnected graphs from your project:
 ## Next steps
 
 - [Configuration](./configuration) — customize with `graph-memory.yaml`
-- [MCP Tools](/docs/mcp-tools) — explore all 67 tools
+- [MCP Tools](/docs/mcp-tools) — explore all 70 tools
 - [Web UI](/docs/web-ui) — dashboard, kanban, code browser, search

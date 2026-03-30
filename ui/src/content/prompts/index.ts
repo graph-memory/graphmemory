@@ -129,7 +129,7 @@ export const STYLE_LABELS: Record<StyleName, string> = {
   guided: 'Guided',
 };
 
-// Tool catalog: all 67 tools with graph and description
+// Tool catalog: all 70 tools with graph and description
 export interface ToolInfo {
   graph: GraphName;
   description: string;

@@ -4,7 +4,7 @@
 
 MCP server that builds a semantic graph memory from a project directory — indexing
 markdown docs, TypeScript/JavaScript source code, and all project files into six
-interconnected graphs. Exposes 67 MCP tools + REST API + Web UI.
+interconnected graphs. Exposes 70 MCP tools + REST API + Web UI.
 
 **Full documentation**: see [docs/](docs/README.md)
 
@@ -18,7 +18,7 @@ npm run cli:dev        # tsx src/cli/index.ts (no build needed)
 
 Run tests:
 ```bash
-npm test                               # all tests (1706 tests across 44 suites)
+npm test                               # all tests (1809 tests across 45 suites)
 npm test -- --testPathPatterns=search   # specific test file
 npm run test:watch                     # watch mode
 npx tsx src/tests/embedder.test.ts     # real model test (slow, excluded from Jest)

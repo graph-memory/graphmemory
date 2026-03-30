@@ -31,6 +31,8 @@ All events include `projectId` — the UI filters events client-side based on th
 | `note:created` | `{ noteId }` | Note created |
 | `note:updated` | `{ noteId }` | Note updated |
 | `note:deleted` | `{ noteId }` | Note deleted |
+| `note:relation:added` | `{ noteId, toId, kind, targetGraph? }` | Relation/cross-link created |
+| `note:relation:deleted` | `{ noteId, toId, kind, targetGraph? }` | Relation/cross-link removed |
 | `note:attachment:added` | `{ noteId, filename }` | Attachment uploaded |
 | `note:attachment:deleted` | `{ noteId, filename }` | Attachment removed |
 
@@ -42,6 +44,8 @@ All events include `projectId` — the UI filters events client-side based on th
 | `task:updated` | `{ taskId }` | Task updated |
 | `task:deleted` | `{ taskId }` | Task deleted |
 | `task:moved` | `{ taskId, status }` | Task status changed |
+| `task:relation:added` | `{ taskId, toId, kind, targetGraph? }` | Relation/cross-link created |
+| `task:relation:deleted` | `{ taskId, toId, kind, targetGraph? }` | Relation/cross-link removed |
 | `task:attachment:added` | `{ taskId, filename }` | Attachment uploaded |
 | `task:attachment:deleted` | `{ taskId, filename }` | Attachment removed |
 
@@ -52,6 +56,8 @@ All events include `projectId` — the UI filters events client-side based on th
 | `skill:created` | `{ skillId }` | Skill created |
 | `skill:updated` | `{ skillId }` | Skill updated |
 | `skill:deleted` | `{ skillId }` | Skill deleted |
+| `skill:relation:added` | `{ skillId, toId, kind, targetGraph? }` | Relation/cross-link created |
+| `skill:relation:deleted` | `{ skillId, toId, kind, targetGraph? }` | Relation/cross-link removed |
 | `skill:attachment:added` | `{ skillId, filename }` | Attachment uploaded |
 | `skill:attachment:deleted` | `{ skillId, filename }` | Attachment removed |
 
@@ -63,7 +69,7 @@ All events include `projectId` — the UI filters events client-side based on th
 
 ## Broadcast
 
-Events are broadcast to **all** connected clients. The UI's `useWebSocket` hook filters by the current `projectId`.
+When authentication is enabled, events are filtered server-side — each client only receives events for projects they have read access to. The UI's `useWebSocket` hook additionally filters by the current `projectId`.
 
 ## Connection
 

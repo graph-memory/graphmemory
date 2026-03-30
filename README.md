@@ -7,7 +7,7 @@
 
 An MCP server that builds a **semantic graph memory** from a project directory.
 Indexes markdown docs, TypeScript/JavaScript source code, and all project files into graph structures,
-then exposes them as **67 MCP tools** + **REST API** + **Web UI**.
+then exposes them as **70 MCP tools** + **REST API** + **Web UI**.
 
 ![graphmemory dashboard](docs/img/dashboard-dark.png)
 
@@ -131,7 +131,7 @@ See [docs/docker.md](docs/docker.md) for details.
 | **Workspaces** | Share knowledge/tasks/skills across related projects |
 | **Auth & ACL** | Password login (JWT), API keys, OAuth 2.0 (PKCE), 4-level access control |
 
-## 67 MCP tools
+## 70 MCP tools
 
 | Group | Tools |
 |-------|-------|
@@ -184,7 +184,7 @@ See [docs/authentication.md](docs/authentication.md).
 ```bash
 npm run dev              # tsc --watch (backend)
 cd ui && npm run dev     # Vite on :5173, proxies /api → :3000
-npm test                 # 1700 tests across 44 suites
+npm test                 # 1809 tests across 45 suites
 ```
 
 ## Documentation

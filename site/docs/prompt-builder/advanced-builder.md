@@ -48,7 +48,7 @@ Configure technology domains relevant to your project. The Stack tab covers **9 
 
 ### Tools
 
-Fine-tune individual tool priorities. For each of the 67 tools in the builder's catalog (all except `get_context`, which runs automatically), you can set a priority level:
+Fine-tune individual tool priorities. For each of the 70 tools in the builder's catalog (all except `get_context`, which runs automatically), you can set a priority level:
 
 | Priority | Meaning |
 |----------|---------|

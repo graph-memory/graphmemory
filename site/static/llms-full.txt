@@ -1,6 +1,6 @@
 # Graph Memory — Full Documentation
 
-> MCP server that turns a project directory into a queryable semantic knowledge base with 67 tools, REST API, and web UI.
+> MCP server that turns a project directory into a queryable semantic knowledge base with 70 tools, REST API, and web UI.
 
 Graph Memory indexes markdown documentation, TypeScript/JavaScript source code, and all project files into six interconnected graph structures. It runs locally with no external API calls — embeddings are computed on-device using ONNX models.
 
@@ -307,7 +307,7 @@ Results are fused using Reciprocal Rank Fusion (RRF) and filtered by `minScore` 
 
 ## MCP Tools Reference
 
-67 tools organized by graph type. All tools use the `graph_verb_noun` naming convention.
+70 tools organized by graph type. All tools use the `graph_verb_noun` naming convention.
 
 ### Context (1 tool)
 

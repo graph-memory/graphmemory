@@ -61,7 +61,7 @@ Code search results from the unified Search page link directly to these detail p
 
 ## Tools explorer
 
-The Tools page lets you browse and test all 67 MCP tools directly from your browser, without needing an AI assistant.
+The Tools page lets you browse and test all 70 MCP tools directly from your browser, without needing an AI assistant.
 
 ### Tool list
 

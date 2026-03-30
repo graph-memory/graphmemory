@@ -1,6 +1,6 @@
 # MCP Tools — Detailed Guide
 
-67 tools organized into 10 groups. Each tool is a separate module in `src/api/tools/`.
+70 tools organized into 10 groups. Each tool is a separate module in `src/api/tools/`.
 
 ## How tools work
 
@@ -17,7 +17,7 @@ Tools are conditionally registered based on which graphs are enabled:
 | Code | 5 | code graph enabled | no |
 | File index | 3 | file index enabled | no |
 | Knowledge | 12 | knowledge graph enabled | yes (mutations) |
-| Tasks | 14 | task graph enabled | yes (mutations) |
+| Tasks | 17 | task graph enabled | yes (mutations) |
 | Epics | 8 | task graph enabled | yes (mutations) |
 | Skills | 14 | skill graph enabled | yes (mutations) |
 

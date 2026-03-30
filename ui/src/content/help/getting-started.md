@@ -1,6 +1,6 @@
 # Getting Started with Graph Memory
 
-Graph Memory is an MCP server that builds a **semantic graph** from your project directory. It indexes markdown documentation, TypeScript/JavaScript source code, and all project files — then exposes 67 tools for searching, navigating, and enriching that knowledge.
+Graph Memory is an MCP server that builds a **semantic graph** from your project directory. It indexes markdown documentation, TypeScript/JavaScript source code, and all project files — then exposes 70 tools for searching, navigating, and enriching that knowledge.
 
 ## What does it do?
 

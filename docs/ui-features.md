@@ -113,7 +113,7 @@ Unified semantic search across all graphs:
 
 MCP tools explorer for testing and debugging:
 
-- **Tool list** — all 67 MCP tools grouped by category
+- **Tool list** — all 70 MCP tools grouped by category
 - **Tool details** — input schema, description
 - **Live execution** — fill in parameters and call tools from the browser
 - **Result display** — shows tool output + execution duration

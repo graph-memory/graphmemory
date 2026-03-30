@@ -43,7 +43,7 @@
 
 - [REST API](api-rest.md) — full endpoint reference
 - [REST API Patterns](api-patterns.md) — middleware chain, validation, auth, error handling, mutation serialization
-- [MCP Tools Reference](api-mcp.md) — all 67 MCP tools with input/output schemas
+- [MCP Tools Reference](api-mcp.md) — all 70 MCP tools with input/output schemas
 - [MCP Tools Guide](mcp-tools-guide.md) — detailed descriptions, when to use, best practices
 - [WebSocket](api-websocket.md) — real-time event types and format
 

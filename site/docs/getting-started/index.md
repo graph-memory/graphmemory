@@ -2,13 +2,13 @@
 title: "What is Graph Memory?"
 sidebar_label: "Overview"
 sidebar_position: 1
-description: "Graph Memory is an MCP server that turns your project into a queryable semantic knowledge base with 67 AI tools, web UI, and six interconnected graphs."
+description: "Graph Memory is an MCP server that turns your project into a queryable semantic knowledge base with 70 AI tools, web UI, and six interconnected graphs."
 keywords: [graph memory, MCP server, semantic search, knowledge graph, AI tools]
 ---
 
 # What is Graph Memory?
 
-Graph Memory is an [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server that turns any project directory into a queryable semantic knowledge base. It indexes your markdown docs, source code, and files into interconnected graphs, then exposes them as **67 MCP tools** and a full-featured **web UI**.
+Graph Memory is an [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server that turns any project directory into a queryable semantic knowledge base. It indexes your markdown docs, source code, and files into interconnected graphs, then exposes them as **70 MCP tools** and a full-featured **web UI**.
 
 ![Graph Memory Dashboard](/img/screenshots/dashboard-dark.png)
 
@@ -38,7 +38,7 @@ Graph Memory is an [MCP (Model Context Protocol)](https://modelcontextprotocol.i
 ```
 Your Project → Graph Memory → AI Assistant
      │              │               │
-  files,         graphs,         67 MCP tools
+  files,         graphs,         70 MCP tools
   docs,          embeddings,     for search,
   code           web UI          CRUD, linking
 ```
@@ -46,7 +46,7 @@ Your Project → Graph Memory → AI Assistant
 1. **Point** Graph Memory at your project directory
 2. **It indexes** docs, code, and files into interconnected graphs
 3. **It embeds** every node locally using an embedding model (~560 MB, no API calls)
-4. **AI assistants** query the graphs through 67 MCP tools
+4. **AI assistants** query the graphs through 70 MCP tools
 5. **You manage** knowledge, tasks, and skills through MCP tools or the web UI
 6. **File mirror** syncs notes/tasks/skills to `.notes/`, `.tasks/`, `.skills/` folders for IDE editing
 

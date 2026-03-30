@@ -470,42 +470,11 @@ export default function TaskBoardPage() {
     <Box>
       <PageTopBar
         breadcrumbs={[{ label: 'Tasks' }, { label: 'Board' }]}
-        actions={
-          <>
-            <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
-              {COLUMNS.map(({ status, label, color }) => {
-                const isOn = visible.has(status);
-                return (
-                  <Chip
-                    key={status}
-                    label={label}
-                    size="small"
-                    onClick={() => toggleColumn(status)}
-                    disabled={isOn && visible.size === 1}
-                    sx={{
-                      height: 26,
-                      fontWeight: 600,
-                      fontSize: '0.7rem',
-                      cursor: 'pointer',
-                      bgcolor: isOn ? alpha(color, 0.22) : 'transparent',
-                      color: isOn ? color : palette.custom.textMuted,
-                      border: isOn ? `1.5px solid ${alpha(color, 0.6)}` : '1.5px solid transparent',
-                      textDecoration: isOn ? 'none' : 'line-through',
-                      opacity: isOn ? 1 : 0.45,
-                      '&:hover': { bgcolor: alpha(color, 0.1), opacity: 1 },
-                      '& .MuiChip-label': { px: 1 },
-                    }}
-                  />
-                );
-              })}
-            </Box>
-            {canWrite && (
-              <Button variant="contained" startIcon={<AddIcon />} onClick={() => { setQuickCreateStatus(undefined); setQuickCreateOpen(true); }}>
-                New Task
-              </Button>
-            )}
-          </>
-        }
+        actions={canWrite ? (
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => { setQuickCreateStatus(undefined); setQuickCreateOpen(true); }}>
+            New Task
+          </Button>
+        ) : undefined}
       />
 
       {/* Filter bar */}
@@ -568,7 +537,32 @@ export default function TaskBoardPage() {
         />
       </FilterBar>
 
-      <Box sx={{ mb: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+        <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+          {COLUMNS.map(({ status, label, color }) => {
+            const isOn = visible.has(status);
+            return (
+              <Chip
+                key={status}
+                label={label}
+                size="small"
+                onClick={() => toggleColumn(status)}
+                disabled={isOn && visible.size === 1}
+                sx={{
+                  height: 26, fontWeight: 600, fontSize: '0.7rem', cursor: 'pointer',
+                  bgcolor: isOn ? alpha(color, 0.22) : 'transparent',
+                  color: isOn ? color : palette.custom.textMuted,
+                  border: isOn ? `1.5px solid ${alpha(color, 0.6)}` : '1.5px solid transparent',
+                  textDecoration: isOn ? 'none' : 'line-through',
+                  opacity: isOn ? 1 : 0.45,
+                  '&:hover': { bgcolor: alpha(color, 0.1), opacity: 1 },
+                  '& .MuiChip-label': { px: 1 },
+                }}
+              />
+            );
+          })}
+        </Box>
+        <Box sx={{ flex: 1 }} />
         <PaginationBar page={1} totalPages={1} onPageChange={() => {}} onRefresh={refresh} />
       </Box>
 

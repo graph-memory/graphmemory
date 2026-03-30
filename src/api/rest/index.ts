@@ -49,7 +49,7 @@ export interface RestAppOptions {
  * Use on POST/PUT/DELETE routes inside domain routers.
  */
 export function requireWriteAccess(req: express.Request, res: express.Response, next: express.NextFunction): void {
-  const level = (req as any).accessLevel;
+  const level = req.accessLevel;
   if (level && level !== 'rw') {
     res.status(403).json({ error: 'Read-only access' });
     return;
@@ -246,8 +246,8 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
         if (accessToken) {
           const payload = verifyToken(accessToken, jwtSecret);
           if (payload?.type === 'access' && users[payload.userId]) {
-            (req as any).userId = payload.userId;
-            (req as any).user = users[payload.userId];
+            req.userId = payload.userId;
+            req.user = users[payload.userId];
             return next();
           }
           // Invalid/expired JWT cookie — try Bearer, otherwise 401
@@ -261,8 +261,8 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
         const apiKey = auth.slice(7);
         const result = resolveUserFromApiKey(apiKey, users);
         if (result) {
-          (req as any).userId = result.userId;
-          (req as any).user = result.user;
+          req.userId = result.userId;
+          req.user = result.user;
           return next();
         }
         // Invalid Bearer token — reject (explicit auth attempt should not fall through)
@@ -283,7 +283,7 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
     if (!project) {
       return _res.status(404).json({ error: `Project "${projectId}" not found` });
     }
-    (req as any).project = project;
+    req.project = project;
     next();
   });
 
@@ -360,8 +360,8 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
 
   // Project stats — only return stats for graphs the user can read
   app.get('/api/projects/:projectId/stats', (req, res) => {
-    const p = (req as any).project;
-    const userId = (req as any).userId as string | undefined;
+    const p = req.project!;
+    const userId = req.userId;
     const ws = p.workspaceId ? projectManager.getWorkspace(p.workspaceId) : undefined;
 
     const graphData: Record<string, { graph: any; key: string }> = {
@@ -392,16 +392,16 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
   // Requires at least read access to any graph in the project
   app.get('/api/projects/:projectId/team', (req, res) => {
     if (serverConfig && hasUsers) {
-      const userId = (req as any).userId as string | undefined;
+      const userId = req.userId;
       if (!userId) return res.status(401).json({ error: 'Authentication required' });
-      const p = (req as any).project;
+      const p = req.project!;
       const ws = p.workspaceId ? projectManager.getWorkspace(p.workspaceId) : undefined;
       const hasAnyAccess = GRAPH_NAMES.some(gn =>
         canRead(resolveAccess(userId, gn, p.config, serverConfig, ws?.config)),
       );
       if (!hasAnyAccess) return res.status(403).json({ error: 'Access denied' });
     }
-    const p = (req as any).project;
+    const p = req.project!;
     const ws = p.workspaceId ? projectManager.getWorkspace(p.workspaceId) : undefined;
     const baseDir = ws ? ws.config.mirrorDir : p.config.projectDir;
     const members = scanTeamDir(path.join(baseDir, '.team'));
@@ -411,7 +411,7 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
   // Middleware: require a specific manager to be enabled, or return 404
   function requireManager(managerKey: keyof import('@/lib/project-manager').ProjectInstance) {
     return (req: express.Request, _res: express.Response, next: express.NextFunction) => {
-      const p = (req as any).project;
+      const p = req.project!;
       if (!p || !p[managerKey]) {
         return _res.status(404).json({ error: 'This graph is disabled for this project' });
       }
@@ -422,17 +422,17 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
   // Middleware: check access level for a graph (read or read-write)
   function requireGraphAccess(graphName: GraphName, level: 'r' | 'rw') {
     return (req: express.Request, _res: express.Response, next: express.NextFunction) => {
-      const p = (req as any).project;
+      const p = req.project!;
 
       // Graph-level readonly: enforce even without auth config
       const isReadonly = p?.config.graphConfigs[graphName]?.readonly;
       if (isReadonly) {
-        (req as any).accessLevel = 'r';
+        req.accessLevel = 'r';
       }
 
       if (!serverConfig) return next(); // no config = no auth enforcement
       if (!p) return next();
-      const userId = (req as any).userId as string | undefined;
+      const userId = req.userId;
       const ws = p.workspaceId ? projectManager.getWorkspace(p.workspaceId) : undefined;
       let access = resolveAccess(userId, graphName, p.config, serverConfig, ws?.config);
       // Graph-level readonly: cap to 'r' regardless of user permissions
@@ -445,7 +445,7 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
       if (level === 'rw' && !canWrite(access)) {
         return _res.status(403).json({ error: 'Read-only access' });
       }
-      (req as any).accessLevel = access;
+      req.accessLevel = access;
       next();
     };
   }
@@ -466,9 +466,9 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
   app.use('/api/projects/:projectId/files', ...graphMiddleware('fileIndexManager', 'files'), createFilesRouter());
   app.use('/api/projects/:projectId/tools', createToolsRouter(projectManager, (req, graphName, level) => {
     if (!serverConfig) return true;
-    const p = (req as any).project;
+    const p = req.project!;
     if (!p) return true;
-    const userId = (req as any).userId as string | undefined;
+    const userId = req.userId;
     const ws = p.workspaceId ? projectManager.getWorkspace(p.workspaceId) : undefined;
     let access = resolveAccess(userId, graphName, p.config, serverConfig, ws?.config);
     if (access === 'rw' && p.config.graphConfigs[graphName as GraphName]?.readonly) access = 'r';

@@ -21,7 +21,7 @@ export function createSkillsRouter(): Router {
   router.get('/', validateQuery(skillListSchema), (req, res, next) => {
     try {
       const p = getProject(req);
-      const q = (req as any).validatedQuery;
+      const q = req.validatedQuery;
       const { results: skills, total } = p.skillManager.listSkills(q);
       res.json({ results: skills, total });
     } catch (err) { next(err); }
@@ -31,7 +31,7 @@ export function createSkillsRouter(): Router {
   router.get('/search', validateQuery(skillSearchSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
-      const q = (req as any).validatedQuery;
+      const q = req.validatedQuery;
       const results = await p.skillManager.searchSkills(q.q, {
         topK: q.topK,
         minScore: q.minScore,
@@ -48,7 +48,7 @@ export function createSkillsRouter(): Router {
   router.get('/recall', validateQuery(skillSearchSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
-      const q = (req as any).validatedQuery;
+      const q = req.validatedQuery;
       const results = await p.skillManager.searchSkills(q.q, {
         topK: q.topK,
         minScore: q.minScore ?? 0.3,
@@ -65,7 +65,7 @@ export function createSkillsRouter(): Router {
   router.get('/linked', validateQuery(linkedQuerySchema), (req, res, next) => {
     try {
       const p = getProject(req);
-      const { targetGraph, targetNodeId, kind, projectId } = (req as any).validatedQuery;
+      const { targetGraph, targetNodeId, kind, projectId } = req.validatedQuery;
       const skills = p.skillManager.findLinkedSkills(targetGraph, targetNodeId, kind, projectId ?? (req.params as any).projectId);
       res.json({ results: skills });
     } catch (err) { next(err); }

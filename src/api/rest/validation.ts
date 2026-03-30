@@ -34,7 +34,7 @@ export function validateBody(schema: ZodSchema) {
 
 export function validateQuery(schema: ZodSchema) {
   return (req: Request, _res: Response, next: NextFunction) => {
-    (req as any).validatedQuery = schema.parse(req.query);
+    req.validatedQuery = schema.parse(req.query);
     next();
   };
 }

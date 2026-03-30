@@ -16,7 +16,7 @@ export function createEpicsRouter(): Router {
   router.get('/', validateQuery(epicListSchema), (req, res, next) => {
     try {
       const p = getProject(req);
-      const q = (req as any).validatedQuery;
+      const q = req.validatedQuery;
       const { results: epics, total } = p.taskManager.listEpics(q);
       res.json({ results: epics, total });
     } catch (err) { next(err); }
@@ -26,7 +26,7 @@ export function createEpicsRouter(): Router {
   router.get('/search', validateQuery(epicSearchSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
-      const q = (req as any).validatedQuery;
+      const q = req.validatedQuery;
       const results = await p.taskManager.searchEpics(q.q, {
         topK: q.topK, minScore: q.minScore, searchMode: q.searchMode,
       });

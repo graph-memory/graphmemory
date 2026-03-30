@@ -19,7 +19,7 @@ export function createDocsRouter(): Router {
     try {
       const p = getProject(req);
       if (!p.docManager) return res.json({ results: [] });
-      const q = (req as any).validatedQuery;
+      const q = req.validatedQuery;
       const { results: topics, total } = p.docManager.listFiles(q.filter, q.limit, q.offset);
       res.json({ results: topics, total });
     } catch (err) { next(err); }
@@ -55,7 +55,7 @@ export function createDocsRouter(): Router {
     try {
       const p = getProject(req);
       if (!p.docManager) return res.json({ results: [] });
-      const q = (req as any).validatedQuery;
+      const q = req.validatedQuery;
       const results = await p.docManager.search(q.q, {
         topK: q.topK,
         minScore: q.minScore,

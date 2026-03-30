@@ -21,7 +21,7 @@ export function createTasksRouter(): Router {
   router.get('/', validateQuery(taskListSchema), (req, res, next) => {
     try {
       const p = getProject(req);
-      const q = (req as any).validatedQuery;
+      const q = req.validatedQuery;
       const { results: tasks, total } = p.taskManager.listTasks(q);
       res.json({ results: tasks, total });
     } catch (err) { next(err); }
@@ -31,7 +31,7 @@ export function createTasksRouter(): Router {
   router.get('/search', validateQuery(taskSearchSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
-      const q = (req as any).validatedQuery;
+      const q = req.validatedQuery;
       const results = await p.taskManager.searchTasks(q.q, {
         topK: q.topK,
         minScore: q.minScore,
@@ -48,7 +48,7 @@ export function createTasksRouter(): Router {
   router.get('/linked', validateQuery(linkedQuerySchema), (req, res, next) => {
     try {
       const p = getProject(req);
-      const { targetGraph, targetNodeId, kind, projectId } = (req as any).validatedQuery;
+      const { targetGraph, targetNodeId, kind, projectId } = req.validatedQuery;
       const tasks = p.taskManager.findLinkedTasks(targetGraph, targetNodeId, kind, projectId ?? (req.params as any).projectId);
       res.json({ results: tasks });
     } catch (err) { next(err); }

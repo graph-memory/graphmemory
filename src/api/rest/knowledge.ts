@@ -21,7 +21,7 @@ export function createKnowledgeRouter(): Router {
   router.get('/notes', validateQuery(noteListSchema), (req, res, next) => {
     try {
       const p = getProject(req);
-      const q = (req as any).validatedQuery;
+      const q = req.validatedQuery;
       const { results: notes, total } = p.knowledgeManager.listNotes(q.filter, q.tag, q.limit, q.offset);
       res.json({ results: notes, total });
     } catch (err) { next(err); }
@@ -31,7 +31,7 @@ export function createKnowledgeRouter(): Router {
   router.get('/search', validateQuery(noteSearchSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
-      const q = (req as any).validatedQuery;
+      const q = req.validatedQuery;
       const results = await p.knowledgeManager.searchNotes(q.q, {
         topK: q.topK,
         minScore: q.minScore,
@@ -141,7 +141,7 @@ export function createKnowledgeRouter(): Router {
   router.get('/linked', validateQuery(linkedQuerySchema), (req, res, next) => {
     try {
       const p = getProject(req);
-      const { targetGraph, targetNodeId, kind, projectId } = (req as any).validatedQuery;
+      const { targetGraph, targetNodeId, kind, projectId } = req.validatedQuery;
       const notes = p.knowledgeManager.findLinkedNotes(targetGraph, targetNodeId, kind, projectId ?? (req.params as any).projectId);
       res.json({ results: notes });
     } catch (err) { next(err); }

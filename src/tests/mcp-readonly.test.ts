@@ -73,6 +73,7 @@ const TASK_READ = [
 
 const TASK_MUTATION = [
   'tasks_create', 'tasks_update', 'tasks_delete', 'tasks_move', 'tasks_reorder',
+  'tasks_bulk_move', 'tasks_bulk_priority', 'tasks_bulk_delete',
   'tasks_link', 'tasks_create_link', 'tasks_delete_link',
   'tasks_add_attachment', 'tasks_remove_attachment',
 ].sort();

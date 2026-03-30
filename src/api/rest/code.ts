@@ -19,7 +19,7 @@ export function createCodeRouter(): Router {
     try {
       const p = getProject(req);
       if (!p.codeManager) return res.json({ results: [] });
-      const q = (req as any).validatedQuery;
+      const q = req.validatedQuery;
       const { results: files, total } = p.codeManager.listFiles(q.filter, q.limit, q.offset);
       res.json({ results: files, total });
     } catch (err) { next(err); }
@@ -66,7 +66,7 @@ export function createCodeRouter(): Router {
     try {
       const p = getProject(req);
       if (!p.codeManager) return res.json({ results: [] });
-      const q = (req as any).validatedQuery;
+      const q = req.validatedQuery;
       const results = await p.codeManager.search(q.q, {
         topK: q.topK,
         minScore: q.minScore,

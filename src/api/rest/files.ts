@@ -14,7 +14,7 @@ export function createFilesRouter(): Router {
   router.get('/', validateQuery(fileListSchema), (req, res, next) => {
     try {
       const p = getProject(req);
-      const q = (req as any).validatedQuery;
+      const q = req.validatedQuery;
       const { results: files, total } = p.fileIndexManager.listAllFiles(q);
       res.json({ results: files, total });
     } catch (err) { next(err); }
@@ -24,7 +24,7 @@ export function createFilesRouter(): Router {
   router.get('/search', validateQuery(fileSearchSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
-      const q = (req as any).validatedQuery;
+      const q = req.validatedQuery;
       const results = await p.fileIndexManager.search(q.q, {
         topK: q.topK,
         minScore: q.minScore,

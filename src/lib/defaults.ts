@@ -80,7 +80,7 @@ export const REMOTE_MAX_RETRIES         = 3;
 export const REMOTE_BASE_DELAY_MS       = 200;
 export const RATE_LIMIT_WINDOW_MS       = 60_000;
 export const SESSION_SWEEP_INTERVAL_MS  = 60_000;
-export const GRACEFUL_SHUTDOWN_TIMEOUT_MS = 5000;
+export const GRACEFUL_SHUTDOWN_TIMEOUT_MS = 15_000;
 export const ERROR_BODY_LIMIT           = 500;
 
 // ---------------------------------------------------------------------------

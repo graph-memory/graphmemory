@@ -515,6 +515,9 @@ export class ProjectManager extends EventEmitter {
 
   /**
    * Start auto-save interval (every intervalMs, save dirty projects).
+   * Safe despite running outside PromiseQueue: graph.export() and
+   * JSON.stringify are synchronous, so the event loop won't interleave
+   * them with async mutations (which yield at await points).
    */
   startAutoSave(intervalMs = AUTO_SAVE_INTERVAL_MS): void {
     this.autoSaveInterval = setInterval(() => {

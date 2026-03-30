@@ -4,8 +4,10 @@ import {
   Box, Button, Select, MenuItem,
   CircularProgress,
 } from '@mui/material';
+import FlagIcon from '@mui/icons-material/Flag';
 import { Section, FieldLabel, AppTextField, Tags, MarkdownEditor, DetailLayout } from '@/shared/ui/index.ts';
-import { COLUMNS, PRIORITY_COLORS, type Task, type TaskStatus, type TaskPriority } from '@/entities/task/index.ts';
+import { COLUMNS, PRIORITY_COLORS, listTaskRelations, type Task, type TaskStatus, type TaskPriority } from '@/entities/task/index.ts';
+import { listEpics, linkTaskToEpic, unlinkTaskFromEpic, type Epic } from '@/entities/epic/index.ts';
 
 const STATUS_COLOR: Record<TaskStatus, string> = Object.fromEntries(COLUMNS.map(c => [c.status, c.color])) as Record<TaskStatus, string>;
 const PRIORITY_OPTIONS: { value: TaskPriority; label: string }[] = [
@@ -43,6 +45,9 @@ export function TaskForm({ task, defaults, onSubmit, onCancel, submitLabel = 'Sa
   const [estimate, setEstimate] = useState('');
   const [assignee, setAssignee] = useState<string>('');
   const [team, setTeam] = useState<TeamMember[]>([]);
+  const [epics, setEpics] = useState<Epic[]>([]);
+  const [selectedEpicIds, setSelectedEpicIds] = useState<string[]>([]);
+  const [initialEpicIds, setInitialEpicIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [titleError, setTitleError] = useState(false);
 
@@ -68,7 +73,17 @@ export function TaskForm({ task, defaults, onSubmit, onCancel, submitLabel = 'Sa
   useEffect(() => {
     if (!projectId) return;
     listTeam(projectId).then(setTeam).catch(() => {});
+    listEpics(projectId).then(({ items }) => setEpics(items)).catch(() => {});
   }, [projectId]);
+
+  useEffect(() => {
+    if (!projectId || !task) return;
+    listTaskRelations(projectId, task.id).then(rels => {
+      const epicIds = rels.filter(r => r.kind === 'belongs_to').map(r => r.toId);
+      setSelectedEpicIds(epicIds);
+      setInitialEpicIds(epicIds);
+    }).catch(() => {});
+  }, [projectId, task]);
 
   const handleSubmit = async () => {
     if (!title.trim()) {
@@ -77,7 +92,7 @@ export function TaskForm({ task, defaults, onSubmit, onCancel, submitLabel = 'Sa
     }
     setSaving(true);
     try {
-      await onSubmit({
+      const result = await onSubmit({
         title: title.trim(),
         description: description.trim(),
         status,
@@ -87,6 +102,19 @@ export function TaskForm({ task, defaults, onSubmit, onCancel, submitLabel = 'Sa
         estimate: estimate ? Number(estimate) : null,
         assignee: assignee || null,
       });
+
+      // Sync epic links after save
+      if (projectId) {
+        const taskId = task?.id ?? (result as any)?.id;
+        if (taskId) {
+          const toLink = selectedEpicIds.filter(id => !initialEpicIds.includes(id));
+          const toUnlink = initialEpicIds.filter(id => !selectedEpicIds.includes(id));
+          await Promise.all([
+            ...toLink.map(epicId => linkTaskToEpic(projectId, epicId, taskId)),
+            ...toUnlink.map(epicId => unlinkTaskFromEpic(projectId, epicId, taskId)),
+          ]);
+        }
+      }
     } finally {
       setSaving(false);
     }
@@ -172,6 +200,29 @@ export function TaskForm({ task, defaults, onSubmit, onCancel, submitLabel = 'Sa
                   {team.map(m => <MenuItem key={m.id} value={m.id}>{m.name || m.id}</MenuItem>)}
                 </Select>
               </Box>
+              {epics.length > 0 && (
+                <Box>
+                  <FieldLabel>Epics</FieldLabel>
+                  <Select
+                    fullWidth multiple value={selectedEpicIds}
+                    onChange={e => setSelectedEpicIds(e.target.value as string[])}
+                    displayEmpty
+                    renderValue={selected => {
+                      if ((selected as string[]).length === 0) return 'No epic';
+                      return (selected as string[]).map(id => epics.find(e => e.id === id)?.title ?? id).join(', ');
+                    }}
+                  >
+                    {epics.filter(e => e.status === 'open' || e.status === 'in_progress' || selectedEpicIds.includes(e.id)).map(e => (
+                      <MenuItem key={e.id} value={e.id}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <FlagIcon sx={{ fontSize: 14, color: e.status === 'open' ? '#1976d2' : e.status === 'in_progress' ? '#f57c00' : '#388e3c' }} />
+                          {e.title}
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </Box>
+              )}
               <Tags tags={tags} editable onAdd={tag => setTags(prev => prev.includes(tag) ? prev : [...prev, tag])} onRemove={tag => setTags(prev => prev.filter(t => t !== tag))} />
             </Box>
           </Section>

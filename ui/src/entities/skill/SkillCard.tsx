@@ -1,5 +1,8 @@
-import { Box, Typography, Card, CardContent, IconButton, Tooltip, useTheme } from '@mui/material';
+import { useState } from 'react';
+import { Box, Typography, Card, CardContent, IconButton, Menu, MenuItem, ListItemIcon, ListItemText, useTheme } from '@mui/material';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
 import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { Tags, StatusBadge } from '@/shared/ui/index.ts';
 import { SOURCE_BADGE_COLOR, sourceLabel, confidenceLabel } from './config.ts';
 import type { Skill } from './api.ts';
@@ -9,10 +12,14 @@ interface SkillCardProps {
   score?: number;
   onClick?: () => void;
   onEdit?: () => void;
+  onDelete?: () => void;
 }
 
-export function SkillCard({ skill, score, onClick, onEdit }: SkillCardProps) {
+export function SkillCard({ skill, score, onClick, onEdit, onDelete }: SkillCardProps) {
   const { palette } = useTheme();
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
+  const hasMenu = !!onEdit || !!onDelete;
+
   return (
     <Card
       variant="outlined"
@@ -60,12 +67,34 @@ export function SkillCard({ skill, score, onClick, onEdit }: SkillCardProps) {
               )}
             </Box>
           </Box>
-          {onEdit && (
-            <Tooltip title="Edit">
-              <IconButton size="small" onClick={(e) => { e.stopPropagation(); onEdit(); }}>
-                <EditIcon fontSize="small" />
+          {hasMenu && (
+            <>
+              <IconButton
+                size="small"
+                onClick={(e) => { e.stopPropagation(); setMenuAnchor(e.currentTarget); }}
+              >
+                <MoreVertIcon fontSize="small" />
               </IconButton>
-            </Tooltip>
+              <Menu
+                anchorEl={menuAnchor}
+                open={!!menuAnchor}
+                onClose={(e: React.SyntheticEvent) => { e.stopPropagation?.(); setMenuAnchor(null); }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {onEdit && (
+                  <MenuItem onClick={() => { setMenuAnchor(null); onEdit(); }}>
+                    <ListItemIcon><EditIcon fontSize="small" /></ListItemIcon>
+                    <ListItemText>Edit</ListItemText>
+                  </MenuItem>
+                )}
+                {onDelete && (
+                  <MenuItem onClick={() => { setMenuAnchor(null); onDelete(); }} sx={{ color: 'error.main' }}>
+                    <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
+                    <ListItemText>Delete</ListItemText>
+                  </MenuItem>
+                )}
+              </Menu>
+            </>
           )}
         </Box>
       </CardContent>

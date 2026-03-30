@@ -10,9 +10,9 @@ import CloseIcon from '@mui/icons-material/Close';
 import PsychologyIcon from '@mui/icons-material/Psychology';
 import { useWebSocket } from '@/shared/lib/useWebSocket.ts';
 import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
-import { PageTopBar, FilterBar, EmptyState, PaginationBar } from '@/shared/ui/index.ts';
+import { PageTopBar, FilterBar, EmptyState, PaginationBar, ConfirmDialog } from '@/shared/ui/index.ts';
 import { PAGE_SIZE } from '@/shared/lib/usePagination.ts';
-import { searchSkills, type Skill, type SkillSearchResult, SkillCard } from '@/entities/skill/index.ts';
+import { searchSkills, deleteSkill, type Skill, type SkillSearchResult, SkillCard } from '@/entities/skill/index.ts';
 import { useSkills } from '@/features/skill-crud/index.ts';
 
 export default function SkillsPage() {
@@ -25,6 +25,20 @@ export default function SkillsPage() {
   const [search, setSearch] = useState(searchParams.get('q') || '');
   const [searchResults, setSearchResults] = useState<SkillSearchResult[] | null>(null);
   const [searching, setSearching] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Skill | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (!deleteTarget || !projectId) return;
+    setDeleting(true);
+    try {
+      await deleteSkill(projectId, deleteTarget.id);
+      refresh();
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
+    }
+  };
 
   useWebSocket(projectId ?? null, useCallback((event) => {
     if (event.type.startsWith('skill:')) refresh();
@@ -141,6 +155,7 @@ export default function SkillsPage() {
               score={'score' in skill ? (skill as unknown as SkillSearchResult).score : undefined}
               onClick={() => navigate(skill.id)}
               onEdit={canWrite ? () => navigate(`${skill.id}/edit`) : undefined}
+              onDelete={canWrite ? () => setDeleteTarget(skill as Skill) : undefined}
             />
           ))}
         </Box>
@@ -151,6 +166,17 @@ export default function SkillsPage() {
           <PaginationBar page={page} totalPages={totalPages} onPageChange={setPage} onRefresh={refresh} />
         </Box>
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete Skill"
+        message={`Are you sure you want to delete "${deleteTarget?.title}"? This cannot be undone.`}
+        confirmLabel="Delete"
+        confirmColor="error"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+        loading={deleting}
+      />
     </Box>
   );
 }

@@ -608,7 +608,7 @@ export default function TaskBoardPage() {
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 2, maxHeight: 'calc(100vh - 220px)' }}>
+          <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 2, alignItems: 'flex-start' }}>
             {visibleColumns.map(({ status, label, color }) => {
               const columnTasks = grouped.get(status)!;
               const isDropTarget = overColumn === status && activeId !== null;

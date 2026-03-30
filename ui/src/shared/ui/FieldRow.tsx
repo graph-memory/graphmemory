@@ -1,5 +1,6 @@
-import { Box, Typography, useTheme } from '@mui/material'
+import { Box } from '@mui/material'
 import type { ReactNode } from 'react'
+import { FieldLabel } from './FieldLabel.tsx'
 
 interface FieldRowProps {
   label: string
@@ -7,24 +8,11 @@ interface FieldRowProps {
   divider?: boolean
 }
 
-export function FieldRow({ label, children, divider = true }: FieldRowProps) {
-  const { palette } = useTheme()
+export function FieldRow({ label, children, divider: _divider }: FieldRowProps) {
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        alignItems: 'flex-start',
-        py: 1.25,
-        borderBottom: divider ? `1px solid ${palette.custom.border}` : 'none',
-      }}
-    >
-      <Typography
-        variant="body2"
-        sx={{ width: 200, flexShrink: 0, color: palette.custom.textMuted, pt: 0.25 }}
-      >
-        {label}
-      </Typography>
-      <Box sx={{ flex: 1, minWidth: 0 }}>{children}</Box>
+    <Box sx={{ mb: 1.5 }}>
+      <FieldLabel>{label}</FieldLabel>
+      <Box sx={{ minWidth: 0 }}>{children}</Box>
     </Box>
   )
 }

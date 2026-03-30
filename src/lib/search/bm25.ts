@@ -56,11 +56,11 @@ const STOP_WORDS = new Set([
 export function tokenize(text: string): string[] {
   if (!text) return [];
 
-  // Split camelCase/PascalCase boundaries, then split on non-alphanumeric
+  // Split camelCase/PascalCase boundaries, then split on non-letter/non-digit (Unicode-aware)
   const parts = text
     .replace(/([a-z])([A-Z])/g, '$1 $2')     // camelCase → camel Case
     .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2') // XMLParser → XML Parser
-    .split(/[^a-zA-Z0-9]+/)
+    .split(/[^\p{L}\p{N}]+/u)
     .map(t => t.toLowerCase())
     .filter(t => t.length > 0 && !STOP_WORDS.has(t));
 

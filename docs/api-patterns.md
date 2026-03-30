@@ -255,7 +255,7 @@ Centralized error handler at the end of the middleware chain:
 app.use((err, req, res, next) => {
   if (err.name === 'ZodError') return res.status(400).json({ error: 'Validation error' });
   if (err.type === 'entity.parse.failed') return res.status(400).json({ error: 'Invalid JSON' });
-  process.stderr.write(`[rest] Error: ${err.stack || err}\n`);
+  log.error({ err }, 'Unhandled error');
   res.status(500).json({ error: 'Internal server error' });
 });
 ```

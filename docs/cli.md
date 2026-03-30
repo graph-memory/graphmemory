@@ -45,7 +45,14 @@ When no `--config` is provided and `graph-memory.yaml` is not found, the current
 | `--host` | from config or `127.0.0.1` | Bind address |
 | `--port` | from config or `3000` | Port |
 | `--reindex` | `false` | Discard persisted graphs, re-index from scratch |
-| `--debug` | `false` | Log MCP tool calls and responses to stderr |
+| `--log-level` | `info` | Log level: fatal/error/warn/info/debug/trace |
+
+### Environment variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LOG_LEVEL` | `info` | Log level threshold (also settable via `--log-level`) |
+| `LOG_JSON` | `0` | Set to `1` for JSON log output (for Docker/production) |
 
 ## `index` — one-shot scan
 

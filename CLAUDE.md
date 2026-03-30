@@ -61,8 +61,9 @@ All config via `graph-memory.yaml`. See [docs/configuration.md](docs/configurati
 ## Conventions
 
 - TypeScript strict mode — no implicit `any`, no unused vars/params
-- Error handling: `.catch()` with `process.stderr.write` + `process.exit(1)` for fatal CLI errors
-- Async errors in indexer queue logged to stderr, don't stop the queue
+- Error handling: `.catch()` with Pino logger + `process.exit(1)` for fatal CLI errors
+- Async errors in indexer queue logged via Pino, don't stop the queue
+- Logging: Pino with `createLogger('component')` child loggers; pretty by default, `LOG_JSON=1` for JSON
 - Tests: Jest + ts-jest; ESM deps mocked via `moduleNameMapper`
 - MCP tests: `InMemoryTransport.createLinkedPair()` + fake embeddings
 - `embedder.test.ts` loads real model (slow) — excluded from Jest, run with `npx tsx`

@@ -44,10 +44,21 @@ All events include `projectId` — the UI filters events client-side based on th
 | `task:updated` | `{ taskId }` | Task updated |
 | `task:deleted` | `{ taskId }` | Task deleted |
 | `task:moved` | `{ taskId, status }` | Task status changed |
+| `task:reordered` | `{ taskId }` | Task position changed within column |
 | `task:relation:added` | `{ taskId, toId, kind, targetGraph? }` | Relation/cross-link created |
 | `task:relation:deleted` | `{ taskId, toId, kind, targetGraph? }` | Relation/cross-link removed |
 | `task:attachment:added` | `{ taskId, filename }` | Attachment uploaded |
 | `task:attachment:deleted` | `{ taskId, filename }` | Attachment removed |
+
+### Epic events
+
+| Type | Data | Trigger |
+|------|------|---------|
+| `epic:created` | `{ epicId, title, status }` | Epic created |
+| `epic:updated` | `{ epicId }` | Epic updated |
+| `epic:deleted` | `{ epicId }` | Epic deleted |
+| `epic:linked` | `{ taskId, epicId }` | Task linked to epic |
+| `epic:unlinked` | `{ taskId, epicId }` | Task unlinked from epic |
 
 ### Skill events
 

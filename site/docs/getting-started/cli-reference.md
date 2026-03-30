@@ -33,7 +33,7 @@ graphmemory serve --reindex
 | `--host` | `127.0.0.1` | Bind address |
 | `--port` | `3000` | Port |
 | `--reindex` | `false` | Discard saved graphs, re-index everything |
-| `--debug` | `false` | Log MCP tool calls and responses to stderr |
+| `--log-level` | `info` | Log level: fatal/error/warn/info/debug/trace |
 
 ### What happens on startup
 

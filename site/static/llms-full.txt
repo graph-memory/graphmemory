@@ -240,7 +240,7 @@ graphmemory serve [options]
 | `--port <number>` | Override server port |
 | `--host <address>` | Override bind address |
 | `--reindex` | Force re-index all projects on startup |
-| `--debug` | Log MCP tool calls and responses to stderr |
+| `--log-level` | Log level: fatal/error/warn/info/debug/trace |
 
 ### `graphmemory index`
 

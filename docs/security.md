@@ -93,7 +93,7 @@ server:
     - "https://app.example.com"
 ```
 
-When not set, allows all origins (`*`). `credentials: true` is always enabled to support cookie-based auth behind reverse proxies.
+> **Security recommendation**: Always set `corsOrigins` when users are configured. Without it, all origins are allowed with `credentials: true`. While `SameSite=Strict` cookies mitigate most cross-origin attacks in modern browsers, explicit origin allowlisting provides defense-in-depth.
 
 ## MCP authentication
 
@@ -171,7 +171,24 @@ This is useful for graphs that should be searchable but not modifiable — e.g.,
 
 ## Access control
 
-5-level ACL with per-graph granularity. See [Authentication](authentication.md).
+5-level ACL with per-graph granularity. Resolution chain (first match wins):
+
+```
+graph.access[userId] → project.access[userId] → workspace.access[userId]
+→ server.access[userId] → server.defaultAccess
+```
+
+> **Note**: A graph-level `rw` overrides a server-level `deny` because the chain uses first-match-wins. This is intentional for granular control — admins can deny by default and grant per-graph access.
+
+When users are configured, unauthenticated requests are rejected with 401. The `defaultAccess` setting only applies to authenticated users not explicitly listed in any ACL level.
+
+See [Authentication](authentication.md) for full details.
+
+## WebSocket authentication
+
+WebSocket connections (`/api/ws`) require a valid JWT session cookie (`mgm_access`). API-key-only clients (Bearer header) cannot connect to WebSocket — this is by design since WebSocket is intended for the browser UI.
+
+Events are filtered server-side: each client only receives events for projects they have read access to.
 
 ## Session management
 
@@ -182,3 +199,17 @@ This is useful for graphs that should be searchable but not modifiable — e.g.,
 - OAuth refresh tokens share the same TTL as UI refresh tokens
 - OAuth authorization codes expire after 10 minutes and are single-use (deleted from the session store on first redemption)
 - Each JWT request validates user still exists in config (revocation on user removal)
+
+## Known limitations
+
+### Refresh token replay
+Refresh tokens (both cookie-based and OAuth) are not invalidated server-side after use. A stolen refresh token remains valid until expiry even after the legitimate user refreshes. For production deployments, use Redis as session store — this enables future server-side token blacklisting.
+
+### API key storage
+API keys are stored in plaintext in `graph-memory.yaml`. Protect this file with appropriate filesystem permissions (`chmod 600`). Do not commit it to version control. Consider mounting it read-only in Docker (`:ro`).
+
+### OAuth revocation stubs
+`POST /api/oauth/revoke` and `POST /api/oauth/end-session` are stubs that return 200 for client compatibility but do not actually invalidate tokens. Tokens remain valid until expiry.
+
+### MCP session permissions
+MCP tool visibility is determined at session creation time. If ACL configuration changes while an MCP session is active, the session retains its original permissions until reconnection.

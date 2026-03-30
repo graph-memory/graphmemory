@@ -14,9 +14,11 @@ import CloseIcon from '@mui/icons-material/Close';
 import FlagIcon from '@mui/icons-material/Flag';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import {
-  DndContext, pointerWithin, PointerSensor, useSensor, useSensors,
+  DndContext, closestCenter, pointerWithin, rectIntersection,
+  PointerSensor, useSensor, useSensors,
   DragOverlay, useDroppable,
   type DragStartEvent, type DragEndEvent, type DragOverEvent,
+  type CollisionDetection,
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -230,6 +232,23 @@ function DroppableColumn({ status, children }: { status: string; children: React
   const { setNodeRef } = useDroppable({ id: status });
   return <Box ref={setNodeRef} sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>{children}</Box>;
 }
+
+// Custom collision detection: prefer task cards (closestCenter) over column droppables (pointerWithin)
+const COLUMN_IDS = new Set<string>(COLUMNS.map(c => c.status));
+
+const boardCollisionDetection: CollisionDetection = (args) => {
+  // First try closestCenter — finds nearest sortable card
+  const centerCollisions = closestCenter(args);
+  const cardHit = centerCollisions.find(c => !COLUMN_IDS.has(c.id as string));
+  if (cardHit) return [cardHit];
+
+  // Fallback: pointerWithin — finds column droppable
+  const pointerCollisions = pointerWithin(args);
+  const columnHit = pointerCollisions.find(c => COLUMN_IDS.has(c.id as string));
+  if (columnHit) return [columnHit];
+
+  return rectIntersection(args);
+};
 
 // ---------------------------------------------------------------------------
 // Board page
@@ -603,7 +622,7 @@ export default function TaskBoardPage() {
       ) : (
         <DndContext
           sensors={sensors}
-          collisionDetection={pointerWithin}
+          collisionDetection={boardCollisionDetection}
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}

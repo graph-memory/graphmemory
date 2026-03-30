@@ -136,6 +136,33 @@ export default function SkillDetailPage() {
                 </Box>
               </Section>
             )}
+            <Section title="Attachments" sx={{ mb: 3 }}>
+              <AttachmentSection
+                attachments={attachments}
+                getUrl={(filename) => skillAttachmentUrl(projectId!, skillId!, filename)}
+                onUpload={async (file) => {
+                  await uploadSkillAttachment(projectId!, skillId!, file);
+                  const atts = await listSkillAttachments(projectId!, skillId!);
+                  setAttachments(atts);
+                }}
+                onDelete={async (filename) => {
+                  await deleteSkillAttachment(projectId!, skillId!, filename);
+                  const atts = await listSkillAttachments(projectId!, skillId!);
+                  setAttachments(atts);
+                }}
+                readOnly={!canWrite}
+              />
+            </Section>
+
+            <Section title="Relations">
+              <RelationManager
+                projectId={projectId!}
+                entityId={skillId!}
+                entityType="skills"
+                relations={relations}
+                onRefresh={load}
+              />
+            </Section>
           </>
         }
         sidebar={
@@ -183,34 +210,6 @@ export default function SkillDetailPage() {
               <FieldRow label="Tags">
                 {skill.tags.length > 0 ? <Tags tags={skill.tags} /> : <Typography variant="body2" color="text.secondary">—</Typography>}
               </FieldRow>
-            </Section>
-
-            <Section title="Attachments" sx={{ mb: 3 }}>
-              <AttachmentSection
-                attachments={attachments}
-                getUrl={(filename) => skillAttachmentUrl(projectId!, skillId!, filename)}
-                onUpload={async (file) => {
-                  await uploadSkillAttachment(projectId!, skillId!, file);
-                  const atts = await listSkillAttachments(projectId!, skillId!);
-                  setAttachments(atts);
-                }}
-                onDelete={async (filename) => {
-                  await deleteSkillAttachment(projectId!, skillId!, filename);
-                  const atts = await listSkillAttachments(projectId!, skillId!);
-                  setAttachments(atts);
-                }}
-                readOnly={!canWrite}
-              />
-            </Section>
-
-            <Section title="Relations">
-              <RelationManager
-                projectId={projectId!}
-                entityId={skillId!}
-                entityType="skills"
-                relations={relations}
-                onRefresh={load}
-              />
             </Section>
           </>
         }

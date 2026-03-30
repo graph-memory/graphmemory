@@ -23,9 +23,10 @@ interface SkillFormProps {
   }) => Promise<void>;
   onCancel: () => void;
   submitLabel?: string;
+  extraMain?: React.ReactNode;
 }
 
-export function SkillForm({ skill, onSubmit, onCancel, submitLabel = 'Save' }: SkillFormProps) {
+export function SkillForm({ skill, onSubmit, onCancel, submitLabel = 'Save', extraMain }: SkillFormProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [steps, setSteps] = useState<string[]>(['']);
@@ -91,6 +92,7 @@ export function SkillForm({ skill, onSubmit, onCancel, submitLabel = 'Save' }: S
     <Box component="form" id="skill-form" onSubmit={e => { e.preventDefault(); handleSubmit(); }} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       <DetailLayout
         main={
+          <>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <AppTextField
               fieldLabel="Title"
@@ -166,6 +168,8 @@ export function SkillForm({ skill, onSubmit, onCancel, submitLabel = 'Save' }: S
               </Box>
             </Section>
           </Box>
+          {extraMain}
+          </>
         }
         sidebar={
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>

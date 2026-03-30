@@ -93,6 +93,34 @@ export default function NoteDetailPage() {
                 <MarkdownRenderer>{note.content}</MarkdownRenderer>
               </Section>
             )}
+
+            <Section title="Attachments" sx={{ mb: 3 }}>
+              <AttachmentSection
+                attachments={attachments}
+                getUrl={(filename) => noteAttachmentUrl(projectId!, noteId!, filename)}
+                onUpload={async (file) => {
+                  await uploadNoteAttachment(projectId!, noteId!, file);
+                  const atts = await listNoteAttachments(projectId!, noteId!);
+                  setAttachments(atts);
+                }}
+                onDelete={async (filename) => {
+                  await deleteNoteAttachment(projectId!, noteId!, filename);
+                  const atts = await listNoteAttachments(projectId!, noteId!);
+                  setAttachments(atts);
+                }}
+                readOnly={!canWrite}
+              />
+            </Section>
+
+            <Section title="Relations">
+              <RelationManager
+                projectId={projectId!}
+                entityId={noteId!}
+                entityType="knowledge"
+                relations={relations}
+                onRefresh={load}
+              />
+            </Section>
           </>
         }
         sidebar={
@@ -126,34 +154,6 @@ export default function NoteDetailPage() {
               <FieldRow label="Updated" divider={false}>
                 <DateDisplay value={note.updatedAt} showTime showRelative />
               </FieldRow>
-            </Section>
-
-            <Section title="Attachments" sx={{ mb: 3 }}>
-              <AttachmentSection
-                attachments={attachments}
-                getUrl={(filename) => noteAttachmentUrl(projectId!, noteId!, filename)}
-                onUpload={async (file) => {
-                  await uploadNoteAttachment(projectId!, noteId!, file);
-                  const atts = await listNoteAttachments(projectId!, noteId!);
-                  setAttachments(atts);
-                }}
-                onDelete={async (filename) => {
-                  await deleteNoteAttachment(projectId!, noteId!, filename);
-                  const atts = await listNoteAttachments(projectId!, noteId!);
-                  setAttachments(atts);
-                }}
-                readOnly={!canWrite}
-              />
-            </Section>
-
-            <Section title="Relations">
-              <RelationManager
-                projectId={projectId!}
-                entityId={noteId!}
-                entityType="knowledge"
-                relations={relations}
-                onRefresh={load}
-              />
             </Section>
           </>
         }

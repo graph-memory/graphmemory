@@ -8,9 +8,10 @@ interface NoteFormProps {
   onSubmit: (data: { title: string; content: string; tags: string[] }) => Promise<void>;
   onCancel: () => void;
   submitLabel?: string;
+  extraMain?: React.ReactNode;
 }
 
-export function NoteForm({ note, onSubmit, onCancel, submitLabel = 'Save' }: NoteFormProps) {
+export function NoteForm({ note, onSubmit, onCancel, submitLabel = 'Save', extraMain }: NoteFormProps) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [tags, setTags] = useState<string[]>([]);
@@ -42,22 +43,25 @@ export function NoteForm({ note, onSubmit, onCancel, submitLabel = 'Save' }: Not
     <Box component="form" id="note-form" onSubmit={e => { e.preventDefault(); handleSubmit(); }} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       <DetailLayout
         main={
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <AppTextField
-              fieldLabel="Title"
-              required
-              autoFocus
-              fullWidth
-              value={title}
-              onChange={e => { setTitle(e.target.value); setTitleError(false); }}
-              error={titleError}
-              helperText={titleError ? 'Title is required' : undefined}
-            />
-            <Box>
-              <FieldLabel>Content</FieldLabel>
-              <MarkdownEditor value={content} onChange={setContent} height={300} />
+          <>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <AppTextField
+                fieldLabel="Title"
+                required
+                autoFocus
+                fullWidth
+                value={title}
+                onChange={e => { setTitle(e.target.value); setTitleError(false); }}
+                error={titleError}
+                helperText={titleError ? 'Title is required' : undefined}
+              />
+              <Box>
+                <FieldLabel>Content</FieldLabel>
+                <MarkdownEditor value={content} onChange={setContent} height={400} />
+              </Box>
             </Box>
-          </Box>
+            {extraMain}
+          </>
         }
         sidebar={
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>

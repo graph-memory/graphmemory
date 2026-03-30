@@ -35,14 +35,16 @@ export default function NoteNewPage() {
         onSubmit={handleSubmit}
         onCancel={() => navigate(`/${projectId}/knowledge`)}
         submitLabel="Create"
+        extraMain={
+          <Section title="Attachments" sx={{ mt: 3 }}>
+            <StagedAttachments
+              files={stagedFiles}
+              onAdd={files => setStagedFiles(prev => [...prev, ...files])}
+              onRemove={index => setStagedFiles(prev => prev.filter((_, i) => i !== index))}
+            />
+          </Section>
+        }
       />
-      <Section title="Attachments" sx={{ mt: 3 }}>
-        <StagedAttachments
-          files={stagedFiles}
-          onAdd={files => setStagedFiles(prev => [...prev, ...files])}
-          onRemove={index => setStagedFiles(prev => prev.filter((_, i) => i !== index))}
-        />
-      </Section>
     </Box>
   );
 }

@@ -45,14 +45,16 @@ export default function SkillNewPage() {
         onSubmit={handleSubmit}
         onCancel={() => navigate(`/${projectId}/skills`)}
         submitLabel="Create"
+        extraMain={
+          <Section title="Attachments" sx={{ mt: 3 }}>
+            <StagedAttachments
+              files={stagedFiles}
+              onAdd={files => setStagedFiles(prev => [...prev, ...files])}
+              onRemove={index => setStagedFiles(prev => prev.filter((_, i) => i !== index))}
+            />
+          </Section>
+        }
       />
-      <Section title="Attachments" sx={{ mt: 3 }}>
-        <StagedAttachments
-          files={stagedFiles}
-          onAdd={files => setStagedFiles(prev => [...prev, ...files])}
-          onRemove={index => setStagedFiles(prev => prev.filter((_, i) => i !== index))}
-        />
-      </Section>
     </Box>
   );
 }

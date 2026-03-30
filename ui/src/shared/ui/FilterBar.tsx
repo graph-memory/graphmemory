@@ -18,29 +18,23 @@ export function FilterBar({ children, actions, activeFilters, onClearAll }: Filt
   const { palette } = useTheme()
   const hasChips = activeFilters && activeFilters.length > 0
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 1.5,
-        flexWrap: 'wrap',
-        px: 2,
-        py: 1,
-        bgcolor: palette.custom.surfaceMuted,
-        borderRadius: 1,
-        mb: 2,
-      }}
-    >
-      <Box sx={{ display: 'flex', gap: 1.5, flex: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-        {children}
-        {hasChips && activeFilters.map(f => (
-          <FilterChip key={f.key} label={f.label} color={f.color} onDelete={f.onClear} />
-        ))}
-        {hasChips && onClearAll && (
-          <Button size="small" onClick={onClearAll}>Clear all</Button>
-        )}
+    <Box sx={{ bgcolor: palette.custom.surfaceMuted, borderRadius: 1, mb: 2, px: 2, py: 1 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <Box sx={{ display: 'flex', gap: 1.5, flex: 1, alignItems: 'center' }}>
+          {children}
+        </Box>
+        {actions && <Box sx={{ display: 'flex', gap: 1 }}>{actions}</Box>}
       </Box>
-      {actions && <Box sx={{ display: 'flex', gap: 1 }}>{actions}</Box>}
+      {hasChips && (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mt: 1 }}>
+          {activeFilters.map(f => (
+            <FilterChip key={f.key} label={f.label} color={f.color} onDelete={f.onClear} />
+          ))}
+          {onClearAll && (
+            <Button size="small" onClick={onClearAll} sx={{ textTransform: 'uppercase', fontSize: '0.75rem' }}>Clear all</Button>
+          )}
+        </Box>
+      )}
     </Box>
   )
 }

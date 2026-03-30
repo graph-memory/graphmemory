@@ -177,14 +177,17 @@ projects:
     #     exclude: "**/generated/**"
     #   knowledge:
     #     enabled: true
+    #     readonly: false                        # Set true to block all writes (overrides ACL rw → r)
     #     access:                                # Per-graph access (overrides project.access)
     #       bob: rw                              # bob gets rw on knowledge even if project says r
     #   tasks:
     #     enabled: true
+    #     readonly: false
     #   files:
     #     enabled: true
     #   skills:
     #     enabled: true
+    #     readonly: false
 
   # ── Project 2: Documentation-only project (no code indexing) ─────────────
   docs-site:

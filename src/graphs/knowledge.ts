@@ -457,15 +457,14 @@ export function loadKnowledgeGraph(graphMemory: string, fresh = false, embedding
 
   try {
     const storedVersion = data.version as number | undefined;
-    if (storedVersion !== GRAPH_DATA_VERSION) {
-      process.stderr.write(`[knowledge-graph] Data version changed (${storedVersion ?? 'none'} → ${GRAPH_DATA_VERSION}), re-indexing knowledge graph\n`);
-      return graph;
-    }
-
     const stored = data.embeddingModel as string | undefined;
-    if (embeddingFingerprint && stored !== embeddingFingerprint) {
-      process.stderr.write(`[knowledge-graph] Embedding config changed, re-indexing knowledge graph\n`);
-      return graph;
+    const needsReEmbed = (storedVersion !== GRAPH_DATA_VERSION) ||
+      (embeddingFingerprint != null && stored !== embeddingFingerprint);
+
+    if (needsReEmbed && storedVersion !== GRAPH_DATA_VERSION) {
+      process.stderr.write(`[knowledge-graph] Data version changed (${storedVersion ?? 'none'} → ${GRAPH_DATA_VERSION}), preserving user data, clearing embeddings\n`);
+    } else if (needsReEmbed) {
+      process.stderr.write(`[knowledge-graph] Embedding config changed, preserving user data, clearing embeddings\n`);
     }
 
     if (!validateGraphStructure(data.graph)) {
@@ -475,7 +474,15 @@ export function loadKnowledgeGraph(graphMemory: string, fresh = false, embedding
 
     decompressEmbeddings(data.graph);
     graph.import(data.graph);
-    process.stderr.write(`[knowledge-graph] Loaded ${graph.order} nodes, ${graph.size} edges\n`);
+
+    if (needsReEmbed) {
+      graph.forEachNode((id, attrs) => {
+        if (!attrs.proxyFor) graph.setNodeAttribute(id, 'embedding', []);
+      });
+      process.stderr.write(`[knowledge-graph] Loaded ${graph.order} nodes (embeddings cleared for re-generation)\n`);
+    } else {
+      process.stderr.write(`[knowledge-graph] Loaded ${graph.order} nodes, ${graph.size} edges\n`);
+    }
   } catch (err) {
     process.stderr.write(`[knowledge-graph] Failed to load graph, starting fresh: ${err}\n`);
   }

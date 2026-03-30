@@ -2,6 +2,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { serializeMarkdown, parseMarkdown } from './frontmatter';
 import type { AuthorConfig } from './multi-config';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('team');
 
 export interface TeamMember {
   id: string;
@@ -28,7 +31,7 @@ export function scanTeamDir(teamDir: string): TeamMember[] {
         email: (fm.email as string) ?? '',
       });
     } catch (err) {
-      process.stderr.write(`[team] Failed to parse team member file "${entry.name}": ${err}\n`);
+      log.error({ err, file: entry.name }, 'failed to parse team member file');
     }
   }
   return members;
@@ -52,6 +55,6 @@ export function ensureAuthorInTeam(teamDir: string, author: AuthorConfig): void 
     );
     fs.writeFileSync(filePath, content, 'utf-8');
   } catch (err) {
-    process.stderr.write(`[team] Failed to create team member file for "${author.name}": ${err}\n`);
+    log.error({ err, authorName: author.name }, 'failed to create team member file');
   }
 }

@@ -1,5 +1,8 @@
 import { createClient, type RedisClientType } from 'redis';
 import { parseDuration } from '@/lib/duration';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('redis');
 
 export interface RedisConfig {
   enabled: boolean;
@@ -26,15 +29,15 @@ export async function getRedisClient(config: RedisConfig): Promise<RedisClientTy
   const client = createClient({ url: config.url }) as RedisClientType;
 
   client.on('error', (err) => {
-    process.stderr.write(`[redis] Error: ${err.message}\n`);
+    log.error({ err }, 'Error');
   });
 
   client.on('reconnecting', () => {
-    process.stderr.write('[redis] Reconnecting...\n');
+    log.warn('Reconnecting');
   });
 
   await client.connect();
-  process.stderr.write(`[redis] Connected to ${config.url}\n`);
+  log.info({ url: config.url }, 'Connected');
 
   _client = client;
   return client;
@@ -47,7 +50,7 @@ export async function closeRedis(): Promise<void> {
   if (_client) {
     await _client.quit();
     _client = null;
-    process.stderr.write('[redis] Connection closed\n');
+    log.info('Connection closed');
   }
 }
 

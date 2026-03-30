@@ -13,6 +13,9 @@ import {
   type CreatedTaskEvent,
   type CreatedSkillEvent,
 } from './events-log';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('file-mirror');
 
 /** Sanitize a string for safe inclusion in log output. */
 function sanitizeForLog(s: string): string {
@@ -70,7 +73,7 @@ export function mirrorNoteCreate(
   try {
     const safeId = sanitizeEntityId(noteId);
     if (!safeId) {
-      process.stderr.write(`[file-mirror] rejected invalid entity ID\n`);
+      log.warn('rejected invalid entity ID');
       return;
     }
     const entityDir = path.join(notesDir, safeId);
@@ -94,7 +97,7 @@ export function mirrorNoteCreate(
     ensureGitignore(notesDir, '*/note.md');
     ensureGitattributes(notesDir);
   } catch (err) {
-    process.stderr.write(`[file-mirror] failed to mirror note create ${sanitizeForLog(noteId)}: ${err}\n`);
+    log.error({ err, noteId: sanitizeForLog(noteId) }, 'failed to mirror note create');
   }
 }
 
@@ -109,7 +112,7 @@ export function mirrorNoteUpdate(
   try {
     const safeId = sanitizeEntityId(noteId);
     if (!safeId) {
-      process.stderr.write(`[file-mirror] rejected invalid entity ID\n`);
+      log.warn('rejected invalid entity ID');
       return;
     }
     const entityDir = path.join(notesDir, safeId);
@@ -129,7 +132,7 @@ export function mirrorNoteUpdate(
     }
     _regenerateNoteSnapshot(notesDir, noteId, attrs, relations);
   } catch (err) {
-    process.stderr.write(`[file-mirror] failed to mirror note update ${sanitizeForLog(noteId)}: ${err}\n`);
+    log.error({ err, noteId: sanitizeForLog(noteId) }, 'failed to mirror note update');
   }
 }
 
@@ -175,7 +178,7 @@ export function mirrorTaskCreate(
   try {
     const safeId = sanitizeEntityId(taskId);
     if (!safeId) {
-      process.stderr.write(`[file-mirror] rejected invalid entity ID\n`);
+      log.warn('rejected invalid entity ID');
       return;
     }
     const entityDir = path.join(tasksDir, safeId);
@@ -204,7 +207,7 @@ export function mirrorTaskCreate(
     ensureGitignore(tasksDir, '*/task.md');
     ensureGitattributes(tasksDir);
   } catch (err) {
-    process.stderr.write(`[file-mirror] failed to mirror task create ${sanitizeForLog(taskId)}: ${err}\n`);
+    log.error({ err, taskId: sanitizeForLog(taskId) }, 'failed to mirror task create');
   }
 }
 
@@ -219,7 +222,7 @@ export function mirrorTaskUpdate(
   try {
     const safeId = sanitizeEntityId(taskId);
     if (!safeId) {
-      process.stderr.write(`[file-mirror] rejected invalid entity ID\n`);
+      log.warn('rejected invalid entity ID');
       return;
     }
     const entityDir = path.join(tasksDir, safeId);
@@ -244,7 +247,7 @@ export function mirrorTaskUpdate(
     }
     _regenerateTaskSnapshot(tasksDir, taskId, attrs, relations);
   } catch (err) {
-    process.stderr.write(`[file-mirror] failed to mirror task update ${sanitizeForLog(taskId)}: ${err}\n`);
+    log.error({ err, taskId: sanitizeForLog(taskId) }, 'failed to mirror task update');
   }
 }
 
@@ -297,7 +300,7 @@ export function mirrorSkillCreate(
   try {
     const safeId = sanitizeEntityId(skillId);
     if (!safeId) {
-      process.stderr.write(`[file-mirror] rejected invalid entity ID\n`);
+      log.warn('rejected invalid entity ID');
       return;
     }
     const entityDir = path.join(skillsDir, safeId);
@@ -329,7 +332,7 @@ export function mirrorSkillCreate(
     ensureGitignore(skillsDir, '*/skill.md');
     ensureGitattributes(skillsDir);
   } catch (err) {
-    process.stderr.write(`[file-mirror] failed to mirror skill create ${sanitizeForLog(skillId)}: ${err}\n`);
+    log.error({ err, skillId: sanitizeForLog(skillId) }, 'failed to mirror skill create');
   }
 }
 
@@ -344,7 +347,7 @@ export function mirrorSkillUpdate(
   try {
     const safeId = sanitizeEntityId(skillId);
     if (!safeId) {
-      process.stderr.write(`[file-mirror] rejected invalid entity ID\n`);
+      log.warn('rejected invalid entity ID');
       return;
     }
     const entityDir = path.join(skillsDir, safeId);
@@ -372,7 +375,7 @@ export function mirrorSkillUpdate(
     }
     _regenerateSkillSnapshot(skillsDir, skillId, attrs, relations);
   } catch (err) {
-    process.stderr.write(`[file-mirror] failed to mirror skill update ${sanitizeForLog(skillId)}: ${err}\n`);
+    log.error({ err, skillId: sanitizeForLog(skillId) }, 'failed to mirror skill update');
   }
 }
 
@@ -435,7 +438,7 @@ export function mirrorNoteRelation(
     appendEvent(eventsPath, event as Parameters<typeof appendEvent>[1]);
     _regenerateNoteSnapshot(notesDir, noteId, attrs, relations);
   } catch (err) {
-    process.stderr.write(`[file-mirror] failed to mirror note relation ${sanitizeForLog(noteId)}: ${err}\n`);
+    log.error({ err, noteId: sanitizeForLog(noteId) }, 'failed to mirror note relation');
   }
 }
 
@@ -459,7 +462,7 @@ export function mirrorTaskRelation(
     appendEvent(eventsPath, event as Parameters<typeof appendEvent>[1]);
     _regenerateTaskSnapshot(tasksDir, taskId, attrs, relations);
   } catch (err) {
-    process.stderr.write(`[file-mirror] failed to mirror task relation ${sanitizeForLog(taskId)}: ${err}\n`);
+    log.error({ err, taskId: sanitizeForLog(taskId) }, 'failed to mirror task relation');
   }
 }
 
@@ -483,7 +486,7 @@ export function mirrorSkillRelation(
     appendEvent(eventsPath, event as Parameters<typeof appendEvent>[1]);
     _regenerateSkillSnapshot(skillsDir, skillId, attrs, relations);
   } catch (err) {
-    process.stderr.write(`[file-mirror] failed to mirror skill relation ${sanitizeForLog(skillId)}: ${err}\n`);
+    log.error({ err, skillId: sanitizeForLog(skillId) }, 'failed to mirror skill relation');
   }
 }
 
@@ -497,7 +500,7 @@ export function mirrorAttachmentEvent(
     const eventsPath = path.join(entityDir, 'events.jsonl');
     appendEvent(eventsPath, { op: 'attachment', action, file } as Parameters<typeof appendEvent>[1]);
   } catch (err) {
-    process.stderr.write(`[file-mirror] failed to mirror attachment event: ${err}\n`);
+    log.error({ err }, 'failed to mirror attachment event');
   }
 }
 
@@ -509,14 +512,14 @@ export function mirrorAttachmentEvent(
 export function deleteMirrorDir(dir: string, id: string): void {
   const safeId = sanitizeEntityId(id);
   if (!safeId) {
-    process.stderr.write(`[file-mirror] rejected invalid entity ID\n`);
+    log.warn('rejected invalid entity ID');
     return;
   }
   try {
     fs.rmSync(path.join(dir, safeId), { recursive: true, force: true });
   } catch (err: unknown) {
     if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
-      process.stderr.write(`[file-mirror] failed to delete ${sanitizeForLog(id)}/: ${err}\n`);
+      log.error({ err, id: sanitizeForLog(id) }, 'failed to delete mirror dir');
     }
   }
 }
@@ -562,7 +565,7 @@ export function deleteAttachment(baseDir: string, entityId: string, filename: st
     return true;
   } catch (err: unknown) {
     if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
-      process.stderr.write(`[file-mirror] failed to delete attachment ${sanitizeForLog(filename)}: ${err}\n`);
+      log.error({ err, filename: sanitizeForLog(filename) }, 'failed to delete attachment');
     }
     return false;
   }

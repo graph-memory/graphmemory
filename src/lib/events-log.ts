@@ -5,6 +5,9 @@ import type { SkillSource } from '../graphs/skill-types';
 import type { AttachmentMeta } from '../graphs/attachment-types';
 import type { RelationFrontmatter } from './file-mirror';
 import type { ParsedNoteFile, ParsedTaskFile, ParsedSkillFile } from './file-import';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('events-log');
 
 // ---------------------------------------------------------------------------
 // Event types
@@ -94,7 +97,7 @@ export function appendEvent(eventsPath: string, event: Omit<AnyEvent, 'ts'>): vo
     const line = JSON.stringify({ ts: new Date().toISOString(), ...event }) + '\n';
     fs.appendFileSync(eventsPath, line, 'utf-8');
   } catch (err) {
-    process.stderr.write(`[events-log] failed to append event: ${err}\n`);
+    log.error({ err }, 'failed to append event');
   }
 }
 
@@ -389,7 +392,7 @@ export function ensureGitignore(parentDir: string, pattern: string): void {
       fs.writeFileSync(gitignorePath, content + (content && !content.endsWith('\n') ? '\n' : '') + pattern + '\n', 'utf-8');
     }
   } catch (err) {
-    process.stderr.write(`[events-log] failed to write .gitignore: ${err}\n`);
+    log.error({ err }, 'failed to write .gitignore');
   }
 }
 
@@ -407,6 +410,6 @@ export function ensureGitattributes(entityParentDir: string): void {
       fs.writeFileSync(gitattrsPath, content + (content && !content.endsWith('\n') ? '\n' : '') + pattern + '\n', 'utf-8');
     }
   } catch (err) {
-    process.stderr.write(`[events-log] failed to write .gitattributes: ${err}\n`);
+    log.error({ err }, 'failed to write .gitattributes');
   }
 }

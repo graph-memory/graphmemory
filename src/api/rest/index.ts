@@ -7,6 +7,9 @@ import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import type { ProjectManager } from '@/lib/project-manager';
 import type { ServerConfig, UserConfig, GraphName } from '@/lib/multi-config';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('rest');
 import { GRAPH_NAMES } from '@/lib/multi-config';
 import { resolveAccess, resolveUserFromApiKey, canRead, canWrite } from '@/lib/access';
 import {
@@ -514,7 +517,7 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
     if (err.type === 'entity.parse.failed' || (err instanceof SyntaxError && 'body' in err)) {
       return res.status(400).json({ error: 'Invalid JSON' });
     }
-    process.stderr.write(`[rest] Error: ${err.stack || err}\n`);
+    log.error({ err }, 'unhandled error');
     res.status(500).json({ error: 'Internal server error' });
   });
 

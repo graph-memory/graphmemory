@@ -17,6 +17,9 @@ import type { SkillGraph } from '@/graphs/skill-types';
 import { cleanupProxies as cleanupSkillProxies } from '@/graphs/skill';
 import type { FileIndexGraph } from '@/graphs/file-index-types';
 import { updateFileEntry, removeFileEntry, getFileEntryMtime, rebuildDirectoryStats } from '@/graphs/file-index';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('indexer');
 
 export type IndexPhase = 'docs' | 'code' | 'files';
 
@@ -71,7 +74,7 @@ export function createProjectIndexer(
         const fn = pending.shift()!;
         try { await fn(); } catch (err: unknown) {
           errors++;
-          process.stderr.write(`[indexer] ${label} error: ${err}\n`);
+          log.error({ err, queue: label }, 'queue error');
         }
       }
       running = false;
@@ -125,7 +128,7 @@ export function createProjectIndexer(
     const fileId = path.relative(config.projectDir, absolutePath);
     if (getFileMtime(docGraph, fileId) === mtime) return;
     if (config.maxFileSize && stat.size > config.maxFileSize) {
-      process.stderr.write(`[indexer] skip doc  ${fileId} (${(stat.size / 1024 / 1024).toFixed(1)} MB exceeds limit)\n`);
+      log.warn({ fileId, sizeMB: (stat.size / 1024 / 1024).toFixed(1) }, 'skip doc (exceeds size limit)');
       return;
     }
     const content = fs.readFileSync(absolutePath, 'utf-8');
@@ -146,7 +149,7 @@ export function createProjectIndexer(
     if (rootChunk && docGraph.hasNode(rootChunk.id)) {
       docGraph.setNodeAttribute(rootChunk.id, 'fileEmbedding', embeddings[chunks.length]);
     }
-    process.stderr.write(`[indexer] doc  ${fileId} (${chunks.length} chunks)\n`);
+    log.info({ fileId, chunks: chunks.length }, 'indexed doc');
   }
 
   async function indexCodeFile(absolutePath: string): Promise<void> {
@@ -168,7 +171,7 @@ export function createProjectIndexer(
     const fileId = path.relative(config.projectDir, absolutePath);
     if (getCodeFileMtime(codeGraph, fileId) === mtime) return;
     if (config.maxFileSize && stat.size > config.maxFileSize) {
-      process.stderr.write(`[indexer] skip code ${fileId} (${(stat.size / 1024 / 1024).toFixed(1)} MB exceeds limit)\n`);
+      log.warn({ fileId, sizeMB: (stat.size / 1024 / 1024).toFixed(1) }, 'skip code (exceeds size limit)');
       return;
     }
     const parsed = await parseCodeFile(absolutePath, config.projectDir, mtime);
@@ -198,7 +201,7 @@ export function createProjectIndexer(
     if (codeGraph.hasNode(fileId)) {
       codeGraph.setNodeAttribute(fileId, 'fileEmbedding', embeddings[parsed.nodes.length]);
     }
-    process.stderr.write(`[indexer] code ${fileId} (${parsed.nodes.length} symbols)\n`);
+    log.info({ fileId, symbols: parsed.nodes.length }, 'indexed code');
   }
 
   async function indexFileEntry(absolutePath: string): Promise<void> {
@@ -266,7 +269,7 @@ export function createProjectIndexer(
         if (knowledgeGraph) cleanupKnowledgeProxies(knowledgeGraph, 'docs', docGraph, config.projectId);
         if (taskGraph) cleanupTaskProxies(taskGraph, 'docs', docGraph, config.projectId);
         if (skillGraph) cleanupSkillProxies(skillGraph, 'docs', docGraph, config.projectId);
-        process.stderr.write(`[indexer] removed doc  ${rel}\n`);
+        log.info({ fileId: rel }, 'removed doc');
       });
     }
     if ((!currentPhase || currentPhase === 'code') && codeGraph && config.codeInclude && !isExcluded(rel, codeExclude) && micromatch.isMatch(rel, config.codeInclude)) {
@@ -275,7 +278,7 @@ export function createProjectIndexer(
         if (knowledgeGraph) cleanupKnowledgeProxies(knowledgeGraph, 'code', codeGraph, config.projectId);
         if (taskGraph) cleanupTaskProxies(taskGraph, 'code', codeGraph, config.projectId);
         if (skillGraph) cleanupSkillProxies(skillGraph, 'code', codeGraph, config.projectId);
-        process.stderr.write(`[indexer] removed code ${rel}\n`);
+        log.info({ fileId: rel }, 'removed code');
       });
     }
     if ((!currentPhase || currentPhase === 'files') && fileIndexGraph && !isExcluded(rel, filesExclude)) {
@@ -284,7 +287,7 @@ export function createProjectIndexer(
         if (knowledgeGraph) cleanupKnowledgeProxies(knowledgeGraph, 'files', fileIndexGraph, config.projectId);
         if (taskGraph) cleanupTaskProxies(taskGraph, 'files', fileIndexGraph, config.projectId);
         if (skillGraph) cleanupSkillProxies(skillGraph, 'files', fileIndexGraph, config.projectId);
-        process.stderr.write(`[indexer] removed file ${rel}\n`);
+        log.info({ fileId: rel }, 'removed file');
       });
     }
   }
@@ -346,7 +349,7 @@ export function createProjectIndexer(
     // Resolve cross-file edges that were deferred during indexing
     if (docGraph) {
       const docLinks = resolvePendingLinks(docGraph);
-      if (docLinks > 0) process.stderr.write(`[indexer] Resolved ${docLinks} deferred doc cross-file link(s)\n`);
+      if (docLinks > 0) log.info({ count: docLinks }, 'Resolved deferred doc cross-file links');
       // Clean up any remaining unresolved pending links so they don't persist to disk
       let docOrphans = 0;
       docGraph.forEachNode((nid, nattrs) => {
@@ -355,13 +358,13 @@ export function createProjectIndexer(
           docOrphans++;
         }
       });
-      if (docOrphans > 0) process.stderr.write(`[indexer] Cleared ${docOrphans} unresolvable doc pending link(s)\n`);
+      if (docOrphans > 0) log.debug({ count: docOrphans }, 'Cleared unresolvable doc pending links');
     }
     if (codeGraph) {
       const codeImports = resolvePendingImports(codeGraph);
-      if (codeImports > 0) process.stderr.write(`[indexer] Resolved ${codeImports} deferred code import edge(s)\n`);
+      if (codeImports > 0) log.info({ count: codeImports }, 'Resolved deferred code import edges');
       const codeEdges = resolvePendingEdges(codeGraph);
-      if (codeEdges > 0) process.stderr.write(`[indexer] Resolved ${codeEdges} deferred code extends/implements edge(s)\n`);
+      if (codeEdges > 0) log.info({ count: codeEdges }, 'Resolved deferred code extends/implements edges');
       // Clean up any remaining unresolved pending edges/imports
       let codeOrphans = 0;
       codeGraph.forEachNode((nid, nattrs) => {
@@ -374,12 +377,12 @@ export function createProjectIndexer(
           codeOrphans++;
         }
       });
-      if (codeOrphans > 0) process.stderr.write(`[indexer] Cleared ${codeOrphans} unresolvable code pending edge(s)\n`);
+      if (codeOrphans > 0) log.debug({ count: codeOrphans }, 'Cleared unresolvable code pending edges');
     }
 
     const totalErrors = docsQueue.errors + codeQueue.errors + fileQueue.errors;
     if (totalErrors > 0) {
-      process.stderr.write(`[indexer] Completed with ${totalErrors} error(s): docs=${docsQueue.errors}, code=${codeQueue.errors}, files=${fileQueue.errors}\n`);
+      log.warn({ totalErrors, docsErrors: docsQueue.errors, codeErrors: codeQueue.errors, filesErrors: fileQueue.errors }, 'Completed with errors');
     }
   }
 

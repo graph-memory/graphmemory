@@ -3,9 +3,12 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import type { ModelConfig, EmbeddingConfig } from '@/lib/multi-config';
+import { createLogger } from '@/lib/logger';
 import { DEFAULT_EMBEDDING_CACHE_SIZE, REMOTE_MAX_RETRIES, REMOTE_BASE_DELAY_MS, ERROR_BODY_LIMIT } from '@/lib/defaults';
 import { float32ToBase64, base64ToFloat32 } from '@/lib/embedding-codec';
 import type { RedisClientType } from 'redis';
+
+const log = createLogger('embedder');
 
 // ---------------------------------------------------------------------------
 // Embedding cache abstraction
@@ -150,13 +153,13 @@ export async function loadModel(
   if (embedding.remote) {
     validateRemoteUrl(embedding.remote);
     _models.set(name, { pipe: null, pipePromise: null, model, embedding, modelsDir, maxChars, cache: embeddingCache, remote: { url: embedding.remote, apiKey: embedding.remoteApiKey, model: embedding.remoteModel } });
-    process.stderr.write(`[embedder] Model "${name}" using remote endpoint ${embedding.remote}\n`);
+    log.info({ name, endpoint: embedding.remote }, 'Model using remote endpoint');
     return;
   }
 
   // Register for lazy loading — pipeline created on first use
   _models.set(name, { pipe: null, pipePromise: null, model, embedding, modelsDir, maxChars, cache: embeddingCache });
-  process.stderr.write(`[embedder] Registered model ${model.name} for "${name}" (lazy)\n`);
+  log.info({ model: model.name, name }, 'Registered model (lazy)');
 }
 
 // ---------------------------------------------------------------------------
@@ -185,7 +188,7 @@ async function ensurePipeline(entry: ModelEntry): Promise<FeatureExtractionPipel
   if (cached) {
     entry.pipe = cached;
     entry.pipePromise = null;
-    process.stderr.write(`[embedder] Reusing model ${entry.model.name} for lazy init\n`);
+    log.debug({ model: entry.model.name }, 'Reusing model for lazy init');
     return cached;
   }
 
@@ -197,10 +200,10 @@ async function ensurePipeline(entry: ModelEntry): Promise<FeatureExtractionPipel
     const modelDir = path.join(entry.modelsDir, entry.model.name.replace('/', path.sep));
     if (fs.existsSync(modelDir)) {
       env.allowRemoteModels = false;
-      process.stderr.write(`[embedder] Loading local model ${entry.model.name}...\n`);
+      log.info({ model: entry.model.name }, 'Loading local model');
     } else {
       env.allowRemoteModels = true;
-      process.stderr.write(`[embedder] Downloading model ${entry.model.name} to ${entry.modelsDir}...\n`);
+      log.info({ model: entry.model.name, modelsDir: entry.modelsDir }, 'Downloading model');
     }
 
     const pipeOpts: Record<string, unknown> = { session_options: SESSION_OPTIONS };
@@ -210,7 +213,7 @@ async function ensurePipeline(entry: ModelEntry): Promise<FeatureExtractionPipel
     _pipeCache.set(cacheKey, pipe);
     entry.pipe = pipe;
     entry.pipePromise = null;
-    process.stderr.write(`[embedder] Model ${entry.model.name} ready\n`);
+    log.info({ model: entry.model.name }, 'Model ready');
     return pipe;
   })();
 
@@ -236,7 +239,7 @@ export async function disposeModel(name: string): Promise<void> {
     if (!shared) {
       await entry.pipe.dispose();
       _pipeCache.delete(cacheKey);
-      process.stderr.write(`[embedder] Disposed pipeline ${entry.model.name}\n`);
+      log.debug({ model: entry.model.name }, 'Disposed pipeline');
     }
   }
 

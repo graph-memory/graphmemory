@@ -1,4 +1,7 @@
 import * as fs from 'fs';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('graph');
 
 /**
  * Try to read and parse a JSON file, falling back to .tmp if main file
@@ -20,7 +23,7 @@ export function readJsonWithTmpFallback(file: string): any | null {
       if (fs.existsSync(tmp)) {
         try {
           const data = JSON.parse(fs.readFileSync(tmp, 'utf-8'));
-          process.stderr.write(`[graph] Recovered from .tmp file: ${file}\n`);
+          log.warn({ file }, 'Recovered from .tmp file');
           return data;
         } catch { /* .tmp also bad */ }
       }

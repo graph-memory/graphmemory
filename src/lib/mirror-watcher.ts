@@ -12,6 +12,9 @@ import type { WatcherHandle } from './watcher';
 import { MIRROR_STALE_MS, MIRROR_MAX_ENTRIES, MIRROR_MTIME_TOLERANCE_MS } from '@/lib/defaults';
 import type { TaskStatus, TaskPriority } from '../graphs/task-types';
 import type { SkillSource } from '../graphs/skill-types';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('mirror-watcher');
 
 /**
  * Tracks recent mirror writes to suppress re-import (feedback loop prevention).
@@ -256,14 +259,14 @@ export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
       config.mutationQueue.enqueue(async () => {
         const parsed = parseNoteDir(entityDir);
         if (parsed) await config.knowledgeManager.importFromFile(parsed);
-      }).catch(err => process.stderr.write(`[mirror-watcher] note events import error: ${err}\n`));
+      }).catch(err => log.error({ err }, 'note events import error'));
       return;
     }
     if (type === 'task-events') {
       config.mutationQueue.enqueue(async () => {
         const parsed = parseTaskDir(entityDir);
         if (parsed) await config.taskManager.importFromFile(parsed);
-      }).catch(err => process.stderr.write(`[mirror-watcher] task events import error: ${err}\n`));
+      }).catch(err => log.error({ err }, 'task events import error'));
       return;
     }
     if (type === 'skill-events' && config.skillManager) {
@@ -271,7 +274,7 @@ export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
       config.mutationQueue.enqueue(async () => {
         const parsed = parseSkillDir(entityDir);
         if (parsed) await mgr.importFromFile(parsed);
-      }).catch(err => process.stderr.write(`[mirror-watcher] skill events import error: ${err}\n`));
+      }).catch(err => log.error({ err }, 'skill events import error'));
       return;
     }
 
@@ -281,14 +284,14 @@ export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
         // Re-parse from directory to pick up new content + existing events
         const parsed = parseNoteDir(entityDir);
         if (parsed) await config.knowledgeManager.importFromFile(parsed);
-      }).catch(err => process.stderr.write(`[mirror-watcher] note content import error: ${err}\n`));
+      }).catch(err => log.error({ err }, 'note content import error'));
       return;
     }
     if (type === 'task-content') {
       config.mutationQueue.enqueue(async () => {
         const parsed = parseTaskDir(entityDir);
         if (parsed) await config.taskManager.importFromFile(parsed);
-      }).catch(err => process.stderr.write(`[mirror-watcher] task content import error: ${err}\n`));
+      }).catch(err => log.error({ err }, 'task content import error'));
       return;
     }
     if (type === 'skill-content' && config.skillManager) {
@@ -296,7 +299,7 @@ export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
       config.mutationQueue.enqueue(async () => {
         const parsed = parseSkillDir(entityDir);
         if (parsed) await mgr.importFromFile(parsed);
-      }).catch(err => process.stderr.write(`[mirror-watcher] skill content import error: ${err}\n`));
+      }).catch(err => log.error({ err }, 'skill content import error'));
       return;
     }
 
@@ -331,7 +334,7 @@ export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
 
         const parsed = parseTaskDir(entityDir);
         if (parsed) await config.taskManager.importFromFile(parsed);
-      }).catch(err => process.stderr.write(`[mirror-watcher] task snapshot edit error: ${err}\n`));
+      }).catch(err => log.error({ err }, 'task snapshot edit error'));
       return;
     }
 
@@ -360,7 +363,7 @@ export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
 
         const parsed = parseNoteDir(entityDir);
         if (parsed) await config.knowledgeManager.importFromFile(parsed);
-      }).catch(err => process.stderr.write(`[mirror-watcher] note snapshot edit error: ${err}\n`));
+      }).catch(err => log.error({ err }, 'note snapshot edit error'));
       return;
     }
 
@@ -393,7 +396,7 @@ export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
 
         const parsed = parseSkillDir(entityDir);
         if (parsed) await mgr.importFromFile(parsed);
-      }).catch(err => process.stderr.write(`[mirror-watcher] skill snapshot edit error: ${err}\n`));
+      }).catch(err => log.error({ err }, 'skill snapshot edit error'));
       return;
     }
 
@@ -401,20 +404,20 @@ export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
     if (type === 'note-attachment') {
       config.mutationQueue.enqueue(async () => {
         config.knowledgeManager.syncAttachments(id);
-      }).catch(err => process.stderr.write(`[mirror-watcher] note attachment sync error: ${err}\n`));
+      }).catch(err => log.error({ err }, 'note attachment sync error'));
       return;
     }
     if (type === 'task-attachment') {
       config.mutationQueue.enqueue(async () => {
         config.taskManager.syncAttachments(id);
-      }).catch(err => process.stderr.write(`[mirror-watcher] task attachment sync error: ${err}\n`));
+      }).catch(err => log.error({ err }, 'task attachment sync error'));
       return;
     }
     if (type === 'skill-attachment' && config.skillManager) {
       const mgr = config.skillManager;
       config.mutationQueue.enqueue(async () => {
         mgr.syncAttachments(id);
-      }).catch(err => process.stderr.write(`[mirror-watcher] skill attachment sync error: ${err}\n`));
+      }).catch(err => log.error({ err }, 'skill attachment sync error'));
       return;
     }
   };
@@ -429,20 +432,20 @@ export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
     if (type === 'note-events') {
       config.mutationQueue.enqueue(async () => {
         config.knowledgeManager.deleteFromFile(id);
-      }).catch(err => process.stderr.write(`[mirror-watcher] note delete error: ${err}\n`));
+      }).catch(err => log.error({ err }, 'note delete error'));
       return;
     }
     if (type === 'task-events') {
       config.mutationQueue.enqueue(async () => {
         config.taskManager.deleteFromFile(id);
-      }).catch(err => process.stderr.write(`[mirror-watcher] task delete error: ${err}\n`));
+      }).catch(err => log.error({ err }, 'task delete error'));
       return;
     }
     if (type === 'skill-events' && config.skillManager) {
       const mgr = config.skillManager;
       config.mutationQueue.enqueue(async () => {
         mgr.deleteFromFile(id);
-      }).catch(err => process.stderr.write(`[mirror-watcher] skill delete error: ${err}\n`));
+      }).catch(err => log.error({ err }, 'skill delete error'));
       return;
     }
 
@@ -456,14 +459,14 @@ export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
       config.mutationQueue.enqueue(async () => {
         const parsed = parseNoteDir(entityDir);
         if (parsed) await config.knowledgeManager.importFromFile(parsed);
-      }).catch(err => process.stderr.write(`[mirror-watcher] note content delete sync error: ${err}\n`));
+      }).catch(err => log.error({ err }, 'note content delete sync error'));
       return;
     }
     if (type === 'task-content') {
       config.mutationQueue.enqueue(async () => {
         const parsed = parseTaskDir(entityDir);
         if (parsed) await config.taskManager.importFromFile(parsed);
-      }).catch(err => process.stderr.write(`[mirror-watcher] task content delete sync error: ${err}\n`));
+      }).catch(err => log.error({ err }, 'task content delete sync error'));
       return;
     }
     if (type === 'skill-content' && config.skillManager) {
@@ -471,7 +474,7 @@ export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
       config.mutationQueue.enqueue(async () => {
         const parsed = parseSkillDir(entityDir);
         if (parsed) await mgr.importFromFile(parsed);
-      }).catch(err => process.stderr.write(`[mirror-watcher] skill content delete sync error: ${err}\n`));
+      }).catch(err => log.error({ err }, 'skill content delete sync error'));
       return;
     }
 
@@ -479,20 +482,20 @@ export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
     if (type === 'note-attachment') {
       config.mutationQueue.enqueue(async () => {
         config.knowledgeManager.syncAttachments(id);
-      }).catch(err => process.stderr.write(`[mirror-watcher] note attachment sync error: ${err}\n`));
+      }).catch(err => log.error({ err }, 'note attachment sync error'));
       return;
     }
     if (type === 'task-attachment') {
       config.mutationQueue.enqueue(async () => {
         config.taskManager.syncAttachments(id);
-      }).catch(err => process.stderr.write(`[mirror-watcher] task attachment sync error: ${err}\n`));
+      }).catch(err => log.error({ err }, 'task attachment sync error'));
       return;
     }
     if (type === 'skill-attachment' && config.skillManager) {
       const mgr = config.skillManager;
       config.mutationQueue.enqueue(async () => {
         mgr.syncAttachments(id);
-      }).catch(err => process.stderr.write(`[mirror-watcher] skill attachment sync error: ${err}\n`));
+      }).catch(err => log.error({ err }, 'skill attachment sync error'));
       return;
     }
   };
@@ -503,11 +506,11 @@ export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
   watcher.once('ready', () => {
     const watched = ['.notes/', '.tasks/'];
     if (config.skillManager) watched.push('.skills/');
-    process.stderr.write(`[mirror-watcher] Watching ${watched.join(', ')} in ${config.projectDir}\n`);
+    log.info({ dirs: watched, projectDir: config.projectDir }, 'Watching mirror directories');
     resolveReady();
   });
   watcher.on('error', (err: unknown) => {
-    process.stderr.write(`[mirror-watcher] Error: ${err}\n`);
+    log.error({ err }, 'watcher error');
   });
 
   return { whenReady, close: () => watcher.close() };
@@ -608,6 +611,6 @@ export async function scanMirrorDirs(config: MirrorWatcherConfig): Promise<void>
   }
 
   if (noteCount > 0 || taskCount > 0 || skillCount > 0) {
-    process.stderr.write(`[mirror-watcher] Scanned ${noteCount} note(s), ${taskCount} task(s), ${skillCount} skill(s)\n`);
+    log.info({ notes: noteCount, tasks: taskCount, skills: skillCount }, 'Scanned mirror directories');
   }
 }

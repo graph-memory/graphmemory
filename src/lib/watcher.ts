@@ -1,6 +1,9 @@
 import chokidar from 'chokidar';
 import micromatch from 'micromatch';
 import path from 'path';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('watcher');
 
 export interface WatcherHandle {
   /** Resolves when chokidar has finished the initial directory scan. */
@@ -74,14 +77,14 @@ export function startWatcher(
   });
 
   watcher.on('ready', () => {
-    process.stderr.write(`[watcher] Ready. Watching ${dir}\n`);
+    log.info({ dir }, 'Ready. Watching');
     resolveReady();
   });
 
   watcher.on('error', (err: unknown) => {
     // Silently ignore symlink loops — nothing useful to watch there
     if (err instanceof Error && (err as NodeJS.ErrnoException).code === 'ELOOP') return;
-    process.stderr.write(`[watcher] Watch error: ${err}\n`);
+    log.error({ err }, 'Watch error');
   });
 
   return {

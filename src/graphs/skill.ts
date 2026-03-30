@@ -12,6 +12,9 @@ import { BM25Index } from '@/lib/search/bm25';
 import { mirrorSkillCreate, mirrorSkillUpdate, mirrorSkillRelation, mirrorAttachmentEvent, deleteMirrorDir, writeAttachment, deleteAttachment, getAttachmentPath as getAttPath, sanitizeFilename } from '@/lib/file-mirror';
 import type { MirrorWriteTracker } from '@/lib/mirror-watcher';
 import type { ParsedSkillFile } from '@/lib/file-import';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('skill-graph');
 import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec';
 import { readJsonWithTmpFallback, validateGraphStructure } from '@/lib/graph-persistence';
 import { LIST_PAGE_SIZE, CONTENT_PREVIEW_LEN, GRAPH_DATA_VERSION } from '@/lib/defaults';
@@ -645,13 +648,13 @@ export function loadSkillGraph(graphMemory: string, fresh = false, embeddingFing
       (embeddingFingerprint != null && stored !== embeddingFingerprint);
 
     if (needsReEmbed && storedVersion !== GRAPH_DATA_VERSION) {
-      process.stderr.write(`[skill-graph] Data version changed (${storedVersion ?? 'none'} → ${GRAPH_DATA_VERSION}), preserving user data, clearing embeddings\n`);
+      log.warn({ storedVersion: storedVersion ?? 'none', currentVersion: GRAPH_DATA_VERSION }, 'Data version changed, preserving user data, clearing embeddings');
     } else if (needsReEmbed) {
-      process.stderr.write(`[skill-graph] Embedding config changed, preserving user data, clearing embeddings\n`);
+      log.warn('Embedding config changed, preserving user data, clearing embeddings');
     }
 
     if (!validateGraphStructure(data.graph)) {
-      process.stderr.write(`[skill-graph] Invalid graph structure in ${file}, starting fresh\n`);
+      log.warn({ file }, 'Invalid graph structure, starting fresh');
       return graph;
     }
 
@@ -662,12 +665,12 @@ export function loadSkillGraph(graphMemory: string, fresh = false, embeddingFing
       graph.forEachNode((id, attrs) => {
         if (!attrs.proxyFor) graph.setNodeAttribute(id, 'embedding', []);
       });
-      process.stderr.write(`[skill-graph] Loaded ${graph.order} nodes (embeddings cleared for re-generation)\n`);
+      log.info({ nodes: graph.order }, 'Loaded graph (embeddings cleared for re-generation)');
     } else {
-      process.stderr.write(`[skill-graph] Loaded ${graph.order} nodes, ${graph.size} edges\n`);
+      log.info({ nodes: graph.order, edges: graph.size }, 'Loaded graph');
     }
   } catch (err) {
-    process.stderr.write(`[skill-graph] Failed to load graph, starting fresh: ${err}\n`);
+    log.error({ err }, 'Failed to load graph, starting fresh');
   }
 
   return graph;

@@ -10,6 +10,9 @@ import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec'
 import { readJsonWithTmpFallback, validateGraphStructure } from '@/lib/graph-persistence';
 import { LIST_PAGE_SIZE, GRAPH_DATA_VERSION } from '@/lib/defaults';
 import type { PaginatedResult } from '@/lib/pagination';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('file-index');
 
 // ---------------------------------------------------------------------------
 // CRUD
@@ -290,26 +293,26 @@ export function loadFileIndexGraph(graphMemory: string, fresh = false, embedding
   try {
     const storedVersion = data.version as number | undefined;
     if (storedVersion !== GRAPH_DATA_VERSION) {
-      process.stderr.write(`[file-index] Data version changed (${storedVersion ?? 'none'} → ${GRAPH_DATA_VERSION}), re-indexing file index\n`);
+      log.warn({ storedVersion: storedVersion ?? 'none', currentVersion: GRAPH_DATA_VERSION }, 'Data version changed, re-indexing file index');
       return graph;
     }
 
     const stored = data.embeddingModel as string | undefined;
     if (embeddingFingerprint && stored !== embeddingFingerprint) {
-      process.stderr.write(`[file-index] Embedding config changed, re-indexing file index\n`);
+      log.warn('Embedding config changed, re-indexing file index');
       return graph;
     }
 
     if (!validateGraphStructure(data.graph)) {
-      process.stderr.write(`[file-index] Invalid graph structure in ${file}, starting fresh\n`);
+      log.warn({ file }, 'Invalid graph structure, starting fresh');
       return graph;
     }
 
     decompressEmbeddings(data.graph);
     graph.import(data.graph);
-    process.stderr.write(`[file-index] Loaded ${graph.order} nodes, ${graph.size} edges\n`);
+    log.info({ nodes: graph.order, edges: graph.size }, 'Loaded graph');
   } catch (err) {
-    process.stderr.write(`[file-index] Failed to load graph, starting fresh: ${err}\n`);
+    log.error({ err }, 'Failed to load graph, starting fresh');
   }
 
   return graph;

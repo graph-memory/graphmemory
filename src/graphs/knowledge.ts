@@ -13,6 +13,9 @@ import { readJsonWithTmpFallback, validateGraphStructure } from '@/lib/graph-per
 import { LIST_PAGE_SIZE, CONTENT_PREVIEW_LEN, GRAPH_DATA_VERSION } from '@/lib/defaults';
 import type { PaginatedResult } from '@/lib/pagination';
 import type { MirrorWriteTracker } from '@/lib/mirror-watcher';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('knowledge-graph');
 import type { ParsedNoteFile } from '@/lib/file-import';
 import type { AttachmentMeta } from '@/graphs/attachment-types';
 import { scanAttachments, MAX_ATTACHMENT_SIZE, MAX_ATTACHMENTS_PER_ENTITY } from '@/graphs/attachment-types';
@@ -462,13 +465,13 @@ export function loadKnowledgeGraph(graphMemory: string, fresh = false, embedding
       (embeddingFingerprint != null && stored !== embeddingFingerprint);
 
     if (needsReEmbed && storedVersion !== GRAPH_DATA_VERSION) {
-      process.stderr.write(`[knowledge-graph] Data version changed (${storedVersion ?? 'none'} → ${GRAPH_DATA_VERSION}), preserving user data, clearing embeddings\n`);
+      log.warn({ storedVersion: storedVersion ?? 'none', currentVersion: GRAPH_DATA_VERSION }, 'Data version changed, preserving user data, clearing embeddings');
     } else if (needsReEmbed) {
-      process.stderr.write(`[knowledge-graph] Embedding config changed, preserving user data, clearing embeddings\n`);
+      log.warn('Embedding config changed, preserving user data, clearing embeddings');
     }
 
     if (!validateGraphStructure(data.graph)) {
-      process.stderr.write(`[knowledge-graph] Invalid graph structure in ${file}, starting fresh\n`);
+      log.warn({ file }, 'Invalid graph structure, starting fresh');
       return graph;
     }
 
@@ -479,12 +482,12 @@ export function loadKnowledgeGraph(graphMemory: string, fresh = false, embedding
       graph.forEachNode((id, attrs) => {
         if (!attrs.proxyFor) graph.setNodeAttribute(id, 'embedding', []);
       });
-      process.stderr.write(`[knowledge-graph] Loaded ${graph.order} nodes (embeddings cleared for re-generation)\n`);
+      log.info({ nodes: graph.order }, 'Loaded graph (embeddings cleared for re-generation)');
     } else {
-      process.stderr.write(`[knowledge-graph] Loaded ${graph.order} nodes, ${graph.size} edges\n`);
+      log.info({ nodes: graph.order, edges: graph.size }, 'Loaded graph');
     }
   } catch (err) {
-    process.stderr.write(`[knowledge-graph] Failed to load graph, starting fresh: ${err}\n`);
+    log.error({ err }, 'Failed to load graph, starting fresh');
   }
 
   return graph;

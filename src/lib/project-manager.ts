@@ -24,6 +24,9 @@ import { MirrorWriteTracker, scanMirrorDirs, startMirrorWatcher } from '@/lib/mi
 import { ensureAuthorInTeam } from '@/lib/team';
 import path from 'path';
 import { AUTO_SAVE_INTERVAL_MS } from '@/lib/defaults';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('project-manager');
 
 // ---------------------------------------------------------------------------
 // ProjectInstance
@@ -170,7 +173,7 @@ export class ProjectManager extends EventEmitter {
     wsInstance.skillManager.setMirrorTracker(mirrorTracker);
 
     this.workspaces.set(id, wsInstance);
-    process.stderr.write(`[project-manager] Added workspace "${id}"\n`);
+    log.info({ workspace: id }, 'Added workspace');
   }
 
   /**
@@ -323,7 +326,7 @@ export class ProjectManager extends EventEmitter {
     }
 
     this.projects.set(id, instance);
-    process.stderr.write(`[project-manager] Added project "${id}" (${config.projectDir})${ws ? ` [workspace: ${workspaceId}]` : ''}\n`);
+    log.info({ project: id, projectDir: config.projectDir, workspace: workspaceId }, 'Added project');
   }
 
   /**
@@ -361,7 +364,7 @@ export class ProjectManager extends EventEmitter {
       try {
         await instance.indexer!.drain(phase);
       } catch (err) {
-        process.stderr.write(`[project-manager] Error draining phase "${phase}" for "${id}": ${err}\n`);
+        log.error({ project: id, phase, err }, 'Error draining phase');
       }
     }
 
@@ -426,7 +429,7 @@ export class ProjectManager extends EventEmitter {
     try {
       await instance.indexer.drain();
     } catch (err) {
-      process.stderr.write(`[project-manager] Error during finalize drain for "${id}": ${err}\n`);
+      log.error({ project: id, err }, 'Error during finalize drain');
     }
 
     // Start watcher for live re-indexing
@@ -458,7 +461,7 @@ export class ProjectManager extends EventEmitter {
     }
 
     this.emit('project:indexed', { projectId: id });
-    process.stderr.write(`[project-manager] Project "${id}" indexed\n`);
+    log.info({ project: id }, 'Project indexed');
   }
 
   /**
@@ -497,7 +500,7 @@ export class ProjectManager extends EventEmitter {
     }
 
     this.projects.delete(id);
-    process.stderr.write(`[project-manager] Removed project "${id}"\n`);
+    log.info({ project: id }, 'Removed project');
   }
 
   getProject(id: string): ProjectInstance | undefined {
@@ -527,7 +530,7 @@ export class ProjectManager extends EventEmitter {
             this.saveProject(instance);
             instance.dirty = false;
           } catch (err) {
-            process.stderr.write(`[project-manager] Auto-save error for "${instance.id}": ${err}\n`);
+            log.error({ project: instance.id, err }, 'Auto-save error');
           }
         }
       }
@@ -537,7 +540,7 @@ export class ProjectManager extends EventEmitter {
             this.saveWorkspace(ws);
             ws.dirty = false;
           } catch (err) {
-            process.stderr.write(`[project-manager] Auto-save error for workspace "${ws.id}": ${err}\n`);
+            log.error({ workspace: ws.id, err }, 'Auto-save error for workspace');
           }
         }
       }
@@ -560,7 +563,7 @@ export class ProjectManager extends EventEmitter {
         await instance.mutationQueue.waitForPending();
         this.saveProject(instance);
       } catch (err) {
-        process.stderr.write(`[project-manager] Shutdown error for "${instance.id}": ${err}\n`);
+        log.error({ project: instance.id, err }, 'Shutdown error');
       }
     }
     for (const ws of this.workspaces.values()) {
@@ -569,12 +572,12 @@ export class ProjectManager extends EventEmitter {
         await ws.mutationQueue.waitForPending();
         this.saveWorkspace(ws);
       } catch (err) {
-        process.stderr.write(`[project-manager] Shutdown error for workspace "${ws.id}": ${err}\n`);
+        log.error({ workspace: ws.id, err }, 'Shutdown error for workspace');
       }
     }
     this.projects.clear();
     this.workspaces.clear();
-    process.stderr.write('[project-manager] Shutdown complete\n');
+    log.info('Shutdown complete');
   }
 
   // ---------------------------------------------------------------------------

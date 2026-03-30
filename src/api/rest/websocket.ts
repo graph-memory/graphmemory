@@ -6,6 +6,9 @@ import { verifyToken } from '@/lib/jwt';
 import { resolveAccess, canRead } from '@/lib/access';
 import { GRAPH_NAMES } from '@/lib/multi-config';
 import { WS_DEBOUNCE_MS } from '@/lib/defaults';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('ws');
 
 export interface WebSocketOptions {
   jwtSecret?: string;
@@ -67,7 +70,7 @@ export function attachWebSocket(
     wss.handleUpgrade(req, socket, head, (ws) => {
       clientUserIds.set(ws, userId);
       ws.on('error', (err) => {
-        process.stderr.write(`[ws] Client error: ${err}\n`);
+        log.error({ err }, 'client error');
       });
       wss.emit('connection', ws, req);
     });
@@ -94,7 +97,7 @@ export function attachWebSocket(
         if (!canAccessProject(uid, event.projectId)) continue;
       }
       client.send(msg, (err) => {
-        if (err) process.stderr.write(`[ws] Send error: ${err}\n`);
+        if (err) log.error({ err }, 'send error');
       });
     }
   }

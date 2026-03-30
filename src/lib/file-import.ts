@@ -7,6 +7,9 @@ import type { SkillSource } from '../graphs/skill-types';
 import type { AttachmentMeta } from '../graphs/attachment-types';
 import { scanAttachments } from '../graphs/attachment-types';
 import { readEvents, replayNoteEvents, replayTaskEvents, replaySkillEvents } from './events-log';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('file-import');
 
 const VALID_STATUSES: TaskStatus[] = ['backlog', 'todo', 'in_progress', 'review', 'done', 'cancelled'];
 const VALID_PRIORITIES: TaskPriority[] = ['critical', 'high', 'medium', 'low'];
@@ -128,7 +131,7 @@ export function parseNoteFile(filePath: string): ParsedNoteFile | null {
       attachments,
     };
   } catch (err) {
-    process.stderr.write(`[file-import] failed to parse note ${filePath}: ${err}\n`);
+    log.error({ err, filePath }, 'failed to parse note');
     return null;
   }
 }
@@ -169,7 +172,7 @@ export function parseTaskFile(filePath: string): ParsedTaskFile | null {
       attachments,
     };
   } catch (err) {
-    process.stderr.write(`[file-import] failed to parse task ${filePath}: ${err}\n`);
+    log.error({ err, filePath }, 'failed to parse task');
     return null;
   }
 }
@@ -272,7 +275,7 @@ export function parseSkillFile(filePath: string): ParsedSkillFile | null {
       attachments,
     };
   } catch (err) {
-    process.stderr.write(`[file-import] failed to parse skill ${filePath}: ${err}\n`);
+    log.error({ err, filePath }, 'failed to parse skill');
     return null;
   }
 }
@@ -295,7 +298,7 @@ export function parseNoteDir(dirPath: string): ParsedNoteFile | null {
     parsed.attachments = scanAttachments(dirPath);
     return parsed;
   } catch (err) {
-    process.stderr.write(`[file-import] failed to parse note dir ${dirPath}: ${err}\n`);
+    log.error({ err, dirPath }, 'failed to parse note dir');
     return null;
   }
 }
@@ -313,7 +316,7 @@ export function parseTaskDir(dirPath: string): ParsedTaskFile | null {
     parsed.attachments = scanAttachments(dirPath);
     return parsed;
   } catch (err) {
-    process.stderr.write(`[file-import] failed to parse task dir ${dirPath}: ${err}\n`);
+    log.error({ err, dirPath }, 'failed to parse task dir');
     return null;
   }
 }
@@ -331,7 +334,7 @@ export function parseSkillDir(dirPath: string): ParsedSkillFile | null {
     parsed.attachments = scanAttachments(dirPath);
     return parsed;
   } catch (err) {
-    process.stderr.write(`[file-import] failed to parse skill dir ${dirPath}: ${err}\n`);
+    log.error({ err, dirPath }, 'failed to parse skill dir');
     return null;
   }
 }

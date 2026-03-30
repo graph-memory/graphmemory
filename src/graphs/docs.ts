@@ -11,6 +11,9 @@ import { compressEmbeddings, decompressEmbeddings } from '@/lib/embedding-codec'
 import { readJsonWithTmpFallback, validateGraphStructure } from '@/lib/graph-persistence';
 import { LIST_PAGE_SIZE, GRAPH_DATA_VERSION } from '@/lib/defaults';
 import type { PaginatedResult } from '@/lib/pagination';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('docs-graph');
 
 export interface NodeAttributes {
   fileId: string;
@@ -181,26 +184,26 @@ export function loadGraph(graphMemory: string, fresh = false, embeddingFingerpri
   try {
     const storedVersion = data.version as number | undefined;
     if (storedVersion !== GRAPH_DATA_VERSION) {
-      process.stderr.write(`[graph] Data version changed (${storedVersion ?? 'none'} → ${GRAPH_DATA_VERSION}), re-indexing docs graph\n`);
+      log.warn({ storedVersion: storedVersion ?? 'none', currentVersion: GRAPH_DATA_VERSION }, 'Data version changed, re-indexing docs graph');
       return graph;
     }
 
     const stored = data.embeddingModel as string | undefined;
     if (embeddingFingerprint && stored !== embeddingFingerprint) {
-      process.stderr.write(`[graph] Embedding config changed, re-indexing docs graph\n`);
+      log.warn('Embedding config changed, re-indexing docs graph');
       return graph;
     }
 
     if (!validateGraphStructure(data.graph)) {
-      process.stderr.write(`[graph] Invalid graph structure in ${file}, starting fresh\n`);
+      log.warn({ file }, 'Invalid graph structure, starting fresh');
       return graph;
     }
 
     decompressEmbeddings(data.graph);
     graph.import(data.graph);
-    process.stderr.write(`[graph] Loaded ${graph.order} nodes, ${graph.size} edges\n`);
+    log.info({ nodes: graph.order, edges: graph.size }, 'Loaded graph');
   } catch (err) {
-    process.stderr.write(`[graph] Failed to load graph, starting fresh: ${err}\n`);
+    log.error({ err }, 'Failed to load graph, starting fresh');
   }
 
   return graph;

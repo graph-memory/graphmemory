@@ -16,6 +16,9 @@ import { LIST_PAGE_SIZE, CONTENT_PREVIEW_LEN, GRAPH_DATA_VERSION } from '@/lib/d
 import type { PaginatedResult } from '@/lib/pagination';
 import type { MirrorWriteTracker } from '@/lib/mirror-watcher';
 import type { ParsedTaskFile } from '@/lib/file-import';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('task-graph');
 import { scanAttachments, MAX_ATTACHMENT_SIZE, MAX_ATTACHMENTS_PER_ENTITY } from '@/graphs/attachment-types';
 import { diffRelations } from '@/lib/file-import';
 import type { RelationFrontmatter } from '@/lib/file-mirror';
@@ -1001,13 +1004,13 @@ export function loadTaskGraph(graphMemory: string, fresh = false, embeddingFinge
       (embeddingFingerprint != null && stored !== embeddingFingerprint);
 
     if (needsReEmbed && storedVersion !== GRAPH_DATA_VERSION) {
-      process.stderr.write(`[task-graph] Data version changed (${storedVersion ?? 'none'} → ${GRAPH_DATA_VERSION}), preserving user data, clearing embeddings\n`);
+      log.warn({ storedVersion: storedVersion ?? 'none', currentVersion: GRAPH_DATA_VERSION }, 'Data version changed, preserving user data, clearing embeddings');
     } else if (needsReEmbed) {
-      process.stderr.write(`[task-graph] Embedding config changed, preserving user data, clearing embeddings\n`);
+      log.warn('Embedding config changed, preserving user data, clearing embeddings');
     }
 
     if (!validateGraphStructure(data.graph)) {
-      process.stderr.write(`[task-graph] Invalid graph structure in ${file}, starting fresh\n`);
+      log.warn({ file }, 'Invalid graph structure, starting fresh');
       return graph;
     }
 
@@ -1018,12 +1021,12 @@ export function loadTaskGraph(graphMemory: string, fresh = false, embeddingFinge
       graph.forEachNode((id, attrs) => {
         if (!attrs.proxyFor) graph.setNodeAttribute(id, 'embedding', []);
       });
-      process.stderr.write(`[task-graph] Loaded ${graph.order} nodes (embeddings cleared for re-generation)\n`);
+      log.info({ nodes: graph.order }, 'Loaded graph (embeddings cleared for re-generation)');
     } else {
-      process.stderr.write(`[task-graph] Loaded ${graph.order} nodes, ${graph.size} edges\n`);
+      log.info({ nodes: graph.order, edges: graph.size }, 'Loaded graph');
     }
   } catch (err) {
-    process.stderr.write(`[task-graph] Failed to load graph, starting fresh: ${err}\n`);
+    log.error({ err }, 'Failed to load graph, starting fresh');
   }
 
   return graph;

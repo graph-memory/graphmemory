@@ -1,13 +1,16 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import type http from 'http';
 import type { ProjectManager } from '@/lib/project-manager';
-import type { UserConfig } from '@/lib/multi-config';
+import type { UserConfig, ServerConfig } from '@/lib/multi-config';
 import { verifyToken } from '@/lib/jwt';
+import { resolveAccess, canRead } from '@/lib/access';
+import { GRAPH_NAMES } from '@/lib/multi-config';
 import { WS_DEBOUNCE_MS } from '@/lib/defaults';
 
 export interface WebSocketOptions {
   jwtSecret?: string;
   users?: Record<string, UserConfig>;
+  serverConfig?: ServerConfig;
 }
 
 export interface WebSocketHandle {
@@ -17,8 +20,7 @@ export interface WebSocketHandle {
 
 /**
  * Attach a WebSocket server to the HTTP server at /api/ws.
- * Broadcasts all ProjectManager events to connected clients.
- * Each event includes projectId — clients filter on their side.
+ * Broadcasts ProjectManager events to connected clients, filtered by user access.
  * Returns a handle with a cleanup function to remove all listeners.
  */
 export function attachWebSocket(
@@ -30,6 +32,10 @@ export function attachWebSocket(
   const jwtSecret = options?.jwtSecret;
   const users = options?.users ?? {};
   const hasUsers = Object.keys(users).length > 0;
+  const serverConfig = options?.serverConfig;
+
+  // Store userId per WebSocket client
+  const clientUserIds = new WeakMap<WebSocket, string | undefined>();
 
   // Handle upgrade requests for /api/ws
   httpServer.on('upgrade', (req, socket, head) => {
@@ -39,6 +45,7 @@ export function attachWebSocket(
     }
 
     // Auth: if users are configured, require valid JWT cookie or reject
+    let userId: string | undefined;
     if (hasUsers && jwtSecret) {
       const cookie = req.headers.cookie ?? '';
       const match = cookie.match(/(?:^|;\s*)mgm_access=([^;]+)/);
@@ -54,9 +61,11 @@ export function attachWebSocket(
         socket.destroy();
         return;
       }
+      userId = payload.userId;
     }
 
     wss.handleUpgrade(req, socket, head, (ws) => {
+      clientUserIds.set(ws, userId);
       ws.on('error', (err) => {
         process.stderr.write(`[ws] Client error: ${err}\n`);
       });
@@ -64,15 +73,29 @@ export function attachWebSocket(
     });
   });
 
-  // Broadcast helper
+  // Check if a user can access any graph in a project
+  function canAccessProject(userId: string | undefined, projectId: string): boolean {
+    if (!serverConfig || !hasUsers) return true;
+    const project = projectManager.getProject(projectId);
+    if (!project) return false;
+    const ws = project.workspaceId ? projectManager.getWorkspace(project.workspaceId) : undefined;
+    return GRAPH_NAMES.some(gn =>
+      canRead(resolveAccess(userId, gn, project.config, serverConfig, ws?.config)),
+    );
+  }
+
+  // Broadcast helper — filters by user access when auth is configured
   function broadcast(event: { projectId: string; type: string; data: any }): void {
     const msg = JSON.stringify(event);
     for (const client of wss.clients) {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(msg, (err) => {
-          if (err) process.stderr.write(`[ws] Send error: ${err}\n`);
-        });
+      if (client.readyState !== WebSocket.OPEN) continue;
+      if (hasUsers && serverConfig) {
+        const uid = clientUserIds.get(client);
+        if (!canAccessProject(uid, event.projectId)) continue;
       }
+      client.send(msg, (err) => {
+        if (err) process.stderr.write(`[ws] Send error: ${err}\n`);
+      });
     }
   }
 

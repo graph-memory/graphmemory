@@ -715,6 +715,7 @@ export async function startMultiProjectHttpServer(
   attachWebSocket(httpServer, projectManager, {
     jwtSecret: restOptions?.serverConfig?.jwtSecret,
     users: restOptions?.users,
+    serverConfig: restOptions?.serverConfig,
   });
 
   return new Promise((resolve) => {

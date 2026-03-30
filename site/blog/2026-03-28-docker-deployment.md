@@ -258,4 +258,4 @@ The base image is `node:24-slim` -- minimal Debian with Node.js, no extra packag
 
 That's a complete production setup. Config file, Docker Compose, Redis, authentication, reverse proxy, and health monitoring. The server handles the rest -- indexing, embedding, real-time sync, and graceful shutdown.
 
-[Full Docker documentation](/docs/getting-started/docker) | [Configuration reference](/docs/configuration)
+[Full Docker documentation](/docs/getting-started/docker) | [Configuration reference](/docs/getting-started/configuration)

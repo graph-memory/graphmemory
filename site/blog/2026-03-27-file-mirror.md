@@ -143,4 +143,4 @@ The one edge case: if you edit `content.md` in your IDE at the exact same moment
 
 File mirror makes AI memory tangible. It's not locked in a database or hidden behind an API. It's markdown files in your project, editable in your IDE, reviewable in PRs, trackable in git history.
 
-[Get started with Graph Memory](/docs/getting-started/quick-start) or [read the full docs on file mirror](/docs/concepts/file-mirror).
+[Get started with Graph Memory](/docs/getting-started/quick-start) or [read the full docs on file mirror](/docs/concepts/graphs).

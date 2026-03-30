@@ -473,4 +473,79 @@ usersCmd
     }
   });
 
+// ---------------------------------------------------------------------------
+// Command: backup — export graph data and mirror files
+// ---------------------------------------------------------------------------
+
+program
+  .command('backup')
+  .description('Backup graph data and mirror files to a tar.gz archive')
+  .requiredOption('--config <path>', 'Path to graph-memory.yaml')
+  .requiredOption('--output <path>', 'Output path for backup archive (e.g. backup.tar.gz)')
+  .action(async (opts: { config: string; output: string }) => {
+    const configPath = path.resolve(opts.config);
+    const outputPath = path.resolve(opts.output);
+
+    if (!fs.existsSync(configPath)) {
+      process.stderr.write(`[backup] Config not found: ${configPath}\n`);
+      process.exit(1);
+    }
+
+    const mc = loadMultiConfig(configPath);
+    const dirs: Array<{ src: string; label: string }> = [];
+
+    // Collect graph data and mirror dirs from all projects
+    for (const [id, project] of mc.projects) {
+      const graphMemory = project.graphMemory ?? path.join(project.projectDir, '.graph-memory');
+      if (fs.existsSync(graphMemory)) {
+        dirs.push({ src: graphMemory, label: `${id}/.graph-memory` });
+      }
+      for (const mirrorDir of ['.notes', '.tasks', '.skills']) {
+        const dir = path.join(project.projectDir, mirrorDir);
+        if (fs.existsSync(dir)) {
+          dirs.push({ src: dir, label: `${id}/${mirrorDir}` });
+        }
+      }
+    }
+
+    // Collect workspace mirror dirs
+    for (const [id, ws] of mc.workspaces) {
+      const mirrorDir = ws.mirrorDir;
+      if (mirrorDir) {
+        for (const sub of ['.notes', '.tasks', '.skills']) {
+          const dir = path.join(mirrorDir, sub);
+          if (fs.existsSync(dir)) {
+            dirs.push({ src: dir, label: `workspace-${id}/${sub}` });
+          }
+        }
+        const graphMemory = ws.graphMemory ?? path.join(mirrorDir, '.graph-memory');
+        if (fs.existsSync(graphMemory)) {
+          dirs.push({ src: graphMemory, label: `workspace-${id}/.graph-memory` });
+        }
+      }
+    }
+
+    if (dirs.length === 0) {
+      process.stderr.write('[backup] No data directories found to backup\n');
+      process.exit(1);
+    }
+
+    process.stderr.write(`[backup] Backing up ${dirs.length} directories...\n`);
+    for (const d of dirs) {
+      process.stderr.write(`  ${d.label} → ${d.src}\n`);
+    }
+
+    // Create tar.gz using Node.js child_process (tar is available on all supported platforms)
+    const { execSync } = require('child_process');
+    const tarArgs = dirs.map(d => `-C "${path.dirname(d.src)}" "${path.basename(d.src)}"`).join(' ');
+    try {
+      execSync(`tar czf "${outputPath}" ${tarArgs}`, { stdio: 'pipe' });
+      const size = fs.statSync(outputPath).size;
+      process.stderr.write(`[backup] Done: ${outputPath} (${(size / 1024 / 1024).toFixed(1)} MB)\n`);
+    } catch (err) {
+      process.stderr.write(`[backup] Failed to create archive: ${err}\n`);
+      process.exit(1);
+    }
+  });
+
 program.parse();

@@ -8,11 +8,12 @@ import { loadMultiConfig, defaultConfig, type MultiConfig } from '@/lib/multi-co
 import { hashPassword } from '@/lib/jwt';
 import { ProjectManager } from '@/lib/project-manager';
 import { loadModel, RedisEmbeddingCache, type EmbeddingCacheFactory } from '@/lib/embedder';
-import { startMultiProjectHttpServer, setDebugMode } from '@/api/index';
+import { startMultiProjectHttpServer } from '@/api/index';
 import { GRACEFUL_SHUTDOWN_TIMEOUT_MS, MIN_PASSWORD_LEN, MAX_PASSWORD_LEN } from '@/lib/defaults';
 import { getRedisClient, closeRedis, parseRedisTtl } from '@/lib/redis';
 import { RedisSessionStore } from '@/lib/session-store';
 import type { SessionStore } from '@/lib/session-store';
+import { createLogger, setLogLevel } from '@/lib/logger';
 
 const program = new Command();
 
@@ -30,11 +31,13 @@ const parseIntArg = (v: string) => parseInt(v, 10);
 // Helper: load config from file, or fall back to default (cwd as single project)
 // ---------------------------------------------------------------------------
 
+const log = createLogger('cli');
+
 function loadConfigOrDefault(configPath: string): MultiConfig {
   if (fs.existsSync(configPath)) {
     return loadMultiConfig(configPath);
   }
-  process.stderr.write(`[cli] Config "${configPath}" not found, using current directory as project\n`);
+  log.warn({ configPath }, 'Config not found, using current directory as project');
   return defaultConfig(process.cwd());
 }
 
@@ -52,7 +55,7 @@ program
     (async () => {
       const mc = loadConfigOrDefault(opts.config);
       const reindex = !!opts.reindex;
-      if (reindex) process.stderr.write('[index] Re-indexing from scratch\n');
+      if (reindex) log.info('Re-indexing from scratch');
 
       const manager = new ProjectManager(mc.server);
 
@@ -72,14 +75,14 @@ program
       // Add projects (workspace projects share knowledge/task/skill graphs)
       const ids = opts.project ? [opts.project] : Array.from(mc.projects.keys());
       if (ids.length === 0) {
-        process.stderr.write('[index] No projects defined in config\n');
+        log.error('No projects defined in config');
         process.exit(1);
       }
 
       for (const id of ids) {
         const project = mc.projects.get(id);
         if (!project) {
-          process.stderr.write(`[index] Project "${id}" not found in config. Available: ${Array.from(mc.projects.keys()).join(', ')}\n`);
+          log.error({ projectId: id, available: Array.from(mc.projects.keys()) }, 'Project not found in config');
           process.exit(1);
         }
         await manager.addProject(id, project, reindex, projectWorkspace.get(id));
@@ -107,7 +110,7 @@ program
       ];
       for (const { phase, label } of phases) {
         for (const id of ids) {
-          process.stderr.write(`[index] Phase ${label} for "${id}"...\n`);
+          log.info({ phase: label, projectId: id }, 'Starting indexing phase');
           await manager.startIndexingPhase(id, phase);
         }
       }
@@ -117,26 +120,26 @@ program
         await manager.finalizeIndexing(id);
         const instance = manager.getProject(id)!;
         if (instance.docGraph) {
-          process.stderr.write(`[index] "${id}" docs: ${instance.docGraph.order} nodes, ${instance.docGraph.size} edges\n`);
+          log.info({ projectId: id, graph: 'docs', nodes: instance.docGraph.order, edges: instance.docGraph.size }, 'Indexed docs');
         }
         if (instance.codeGraph) {
-          process.stderr.write(`[index] "${id}" code: ${instance.codeGraph.order} nodes, ${instance.codeGraph.size} edges\n`);
+          log.info({ projectId: id, graph: 'code', nodes: instance.codeGraph.order, edges: instance.codeGraph.size }, 'Indexed code');
         }
         if (instance.fileIndexGraph) {
-          process.stderr.write(`[index] "${id}" files: ${instance.fileIndexGraph.order} nodes, ${instance.fileIndexGraph.size} edges\n`);
+          log.info({ projectId: id, graph: 'files', nodes: instance.fileIndexGraph.order, edges: instance.fileIndexGraph.size }, 'Indexed files');
         }
       }
 
       // Save workspaces
       for (const wsId of manager.listWorkspaces()) {
         const ws = manager.getWorkspace(wsId)!;
-        process.stderr.write(`[index] Workspace "${wsId}" knowledge: ${ws.knowledgeGraph.order} nodes, tasks: ${ws.taskGraph.order} nodes, skills: ${ws.skillGraph.order} nodes\n`);
+        log.info({ workspaceId: wsId, knowledge: ws.knowledgeGraph.order, tasks: ws.taskGraph.order, skills: ws.skillGraph.order }, 'Workspace stats');
       }
 
       await manager.shutdown();
-      process.stderr.write(`[index] Done. Indexed ${ids.length} project${ids.length > 1 ? 's' : ''}.\n`);
+      log.info({ count: ids.length }, 'Indexing complete');
     })().catch((err: unknown) => {
-      process.stderr.write(`[index] Fatal: ${err}\n`);
+      log.fatal({ err }, 'Fatal error');
       process.exit(1);
     });
   });
@@ -152,23 +155,23 @@ program
   .option('--host <addr>', 'HTTP server bind address')
   .option('--port <n>', 'HTTP server port', parseIntArg)
   .option('--reindex', 'Discard persisted graphs and re-index from scratch')
-  .option('--debug', 'Log MCP tool calls and responses to stderr')
-  .action(async (opts: { config: string; host?: string; port?: number; reindex?: boolean; debug?: boolean }) => {
+  .option('--log-level <level>', 'Log level: fatal/error/warn/info/debug/trace', 'info')
+  .action(async (opts: { config: string; host?: string; port?: number; reindex?: boolean; logLevel?: string }) => {
     const mc = loadConfigOrDefault(opts.config);
     const host = opts.host ?? mc.server.host;
     const port = opts.port ?? mc.server.port;
     const sessionTimeoutMs = mc.server.sessionTimeout * 1000;
 
+    if (opts.logLevel) setLogLevel(opts.logLevel);
+
     // Validate jwtSecret when users are defined
     const hasUsers = Object.keys(mc.users).length > 0;
     if (hasUsers && !mc.server.jwtSecret) {
-      process.stderr.write('[serve] Warning: users are defined but server.jwtSecret is not set. UI password login will not work (API key auth still works).\n');
+      log.warn('Users are defined but server.jwtSecret is not set. UI password login will not work (API key auth still works).');
     }
 
     const reindex = !!opts.reindex;
-    if (reindex) process.stderr.write('[serve] Re-indexing all projects from scratch\n');
-
-    if (opts.debug) setDebugMode(true);
+    if (reindex) log.info('Re-indexing all projects from scratch');
 
     // Connect to Redis if configured
     let sessionStore: SessionStore | undefined;
@@ -191,9 +194,9 @@ program
           }
           return cache;
         };
-        process.stderr.write(`[serve] Redis enabled: session store + embedding cache (TTL: ${redisConfig.embeddingCacheTtl})\n`);
+        log.info({ ttl: redisConfig.embeddingCacheTtl }, 'Redis enabled: session store + embedding cache');
       } catch (err: unknown) {
-        process.stderr.write(`[serve] Redis connection failed, falling back to in-memory: ${err}\n`);
+        log.warn({ err }, 'Redis connection failed, falling back to in-memory');
       }
     }
 
@@ -228,9 +231,9 @@ program
         await loadModel(mc.server.model, mc.server.embedding, mc.server.modelsDir, embeddingApiModelNames.default, cacheFactory);
         const codeModel = mc.server.codeModel ?? mc.server.model;
         await loadModel(codeModel, mc.server.embedding, mc.server.modelsDir, embeddingApiModelNames.code, cacheFactory);
-        process.stderr.write(`[serve] Embedding API models ready (default + code)\n`);
+        log.info('Embedding API models ready (default + code)');
       } catch (err: unknown) {
-        process.stderr.write(`[serve] Failed to load embedding API model: ${err}\n`);
+        log.error({ err }, 'Failed to load embedding API model');
       }
     }
 
@@ -239,7 +242,7 @@ program
       try {
         await manager.loadWorkspaceModels(wsId);
       } catch (err: unknown) {
-        process.stderr.write(`[serve] Failed to register workspace "${wsId}" models: ${err}\n`);
+        log.error({ err, workspaceId: wsId }, 'Failed to register workspace models');
       }
     }
 
@@ -248,14 +251,14 @@ program
       try {
         await manager.loadModels(id);
       } catch (err: unknown) {
-        process.stderr.write(`[serve] Failed to register project "${id}" models: ${err}\n`);
+        log.error({ err, projectId: id }, 'Failed to register project models');
       }
     }
 
     // Three-phase sequential indexing: docs → files → code
     for (const id of projectIds) {
       try { manager.ensureIndexer(id); } catch (err: unknown) {
-        process.stderr.write(`[serve] Failed to create indexer for "${id}": ${err}\n`);
+        log.error({ err, projectId: id }, 'Failed to create indexer');
       }
     }
     const phases = [
@@ -266,10 +269,10 @@ program
     for (const { phase, label } of phases) {
       for (const id of projectIds) {
         try {
-          process.stderr.write(`[serve] Phase ${label} for "${id}"...\n`);
+          log.info({ phase: label, projectId: id }, 'Starting indexing phase');
           await manager.startIndexingPhase(id, phase);
         } catch (err: unknown) {
-          process.stderr.write(`[serve] Failed phase ${label} for "${id}": ${err}\n`);
+          log.error({ err, phase: label, projectId: id }, 'Failed indexing phase');
         }
       }
     }
@@ -277,7 +280,7 @@ program
       try {
         await manager.finalizeIndexing(id);
       } catch (err: unknown) {
-        process.stderr.write(`[serve] Failed to finalize "${id}": ${err}\n`);
+        log.error({ err, projectId: id }, 'Failed to finalize indexing');
       }
     }
 
@@ -286,7 +289,7 @@ program
       try {
         await manager.startWorkspaceMirror(wsId);
       } catch (err: unknown) {
-        process.stderr.write(`[serve] Failed to start workspace "${wsId}" mirror: ${err}\n`);
+        log.error({ err, workspaceId: wsId }, 'Failed to start workspace mirror');
       }
     }
 
@@ -311,14 +314,14 @@ program
     let shuttingDown = false;
     async function shutdown(): Promise<void> {
       if (shuttingDown) {
-        process.stderr.write('[serve] Force exit\n');
+        log.warn('Force exit');
         process.exit(1);
       }
       shuttingDown = true;
-      process.stderr.write('[serve] Shutting down...\n');
+      log.info('Shutting down...');
       // Force exit after 5s if graceful shutdown hangs
       const forceTimer = setTimeout(() => {
-        process.stderr.write('[serve] Shutdown timeout, force exit\n');
+        log.warn('Shutdown timeout, force exit');
         process.exit(1);
       }, GRACEFUL_SHUTDOWN_TIMEOUT_MS);
       try {
@@ -359,7 +362,7 @@ usersCmd
     try {
       yamlContent = fs.readFileSync(configPath, 'utf-8');
     } catch {
-      process.stderr.write(`[users] Cannot read config: ${configPath}\n`);
+      log.error({ configPath }, 'Cannot read config');
       process.exit(1);
     }
 
@@ -405,7 +408,7 @@ usersCmd
       const id = userId.trim();
 
       if (mc.users[id]) {
-        process.stderr.write(`[users] User "${id}" already exists in config\n`);
+        log.error({ userId: id }, 'User already exists in config');
         process.exit(1);
       }
 
@@ -462,7 +465,7 @@ usersCmd
       try {
         loadMultiConfig(configPath);
       } catch (err) {
-        process.stderr.write(`[users] Warning: config validation failed after edit: ${err}\n`);
+        log.warn({ err }, 'Config validation failed after edit');
       }
 
       process.stderr.write(`\nUser "${id}" added successfully.\n`);
@@ -487,7 +490,7 @@ program
     const outputPath = path.resolve(opts.output);
 
     if (!fs.existsSync(configPath)) {
-      process.stderr.write(`[backup] Config not found: ${configPath}\n`);
+      log.error({ configPath }, 'Config not found');
       process.exit(1);
     }
 
@@ -526,13 +529,13 @@ program
     }
 
     if (dirs.length === 0) {
-      process.stderr.write('[backup] No data directories found to backup\n');
+      log.error('No data directories found to backup');
       process.exit(1);
     }
 
-    process.stderr.write(`[backup] Backing up ${dirs.length} directories...\n`);
+    log.info({ count: dirs.length }, 'Backing up directories');
     for (const d of dirs) {
-      process.stderr.write(`  ${d.label} → ${d.src}\n`);
+      log.info({ label: d.label, src: d.src }, 'Including directory');
     }
 
     // Create tar.gz using Node.js child_process (tar is available on all supported platforms)
@@ -541,9 +544,9 @@ program
     try {
       execSync(`tar czf "${outputPath}" ${tarArgs}`, { stdio: 'pipe' });
       const size = fs.statSync(outputPath).size;
-      process.stderr.write(`[backup] Done: ${outputPath} (${(size / 1024 / 1024).toFixed(1)} MB)\n`);
+      log.info({ outputPath, sizeMb: (size / 1024 / 1024).toFixed(1) }, 'Backup complete');
     } catch (err) {
-      process.stderr.write(`[backup] Failed to create archive: ${err}\n`);
+      log.error({ err }, 'Failed to create archive');
       process.exit(1);
     }
   });

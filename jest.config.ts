@@ -1,5 +1,8 @@
 import type { Config } from 'jest';
 
+// Silence pino logs during tests
+process.env.LOG_LEVEL = 'silent';
+
 const config: Config = {
   preset: 'ts-jest',
   testEnvironment: 'node',

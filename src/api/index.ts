@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { embed } from '@/lib/embedder';
+import { createLogger } from '@/lib/logger';
 import type { ProjectManager } from '@/lib/project-manager';
 import type { PromiseQueue } from '@/lib/promise-queue';
 import { createRestApp } from '@/api/rest/index';
@@ -116,53 +117,29 @@ export type EmbedFnMap = {
   skills: EmbedFns;
 };
 
-/** Module-level debug flag — set via setDebugMode() from CLI --debug */
-let _debugMode = false;
-export function setDebugMode(enabled: boolean): void { _debugMode = enabled; }
-
-/**
- * Create an McpServer proxy that logs every tool call and response to stderr.
- */
-function createDebugServer(server: McpServer, getSessionId: () => string | undefined): McpServer {
-  const proxy = Object.create(server) as McpServer;
-  const origRegister = server.registerTool.bind(server);
-  (proxy as any).registerTool = function(name: any, config: any, handler: any) {
-    if (typeof handler === 'function') {
-      const wrapped = async (...handlerArgs: any[]) => {
-        const args = handlerArgs[0];
-        const sid = getSessionId() ?? '?';
-        process.stderr.write(`[debug] [${sid}] → ${name}(${JSON.stringify(args)})\n`);
-        const start = Date.now();
-        try {
-          const result = await handler(...handlerArgs);
-          const ms = Date.now() - start;
-          const text = result?.content?.[0]?.text;
-          const preview = text != null ? (text.length > 500 ? text.slice(0, 500) + '…' : text) : JSON.stringify(result).slice(0, 500);
-          process.stderr.write(`[debug] [${sid}] ← ${name} (${ms}ms): ${preview}\n`);
-          return result;
-        } catch (err) {
-          const ms = Date.now() - start;
-          process.stderr.write(`[debug] [${sid}] ✗ ${name} (${ms}ms): ${err}\n`);
-          throw err;
-        }
-      };
-      return (origRegister as any)(name, config, wrapped);
-    }
-    return (origRegister as any)(name, config, handler);
-  };
-  return proxy;
-}
-
 /**
  * Create an McpServer proxy that wraps registerTool handlers in a PromiseQueue.
  * Used for mutation tools to prevent concurrent graph modifications.
  */
-function createMutationServer(server: McpServer, queue: PromiseQueue): McpServer {
+function createMutationServer(server: McpServer, queue: PromiseQueue, getSessionId?: () => string | undefined): McpServer {
   const proxy = Object.create(server) as McpServer;
   const origRegister = server.registerTool.bind(server);
+  const toolLog = createLogger('mcp-tool');
   (proxy as any).registerTool = function(name: any, config: any, handler: any) {
     if (typeof handler === 'function') {
-      const wrapped = (...handlerArgs: any[]) => queue.enqueue(() => handler(...handlerArgs)) as any;
+      const wrapped = (...handlerArgs: any[]) => queue.enqueue(async () => {
+        const sid = getSessionId?.() ?? '?';
+        toolLog.debug({ sessionId: sid, tool: name, args: handlerArgs[0] }, 'Tool call');
+        const start = Date.now();
+        try {
+          const result = await handler(...handlerArgs);
+          toolLog.debug({ sessionId: sid, tool: name, durationMs: Date.now() - start }, 'Tool result');
+          return result;
+        } catch (err) {
+          toolLog.debug({ sessionId: sid, tool: name, durationMs: Date.now() - start, err }, 'Tool error');
+          throw err;
+        }
+      }) as any;
       return (origRegister as any)(name, config, wrapped);
     }
     return (origRegister as any)(name, config, handler);
@@ -242,10 +219,8 @@ export function createMcpServer(
     { name: 'graphmemory', version: pkgVersion },
     instructions ? { instructions } : undefined,
   );
-  // Debug logging wraps all tool handlers when --debug is active
-  const debugServer = _debugMode && getSessionId ? createDebugServer(server, getSessionId) : server;
   // Mutation tools are registered through mutServer to serialize concurrent writes
-  const mutServer = mutationQueue ? createMutationServer(debugServer, mutationQueue) : debugServer;
+  const mutServer = mutationQueue ? createMutationServer(server, mutationQueue, getSessionId) : server;
 
   // Check if mutation tools should be registered for a graph:
   // - graph must not be readonly (global setting — tools hidden for all)
@@ -487,7 +462,7 @@ export async function startHttpServer(
         sessionIdGenerator: () => randomUUID(),
         onsessioninitialized: (sid) => {
           sessions.set(sid, { server: mcpServer, transport, lastActivity: Date.now() });
-          process.stderr.write(`[http] Session ${sid} started\n`);
+          createLogger('http').debug({ sessionId: sid }, 'Session started');
         },
       });
       transport.onclose = () => {
@@ -504,7 +479,7 @@ export async function startHttpServer(
 
   return new Promise((resolve) => {
     httpServer.listen(port, host, () => {
-      process.stderr.write(`[server] MCP HTTP server listening on http://${host}:${port}/mcp\n`);
+      createLogger('server').info({ host, port }, 'MCP HTTP server listening');
       resolve(httpServer);
     });
   });
@@ -687,7 +662,7 @@ export async function startMultiProjectHttpServer(
       sessionIdGenerator: () => randomUUID(),
       onsessioninitialized: (sid) => {
         sessions.set(sid, { projectId, workspaceId: ws?.id, userId, server: mcpServer, transport, lastActivity: Date.now() });
-        process.stderr.write(`[http] Session ${sid} started (project: ${projectId}${ws ? `, workspace: ${ws.id}` : ''}${userId ? `, user: ${userId}` : ''})\n`);
+        createLogger('http').debug({ sessionId: sid, projectId, workspaceId: ws?.id, userId }, 'Session started');
       },
     });
     transport.onclose = () => {
@@ -759,7 +734,7 @@ export async function startMultiProjectHttpServer(
       }
 
       lines.push('');
-      process.stderr.write(lines.join('\n') + '\n');
+      createLogger('server').info(lines.join('\n'));
       resolve(httpServer);
     });
   });

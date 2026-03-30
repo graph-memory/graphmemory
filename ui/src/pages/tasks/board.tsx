@@ -14,8 +14,8 @@ import CloseIcon from '@mui/icons-material/Close';
 import FlagIcon from '@mui/icons-material/Flag';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import {
-  DndContext, closestCenter, PointerSensor, useSensor, useSensors,
-  DragOverlay,
+  DndContext, pointerWithin, PointerSensor, useSensor, useSensors,
+  DragOverlay, useDroppable,
   type DragStartEvent, type DragEndEvent, type DragOverEvent,
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
@@ -222,6 +222,15 @@ function SortableTaskCard({
 }
 
 // ---------------------------------------------------------------------------
+// Droppable column wrapper — makes the entire column a valid drop target
+// ---------------------------------------------------------------------------
+
+function DroppableColumn({ status, children }: { status: string; children: React.ReactNode }) {
+  const { setNodeRef } = useDroppable({ id: status });
+  return <Box ref={setNodeRef} sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>{children}</Box>;
+}
+
+// ---------------------------------------------------------------------------
 // Board page
 // ---------------------------------------------------------------------------
 
@@ -340,6 +349,7 @@ export default function TaskBoardPage() {
     setOverColumn(null);
 
     if (!over || !projectId || !canWrite) return;
+    if (active.id === over.id) return;
 
     const activeTask = tasks.find(t => t.id === active.id);
     if (!activeTask) return;
@@ -594,7 +604,7 @@ export default function TaskBoardPage() {
       ) : (
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCenter}
+          collisionDetection={pointerWithin}
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
@@ -617,57 +627,59 @@ export default function TaskBoardPage() {
                     transition: 'background-color 0.15s, border-color 0.15s',
                   }}
                 >
-                  {/* Column header */}
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 1.5, pt: 1.5, pb: 1 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                      <Typography variant="subtitle2" fontWeight={700}>{label}</Typography>
-                      <Box sx={{
-                        bgcolor: alpha(color, 0.2), color, borderRadius: '10px',
-                        px: 0.8, py: 0.1, fontSize: '0.7rem', fontWeight: 700,
-                        lineHeight: 1.4, minWidth: 20, textAlign: 'center',
-                      }}>{columnTasks.length}</Box>
+                  <DroppableColumn status={status}>
+                    {/* Column header */}
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 1.5, pt: 1.5, pb: 1 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                        <Typography variant="subtitle2" fontWeight={700}>{label}</Typography>
+                        <Box sx={{
+                          bgcolor: alpha(color, 0.2), color, borderRadius: '10px',
+                          px: 0.8, py: 0.1, fontSize: '0.7rem', fontWeight: 700,
+                          lineHeight: 1.4, minWidth: 20, textAlign: 'center',
+                        }}>{columnTasks.length}</Box>
+                      </Box>
+                      {canWrite && (
+                        <IconButton
+                          size="small"
+                          onClick={() => { setQuickCreateStatus(status); setQuickCreateOpen(true); }}
+                          sx={{ p: 0.25, color: palette.custom.textMuted }}
+                        >
+                          <AddIcon sx={{ fontSize: 18 }} />
+                        </IconButton>
+                      )}
                     </Box>
-                    {canWrite && (
-                      <IconButton
-                        size="small"
-                        onClick={() => { setQuickCreateStatus(status); setQuickCreateOpen(true); }}
-                        sx={{ p: 0.25, color: palette.custom.textMuted }}
-                      >
-                        <AddIcon sx={{ fontSize: 18 }} />
-                      </IconButton>
-                    )}
-                  </Box>
 
-                  {/* Column body with sortable context */}
-                  <SortableContext items={columnTasks.map(t => t.id)} strategy={verticalListSortingStrategy} id={status}>
-                    <Stack spacing={1} sx={{
-                      flex: 1, overflowY: 'auto', px: 1.5, pb: 1.5, minHeight: 50,
-                      '&::-webkit-scrollbar': { width: 4 },
-                      '&::-webkit-scrollbar-thumb': { bgcolor: alpha(palette.text.primary, 0.15), borderRadius: 2 },
-                    }}>
-                      {columnTasks.map(task => (
-                        <SortableTaskCard
-                          key={task.id}
-                          task={task}
-                          team={team}
-                          canWrite={canWrite}
-                          onNavigate={(id) => navigate(`/${projectId}/tasks/${id}`)}
-                          onEdit={(id) => navigate(`/${projectId}/tasks/${id}/edit`)}
-                          onDelete={setDeleteTarget}
-                          palette={palette}
-                          taskEpics={taskEpicMap.get(task.id)}
-                          onTagClick={t => setFilter('tag', t)}
-                          activeTag={filters.tag}
-                          onAssigneeClick={id => setFilter('assignee', id)}
-                          onEpicClick={id => setFilter('epic', id)}
-                          onPriorityChange={async (p) => {
-                            setTasks(prev => prev.map(t => t.id === task.id ? { ...t, priority: p } : t));
-                            try { await updateTask(projectId!, task.id, { priority: p }); } catch { refresh(); }
-                          }}
-                        />
-                      ))}
-                    </Stack>
-                  </SortableContext>
+                    {/* Column body with sortable context */}
+                    <SortableContext items={columnTasks.map(t => t.id)} strategy={verticalListSortingStrategy} id={status}>
+                      <Stack spacing={1} sx={{
+                        flex: 1, overflowY: 'auto', px: 1.5, pb: 1.5, minHeight: 50,
+                        '&::-webkit-scrollbar': { width: 4 },
+                        '&::-webkit-scrollbar-thumb': { bgcolor: alpha(palette.text.primary, 0.15), borderRadius: 2 },
+                      }}>
+                        {columnTasks.map(task => (
+                          <SortableTaskCard
+                            key={task.id}
+                            task={task}
+                            team={team}
+                            canWrite={canWrite}
+                            onNavigate={(id) => navigate(`/${projectId}/tasks/${id}`)}
+                            onEdit={(id) => navigate(`/${projectId}/tasks/${id}/edit`)}
+                            onDelete={setDeleteTarget}
+                            palette={palette}
+                            taskEpics={taskEpicMap.get(task.id)}
+                            onTagClick={t => setFilter('tag', t)}
+                            activeTag={filters.tag}
+                            onAssigneeClick={id => setFilter('assignee', id)}
+                            onEpicClick={id => setFilter('epic', id)}
+                            onPriorityChange={async (p) => {
+                              setTasks(prev => prev.map(t => t.id === task.id ? { ...t, priority: p } : t));
+                              try { await updateTask(projectId!, task.id, { priority: p }); } catch { refresh(); }
+                            }}
+                          />
+                        ))}
+                      </Stack>
+                    </SortableContext>
+                  </DroppableColumn>
                 </Paper>
               );
             })}

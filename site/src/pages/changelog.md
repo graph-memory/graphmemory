@@ -5,6 +5,17 @@ description: Graph Memory release history and version changes.
 
 # Changelog
 
+## v1.9.3
+
+**March 2026**
+
+### Fixes
+
+- **Epic-task links lost on restart** — `linkTaskToEpic`/`unlinkTaskFromEpic` used `mirrorTaskUpdate` instead of `mirrorTaskRelation`, so `belongs_to` events were never written to `events.jsonl`; on restart the relation was replayed without the link and `syncRelationsFromFile` removed it
+- **WebSocket false auth redirect** — WS reconnect blindly called `/api/auth/refresh` on every close; when auth is not configured or the server is briefly down, this triggered a redirect to login. Now checks `/api/auth/status` first and only triggers auth failure when auth is truly required and refresh fails
+
+---
+
 ## v1.9.2
 
 **March 2026**

@@ -32,9 +32,16 @@ RUN npm ci --omit=dev
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/ui/dist ./ui/dist
 
+RUN addgroup --system app && adduser --system --ingroup app app && \
+    mkdir -p /data/models /data/projects /data/config && chown -R app:app /data
+USER app
+
 ENV NODE_ENV=production
 
 EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD node -e "fetch('http://localhost:3000/api/auth/status').then(r=>{if(!r.ok)throw r.status}).catch(()=>process.exit(1))"
 
 ENTRYPOINT ["node", "dist/cli/index.js"]
 CMD ["serve", "--config", "/data/config/graph-memory.yaml"]

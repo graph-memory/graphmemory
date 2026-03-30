@@ -32,6 +32,7 @@ import { useThemeMode } from '@/shared/lib/ThemeModeContext.tsx';
 import { WsProvider } from '@/shared/lib/useWebSocket.ts';
 import { AccessProvider } from '@/shared/lib/AccessContext.tsx';
 import { ConnectDialog } from './ConnectDialog.tsx';
+import { WsStatusIndicator } from '@/shared/ui/WsStatusIndicator.tsx';
 
 const DRAWER_WIDTH = 240;
 const APPBAR_HEIGHT = 64;
@@ -342,6 +343,7 @@ export default function Layout() {
           >
             Connect
           </Button>
+          {projectId && <WsStatusIndicator />}
           <IconButton color="inherit" onClick={toggle} title={`Switch to ${mode === 'dark' ? 'light' : 'dark'} mode`}>
             {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
           </IconButton>

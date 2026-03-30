@@ -1,4 +1,4 @@
-import { useEffect, useRef, createContext, useContext, type ReactNode } from 'react';
+import { useEffect, useRef, useState, createContext, useContext, type ReactNode } from 'react';
 import { createElement } from 'react';
 import { triggerAuthFailure } from '@/shared/api/client.ts';
 
@@ -10,12 +10,19 @@ export interface WsEvent {
 
 type Handler = (event: WsEvent) => void;
 
+// --- Connection status ---
+
+export type WsConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
+type StatusHandler = (status: WsConnectionStatus) => void;
+
 // --- Shared singleton WS manager ---
 
 interface WsManager {
   subscribe: (handler: Handler) => () => void;
   connect: (projectId: string) => void;
   disconnect: () => void;
+  getStatus: () => WsConnectionStatus;
+  onStatusChange: (handler: StatusHandler) => () => void;
 }
 
 const RECONNECT_BASE_MS = 3000;
@@ -23,21 +30,31 @@ const RECONNECT_MAX_MS = 30000;
 
 function createWsManager(): WsManager {
   const handlers = new Set<Handler>();
+  const statusHandlers = new Set<StatusHandler>();
   let ws: WebSocket | null = null;
   let currentProjectId: string | null = null;
   let disposed = false;
   let reconnectTimer: ReturnType<typeof setTimeout>;
   let reconnectDelay = RECONNECT_BASE_MS;
+  let status: WsConnectionStatus = 'disconnected';
+
+  function setStatus(next: WsConnectionStatus) {
+    if (next !== status) {
+      status = next;
+      for (const h of statusHandlers) h(next);
+    }
+  }
 
   function doConnect() {
     if (disposed || !currentProjectId) return;
+    setStatus('connecting');
     const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
     const url = `${proto}://${window.location.host}/api/ws`;
     ws = new WebSocket(url);
 
     ws.onopen = () => {
-      console.log('[ws] connected to', url);
       reconnectDelay = RECONNECT_BASE_MS;
+      setStatus('connected');
     };
 
     ws.onmessage = (e) => {
@@ -51,26 +68,22 @@ function createWsManager(): WsManager {
 
     ws.onerror = () => {};
 
-    ws.onclose = (e) => {
-      console.log('[ws] closed, code:', e.code, 'reason:', e.reason);
+    ws.onclose = () => {
       if (!disposed && currentProjectId) {
+        setStatus('reconnecting');
         reconnectTimer = setTimeout(async () => {
           if (disposed) return;
           try {
-            // Try refresh — distinguish network errors from auth rejection
             const res = await fetch('/api/auth/refresh', { method: 'POST', credentials: 'include' });
             if (disposed) return;
             if (res.ok) {
               doConnect();
               return;
             }
-            // Server responded but rejected → real auth failure
-            console.log('[ws] refresh rejected, auth failure');
+            setStatus('disconnected');
             triggerAuthFailure();
           } catch {
-            // Network error (server down) — retry with backoff
             if (disposed) return;
-            console.log(`[ws] server unreachable, retry in ${reconnectDelay / 1000}s`);
             reconnectDelay = Math.min(reconnectDelay * 2, RECONNECT_MAX_MS);
             reconnectTimer = setTimeout(() => { if (!disposed) doConnect(); }, reconnectDelay);
           }
@@ -86,7 +99,6 @@ function createWsManager(): WsManager {
     },
     connect(projectId: string) {
       if (currentProjectId === projectId && ws && ws.readyState <= WebSocket.OPEN) return;
-      // New project or no connection
       disposed = false;
       clearTimeout(reconnectTimer);
       if (ws && ws.readyState <= WebSocket.OPEN) {
@@ -102,6 +114,15 @@ function createWsManager(): WsManager {
       if (ws && ws.readyState <= WebSocket.OPEN) {
         ws.close();
       }
+      setStatus('disconnected');
+    },
+    getStatus() {
+      return status;
+    },
+    onStatusChange(handler: StatusHandler) {
+      statusHandlers.add(handler);
+      handler(status);
+      return () => { statusHandlers.delete(handler); };
     },
   };
 }
@@ -137,4 +158,15 @@ export function useWebSocket(projectId: string | null, handler: Handler) {
     });
     return unsubscribe;
   }, [projectId, manager]);
+}
+
+// --- Hook for connection status ---
+
+export function useWsStatus(): WsConnectionStatus {
+  const manager = useContext(WsContext);
+  const [s, setS] = useState<WsConnectionStatus>(() => manager.getStatus());
+
+  useEffect(() => manager.onStatusChange(setS), [manager]);
+
+  return s;
 }

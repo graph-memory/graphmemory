@@ -6,7 +6,10 @@ const useJson = process.env.LOG_JSON === '1';
 const logger = pino({
   level: DEFAULT_LEVEL,
   ...(!useJson && {
-    transport: { target: 'pino-pretty' },
+    transport: {
+      target: 'pino-pretty',
+      options: { singleLine: true },
+    },
   }),
 });
 

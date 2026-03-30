@@ -45,32 +45,35 @@ const NAV_GRAPH_MAP: Record<string, string> = {
   files: 'files',
 };
 
+interface NavItemColor { dark: string; light: string }
+
 interface NavItem {
   label: string;
   icon: React.ReactNode;
   path: string;
-  children?: Array<{ label: string; icon: React.ReactNode; path: string }>;
+  color?: NavItemColor;
+  children?: Array<{ label: string; icon: React.ReactNode; path: string; color?: NavItemColor }>;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: 'Dashboard', icon: <DashboardIcon />, path: 'dashboard' },
-  { label: 'Knowledge', icon: <LightbulbIcon />, path: 'knowledge' },
+  { label: 'Dashboard', icon: <DashboardIcon />, path: 'dashboard', color: { dark: '#569cd6', light: '#1976d2' } },
   {
-    label: 'Tasks', icon: <AssignmentIcon />, path: 'tasks',
+    label: 'Tasks', icon: <AssignmentIcon />, path: 'tasks', color: { dark: '#ce9178', light: '#d84315' },
     children: [
-      { label: 'Board', icon: <ViewKanbanIcon />, path: 'tasks/board' },
-      { label: 'List', icon: <ViewListIcon />, path: 'tasks/list' },
-      { label: 'Epics', icon: <FlagIcon />, path: 'epics' },
+      { label: 'Board', icon: <ViewKanbanIcon />, path: 'tasks/board', color: { dark: '#ce9178', light: '#d84315' } },
+      { label: 'List', icon: <ViewListIcon />, path: 'tasks/list', color: { dark: '#ce9178', light: '#d84315' } },
+      { label: 'Epics', icon: <FlagIcon />, path: 'epics', color: { dark: '#ce9178', light: '#d84315' } },
     ],
   },
-  { label: 'Skills', icon: <PsychologyIcon />, path: 'skills' },
-  { label: 'Docs', icon: <DescriptionIcon />, path: 'docs' },
-  { label: 'Code', icon: <CodeIcon />, path: 'code' },
-  { label: 'Files', icon: <FolderIcon />, path: 'files' },
-  { label: 'Search', icon: <SearchIcon />, path: 'search' },
-  { label: 'Prompts', icon: <AutoAwesomeIcon />, path: 'prompts' },
-  { label: 'Tools', icon: <BuildIcon />, path: 'tools' },
-  { label: 'Help', icon: <MenuBookIcon />, path: 'help' },
+  { label: 'Knowledge', icon: <LightbulbIcon />, path: 'knowledge', color: { dark: '#dcdcaa', light: '#b8860b' } },
+  { label: 'Skills', icon: <PsychologyIcon />, path: 'skills', color: { dark: '#c586c0', light: '#9c27b0' } },
+  { label: 'Docs', icon: <DescriptionIcon />, path: 'docs', color: { dark: '#9cdcfe', light: '#0288d1' } },
+  { label: 'Code', icon: <CodeIcon />, path: 'code', color: { dark: '#6a9955', light: '#2e7d32' } },
+  { label: 'Files', icon: <FolderIcon />, path: 'files', color: { dark: '#d7ba7d', light: '#795548' } },
+  { label: 'Search', icon: <SearchIcon />, path: 'search', color: { dark: '#b5cea8', light: '#558b2f' } },
+  { label: 'Prompts', icon: <AutoAwesomeIcon />, path: 'prompts', color: { dark: '#dcdcaa', light: '#e65100' } },
+  { label: 'Tools', icon: <BuildIcon />, path: 'tools', color: { dark: '#858585', light: '#616161' } },
+  { label: 'Help', icon: <MenuBookIcon />, path: 'help', color: { dark: '#4ec9b0', light: '#00897b' } },
 ];
 
 const PAGE_TITLES: Record<string, string> = {
@@ -221,7 +224,7 @@ export default function Layout() {
                   disabled={!projectId}
                   sx={{ borderRadius: 1, mb: 0.5 }}
                 >
-                  <ListItemIcon sx={{ minWidth: 40 }}>{icon}</ListItemIcon>
+                  <ListItemIcon sx={{ minWidth: 40, color: item.color?.[mode] ?? 'inherit' }}>{icon}</ListItemIcon>
                   <ListItemText primary={label} />
                   {isExpanded ? <ExpandLess /> : <ExpandMore />}
                 </ListItemButton>
@@ -249,7 +252,7 @@ export default function Layout() {
                             }),
                           }}
                         >
-                          <ListItemIcon sx={{ minWidth: 32, color: childActive ? palette.custom.textOnPrimary : 'inherit' }}>
+                          <ListItemIcon sx={{ minWidth: 32, color: childActive ? palette.custom.textOnPrimary : (child.color?.[mode] ?? 'inherit') }}>
                             {child.icon}
                           </ListItemIcon>
                           <ListItemText primary={child.label} primaryTypographyProps={{ variant: 'body2' }} />
@@ -284,7 +287,7 @@ export default function Layout() {
                 }),
               }}
             >
-              <ListItemIcon sx={{ minWidth: 40, color: active ? palette.custom.textOnPrimary : 'inherit' }}>
+              <ListItemIcon sx={{ minWidth: 40, color: active ? palette.custom.textOnPrimary : (item.color?.[mode] ?? 'inherit') }}>
                 {icon}
               </ListItemIcon>
               <ListItemText primary={label} />

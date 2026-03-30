@@ -134,6 +134,45 @@ describe('WebSocket server', () => {
     ws.close();
   });
 
+  it('broadcasts epic:created event', async () => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}/api/ws`);
+    await waitForOpen(ws);
+
+    const msgPromise = waitForMessage(ws);
+    pm.emit('epic:created', { projectId: 'test', epicId: 'e1', title: 'Test Epic', status: 'open' });
+    const msg = await msgPromise;
+
+    expect(msg.type).toBe('epic:created');
+    expect(msg.data.epicId).toBe('e1');
+    ws.close();
+  });
+
+  it('broadcasts epic:linked event', async () => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}/api/ws`);
+    await waitForOpen(ws);
+
+    const msgPromise = waitForMessage(ws);
+    pm.emit('epic:linked', { projectId: 'test', taskId: 't1', epicId: 'e1' });
+    const msg = await msgPromise;
+
+    expect(msg.type).toBe('epic:linked');
+    expect(msg.data.taskId).toBe('t1');
+    ws.close();
+  });
+
+  it('broadcasts task:reordered event', async () => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}/api/ws`);
+    await waitForOpen(ws);
+
+    const msgPromise = waitForMessage(ws);
+    pm.emit('task:reordered', { projectId: 'test', taskId: 't1', order: 3 });
+    const msg = await msgPromise;
+
+    expect(msg.type).toBe('task:reordered');
+    expect(msg.data.taskId).toBe('t1');
+    ws.close();
+  });
+
   it('cleanup removes listeners', () => {
     const pm2 = createMockProjectManager();
     const server2 = http.createServer();

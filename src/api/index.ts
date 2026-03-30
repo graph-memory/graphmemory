@@ -66,6 +66,9 @@ import * as linkTask from '@/api/tools/tasks/link-task';
 import * as createTaskLink from '@/api/tools/tasks/create-task-link';
 import * as deleteTaskLink from '@/api/tools/tasks/delete-task-link';
 import * as findLinkedTasks from '@/api/tools/tasks/find-linked-tasks';
+import * as bulkMove from '@/api/tools/tasks/bulk-move';
+import * as bulkPriority from '@/api/tools/tasks/bulk-priority';
+import * as bulkDelete from '@/api/tools/tasks/bulk-delete';
 import * as addTaskAttachment from '@/api/tools/tasks/add-attachment';
 import * as createEpicTool from '@/api/tools/epics/create-epic';
 import * as updateEpicTool from '@/api/tools/epics/update-epic';
@@ -349,6 +352,9 @@ export function createMcpServer(
       linkTask.register(mutServer, taskMgr);
       createTaskLink.register(mutServer, taskMgr);
       deleteTaskLink.register(mutServer, taskMgr);
+      bulkMove.register(mutServer, taskMgr);
+      bulkPriority.register(mutServer, taskMgr);
+      bulkDelete.register(mutServer, taskMgr);
       addTaskAttachment.register(mutServer, taskMgr);
       removeTaskAttachment.register(mutServer, taskMgr);
     }

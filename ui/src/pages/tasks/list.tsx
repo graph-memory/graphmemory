@@ -25,15 +25,18 @@ import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
 import { PageTopBar, StatusBadge, ConfirmDialog, PaginationBar, FilterBar, FilterControl } from '@/shared/ui/index.ts';
 import { useTableSort, type SortDir } from '@/shared/lib/useTableSort.ts';
 import { useFilters } from '@/shared/lib/useFilters.ts';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import {
   listTasks, updateTask, reorderTask, bulkMoveTasks, bulkUpdatePriority, bulkDeleteTasks,
   COLUMNS, PRIORITY_COLORS, PRIORITY_BADGE_COLOR, priorityLabel, statusLabel,
-  type Task, type TaskStatus, type TaskPriority,
+  GROUP_CONFIGS, GROUP_BY_OPTIONS,
+  type Task, type TaskStatus, type TaskPriority, type GroupByField, type GroupContext,
 } from '@/entities/task/index.ts';
 import { listTeam, type TeamMember } from '@/entities/project/api.ts';
 import { listEpics, listEpicTasks, type Epic } from '@/entities/epic/index.ts';
 import FlagIcon from '@mui/icons-material/Flag';
 import { useColumnVisibility } from './useColumnVisibility.ts';
+import { useGroupedTasks } from './useGroupedTasks.ts';
 import { QuickCreateDialog } from '@/features/task-crud/QuickCreateDialog.tsx';
 
 const STATUS_OPTIONS = COLUMNS.map(c => c.status);
@@ -75,14 +78,14 @@ function computeOrderAt(items: Task[], index: number): number {
 // ---------------------------------------------------------------------------
 
 function DroppableGroupHeader({
-  status, label, color, count, isCollapsed, canWrite, groupSelected, groupTotal,
-  onToggleCollapse, onToggleSelectGroup,
+  groupKey, label, color, count, isCollapsed, canWrite, groupSelected, groupTotal,
+  onToggleCollapse, onToggleSelectGroup, dndEnabled,
 }: {
-  status: TaskStatus; label: string; color: string; count: number;
+  groupKey: string; label: string; color: string; count: number;
   isCollapsed: boolean; canWrite: boolean; groupSelected: number; groupTotal: number;
-  onToggleCollapse: () => void; onToggleSelectGroup: () => void;
+  onToggleCollapse: () => void; onToggleSelectGroup: () => void; dndEnabled: boolean;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: `group-${status}` });
+  const { setNodeRef, isOver } = useDroppable({ id: `group-${groupKey}`, disabled: !dndEnabled });
   return (
     <TableRow
       ref={setNodeRef}
@@ -125,8 +128,8 @@ function DroppableGroupHeader({
 // Tail drop zone — invisible row after last task in group for "drop to end"
 // ---------------------------------------------------------------------------
 
-function TailDropZone({ status, color }: { status: TaskStatus; color: string }) {
-  const { setNodeRef, isOver } = useDroppable({ id: `tail-${status}` });
+function TailDropZone({ groupKey, color, dndEnabled }: { groupKey: string; color: string; dndEnabled: boolean }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `tail-${groupKey}`, disabled: !dndEnabled });
   return (
     <TableRow ref={setNodeRef}>
       <TableCell
@@ -301,7 +304,7 @@ function DraggableTaskRow({
 // Main page
 // ---------------------------------------------------------------------------
 
-type TaskFilterKey = 'q' | 'priority' | 'tag' | 'assignee' | 'epic';
+type TaskFilterKey = 'q' | 'priority' | 'tag' | 'assignee' | 'epic' | 'groupBy';
 
 const TASK_FILTER_DEFS = [
   { key: 'q', defaultValue: '' },
@@ -309,6 +312,7 @@ const TASK_FILTER_DEFS = [
   { key: 'tag', defaultValue: '' },
   { key: 'assignee', defaultValue: '' },
   { key: 'epic', defaultValue: '' },
+  { key: 'groupBy', defaultValue: 'status' },
 ];
 
 export default function TaskListPage() {
@@ -336,7 +340,7 @@ export default function TaskListPage() {
     initSort || 'order',
     initDir || 'asc',
   );
-  const [collapsed, setCollapsed] = useState<Set<TaskStatus>>(new Set());
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<{ ids: string[]; label: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -353,7 +357,7 @@ export default function TaskListPage() {
 
   // DnD state
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [overGroupStatus, setOverGroupStatus] = useState<TaskStatus | null>(null);
+  const [overGroupKey, setOverGroupKey] = useState<string | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const refresh = useCallback(async () => {
@@ -425,20 +429,17 @@ export default function TaskListPage() {
     return sortDir === 'desc' ? -cmp : cmp;
   }, [sortField, sortDir]);
 
-  const grouped = useMemo(() => {
-    const map = new Map<TaskStatus, Task[]>();
-    for (const col of COLUMNS) map.set(col.status, []);
-    for (const t of filteredTasks) { const list = map.get(t.status); if (list) list.push(t); }
-    for (const [, list] of map) list.sort(compareTasks);
-    return map;
-  }, [filteredTasks, compareTasks]);
+  const groupBy = (filters.groupBy || 'status') as GroupByField;
+  const groupContext = useMemo<GroupContext>(() => ({ team, epics, taskEpicMap }), [team, epics, taskEpicMap]);
+  const { groups, tasksByGroup } = useGroupedTasks(filteredTasks, groupBy, groupContext, compareTasks);
+  const currentGroupConfig = GROUP_CONFIGS[groupBy];
 
   const handleSortClick = (field: SortField) => {
     handleSort(field);
   };
 
-  const toggleCollapse = (status: TaskStatus) => {
-    setCollapsed(prev => { const next = new Set(prev); if (next.has(status)) next.delete(status); else next.add(status); return next; });
+  const toggleCollapse = (key: string) => {
+    setCollapsed(prev => { const next = new Set(prev); if (next.has(key)) next.delete(key); else next.add(key); return next; });
   };
 
   const toggleSelect = (id: string) => {
@@ -448,8 +449,8 @@ export default function TaskListPage() {
     const allIds = filteredTasks.map(t => t.id);
     setSelected(selected.size === allIds.length ? new Set() : new Set(allIds));
   };
-  const toggleSelectGroup = (status: TaskStatus) => {
-    const groupIds = (grouped.get(status) ?? []).map(t => t.id);
+  const toggleSelectGroup = (groupKey: string) => {
+    const groupIds = (tasksByGroup.get(groupKey) ?? []).map(t => t.id);
     const allSelected = groupIds.every(id => selected.has(id));
     setSelected(prev => { const next = new Set(prev); for (const id of groupIds) { if (allSelected) next.delete(id); else next.add(id); } return next; });
   };
@@ -486,55 +487,71 @@ export default function TaskListPage() {
 
   const handleDragOver = (event: DragOverEvent) => {
     const { over } = event;
-    if (!over) { setOverGroupStatus(null); return; }
+    if (!over) { setOverGroupKey(null); return; }
     const overId = over.id as string;
-    if (overId.startsWith('group-')) { setOverGroupStatus(overId.replace('group-', '') as TaskStatus); return; }
-    if (overId.startsWith('tail-')) { setOverGroupStatus(overId.replace('tail-', '') as TaskStatus); return; }
-    const overTask = tasks.find(t => t.id === overId);
-    if (overTask) { setOverGroupStatus(overTask.status); return; }
-    setOverGroupStatus(null);
+    if (overId.startsWith('group-')) { setOverGroupKey(overId.replace('group-', '')); return; }
+    if (overId.startsWith('tail-')) { setOverGroupKey(overId.replace('tail-', '')); return; }
+    // Find which group this task belongs to
+    for (const [key, list] of tasksByGroup) {
+      if (list.some(t => t.id === overId)) { setOverGroupKey(key); return; }
+    }
+    setOverGroupKey(null);
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveId(null);
-    setOverGroupStatus(null);
-    if (!over || !projectId || !canWrite) return;
+    setOverGroupKey(null);
+    if (!over || !projectId || !canWrite || !currentGroupConfig.dndEnabled) return;
 
     const activeTask = tasks.find(t => t.id === active.id);
     if (!activeTask) return;
 
     const overId = over.id as string;
 
-    // Determine target status
-    let targetStatus: TaskStatus = activeTask.status;
+    // Determine target group key
     const isGroupDrop = overId.startsWith('group-');
     const isTailDrop = overId.startsWith('tail-');
+    let targetGroupKey: string | null = null;
     if (isGroupDrop) {
-      targetStatus = overId.replace('group-', '') as TaskStatus;
+      targetGroupKey = overId.replace('group-', '');
     } else if (isTailDrop) {
-      targetStatus = overId.replace('tail-', '') as TaskStatus;
+      targetGroupKey = overId.replace('tail-', '');
     } else {
-      const overTask = tasks.find(t => t.id === overId);
-      if (overTask) targetStatus = overTask.status;
+      // Find group key from the task being dropped on
+      for (const [key, list] of tasksByGroup) {
+        if (list.some(t => t.id === overId)) { targetGroupKey = key; break; }
+      }
     }
 
-    const columnTasks = tasks
-      .filter(t => t.status === targetStatus && t.id !== activeTask.id)
-      .sort((a, b) => a.order - b.order);
+    if (!targetGroupKey) return;
 
-    let newOrder: number;
-    if (isGroupDrop || isTailDrop) {
-      newOrder = columnTasks.length > 0 ? columnTasks[columnTasks.length - 1].order + 1000 : 0;
-    } else {
-      const overIdx = columnTasks.findIndex(t => t.id === overId);
-      newOrder = computeOrderAt(columnTasks, overIdx >= 0 ? overIdx : columnTasks.length);
+    // For status grouping, use reorder (preserves order semantics)
+    if (groupBy === 'status') {
+      const targetStatus = targetGroupKey as TaskStatus;
+      const columnTasks = tasks
+        .filter(t => t.status === targetStatus && t.id !== activeTask.id)
+        .sort((a, b) => a.order - b.order);
+
+      let newOrder: number;
+      if (isGroupDrop || isTailDrop) {
+        newOrder = columnTasks.length > 0 ? columnTasks[columnTasks.length - 1].order + 1000 : 0;
+      } else {
+        const overIdx = columnTasks.findIndex(t => t.id === overId);
+        newOrder = computeOrderAt(columnTasks, overIdx >= 0 ? overIdx : columnTasks.length);
+      }
+
+      setTasks(prev => prev.map(t => t.id === activeTask.id ? { ...t, status: targetStatus, order: newOrder } : t));
+      try {
+        await reorderTask(projectId, activeTask.id, newOrder, targetStatus !== activeTask.status ? targetStatus : undefined);
+      } catch { refresh(); }
+    } else if (currentGroupConfig.applyGroupChange) {
+      // For other groupings with DnD, just change the field
+      try {
+        await currentGroupConfig.applyGroupChange(projectId, activeTask.id, targetGroupKey);
+        refresh();
+      } catch { refresh(); }
     }
-
-    setTasks(prev => prev.map(t => t.id === activeTask.id ? { ...t, status: targetStatus, order: newOrder } : t));
-    try {
-      await reorderTask(projectId, activeTask.id, newOrder, targetStatus !== activeTask.status ? targetStatus : undefined);
-    } catch { refresh(); }
   };
 
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
@@ -572,30 +589,46 @@ export default function TaskListPage() {
         breadcrumbs={[{ label: 'Tasks' }, { label: 'List' }]}
         actions={
           <>
-            <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
-              {COLUMNS.map(({ status, label, color }) => {
-                const isOn = visibleStatuses.has(status);
-                return (
-                  <Chip
-                    key={status}
-                    label={label}
-                    size="small"
-                    onClick={() => toggleStatusVisibility(status)}
-                    disabled={isOn && visibleStatuses.size === 1}
-                    sx={{
-                      height: 26, fontWeight: 600, fontSize: '0.7rem', cursor: 'pointer',
-                      bgcolor: isOn ? alpha(color, 0.22) : 'transparent',
-                      color: isOn ? color : palette.custom.textMuted,
-                      border: isOn ? `1.5px solid ${alpha(color, 0.6)}` : '1.5px solid transparent',
-                      textDecoration: isOn ? 'none' : 'line-through',
-                      opacity: isOn ? 1 : 0.45,
-                      '&:hover': { bgcolor: alpha(color, 0.1), opacity: 1 },
-                      '& .MuiChip-label': { px: 1 },
-                    }}
-                  />
-                );
-              })}
-            </Box>
+            <FormControl size="small" sx={{ minWidth: 110 }}>
+              <Select
+                name="group-by"
+                value={groupBy}
+                onChange={e => setFilter('groupBy', e.target.value)}
+                variant="outlined"
+                sx={{ fontSize: '0.8rem', height: 32, '& .MuiSelect-select': { py: '4px' } }}
+                renderValue={v => `Group: ${GROUP_BY_OPTIONS.find(o => o.value === v)?.label ?? v}`}
+              >
+                {GROUP_BY_OPTIONS.map(o => (
+                  <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            {groupBy === 'status' && (
+              <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+                {COLUMNS.map(({ status, label, color }) => {
+                  const isOn = visibleStatuses.has(status);
+                  return (
+                    <Chip
+                      key={status}
+                      label={label}
+                      size="small"
+                      onClick={() => toggleStatusVisibility(status)}
+                      disabled={isOn && visibleStatuses.size === 1}
+                      sx={{
+                        height: 26, fontWeight: 600, fontSize: '0.7rem', cursor: 'pointer',
+                        bgcolor: isOn ? alpha(color, 0.22) : 'transparent',
+                        color: isOn ? color : palette.custom.textMuted,
+                        border: isOn ? `1.5px solid ${alpha(color, 0.6)}` : '1.5px solid transparent',
+                        textDecoration: isOn ? 'none' : 'line-through',
+                        opacity: isOn ? 1 : 0.45,
+                        '&:hover': { bgcolor: alpha(color, 0.1), opacity: 1 },
+                        '& .MuiChip-label': { px: 1 },
+                      }}
+                    />
+                  );
+                })}
+              </Box>
+            )}
             {canWrite && (
               <Button variant="contained" startIcon={<AddIcon />} onClick={() => setQuickCreateOpen(true)}>New Task</Button>
             )}
@@ -709,7 +742,12 @@ export default function TaskListPage() {
           {canWrite && <Button variant="contained" startIcon={<AddIcon />} onClick={() => setQuickCreateOpen(true)}>New Task</Button>}
         </Box>
       ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={currentGroupConfig.dndEnabled ? handleDragStart : undefined} onDragOver={currentGroupConfig.dndEnabled ? handleDragOver : undefined} onDragEnd={currentGroupConfig.dndEnabled ? handleDragEnd : undefined}>
+          {groupBy === 'tag' && (
+            <Alert severity="info" icon={<InfoOutlinedIcon fontSize="small" />} sx={{ mb: 1, py: 0 }}>
+              Tasks may appear in multiple groups
+            </Alert>
+          )}
           <TableContainer component={Paper} variant="outlined">
             <Table size="small">
               <TableHead>
@@ -726,46 +764,73 @@ export default function TaskListPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {COLUMNS.filter(c => visibleStatuses.has(c.status)).map(({ status, label, color }) => {
-                  const groupTasks = grouped.get(status) ?? [];
-                  if (groupTasks.length === 0 && !(activeId && overGroupStatus === status)) return null;
-                  const isCollapsed = collapsed.has(status);
-                  const groupSelected = groupTasks.filter(t => selected.has(t.id)).length;
+                {groupBy === 'none' ? (
+                  // Flat list — no group headers
+                  (tasksByGroup.get('__all__') ?? []).map(task => (
+                    <DraggableTaskRow
+                      key={task.id}
+                      task={task}
+                      team={team}
+                      canWrite={canWrite}
+                      selected={selected.has(task.id)}
+                      isBeingDragged={activeId === task.id}
+                      groupColor="transparent"
+                      onToggleSelect={() => toggleSelect(task.id)}
+                      onNavigate={() => goToTask(task.id)}
+                      onInlineStatus={s => handleInlineStatus(task, s)}
+                      onInlinePriority={p => handleInlinePriority(task, p)}
+                      palette={palette}
+                      taskEpics={taskEpicMap.get(task.id)}
+                      onTagClick={t => setFilter('tag', t)}
+                      activeTag={filters.tag}
+                      onAssigneeClick={id => setFilter('assignee', id)}
+                      onEpicClick={id => setFilter('epic', id)}
+                    />
+                  ))
+                ) : (
+                  // Grouped rendering
+                  groups.filter(g => groupBy !== 'status' || visibleStatuses.has(g.key as TaskStatus)).map(({ key: groupKey, label, color }) => {
+                    const groupTasks = tasksByGroup.get(groupKey) ?? [];
+                    if (groupTasks.length === 0 && !(activeId && overGroupKey === groupKey)) return null;
+                    const isCollapsed = collapsed.has(groupKey);
+                    const groupSelected = groupTasks.filter(t => selected.has(t.id)).length;
 
-                  return (
-                    <Fragment key={status}>
-                      <DroppableGroupHeader
-                        status={status} label={label} color={color} count={groupTasks.length}
-                        isCollapsed={isCollapsed} canWrite={canWrite}
-                        groupSelected={groupSelected} groupTotal={groupTasks.length}
-                        onToggleCollapse={() => toggleCollapse(status)}
-                        onToggleSelectGroup={() => toggleSelectGroup(status)}
-                      />
-                      {!isCollapsed && groupTasks.map(task => (
-                        <DraggableTaskRow
-                          key={task.id}
-                          task={task}
-                          team={team}
-                          canWrite={canWrite}
-                          selected={selected.has(task.id)}
-                          isBeingDragged={activeId === task.id}
-                          groupColor={color}
-                          onToggleSelect={() => toggleSelect(task.id)}
-                          onNavigate={() => goToTask(task.id)}
-                          onInlineStatus={s => handleInlineStatus(task, s)}
-                          onInlinePriority={p => handleInlinePriority(task, p)}
-                          palette={palette}
-                          taskEpics={taskEpicMap.get(task.id)}
-                          onTagClick={t => setFilter('tag', t)}
-                          activeTag={filters.tag}
-                          onAssigneeClick={id => setFilter('assignee', id)}
-                          onEpicClick={id => setFilter('epic', id)}
+                    return (
+                      <Fragment key={groupKey}>
+                        <DroppableGroupHeader
+                          groupKey={groupKey} label={label} color={color} count={groupTasks.length}
+                          isCollapsed={isCollapsed} canWrite={canWrite}
+                          groupSelected={groupSelected} groupTotal={groupTasks.length}
+                          onToggleCollapse={() => toggleCollapse(groupKey)}
+                          onToggleSelectGroup={() => toggleSelectGroup(groupKey)}
+                          dndEnabled={currentGroupConfig.dndEnabled}
                         />
-                      ))}
-                      <TailDropZone status={status} color={color} />
-                    </Fragment>
-                  );
-                })}
+                        {!isCollapsed && groupTasks.map(task => (
+                          <DraggableTaskRow
+                            key={task.id}
+                            task={task}
+                            team={team}
+                            canWrite={canWrite}
+                            selected={selected.has(task.id)}
+                            isBeingDragged={activeId === task.id}
+                            groupColor={color}
+                            onToggleSelect={() => toggleSelect(task.id)}
+                            onNavigate={() => goToTask(task.id)}
+                            onInlineStatus={s => handleInlineStatus(task, s)}
+                            onInlinePriority={p => handleInlinePriority(task, p)}
+                            palette={palette}
+                            taskEpics={taskEpicMap.get(task.id)}
+                            onTagClick={t => setFilter('tag', t)}
+                            activeTag={filters.tag}
+                            onAssigneeClick={id => setFilter('assignee', id)}
+                            onEpicClick={id => setFilter('epic', id)}
+                          />
+                        ))}
+                        <TailDropZone groupKey={groupKey} color={color} dndEnabled={currentGroupConfig.dndEnabled} />
+                      </Fragment>
+                    );
+                  })
+                )}
               </TableBody>
             </Table>
           </TableContainer>

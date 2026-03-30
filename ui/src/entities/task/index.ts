@@ -9,3 +9,7 @@ export {
   COLUMNS, PRIORITY_COLORS,
   STATUS_BADGE_COLOR, PRIORITY_BADGE_COLOR, statusLabel, priorityLabel,
 } from './config.ts';
+export {
+  GROUP_CONFIGS, GROUP_BY_OPTIONS,
+  type GroupByField, type GroupDefinition, type GroupContext, type GroupConfig,
+} from './groupConfig.ts';

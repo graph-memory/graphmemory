@@ -12,6 +12,7 @@ const NoteDetailPage = lazy(() => import('@/pages/knowledge/[noteId].tsx'));
 const NoteNewPage = lazy(() => import('@/pages/knowledge/new.tsx'));
 const NoteEditPage = lazy(() => import('@/pages/knowledge/edit.tsx'));
 const TasksRedirect = lazy(() => import('@/pages/tasks/index.tsx'));
+const TaskSummaryPage = lazy(() => import('@/pages/tasks/summary.tsx'));
 const TaskBoardPage = lazy(() => import('@/pages/tasks/board.tsx'));
 const TaskListPage = lazy(() => import('@/pages/tasks/list.tsx'));
 const TaskDetailPage = lazy(() => import('@/pages/tasks/[taskId].tsx'));
@@ -62,6 +63,7 @@ export default function App() {
           <Route path="knowledge/:noteId/edit" element={<NoteEditPage />} />
           <Route path="knowledge/:noteId" element={<NoteDetailPage />} />
           <Route path="tasks" element={<TasksRedirect />} />
+          <Route path="tasks/summary" element={<TaskSummaryPage />} />
           <Route path="tasks/board" element={<TaskBoardPage />} />
           <Route path="tasks/list" element={<TaskListPage />} />
           <Route path="tasks/new" element={<TaskNewPage />} />

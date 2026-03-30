@@ -9,8 +9,6 @@ import MenuIcon from '@mui/icons-material/Menu';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import LightbulbIcon from '@mui/icons-material/Lightbulb';
-import ViewKanbanIcon from '@mui/icons-material/ViewKanban';
-import ViewListIcon from '@mui/icons-material/ViewList';
 import FolderIcon from '@mui/icons-material/Folder';
 import DescriptionIcon from '@mui/icons-material/Description';
 import CodeIcon from '@mui/icons-material/Code';
@@ -58,14 +56,8 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', icon: <DashboardIcon />, path: 'dashboard', color: { dark: '#569cd6', light: '#1976d2' } },
-  {
-    label: 'Tasks', icon: <AssignmentIcon />, path: 'tasks', color: { dark: '#ce9178', light: '#d84315' },
-    children: [
-      { label: 'Board', icon: <ViewKanbanIcon />, path: 'tasks/board', color: { dark: '#ce9178', light: '#d84315' } },
-      { label: 'List', icon: <ViewListIcon />, path: 'tasks/list', color: { dark: '#ce9178', light: '#d84315' } },
-      { label: 'Epics', icon: <FlagIcon />, path: 'epics', color: { dark: '#ce9178', light: '#d84315' } },
-    ],
-  },
+  { label: 'Tasks', icon: <AssignmentIcon />, path: 'tasks', color: { dark: '#ce9178', light: '#d84315' } },
+  { label: 'Epics', icon: <FlagIcon />, path: 'epics', color: { dark: '#ce9178', light: '#d84315' } },
   { label: 'Knowledge', icon: <LightbulbIcon />, path: 'knowledge', color: { dark: '#dcdcaa', light: '#b8860b' } },
   { label: 'Skills', icon: <PsychologyIcon />, path: 'skills', color: { dark: '#c586c0', light: '#9c27b0' } },
   { label: 'Docs', icon: <DescriptionIcon />, path: 'docs', color: { dark: '#9cdcfe', light: '#0288d1' } },

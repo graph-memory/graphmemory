@@ -38,6 +38,7 @@ import FlagIcon from '@mui/icons-material/Flag';
 import { useColumnVisibility } from './useColumnVisibility.ts';
 import { useGroupedTasks } from './useGroupedTasks.ts';
 import { QuickCreateDialog } from '@/features/task-crud/QuickCreateDialog.tsx';
+import { TasksTabs } from './TasksTabs.tsx';
 
 const STATUS_OPTIONS = COLUMNS.map(c => c.status);
 const PRIORITY_OPTIONS: TaskPriority[] = ['critical', 'high', 'medium', 'low'];
@@ -593,11 +594,12 @@ export default function TaskListPage() {
   return (
     <Box>
       <PageTopBar
-        breadcrumbs={[{ label: 'Tasks' }, { label: 'List' }]}
+        breadcrumbs={[{ label: 'Tasks' }]}
         actions={canWrite ? (
           <Button variant="contained" startIcon={<AddIcon />} onClick={() => setQuickCreateOpen(true)}>New Task</Button>
         ) : undefined}
       />
+      <TasksTabs />
 
       {/* Filter bar */}
       <FilterBar activeFilters={activeFilterChips} onClearAll={handleClearAll}>

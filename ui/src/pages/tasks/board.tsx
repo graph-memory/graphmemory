@@ -33,6 +33,7 @@ import { listTeam, type TeamMember } from '@/entities/project/api.ts';
 import { listEpics, listEpicTasks, type Epic } from '@/entities/epic/index.ts';
 import { useColumnVisibility } from './useColumnVisibility.ts';
 import { QuickCreateDialog } from '@/features/task-crud/QuickCreateDialog.tsx';
+import { TasksTabs } from './TasksTabs.tsx';
 import { Select, MenuItem } from '@mui/material';
 
 const DONE_STATUSES: TaskStatus[] = ['done', 'cancelled'];
@@ -479,13 +480,14 @@ export default function TaskBoardPage() {
   return (
     <Box>
       <PageTopBar
-        breadcrumbs={[{ label: 'Tasks' }, { label: 'Board' }]}
+        breadcrumbs={[{ label: 'Tasks' }]}
         actions={canWrite ? (
           <Button variant="contained" startIcon={<AddIcon />} onClick={() => { setQuickCreateStatus(undefined); setQuickCreateOpen(true); }}>
             New Task
           </Button>
         ) : undefined}
       />
+      <TasksTabs />
 
       {/* Filter bar */}
       <FilterBar activeFilters={activeFilterChips} onClearAll={clearAll}>

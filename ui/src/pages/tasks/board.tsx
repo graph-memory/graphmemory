@@ -662,7 +662,7 @@ export default function TaskBoardPage() {
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 2, alignItems: 'flex-start' }}>
+          <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 2, alignItems: 'stretch', minHeight: 0 }}>
             {visibleColumns.map(({ status, label, color }) => {
               const columnTasks = grouped.get(status)!;
               const isDropTarget = overColumn === status && activeId !== null;
@@ -705,7 +705,7 @@ export default function TaskBoardPage() {
                     {/* Column body with sortable context */}
                     <SortableContext items={columnTasks.map(t => t.id)} strategy={verticalListSortingStrategy} id={status}>
                       <Stack spacing={1} sx={{
-                        flex: 1, overflowY: 'auto', px: 1.5, pb: 1.5, minHeight: 50,
+                        flex: 1, overflowY: 'auto', px: 1.5, pb: 1.5, minHeight: 120,
                         '&::-webkit-scrollbar': { width: 4 },
                         '&::-webkit-scrollbar-thumb': { bgcolor: alpha(palette.text.primary, 0.15), borderRadius: 2 },
                       }}>

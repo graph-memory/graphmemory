@@ -3,14 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Button, Alert, CircularProgress,
   LinearProgress, Paper, Table, TableBody, TableCell, TableHead, TableRow,
-  alpha, useTheme,
+  Select, MenuItem, alpha, useTheme,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ViewListIcon from '@mui/icons-material/ViewList';
-import { getEpic, deleteEpic, listEpicTasks, type Epic } from '@/entities/epic/index.ts';
+import { getEpic, updateEpic, deleteEpic, listEpicTasks, type Epic, type EpicStatus, type EpicPriority } from '@/entities/epic/index.ts';
 import type { Task } from '@/entities/task/index.ts';
-import { PRIORITY_BADGE_COLOR, priorityLabel, statusLabel } from '@/entities/task/index.ts';
+import { PRIORITY_BADGE_COLOR, PRIORITY_COLORS, priorityLabel, statusLabel } from '@/entities/task/index.ts';
 import { useCanWrite } from '@/shared/lib/AccessContext.tsx';
 import { useWebSocket } from '@/shared/lib/useWebSocket.ts';
 import {
@@ -33,6 +33,7 @@ const EPIC_STATUS_BADGE: Record<string, 'primary' | 'warning' | 'success' | 'err
 };
 
 function epicStatusLabel(s: string): string {
+  if (!s) return '—';
   return { open: 'OPEN', in_progress: 'IN PROGRESS', done: 'DONE', cancelled: 'CANCELLED' }[s] ?? s.toUpperCase();
 }
 
@@ -138,7 +139,7 @@ export default function EpicDetailPage() {
                         key={task.id}
                         hover
                         sx={{ cursor: 'pointer' }}
-                        onClick={() => navigate(`/${projectId}/tasks/${task.id}`)}
+                        onClick={() => navigate(`/${projectId}/tasks/${task.id}?from=epic&epicId=${epicId}`)}
                       >
                         <TableCell>
                           <Typography variant="body2" fontWeight={500}>{task.title}</Typography>
@@ -190,10 +191,78 @@ export default function EpicDetailPage() {
                 </Box>
               </FieldRow>
               <FieldRow label="Status">
-                <StatusBadge label={epicStatusLabel(epic.status)} color={EPIC_STATUS_BADGE[epic.status] ?? 'neutral'} />
+                {canWrite ? (
+                  <Select
+                    size="small"
+                    value={epic.status}
+                    onChange={async (e) => {
+                      const s = e.target.value as EpicStatus;
+                      setEpic(prev => prev ? { ...prev, status: s } : prev);
+                      await updateEpic(projectId!, epicId!, { status: s });
+                      refresh();
+                    }}
+                    variant="standard"
+                    disableUnderline
+                    sx={{
+                      bgcolor: alpha(EPIC_STATUS_COLOR[epic.status] ?? '#616161', 0.12),
+                      color: EPIC_STATUS_COLOR[epic.status] ?? '#616161',
+                      fontWeight: 600, fontSize: '0.75rem', borderRadius: '999px',
+                      border: `1px solid ${alpha(EPIC_STATUS_COLOR[epic.status] ?? '#616161', 0.3)}`,
+                      height: 26, minWidth: 70,
+                      '& .MuiSelect-select': { py: '2px', px: 1.2, display: 'flex', alignItems: 'center' },
+                      '& .MuiSelect-icon': { fontSize: '1rem', color: EPIC_STATUS_COLOR[epic.status] ?? '#616161', right: 4 },
+                      '&:before, &:after': { display: 'none' },
+                    }}
+                  >
+                    {(['open', 'in_progress', 'done', 'cancelled'] as const).map(s => (
+                      <MenuItem key={s} value={s}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: EPIC_STATUS_COLOR[s] }} />
+                          {epicStatusLabel(s)}
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                ) : (
+                  <StatusBadge label={epicStatusLabel(epic.status)} color={EPIC_STATUS_BADGE[epic.status] ?? 'neutral'} />
+                )}
               </FieldRow>
               <FieldRow label="Priority">
-                <StatusBadge label={priorityLabel(epic.priority)} color={PRIORITY_BADGE_COLOR[epic.priority]} />
+                {canWrite ? (
+                  <Select
+                    size="small"
+                    value={epic.priority}
+                    onChange={async (e) => {
+                      const p = e.target.value as EpicPriority;
+                      setEpic(prev => prev ? { ...prev, priority: p } : prev);
+                      await updateEpic(projectId!, epicId!, { priority: p });
+                      refresh();
+                    }}
+                    variant="standard"
+                    disableUnderline
+                    sx={{
+                      bgcolor: alpha(PRIORITY_COLORS[epic.priority], 0.12),
+                      color: PRIORITY_COLORS[epic.priority],
+                      fontWeight: 600, fontSize: '0.75rem', borderRadius: '999px',
+                      border: `1px solid ${alpha(PRIORITY_COLORS[epic.priority], 0.3)}`,
+                      height: 26, minWidth: 70,
+                      '& .MuiSelect-select': { py: '2px', px: 1.2, display: 'flex', alignItems: 'center' },
+                      '& .MuiSelect-icon': { fontSize: '1rem', color: PRIORITY_COLORS[epic.priority], right: 4 },
+                      '&:before, &:after': { display: 'none' },
+                    }}
+                  >
+                    {(['critical', 'high', 'medium', 'low'] as const).map(p => (
+                      <MenuItem key={p} value={p}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: PRIORITY_COLORS[p] }} />
+                          {priorityLabel(p)}
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                ) : (
+                  <StatusBadge label={priorityLabel(epic.priority)} color={PRIORITY_BADGE_COLOR[epic.priority]} />
+                )}
               </FieldRow>
               <FieldRow label="Tags">
                 {epic.tags.length > 0 ? <Tags tags={epic.tags} /> : <Typography variant="body2" color="text.secondary">—</Typography>}

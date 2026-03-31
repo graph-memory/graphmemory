@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Box, Typography, Button, Alert, CircularProgress, Link,
-  FormControl, InputLabel, Select, MenuItem, Stack, alpha,
+  Select, MenuItem, Stack, alpha,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -35,6 +35,7 @@ export default function TaskDetailPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const from = searchParams.get('from');
+  const epicId = searchParams.get('epicId');
   const canWrite = useCanWrite('tasks');
   const [task, setTask] = useState<TaskDetail | null>(null);
   const [relations, setRelations] = useState<TaskRelation[]>([]);
@@ -83,12 +84,6 @@ export default function TaskDetailPage() {
     navigate(`/${projectId}/tasks`);
   };
 
-  const handleMove = async (status: TaskStatus) => {
-    if (!projectId || !taskId) return;
-    await moveTask(projectId, taskId, status);
-    load();
-  };
-
   if (loading) {
     return <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>;
   }
@@ -123,13 +118,23 @@ export default function TaskDetailPage() {
         breadcrumbs={[
           { label: 'Tasks', to: `/${projectId}/tasks` },
           ...(from === 'board' ? [{ label: 'Board', to: `/${projectId}/tasks/board` }] :
-              from === 'list' ? [{ label: 'List', to: `/${projectId}/tasks/list` }] : []),
+              from === 'list' ? [{ label: 'List', to: `/${projectId}/tasks/list` }] :
+              from === 'epic' && epicId ? [
+                { label: 'Epics', to: `/${projectId}/tasks/epics` },
+                { label: epics.find(e => e.id === epicId)?.title ?? 'Epic', to: `/${projectId}/tasks/epics/${epicId}` },
+              ] : []),
           { label: task.title },
         ]}
         actions={
           canWrite ? (
             <>
-              <Button variant="contained" color="success" startIcon={<EditIcon />} onClick={() => navigate(`/${projectId}/tasks/${taskId}/edit${from ? `?from=${from}` : ''}`)}>
+              <Button variant="contained" color="success" startIcon={<EditIcon />} onClick={() => {
+                    const params = new URLSearchParams();
+                    if (from) params.set('from', from);
+                    if (epicId) params.set('epicId', epicId);
+                    const qs = params.toString();
+                    navigate(`/${projectId}/tasks/${taskId}/edit${qs ? `?${qs}` : ''}`);
+                  }}>
                 Edit
               </Button>
               <Button color="error" startIcon={<DeleteIcon />} onClick={() => setDeleteConfirm(true)}>
@@ -199,24 +204,41 @@ export default function TaskDetailPage() {
                 <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>v{task.version}</Typography>
               </FieldRow>
               <FieldRow label="Status">
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {canWrite ? (
+                  <Select
+                    size="small"
+                    value={task.status}
+                    onChange={async (e) => {
+                      const s = e.target.value as TaskStatus;
+                      setTask(prev => prev ? { ...prev, status: s } : prev);
+                      await moveTask(projectId!, taskId!, s);
+                      load();
+                    }}
+                    variant="standard"
+                    disableUnderline
+                    sx={{
+                      bgcolor: alpha(COLUMNS.find(c => c.status === task.status)?.color ?? '#616161', 0.12),
+                      color: COLUMNS.find(c => c.status === task.status)?.color ?? '#616161',
+                      fontWeight: 600, fontSize: '0.75rem', borderRadius: '999px',
+                      border: `1px solid ${alpha(COLUMNS.find(c => c.status === task.status)?.color ?? '#616161', 0.3)}`,
+                      height: 26, minWidth: 70,
+                      '& .MuiSelect-select': { py: '2px', px: 1.2, display: 'flex', alignItems: 'center' },
+                      '& .MuiSelect-icon': { fontSize: '1rem', color: COLUMNS.find(c => c.status === task.status)?.color ?? '#616161', right: 4 },
+                      '&:before, &:after': { display: 'none' },
+                    }}
+                  >
+                    {COLUMNS.map(c => (
+                      <MenuItem key={c.status} value={c.status}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: c.color }} />
+                          {c.label}
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                ) : (
                   <StatusBadge label={statusLabel(task.status)} color={STATUS_BADGE_COLOR[task.status]} />
-                  {canWrite && (
-                    <FormControl size="small" sx={{ minWidth: 140 }}>
-                      <InputLabel>Move to</InputLabel>
-                      <Select value="" label="Move to" onChange={e => handleMove(e.target.value as TaskStatus)}>
-                        {COLUMNS.filter(c => c.status !== task.status).map(c => (
-                          <MenuItem key={c.status} value={c.status}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: c.color }} />
-                              {c.label}
-                            </Box>
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  )}
-                </Box>
+                )}
               </FieldRow>
               <FieldRow label="Priority">
                 {canWrite ? (
@@ -295,7 +317,7 @@ export default function TaskDetailPage() {
                           </Box>
                         );
                       }}
-                      sx={{ fontSize: '0.85rem', minWidth: 160 }}
+                      sx={{ fontSize: '0.85rem', width: '100%' }}
                     >
                       <MenuItem value="">No epic</MenuItem>
                       {selectableEpics.map(e => (
@@ -320,9 +342,33 @@ export default function TaskDetailPage() {
                   <Typography variant="body2">{task.estimate}h</Typography>
                 </FieldRow>
               )}
-              {task.assignee && (
+              {(canWrite || task.assignee) && (
                 <FieldRow label="Assignee">
-                  <Typography variant="body2">{team.find(m => m.id === task.assignee)?.name ?? task.assignee}</Typography>
+                  {canWrite ? (
+                    <Select
+                      size="small"
+                      value={task.assignee ?? ''}
+                      displayEmpty
+                      onChange={async (e) => {
+                        const assignee = e.target.value as string || undefined;
+                        setTask(prev => prev ? { ...prev, assignee: assignee ?? null } : prev);
+                        await updateTask(projectId!, taskId!, { assignee: assignee ?? null });
+                        load();
+                      }}
+                      renderValue={(v) => {
+                        if (!v) return <Typography variant="body2" color="text.secondary">Unassigned</Typography>;
+                        return <Typography variant="body2">{team.find(m => m.id === v)?.name ?? v}</Typography>;
+                      }}
+                      sx={{ fontSize: '0.85rem', width: '100%' }}
+                    >
+                      <MenuItem value="">Unassigned</MenuItem>
+                      {team.map(m => (
+                        <MenuItem key={m.id} value={m.id}>{m.name}</MenuItem>
+                      ))}
+                    </Select>
+                  ) : (
+                    <Typography variant="body2">{team.find(m => m.id === task.assignee)?.name ?? task.assignee}</Typography>
+                  )}
                 </FieldRow>
               )}
               {task.completedAt != null && (

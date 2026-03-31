@@ -33,9 +33,9 @@ interface TaskResult {
   createdAt: number;
   updatedAt: number;
   subtasks: Array<{ id: string; title: string; status: TaskStatus }>;
-  blockedBy: Array<{ id: string; title: string }>;
-  blocks: Array<{ id: string; title: string }>;
-  related: Array<{ id: string; title: string }>;
+  blockedBy: Array<{ id: string; title: string; status: TaskStatus }>;
+  blocks: Array<{ id: string; title: string; status: TaskStatus }>;
+  related: Array<{ id: string; title: string; status: TaskStatus }>;
 }
 
 interface TaskListEntry {

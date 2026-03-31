@@ -33,9 +33,11 @@ export const PRIORITY_BADGE_COLOR: Record<TaskPriority, 'error' | 'warning' | 'p
 };
 
 export function statusLabel(status: TaskStatus): string {
+  if (!status) return '—';
   return COLUMNS.find(c => c.status === status)?.label ?? status.toUpperCase();
 }
 
 export function priorityLabel(priority: TaskPriority): string {
+  if (!priority) return '—';
   return priority.toUpperCase().replace('_', ' ');
 }

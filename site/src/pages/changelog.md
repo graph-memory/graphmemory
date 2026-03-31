@@ -5,6 +5,24 @@ description: Graph Memory release history and version changes.
 
 # Changelog
 
+## v1.9.5
+
+**March 2026**
+
+### Fixes
+
+- **Epic→Task navigation crash** — `statusLabel()`/`priorityLabel()` threw `Cannot read properties of undefined (reading 'toUpperCase')` when task relations (`blockedBy`, `blocks`, `related`) lacked `status` field. Server now returns `status` for all relation types; UI guards against undefined
+- **Epic→Task breadcrumbs** — navigating from epic to task now passes `?from=epic&epicId=` so breadcrumbs show full path: Tasks → Epics → Epic Name → Task
+
+### Improved
+
+- **Inline status/priority editing** — task detail view replaces "Move to" dropdown with badge-style select (matching list view); epic detail view now has inline status and priority selects
+- **Inline assignee editing** — task detail view shows assignee as a select dropdown (like epic field), visible even when unassigned
+- **Board column height** — all board columns now stretch to match the tallest column, making drag & drop into empty columns easy
+- **Full-width selects** — Epic and Assignee selects on task detail stretch to full width
+
+---
+
 ## v1.9.4
 
 **March 2026**

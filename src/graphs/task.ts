@@ -357,9 +357,9 @@ export function getTask(
   taskId: string,
 ): (TaskEntry & {
   subtasks: Array<{ id: string; title: string; status: TaskStatus }>;
-  blockedBy: Array<{ id: string; title: string }>;
-  blocks: Array<{ id: string; title: string }>;
-  related: Array<{ id: string; title: string }>;
+  blockedBy: Array<{ id: string; title: string; status: TaskStatus }>;
+  blocks: Array<{ id: string; title: string; status: TaskStatus }>;
+  related: Array<{ id: string; title: string; status: TaskStatus }>;
   crossLinks: CrossLinkEntry[];
 }) | null {
   if (!graph.hasNode(taskId)) return null;
@@ -368,9 +368,9 @@ export function getTask(
 
   const attrs = graph.getNodeAttributes(taskId);
   const subtasks: Array<{ id: string; title: string; status: TaskStatus }> = [];
-  const blockedBy: Array<{ id: string; title: string }> = [];
-  const blocks: Array<{ id: string; title: string }> = [];
-  const related: Array<{ id: string; title: string }> = [];
+  const blockedBy: Array<{ id: string; title: string; status: TaskStatus }> = [];
+  const blocks: Array<{ id: string; title: string; status: TaskStatus }> = [];
+  const related: Array<{ id: string; title: string; status: TaskStatus }> = [];
   const crossLinks: CrossLinkEntry[] = [];
 
   // Incoming edges: subtask_of (child → this) means child is a subtask
@@ -393,9 +393,9 @@ export function getTask(
       subtasks.push({ id: source, title: srcAttrs.title, status: srcAttrs.status });
     } else if (edgeAttrs.kind === 'blocks') {
       // source blocks this task
-      blockedBy.push({ id: source, title: srcAttrs.title });
+      blockedBy.push({ id: source, title: srcAttrs.title, status: srcAttrs.status });
     } else if (edgeAttrs.kind === 'related_to') {
-      related.push({ id: source, title: srcAttrs.title });
+      related.push({ id: source, title: srcAttrs.title, status: srcAttrs.status });
     }
   });
 
@@ -418,10 +418,10 @@ export function getTask(
     if (edgeAttrs.kind === 'subtask_of') {
       // this task is a subtask of target — skip, handled via parent lookup
     } else if (edgeAttrs.kind === 'blocks') {
-      blocks.push({ id: target, title: tgtAttrs.title });
+      blocks.push({ id: target, title: tgtAttrs.title, status: tgtAttrs.status });
     } else if (edgeAttrs.kind === 'related_to') {
       if (!related.some(r => r.id === target)) {
-        related.push({ id: target, title: tgtAttrs.title });
+        related.push({ id: target, title: tgtAttrs.title, status: tgtAttrs.status });
       }
     }
   });

@@ -33,7 +33,20 @@ CREATE VIRTUAL TABLE notes_vec USING vec0(embedding float[384]);
 -- insert via: INSERT INTO notes_vec (rowid, embedding) VALUES (?, ?)
 ```
 
-### 4. FTS5 sync via triggers
+### 4. vec0 does not support INSERT OR REPLACE
+
+Attempting `INSERT OR REPLACE INTO xxx_vec` throws `UNIQUE constraint failed`. Must DELETE then INSERT:
+
+```typescript
+// WRONG
+db.prepare('INSERT OR REPLACE INTO notes_vec (rowid, embedding) VALUES (?, ?)').run(id, buf);
+
+// CORRECT
+db.prepare('DELETE FROM notes_vec WHERE rowid = ?').run(id);
+db.prepare('INSERT INTO notes_vec (rowid, embedding) VALUES (?, ?)').run(id, buf);
+```
+
+### 5. FTS5 sync via triggers
 
 FTS5 content tables (`content=xxx`) require manual sync triggers (INSERT/UPDATE/DELETE) to stay in sync with the source table.
 

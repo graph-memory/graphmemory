@@ -1,6 +1,6 @@
 import { createSqliteStoreFactory } from '../helpers';
-import { getSchemaVersion } from '../../../store/sqlite/lib/migrate';
-import { SqliteStore } from '../../../store';
+import { getSchemaVersion } from '@/store/sqlite/lib/migrate';
+import { SqliteStore } from '@/store';
 
 describe('SQLite migrations', () => {
   const factory = createSqliteStoreFactory();
@@ -80,8 +80,8 @@ describe('SQLite migrations', () => {
     const db = store.getDb();
     const v1 = getSchemaVersion(db);
 
-    const { runMigrations } = require('../../../store/sqlite/lib/migrate');
-    const { v001 } = require('../../../store/sqlite/migrations/v001');
+    const { runMigrations } = require('@/store/sqlite/lib/migrate');
+    const { v001 } = require('@/store/sqlite/migrations/v001');
     const applied = runMigrations(db, [v001]);
 
     expect(applied).toBe(0);

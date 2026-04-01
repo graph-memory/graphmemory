@@ -14,6 +14,7 @@ export interface TaskCreate {
   description: string;
   status?: TaskStatus;
   priority?: TaskPriority;
+  tags?: string[];
   dueDate?: number | null;
   estimate?: number | null;
   assigneeId?: number | null;
@@ -26,6 +27,7 @@ export interface TaskPatch {
   description?: string;
   status?: TaskStatus;
   priority?: TaskPriority;
+  tags?: string[];
   dueDate?: number | null;
   estimate?: number | null;
   assigneeId?: number | null;
@@ -75,6 +77,7 @@ export interface EpicCreate {
   description: string;
   status?: EpicStatus;
   priority?: TaskPriority;
+  tags?: string[];
   authorId?: number;
 }
 
@@ -83,6 +86,7 @@ export interface EpicPatch {
   description?: string;
   status?: EpicStatus;
   priority?: TaskPriority;
+  tags?: string[];
 }
 
 export interface EpicRecord {

@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { SqliteStore } from '../../store';
+import { SqliteStore } from '@/store';
 
 export const TEST_DIM = 384;
 

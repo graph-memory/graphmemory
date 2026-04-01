@@ -8,12 +8,14 @@ import type { AttachmentMeta } from './attachments';
 export interface NoteCreate {
   title: string;
   content: string;
+  tags?: string[];
   authorId?: number;
 }
 
 export interface NotePatch {
   title?: string;
   content?: string;
+  tags?: string[];
 }
 
 export interface NoteRecord {

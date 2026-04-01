@@ -3,7 +3,7 @@ import { existsSync } from 'fs';
 import { join } from 'path';
 import { mkdtempSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
-import { SqliteStore } from '../../../store';
+import { SqliteStore } from '@/store';
 
 describe('SQLite DB lifecycle', () => {
   const factory = createSqliteStoreFactory();

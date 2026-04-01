@@ -1,6 +1,6 @@
 import { createSqliteStoreFactory } from '../helpers';
-import { MetaHelper } from '../../../store/sqlite/lib/meta';
-import { SqliteStore } from '../../../store';
+import { MetaHelper } from '@/store/sqlite/lib/meta';
+import { SqliteStore } from '@/store';
 
 describe('SQLite MetaHelper', () => {
   const factory = createSqliteStoreFactory();

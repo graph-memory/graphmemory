@@ -1,4 +1,4 @@
-import { num, now } from '../../../store/sqlite/lib/bigint';
+import { num, now } from '@/store/sqlite/lib/bigint';
 
 describe('BigInt helpers', () => {
   it('num converts BigInt to number', () => {

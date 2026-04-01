@@ -5,7 +5,6 @@ import type { FilesStore } from './files';
 import type { KnowledgeStore } from './knowledge';
 import type { TasksStore } from './tasks';
 import type { SkillsStore } from './skills';
-import type { TagsStore } from './tags';
 import type { AttachmentsStore } from './attachments';
 import type { ProjectsStore } from './projects';
 import type { TeamStore } from './team';
@@ -23,7 +22,6 @@ export interface ProjectScopedStore {
   readonly knowledge: KnowledgeStore;
   readonly tasks: TasksStore;
   readonly skills: SkillsStore;
-  readonly tags: TagsStore;
   readonly attachments: AttachmentsStore;
 
   // --- Edges (unified graph edges — same-graph and cross-graph) ---

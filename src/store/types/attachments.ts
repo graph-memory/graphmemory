@@ -1,34 +1,28 @@
 import type { GraphName } from './common';
 
 // ---------------------------------------------------------------------------
-// Attachments Store (shared across all graphs)
+// Attachments Store (metadata registry, files stored externally)
 // ---------------------------------------------------------------------------
 
 export interface AttachmentMeta {
   filename: string;
   mimeType: string;
   size: number;
+  /** Optional external URL (S3, CDN). If absent — file is in mirror directory */
+  url?: string;
   addedAt: number;
 }
 
-export interface AttachmentRecord extends AttachmentMeta {
-  graph: GraphName;
-  entityId: number;
-}
-
 export interface AttachmentsStore {
-  /** Add an attachment to an entity */
-  add(graph: GraphName, entityId: number, filename: string, data: Buffer): AttachmentMeta;
+  /** Register an attachment */
+  add(graph: GraphName, entityId: number, meta: AttachmentMeta): void;
 
-  /** Remove an attachment from an entity */
+  /** Remove an attachment record */
   remove(graph: GraphName, entityId: number, filename: string): void;
 
-  /** Remove all attachments for an entity (e.g. on delete) */
+  /** Remove all attachment records for an entity */
   removeAll(graph: GraphName, entityId: number): void;
 
   /** List attachments for an entity */
   list(graph: GraphName, entityId: number): AttachmentMeta[];
-
-  /** Get attachment file path (for serving) */
-  getPath(graph: GraphName, entityId: number, filename: string): string | null;
 }

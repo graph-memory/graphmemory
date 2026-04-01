@@ -14,6 +14,7 @@ export interface SkillCreate {
   triggers?: string[];
   inputHints?: string[];
   filePatterns?: string[];
+  tags?: string[];
   source?: SkillSource;
   confidence?: number;
   authorId?: number;
@@ -26,6 +27,7 @@ export interface SkillPatch {
   triggers?: string[];
   inputHints?: string[];
   filePatterns?: string[];
+  tags?: string[];
   source?: SkillSource;
   confidence?: number;
 }

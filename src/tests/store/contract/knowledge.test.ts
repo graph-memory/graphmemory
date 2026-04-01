@@ -157,6 +157,21 @@ describe('KnowledgeStore contract', () => {
     expect(result.results[0].title).toBe('Tagged');
   });
 
+  // --- Pagination edge cases ---
+
+  it('list with offset beyond total returns empty', () => {
+    knowledge.create({ title: 'Only', content: '' }, seedEmbedding(1));
+    const result = knowledge.list(undefined, undefined, { offset: 100 });
+    expect(result.results).toEqual([]);
+    expect(result.total).toBe(1);
+  });
+
+  it('creates note with empty content', () => {
+    const note = knowledge.create({ title: 'Minimal', content: '' }, seedEmbedding(1));
+    expect(note.content).toBe('');
+    expect(note.tags).toEqual([]);
+  });
+
   // --- Search ---
 
   it('searches by keyword', () => {

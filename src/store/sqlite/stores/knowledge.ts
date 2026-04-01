@@ -81,7 +81,7 @@ export class SqliteKnowledgeStore implements KnowledgeStore {
     const result = this.stmts.insert.run(this.projectId, slug, data.title, data.content, authorId, authorId, ts, ts);
     const id = result.lastInsertRowid;
 
-    this.stmts.insertVec.run(id, Buffer.from(new Float32Array(embedding).buffer));
+    this.stmts.insertVec.run(BigInt(id as number | bigint), Buffer.from(new Float32Array(embedding).buffer));
 
     if (data.tags && data.tags.length > 0) {
       this.helpers.setTags(GRAPH, num(id), data.tags);

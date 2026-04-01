@@ -64,4 +64,7 @@ export interface EpicsStore extends MetaMixin {
   search(query: SearchQuery): SearchResult[];
   linkTask(epicId: number, taskId: number): void;
   unlinkTask(epicId: number, taskId: number): void;
+
+  // --- Timestamps ---
+  getUpdatedAt(epicId: number): number | null;
 }

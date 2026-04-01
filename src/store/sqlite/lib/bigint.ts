@@ -7,3 +7,12 @@ export function num(v: bigint | number): number {
 export function now(): bigint {
   return BigInt(Date.now());
 }
+
+/** Safely parse JSON with a fallback for corrupted data */
+export function safeJson<T>(raw: string, fallback: T): T {
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}

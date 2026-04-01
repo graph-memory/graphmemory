@@ -86,7 +86,7 @@ export class SqliteTasksStore implements TasksStore {
     );
     const id = result.lastInsertRowid;
 
-    this.db.prepare('INSERT INTO tasks_vec (rowid, embedding) VALUES (?, ?)').run(id, Buffer.from(new Float32Array(embedding).buffer));
+    this.db.prepare('INSERT INTO tasks_vec (rowid, embedding) VALUES (?, ?)').run(BigInt(id as number | bigint), Buffer.from(new Float32Array(embedding).buffer));
 
     if (data.tags && data.tags.length > 0) this.helpers.setTags(GRAPH_TASKS, num(id), data.tags);
 

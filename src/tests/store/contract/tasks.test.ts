@@ -231,6 +231,41 @@ describe('TasksStore contract', () => {
     expect(tasks.getUpdatedAt(999)).toBeNull();
   });
 
+  // --- Hybrid search ---
+
+  it('hybrid search combines keyword and vector', () => {
+    tasks.create({ title: 'Fix SQLite bug', description: 'Database issue' }, seedEmbedding(1));
+    tasks.create({ title: 'Add feature', description: 'New UI' }, seedEmbedding(2));
+
+    const results = tasks.search({ text: 'SQLite', embedding: seedEmbedding(1), searchMode: 'hybrid' });
+    expect(results.length).toBeGreaterThan(0);
+  });
+
+  // --- Pagination edge cases ---
+
+  it('list with offset beyond total returns empty', () => {
+    tasks.create({ title: 'Only', description: '' }, seedEmbedding(1));
+    const result = tasks.list({ offset: 100 });
+    expect(result.results).toEqual([]);
+    expect(result.total).toBe(1);
+  });
+
+  // --- Null/empty input ---
+
+  it('creates task with empty description', () => {
+    const task = tasks.create({ title: 'Minimal', description: '' }, seedEmbedding(1));
+    expect(task.description).toBe('');
+  });
+
+  it('creates task with null optional fields', () => {
+    const task = tasks.create({
+      title: 'T', description: '', dueDate: null, estimate: null, assigneeId: null,
+    }, seedEmbedding(1));
+    expect(task.dueDate).toBeNull();
+    expect(task.estimate).toBeNull();
+    expect(task.assigneeId).toBeNull();
+  });
+
   // --- Orphaned tags cleanup ---
 
   it('updating tags cleans up orphaned tags', () => {

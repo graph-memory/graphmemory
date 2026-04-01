@@ -8,7 +8,7 @@ import type {
   PaginationOptions,
 } from '../../types';
 import { MetaHelper } from '../lib/meta';
-import { num } from '../lib/bigint';
+import { num, safeJson } from '../lib/bigint';
 import { hybridSearch, SearchConfig } from '../lib/search';
 
 const GRAPH = 'docs';
@@ -37,7 +37,7 @@ export class SqliteDocsStore implements DocsStore {
       content: row.content as string,
       level: num(row.level as bigint),
       language: (row.language as string | null) ?? undefined,
-      symbols: JSON.parse(row.symbols_json as string),
+      symbols: safeJson<string[]>(row.symbols_json as string, []),
       mtime: num(row.mtime as bigint),
     };
   }
@@ -179,8 +179,12 @@ export class SqliteDocsStore implements DocsStore {
     const where = conditions.join(' AND ');
     const rows = this.db.prepare(`
       SELECT d.id, d.file_id, d.title, d.mtime,
-        (SELECT COUNT(*) FROM docs c WHERE c.project_id = d.project_id AND c.file_id = d.file_id AND c.kind = 'chunk') AS chunk_count
-      FROM docs d WHERE ${where}
+        COALESCE(ch.cnt, 0) AS chunk_count
+      FROM docs d
+      LEFT JOIN (
+        SELECT project_id, file_id, COUNT(*) AS cnt FROM docs WHERE kind = 'chunk' GROUP BY project_id, file_id
+      ) ch ON ch.project_id = d.project_id AND ch.file_id = d.file_id
+      WHERE ${where}
       ORDER BY d.file_id ASC LIMIT ? OFFSET ?
     `).all(...params, limit, offset) as Array<Record<string, unknown>>;
 

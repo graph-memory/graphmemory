@@ -112,7 +112,7 @@ export class SqliteEpicsStore implements EpicsStore {
     `).run(this.projectId, slug, data.title, data.description ?? '', data.status ?? 'open', data.priority ?? 'medium', ORDER_GAP, authorId, authorId, ts, ts);
     const id = result.lastInsertRowid;
 
-    this.db.prepare('INSERT INTO epics_vec (rowid, embedding) VALUES (?, ?)').run(id, Buffer.from(new Float32Array(embedding).buffer));
+    this.db.prepare('INSERT INTO epics_vec (rowid, embedding) VALUES (?, ?)').run(BigInt(id as number | bigint), Buffer.from(new Float32Array(embedding).buffer));
 
     if (data.tags && data.tags.length > 0) this.helpers.setTags(GRAPH, num(id), data.tags);
 
@@ -233,6 +233,15 @@ export class SqliteEpicsStore implements EpicsStore {
       WHERE project_id = ? AND from_graph = 'epics' AND from_id = ?
       AND to_graph = 'tasks' AND to_id = ? AND kind = 'belongs_to'
     `).run(this.projectId, epicId, taskId);
+  }
+
+  // =========================================================================
+  // Timestamps
+  // =========================================================================
+
+  getUpdatedAt(epicId: number): number | null {
+    const row = this.db.prepare('SELECT updated_at FROM epics WHERE id = ? AND project_id = ?').get(epicId, this.projectId) as { updated_at: bigint } | undefined;
+    return row ? num(row.updated_at) : null;
   }
 
   // =========================================================================

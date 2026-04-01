@@ -67,8 +67,8 @@ CREATE TABLE edges (
   kind       TEXT NOT NULL,
   PRIMARY KEY (project_id, from_graph, from_id, to_graph, to_id, kind)
 );
-CREATE INDEX idx_edges_target ON edges(to_graph, to_id);
-CREATE INDEX idx_edges_source ON edges(from_graph, from_id);
+CREATE INDEX idx_edges_target ON edges(project_id, to_graph, to_id);
+CREATE INDEX idx_edges_source ON edges(project_id, from_graph, from_id);
 
 -- =============================================
 -- Knowledge (notes)
@@ -88,6 +88,7 @@ CREATE TABLE knowledge (
   UNIQUE(project_id, slug)
 );
 CREATE INDEX idx_knowledge_project ON knowledge(project_id);
+CREATE INDEX idx_knowledge_updated ON knowledge(project_id, updated_at);
 
 CREATE VIRTUAL TABLE knowledge_fts USING fts5(
   title, content, content=knowledge, content_rowid=id
@@ -123,8 +124,8 @@ CREATE TABLE tasks (
   slug          TEXT NOT NULL,
   title         TEXT NOT NULL,
   description   TEXT NOT NULL DEFAULT '',
-  status        TEXT NOT NULL DEFAULT 'backlog',
-  priority      TEXT NOT NULL DEFAULT 'medium',
+  status        TEXT NOT NULL DEFAULT 'backlog' CHECK(status IN ('backlog','todo','in_progress','review','done','cancelled')),
+  priority      TEXT NOT NULL DEFAULT 'medium' CHECK(priority IN ('critical','high','medium','low')),
   "order"       REAL NOT NULL DEFAULT 0,
   due_date      INTEGER,
   estimate      INTEGER,
@@ -139,6 +140,8 @@ CREATE TABLE tasks (
 );
 CREATE INDEX idx_tasks_project ON tasks(project_id);
 CREATE INDEX idx_tasks_status ON tasks(project_id, status, "order");
+CREATE INDEX idx_tasks_assignee ON tasks(assignee_id);
+CREATE INDEX idx_tasks_updated ON tasks(project_id, updated_at);
 
 CREATE VIRTUAL TABLE tasks_fts USING fts5(
   title, description, content=tasks, content_rowid=id
@@ -174,8 +177,8 @@ CREATE TABLE epics (
   slug          TEXT NOT NULL,
   title         TEXT NOT NULL,
   description   TEXT NOT NULL DEFAULT '',
-  status        TEXT NOT NULL DEFAULT 'open',
-  priority      TEXT NOT NULL DEFAULT 'medium',
+  status        TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','in_progress','done','cancelled')),
+  priority      TEXT NOT NULL DEFAULT 'medium' CHECK(priority IN ('critical','high','medium','low')),
   "order"       REAL NOT NULL DEFAULT 0,
   version       INTEGER NOT NULL DEFAULT 1,
   created_by_id INTEGER REFERENCES team_members(id) ON DELETE SET NULL,
@@ -185,6 +188,7 @@ CREATE TABLE epics (
   UNIQUE(project_id, slug)
 );
 CREATE INDEX idx_epics_project ON epics(project_id);
+CREATE INDEX idx_epics_updated ON epics(project_id, updated_at);
 
 CREATE VIRTUAL TABLE epics_fts USING fts5(
   title, description, content=epics, content_rowid=id
@@ -224,8 +228,8 @@ CREATE TABLE skills (
   triggers_json      TEXT NOT NULL DEFAULT '[]',
   input_hints_json   TEXT NOT NULL DEFAULT '[]',
   file_patterns_json TEXT NOT NULL DEFAULT '[]',
-  source             TEXT NOT NULL DEFAULT 'user',
-  confidence         REAL NOT NULL DEFAULT 1.0,
+  source             TEXT NOT NULL DEFAULT 'user' CHECK(source IN ('user','learned')),
+  confidence         REAL NOT NULL DEFAULT 1.0 CHECK(confidence >= 0.0 AND confidence <= 1.0),
   usage_count        INTEGER NOT NULL DEFAULT 0,
   last_used_at       INTEGER,
   version            INTEGER NOT NULL DEFAULT 1,
@@ -236,6 +240,7 @@ CREATE TABLE skills (
   UNIQUE(project_id, slug)
 );
 CREATE INDEX idx_skills_project ON skills(project_id);
+CREATE INDEX idx_skills_updated ON skills(project_id, updated_at);
 
 CREATE VIRTUAL TABLE skills_fts USING fts5(
   title, description, content=skills, content_rowid=id

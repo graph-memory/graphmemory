@@ -13,7 +13,7 @@ import type {
 import { VersionConflictError } from '../../types';
 import { MetaHelper } from '../lib/meta';
 import { EntityHelpers } from '../lib/entity-helpers';
-import { num, now } from '../lib/bigint';
+import { num, now, safeJson } from '../lib/bigint';
 import { hybridSearch, SearchConfig } from '../lib/search';
 
 const GRAPH = 'skills';
@@ -42,10 +42,10 @@ export class SqliteSkillsStore implements SkillsStore {
       slug: row.slug as string,
       title: row.title as string,
       description: row.description as string,
-      steps: JSON.parse(row.steps_json as string),
-      triggers: JSON.parse(row.triggers_json as string),
-      inputHints: JSON.parse(row.input_hints_json as string),
-      filePatterns: JSON.parse(row.file_patterns_json as string),
+      steps: safeJson<string[]>(row.steps_json as string, []),
+      triggers: safeJson<string[]>(row.triggers_json as string, []),
+      inputHints: safeJson<string[]>(row.input_hints_json as string, []),
+      filePatterns: safeJson<string[]>(row.file_patterns_json as string, []),
       tags: tags ?? this.helpers.fetchTags(GRAPH, id),
       source: row.source as SkillRecord['source'],
       confidence: num(row.confidence as number),
@@ -84,7 +84,7 @@ export class SqliteSkillsStore implements SkillsStore {
     );
     const id = result.lastInsertRowid;
 
-    this.db.prepare('INSERT INTO skills_vec (rowid, embedding) VALUES (?, ?)').run(id, Buffer.from(new Float32Array(embedding).buffer));
+    this.db.prepare('INSERT INTO skills_vec (rowid, embedding) VALUES (?, ?)').run(BigInt(id as number | bigint), Buffer.from(new Float32Array(embedding).buffer));
 
     if (data.tags && data.tags.length > 0) this.helpers.setTags(GRAPH, num(id), data.tags);
 

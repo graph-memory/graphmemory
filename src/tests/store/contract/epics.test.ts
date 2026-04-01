@@ -144,6 +144,40 @@ describe('EpicsStore contract', () => {
     expect(epics.get(epic.id)!.progress.total).toBe(1);
   });
 
+  // --- Hybrid search ---
+
+  it('hybrid search combines keyword and vector', () => {
+    epics.create({ title: 'MVP Release', description: 'Ship it' }, seedEmbedding(1));
+    epics.create({ title: 'Tech Debt', description: 'Cleanup' }, seedEmbedding(2));
+
+    const results = epics.search({ text: 'MVP', embedding: seedEmbedding(1), searchMode: 'hybrid' });
+    expect(results.length).toBeGreaterThan(0);
+  });
+
+  // --- Pagination edge cases ---
+
+  it('list with offset beyond total returns empty', () => {
+    epics.create({ title: 'Only', description: '' }, seedEmbedding(1));
+    const result = epics.list({ offset: 100 });
+    expect(result.results).toEqual([]);
+    expect(result.total).toBe(1);
+  });
+
+  // --- Null/empty input ---
+
+  it('creates epic with empty description', () => {
+    const epic = epics.create({ title: 'Minimal', description: '' }, seedEmbedding(1));
+    expect(epic.description).toBe('');
+  });
+
+  // --- Timestamps ---
+
+  it('getUpdatedAt works', () => {
+    const epic = epics.create({ title: 'T', description: '' }, seedEmbedding(1));
+    expect(epics.getUpdatedAt(epic.id)).toBe(epic.updatedAt);
+    expect(epics.getUpdatedAt(999)).toBeNull();
+  });
+
   // --- Meta ---
 
   it('meta is scoped', () => {

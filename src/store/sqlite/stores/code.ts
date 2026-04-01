@@ -192,8 +192,12 @@ export class SqliteCodeStore implements CodeStore {
     const where = conditions.join(' AND ');
     const rows = this.db.prepare(`
       SELECT f.id, f.file_id, f.language, f.mtime,
-        (SELECT COUNT(*) FROM code c WHERE c.project_id = f.project_id AND c.file_id = f.file_id AND c.kind != 'file') AS symbol_count
-      FROM code f WHERE ${where}
+        COALESCE(s.cnt, 0) AS symbol_count
+      FROM code f
+      LEFT JOIN (
+        SELECT project_id, file_id, COUNT(*) AS cnt FROM code WHERE kind != 'file' GROUP BY project_id, file_id
+      ) s ON s.project_id = f.project_id AND s.file_id = f.file_id
+      WHERE ${where}
       ORDER BY f.file_id ASC LIMIT ? OFFSET ?
     `).all(...params, limit, offset) as Array<Record<string, unknown>>;
 

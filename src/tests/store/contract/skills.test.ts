@@ -202,6 +202,36 @@ describe('SkillsStore contract', () => {
     expect(updated.triggers).toEqual(['on push']); // preserved
   });
 
+  // --- Hybrid search ---
+
+  it('hybrid search combines keyword and vector', () => {
+    skills.create({ title: 'Deploy AWS', description: 'Cloud deployment' }, seedEmbedding(1));
+    skills.create({ title: 'Run tests', description: 'Testing locally' }, seedEmbedding(2));
+
+    const results = skills.search({ text: 'deploy', embedding: seedEmbedding(1), searchMode: 'hybrid' });
+    expect(results.length).toBeGreaterThan(0);
+  });
+
+  // --- Pagination edge cases ---
+
+  it('list with offset beyond total returns empty', () => {
+    skills.create({ title: 'Only', description: '' }, seedEmbedding(1));
+    const result = skills.list({ offset: 100 });
+    expect(result.results).toEqual([]);
+    expect(result.total).toBe(1);
+  });
+
+  // --- Null/empty input ---
+
+  it('creates skill with empty arrays', () => {
+    const skill = skills.create({
+      title: 'Minimal', description: '',
+      steps: [], triggers: [], inputHints: [], filePatterns: [],
+    }, seedEmbedding(1));
+    expect(skill.steps).toEqual([]);
+    expect(skill.triggers).toEqual([]);
+  });
+
   // --- Timestamps ---
 
   it('getUpdatedAt works', () => {

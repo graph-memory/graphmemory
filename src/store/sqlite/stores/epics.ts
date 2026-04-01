@@ -9,6 +9,7 @@ import type {
   EpicListOptions,
   EpicStatus,
   TaskPriority,
+  AttachmentMeta,
   SearchQuery,
   SearchResult,
 } from '../../types';
@@ -38,7 +39,7 @@ export class SqliteEpicsStore implements EpicsStore {
   // Helpers
   // =========================================================================
 
-  private toRecord(row: Record<string, unknown>, tags?: string[], progress?: { total: number; done: number }): EpicRecord {
+  private toRecord(row: Record<string, unknown>, tags?: string[], progress?: { total: number; done: number }, attachments?: AttachmentMeta[]): EpicRecord {
     const id = num(row.id as bigint);
     return {
       id,
@@ -50,7 +51,7 @@ export class SqliteEpicsStore implements EpicsStore {
       tags: tags ?? this.helpers.fetchTags(GRAPH, id),
       order: num(row.order as bigint | number),
       progress: progress ?? this.computeProgress(id),
-      attachments: this.helpers.fetchAttachments(GRAPH, id),
+      attachments: attachments ?? this.helpers.fetchAttachments(GRAPH, id),
       createdAt: num(row.created_at as bigint),
       updatedAt: num(row.updated_at as bigint),
       version: num(row.version as bigint),
@@ -66,8 +67,8 @@ export class SqliteEpicsStore implements EpicsStore {
 
   private computeProgress(epicId: number): { total: number; done: number } {
     const row = this.db.prepare(`
-      SELECT COUNT(*) AS total,
-             COALESCE(SUM(CASE WHEN t.status IN ('done', 'cancelled') THEN 1 ELSE 0 END), 0) AS done
+      SELECT COALESCE(SUM(CASE WHEN t.status != 'cancelled' THEN 1 ELSE 0 END), 0) AS total,
+             COALESCE(SUM(CASE WHEN t.status = 'done' THEN 1 ELSE 0 END), 0) AS done
       FROM edges e
       JOIN tasks t ON t.id = e.to_id AND t.project_id = e.project_id
       WHERE e.project_id = ? AND e.from_graph = 'epics' AND e.from_id = ? AND e.to_graph = 'tasks' AND e.kind = 'belongs_to'
@@ -82,8 +83,9 @@ export class SqliteEpicsStore implements EpicsStore {
 
     const ph = epicIds.map(() => '?').join(',');
     const rows = this.db.prepare(`
-      SELECT e.from_id AS epic_id, COUNT(*) AS total,
-        COALESCE(SUM(CASE WHEN t.status IN ('done', 'cancelled') THEN 1 ELSE 0 END), 0) AS done
+      SELECT e.from_id AS epic_id,
+        COALESCE(SUM(CASE WHEN t.status != 'cancelled' THEN 1 ELSE 0 END), 0) AS total,
+        COALESCE(SUM(CASE WHEN t.status = 'done' THEN 1 ELSE 0 END), 0) AS done
       FROM edges e
       JOIN tasks t ON t.id = e.to_id AND t.project_id = e.project_id
       WHERE e.project_id = ? AND e.from_graph = 'epics' AND e.to_graph = 'tasks' AND e.kind = 'belongs_to'
@@ -109,7 +111,7 @@ export class SqliteEpicsStore implements EpicsStore {
     const result = this.db.prepare(`
       INSERT INTO epics (project_id, slug, title, description, status, priority, "order", version, created_by_id, updated_by_id, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)
-    `).run(this.projectId, slug, data.title, data.description ?? '', data.status ?? 'open', data.priority ?? 'medium', ORDER_GAP, authorId, authorId, ts, ts);
+    `).run(this.projectId, slug, data.title, data.description ?? '', data.status ?? 'open', data.priority ?? 'medium', this.nextOrder(), authorId, authorId, ts, ts);
     const id = result.lastInsertRowid;
 
     this.db.prepare('INSERT INTO epics_vec (rowid, embedding) VALUES (?, ?)').run(BigInt(id as number | bigint), Buffer.from(new Float32Array(embedding).buffer));
@@ -198,9 +200,7 @@ export class SqliteEpicsStore implements EpicsStore {
 
     const results = rows.map(r => {
       const id = num(r.id as bigint);
-      const record = this.toRecord(r, tagsMap.get(id), progressMap.get(id));
-      record.attachments = attachMap.get(id) ?? [];
-      return record;
+      return this.toRecord(r, tagsMap.get(id), progressMap.get(id), attachMap.get(id) ?? []);
     });
 
     return { results, total };
@@ -208,6 +208,11 @@ export class SqliteEpicsStore implements EpicsStore {
 
   search(query: SearchQuery): SearchResult[] {
     return hybridSearch(this.db, SEARCH_CONFIG, query, this.projectId);
+  }
+
+  private nextOrder(): number {
+    const row = this.db.prepare(`SELECT MAX("order") AS m FROM epics WHERE project_id = ?`).get(this.projectId) as { m: bigint | null };
+    return row.m ? num(row.m) + ORDER_GAP : ORDER_GAP;
   }
 
   // =========================================================================

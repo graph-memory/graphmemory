@@ -182,11 +182,11 @@ export class SqliteDocsStore implements DocsStore {
         COALESCE(ch.cnt, 0) AS chunk_count
       FROM docs d
       LEFT JOIN (
-        SELECT project_id, file_id, COUNT(*) AS cnt FROM docs WHERE kind = 'chunk' GROUP BY project_id, file_id
-      ) ch ON ch.project_id = d.project_id AND ch.file_id = d.file_id
+        SELECT file_id, COUNT(*) AS cnt FROM docs WHERE project_id = ? AND kind = 'chunk' GROUP BY file_id
+      ) ch ON ch.file_id = d.file_id
       WHERE ${where}
       ORDER BY d.file_id ASC LIMIT ? OFFSET ?
-    `).all(...params, limit, offset) as Array<Record<string, unknown>>;
+    `).all(this.projectId, ...params, limit, offset) as Array<Record<string, unknown>>;
 
     const total = num((this.db.prepare(`SELECT COUNT(*) AS c FROM docs d WHERE ${where}`).get(...params) as { c: bigint }).c);
 

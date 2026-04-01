@@ -5,6 +5,19 @@ import { num } from './bigint';
 const RRF_K = 60;
 
 /**
+ * Escape user text for FTS5 MATCH — wrap each token in double quotes.
+ * Preserves FTS5 operators (AND, OR, NOT, NEAR) when used explicitly.
+ */
+function ftsEscape(text: string): string {
+  const FTS5_OPS = new Set(['AND', 'OR', 'NOT', 'NEAR']);
+  return text
+    .split(/\s+/)
+    .filter(t => t.length > 0)
+    .map(t => FTS5_OPS.has(t) ? t : `"${t.replace(/"/g, '""')}"`)
+    .join(' ');
+}
+
+/**
  * Configuration for hybrid search on a specific entity table.
  * Each store provides its own config pointing to its FTS5 and vec0 tables.
  */
@@ -54,7 +67,7 @@ export function hybridSearch(
       JOIN ${config.parentTable} p ON p.${config.parentIdColumn} = fts.rowid AND p.project_id = ? ${extraJoin}
       WHERE ${config.ftsTable} MATCH ?
       LIMIT ?
-    `).all(projectId, query.text, topK) as Array<{ id: bigint; rn: bigint }>;
+    `).all(projectId, ftsEscape(query.text), topK) as Array<{ id: bigint; rn: bigint }>;
 
     ftsRanked = rows.map(r => ({ id: num(r.id), rn: num(r.rn) }));
   }

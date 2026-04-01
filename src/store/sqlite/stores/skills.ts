@@ -7,6 +7,7 @@ import type {
   SkillRecord,
   SkillDetail,
   SkillListOptions,
+  AttachmentMeta,
   SearchQuery,
   SearchResult,
 } from '../../types';
@@ -35,7 +36,7 @@ export class SqliteSkillsStore implements SkillsStore {
   // CRUD
   // =========================================================================
 
-  private toRecord(row: Record<string, unknown>, tags?: string[]): SkillRecord {
+  private toRecord(row: Record<string, unknown>, tags?: string[], attachments?: AttachmentMeta[]): SkillRecord {
     const id = num(row.id as bigint);
     return {
       id,
@@ -51,7 +52,7 @@ export class SqliteSkillsStore implements SkillsStore {
       confidence: num(row.confidence as number),
       usageCount: num(row.usage_count as bigint),
       lastUsedAt: row.last_used_at ? num(row.last_used_at as bigint) : null,
-      attachments: this.helpers.fetchAttachments(GRAPH, id),
+      attachments: attachments ?? this.helpers.fetchAttachments(GRAPH, id),
       createdAt: num(row.created_at as bigint),
       updatedAt: num(row.updated_at as bigint),
       version: num(row.version as bigint),
@@ -172,9 +173,7 @@ export class SqliteSkillsStore implements SkillsStore {
 
     const results = rows.map(r => {
       const id = num(r.id as bigint);
-      const record = this.toRecord(r, tagsMap.get(id));
-      record.attachments = attachMap.get(id) ?? [];
-      return record;
+      return this.toRecord(r, tagsMap.get(id), attachMap.get(id) ?? []);
     });
 
     return { results, total };

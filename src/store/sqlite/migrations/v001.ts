@@ -377,7 +377,6 @@ CREATE TABLE files (
   language    TEXT,
   mime_type   TEXT,
   size        INTEGER NOT NULL DEFAULT 0,
-  file_count  INTEGER NOT NULL DEFAULT 0,
   mtime       INTEGER NOT NULL DEFAULT 0,
   UNIQUE(project_id, file_path)
 );

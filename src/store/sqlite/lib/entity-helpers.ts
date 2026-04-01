@@ -20,14 +20,16 @@ export class EntityHelpers {
     this.db.prepare(`DELETE FROM edges WHERE project_id = ? AND to_graph = ? AND to_id = ? AND from_graph = 'tags' AND kind = 'tagged'`)
       .run(this.projectId, graph, entityId);
 
-    // Clean up orphaned tags (tags with no remaining edges)
-    for (const old of oldTagIds) {
-      const edgeCount = num((this.db.prepare(
-        `SELECT COUNT(*) AS c FROM edges WHERE project_id = ? AND from_graph = 'tags' AND from_id = ? AND kind = 'tagged'`
-      ).get(this.projectId, num(old.from_id)) as { c: bigint }).c);
-      if (edgeCount === 0) {
-        this.db.prepare('DELETE FROM tags WHERE id = ? AND project_id = ?').run(num(old.from_id), this.projectId);
-      }
+    // Clean up orphaned tags in one query
+    if (oldTagIds.length > 0) {
+      const ids = oldTagIds.map(o => num(o.from_id));
+      const ph = ids.map(() => '?').join(',');
+      this.db.prepare(`
+        DELETE FROM tags WHERE project_id = ? AND id IN (${ph})
+        AND NOT EXISTS (
+          SELECT 1 FROM edges WHERE project_id = tags.project_id AND from_graph = 'tags' AND from_id = tags.id AND kind = 'tagged'
+        )
+      `).run(this.projectId, ...ids);
     }
 
     // Insert new tags

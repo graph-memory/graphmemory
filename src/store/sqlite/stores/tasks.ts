@@ -9,6 +9,7 @@ import type {
   TaskListOptions,
   TaskStatus,
   TaskPriority,
+  AttachmentMeta,
   SearchQuery,
   SearchResult,
 } from '../../types';
@@ -40,7 +41,7 @@ export class SqliteTasksStore implements TasksStore {
   // Task CRUD
   // =========================================================================
 
-  private toTaskRecord(row: Record<string, unknown>, tags?: string[]): TaskRecord {
+  private toTaskRecord(row: Record<string, unknown>, tags?: string[], attachments?: AttachmentMeta[]): TaskRecord {
     const id = num(row.id as bigint);
     return {
       id,
@@ -55,7 +56,7 @@ export class SqliteTasksStore implements TasksStore {
       estimate: row.estimate ? num(row.estimate as bigint) : null,
       completedAt: row.completed_at ? num(row.completed_at as bigint) : null,
       assigneeId: row.assignee_id ? num(row.assignee_id as bigint) : null,
-      attachments: this.helpers.fetchAttachments(GRAPH_TASKS, id),
+      attachments: attachments ?? this.helpers.fetchAttachments(GRAPH_TASKS, id),
       createdAt: num(row.created_at as bigint),
       updatedAt: num(row.updated_at as bigint),
       version: num(row.version as bigint),
@@ -178,9 +179,7 @@ export class SqliteTasksStore implements TasksStore {
 
     const results = rows.map(r => {
       const id = num(r.id as bigint);
-      const record = this.toTaskRecord(r, tagsMap.get(id));
-      record.attachments = attachMap.get(id) ?? [];
-      return record;
+      return this.toTaskRecord(r, tagsMap.get(id), attachMap.get(id) ?? []);
     });
 
     return { results, total };

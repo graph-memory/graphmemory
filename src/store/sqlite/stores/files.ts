@@ -34,7 +34,6 @@ export class SqliteFilesStore implements FilesStore {
       language: (row.language as string | null),
       mimeType: (row.mime_type as string | null),
       size: num(row.size as bigint),
-      fileCount: num(row.file_count as bigint),
       mtime: num(row.mtime as bigint),
     };
   }
@@ -58,8 +57,8 @@ export class SqliteFilesStore implements FilesStore {
     const dirName = path.basename(dirPath) || dirPath;
 
     const result = this.db.prepare(`
-      INSERT INTO files (project_id, kind, file_path, file_name, directory, extension, size, file_count, mtime)
-      VALUES (?, 'directory', ?, ?, ?, '', 0, 0, 0)
+      INSERT INTO files (project_id, kind, file_path, file_name, directory, extension, size, mtime)
+      VALUES (?, 'directory', ?, ?, ?, '', 0, 0)
     `).run(this.projectId, dirPath, dirName, parentDir === dirPath ? '' : parentDir);
 
     return num(result.lastInsertRowid as bigint);
@@ -233,7 +232,7 @@ export class SqliteFilesStore implements FilesStore {
       const rows = this.db.prepare(`
         SELECT v.rowid AS id, v.distance
         FROM files_vec v
-        JOIN files p ON p.id = v.rowid AND p.project_id = ?
+        JOIN files p ON p.id = v.rowid AND p.project_id = ? AND p.kind = 'file'
         WHERE v.embedding MATCH ? AND v.k = ?
       `).all(this.projectId, embeddingBuf, topK * 3) as Array<{ id: bigint; distance: number }>;
 
@@ -261,7 +260,7 @@ export class SqliteFilesStore implements FilesStore {
         const rows = this.db.prepare(`
           SELECT v.rowid AS id, v.distance
           FROM files_vec v
-          JOIN files p ON p.id = v.rowid AND p.project_id = ?
+          JOIN files p ON p.id = v.rowid AND p.project_id = ? AND p.kind = 'file'
           WHERE v.embedding MATCH ? AND v.k = ?
         `).all(this.projectId, embeddingBuf, topK * 3) as Array<{ id: bigint; distance: number }>;
         rows.slice(0, topK).forEach((r, i) => vecResults.push({ id: num(r.id), rn: i + 1 }));

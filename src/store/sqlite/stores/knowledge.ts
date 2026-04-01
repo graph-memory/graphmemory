@@ -6,6 +6,7 @@ import type {
   NotePatch,
   NoteRecord,
   NoteDetail,
+  AttachmentMeta,
   PaginationOptions,
   SearchQuery,
   SearchResult,
@@ -51,7 +52,7 @@ export class SqliteKnowledgeStore implements KnowledgeStore {
     };
   }
 
-  private toRecord(row: Record<string, unknown>, tags?: string[]): NoteRecord {
+  private toRecord(row: Record<string, unknown>, tags?: string[], attachments?: AttachmentMeta[]): NoteRecord {
     const id = num(row.id as bigint);
     return {
       id,
@@ -59,7 +60,7 @@ export class SqliteKnowledgeStore implements KnowledgeStore {
       title: row.title as string,
       content: row.content as string,
       tags: tags ?? this.helpers.fetchTags(GRAPH, id),
-      attachments: this.helpers.fetchAttachments(GRAPH, id),
+      attachments: attachments ?? this.helpers.fetchAttachments(GRAPH, id),
       createdAt: num(row.created_at as bigint),
       updatedAt: num(row.updated_at as bigint),
       version: num(row.version as bigint),
@@ -166,9 +167,7 @@ export class SqliteKnowledgeStore implements KnowledgeStore {
 
     const results = rows.map(r => {
       const id = num(r.id as bigint);
-      const record = this.toRecord(r, tagsMap.get(id));
-      record.attachments = attachMap.get(id) ?? [];
-      return record;
+      return this.toRecord(r, tagsMap.get(id), attachMap.get(id) ?? []);
     });
 
     return { results, total };

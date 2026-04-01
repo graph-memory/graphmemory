@@ -16,7 +16,6 @@ export interface FileNode {
   language: string | null;
   mimeType: string | null;
   size: number;
-  fileCount: number;
   mtime: number;
 }
 

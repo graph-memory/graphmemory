@@ -149,7 +149,7 @@ export class SqliteCodeStore implements CodeStore {
   // =========================================================================
 
   resolveEdges(edges: Array<{ fromName: string; toName: string; kind: string }>): void {
-    const findByName = this.db.prepare('SELECT id FROM code WHERE project_id = ? AND name = ? AND kind != \'file\' LIMIT 1');
+    const findByName = this.db.prepare("SELECT id FROM code WHERE project_id = ? AND name = ? AND kind != 'file'");
     const insertEdge = this.db.prepare(`
       INSERT OR IGNORE INTO edges (project_id, from_graph, from_id, to_graph, to_id, kind)
       VALUES (?, 'code', ?, 'code', ?, ?)
@@ -157,10 +157,12 @@ export class SqliteCodeStore implements CodeStore {
 
     const run = this.db.transaction(() => {
       for (const edge of edges) {
-        const fromRow = findByName.get(this.projectId, edge.fromName) as { id: bigint } | undefined;
-        const toRow = findByName.get(this.projectId, edge.toName) as { id: bigint } | undefined;
-        if (fromRow && toRow) {
-          insertEdge.run(this.projectId, num(fromRow.id), num(toRow.id), edge.kind);
+        const fromRows = findByName.all(this.projectId, edge.fromName) as Array<{ id: bigint }>;
+        const toRows = findByName.all(this.projectId, edge.toName) as Array<{ id: bigint }>;
+        for (const fromRow of fromRows) {
+          for (const toRow of toRows) {
+            insertEdge.run(this.projectId, num(fromRow.id), num(toRow.id), edge.kind);
+          }
         }
       }
     });
@@ -195,11 +197,11 @@ export class SqliteCodeStore implements CodeStore {
         COALESCE(s.cnt, 0) AS symbol_count
       FROM code f
       LEFT JOIN (
-        SELECT project_id, file_id, COUNT(*) AS cnt FROM code WHERE kind != 'file' GROUP BY project_id, file_id
-      ) s ON s.project_id = f.project_id AND s.file_id = f.file_id
+        SELECT file_id, COUNT(*) AS cnt FROM code WHERE project_id = ? AND kind != 'file' GROUP BY file_id
+      ) s ON s.file_id = f.file_id
       WHERE ${where}
       ORDER BY f.file_id ASC LIMIT ? OFFSET ?
-    `).all(...params, limit, offset) as Array<Record<string, unknown>>;
+    `).all(this.projectId, ...params, limit, offset) as Array<Record<string, unknown>>;
 
     const total = num((this.db.prepare(`SELECT COUNT(*) AS c FROM code f WHERE ${where}`).get(...params) as { c: bigint }).c);
 

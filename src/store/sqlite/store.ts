@@ -13,6 +13,8 @@ import { openDatabase } from './lib/db';
 import { runMigrations } from './lib/migrate';
 import { MetaHelper } from './lib/meta';
 import { v001 } from './migrations/v001';
+import { SqliteTeamStore } from './stores/team';
+import { SqliteProjectsStore } from './stores/projects';
 
 const ALL_MIGRATIONS = [v001];
 
@@ -20,14 +22,19 @@ export class SqliteStore implements Store {
   private db: Database.Database | null = null;
   private metaHelper: MetaHelper | null = null;
   private scopedCache = new Map<number, ProjectScopedStore>();
+  private _projects: SqliteProjectsStore | null = null;
+  private _team: SqliteTeamStore | null = null;
 
   // --- Sub-stores (workspace-level) ---
+
   get projects(): ProjectsStore {
-    throw new Error('Not implemented yet (Phase 3)');
+    this.requireDb();
+    return this._projects!;
   }
 
   get team(): TeamStore {
-    throw new Error('Not implemented yet (Phase 3)');
+    this.requireDb();
+    return this._team!;
   }
 
   // --- Lifecycle ---
@@ -37,11 +44,15 @@ export class SqliteStore implements Store {
     this.db = openDatabase(opts.dbPath);
     runMigrations(this.db, ALL_MIGRATIONS);
     this.metaHelper = new MetaHelper(this.db, '');
+    this._projects = new SqliteProjectsStore(this.db);
+    this._team = new SqliteTeamStore(this.db);
   }
 
   close(): void {
     if (!this.db) return;
     this.scopedCache.clear();
+    this._projects = null;
+    this._team = null;
     this.db.pragma('wal_checkpoint(TRUNCATE)');
     this.db.close();
     this.db = null;

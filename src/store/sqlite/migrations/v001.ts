@@ -309,6 +309,7 @@ CREATE TRIGGER code_cleanup AFTER DELETE ON code BEGIN
   DELETE FROM edges WHERE
     (from_graph = 'code' AND from_id = old.id AND project_id = old.project_id) OR
     (to_graph = 'code' AND to_id = old.id AND project_id = old.project_id);
+  DELETE FROM attachments WHERE graph = 'code' AND entity_id = old.id AND project_id = old.project_id;
   DELETE FROM code_vec WHERE rowid = old.id;
 END;
 
@@ -352,6 +353,7 @@ CREATE TRIGGER docs_cleanup AFTER DELETE ON docs BEGIN
   DELETE FROM edges WHERE
     (from_graph = 'docs' AND from_id = old.id AND project_id = old.project_id) OR
     (to_graph = 'docs' AND to_id = old.id AND project_id = old.project_id);
+  DELETE FROM attachments WHERE graph = 'docs' AND entity_id = old.id AND project_id = old.project_id;
   DELETE FROM docs_vec WHERE rowid = old.id;
 END;
 
@@ -384,6 +386,7 @@ CREATE TRIGGER files_cleanup AFTER DELETE ON files BEGIN
   DELETE FROM edges WHERE
     (from_graph = 'files' AND from_id = old.id AND project_id = old.project_id) OR
     (to_graph = 'files' AND to_id = old.id AND project_id = old.project_id);
+  DELETE FROM attachments WHERE graph = 'files' AND entity_id = old.id AND project_id = old.project_id;
   DELETE FROM files_vec WHERE rowid = old.id;
 END;
 

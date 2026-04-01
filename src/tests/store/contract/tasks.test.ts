@@ -202,54 +202,6 @@ describe('TasksStore contract', () => {
     expect(results.length).toBeGreaterThan(0);
   });
 
-  // --- Epic CRUD ---
-
-  it('creates an epic', () => {
-    const epic = tasks.createEpic({ title: 'MVP', description: 'Minimum viable product' }, seedEmbedding(1));
-    expect(epic.id).toBeGreaterThan(0);
-    expect(epic.status).toBe('open');
-    expect(epic.priority).toBe('medium');
-    expect(epic.progress).toEqual({ total: 0, done: 0 });
-  });
-
-  it('gets epic detail', () => {
-    const epic = tasks.createEpic({ title: 'Epic', description: '' }, seedEmbedding(1));
-    const detail = tasks.getEpic(epic.id);
-    expect(detail).not.toBeNull();
-    expect(detail!.edges).toEqual([]);
-  });
-
-  it('updates an epic', () => {
-    const epic = tasks.createEpic({ title: 'Old', description: '' }, seedEmbedding(1));
-    const updated = tasks.updateEpic(epic.id, { title: 'New', status: 'in_progress' }, null);
-    expect(updated.title).toBe('New');
-    expect(updated.status).toBe('in_progress');
-    expect(updated.version).toBe(2);
-  });
-
-  it('deletes an epic', () => {
-    const epic = tasks.createEpic({ title: 'Del', description: '' }, seedEmbedding(1));
-    tasks.deleteEpic(epic.id);
-    expect(tasks.getEpic(epic.id)).toBeNull();
-  });
-
-  it('epic progress reflects linked tasks', () => {
-    const epic = tasks.createEpic({ title: 'Progress', description: '' }, seedEmbedding(1));
-    const t1 = tasks.create({ title: 'T1', description: '' }, seedEmbedding(2));
-    const t2 = tasks.create({ title: 'T2', description: '' }, seedEmbedding(3));
-
-    // Link tasks to epic via edges
-    const db = store.getDb();
-    db.prepare(`INSERT INTO edges (project_id, from_graph, from_id, to_graph, to_id, kind) VALUES (?, 'epics', ?, 'tasks', ?, 'belongs_to')`).run(projectId, epic.id, t1.id);
-    db.prepare(`INSERT INTO edges (project_id, from_graph, from_id, to_graph, to_id, kind) VALUES (?, 'epics', ?, 'tasks', ?, 'belongs_to')`).run(projectId, epic.id, t2.id);
-
-    // Mark one done
-    tasks.move(t1.id, 'done');
-
-    const epicDetail = tasks.getEpic(epic.id)!;
-    expect(epicDetail.progress).toEqual({ total: 2, done: 1 });
-  });
-
   // --- List filters (additional) ---
 
   it('lists with assigneeId filter', () => {
@@ -269,36 +221,6 @@ describe('TasksStore contract', () => {
     const result = tasks.list({ priority: 'high' });
     expect(result.results.length).toBe(1);
     expect(result.results[0].title).toBe('High');
-  });
-
-  // --- Epic extra tests ---
-
-  it('getEpicBySlug works', () => {
-    const epic = tasks.createEpic({ title: 'Slug', description: '' }, seedEmbedding(1));
-    const found = tasks.getEpicBySlug(epic.slug);
-    expect(found).not.toBeNull();
-    expect(found!.id).toBe(epic.id);
-  });
-
-  it('getEpicBySlug returns null for missing slug', () => {
-    expect(tasks.getEpicBySlug('nonexistent')).toBeNull();
-  });
-
-  it('searchEpics by keyword', () => {
-    tasks.createEpic({ title: 'MVP Release', description: 'Ship it' }, seedEmbedding(1));
-    tasks.createEpic({ title: 'Tech Debt', description: 'Cleanup' }, seedEmbedding(2));
-
-    const results = tasks.searchEpics({ text: 'MVP', searchMode: 'keyword' });
-    expect(results.length).toBeGreaterThan(0);
-  });
-
-  it('listEpics with status filter', () => {
-    tasks.createEpic({ title: 'Open', description: '' }, seedEmbedding(1));
-    tasks.createEpic({ title: 'Closed', description: '', status: 'done' }, seedEmbedding(2));
-
-    const result = tasks.listEpics({ status: 'open' });
-    expect(result.results.length).toBe(1);
-    expect(result.results[0].title).toBe('Open');
   });
 
   // --- Timestamps ---

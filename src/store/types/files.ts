@@ -36,9 +36,6 @@ export interface FilesStore extends MetaMixin {
   /** Remove a file entry (auto-cleans empty parent dirs) */
   removeFile(filePath: string): void;
 
-  /** Recompute directory aggregates (size, fileCount) */
-  rebuildDirectoryStats(): void;
-
   /** Get mtime for a file (null if not indexed) */
   getFileMtime(filePath: string): number | null;
 

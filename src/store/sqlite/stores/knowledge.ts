@@ -31,7 +31,7 @@ export class SqliteKnowledgeStore implements KnowledgeStore {
   private stmts: ReturnType<SqliteKnowledgeStore['prepareStatements']>;
 
   constructor(private db: Database.Database, private projectId: number) {
-    this.meta = new MetaHelper(db, GRAPH);
+    this.meta = new MetaHelper(db, `${projectId}:${GRAPH}`);
     this.helpers = new EntityHelpers(db, projectId);
     this.stmts = this.prepareStatements();
   }

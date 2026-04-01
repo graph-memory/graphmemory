@@ -21,7 +21,7 @@ export class SqliteDocsStore implements DocsStore {
   private meta: MetaHelper;
 
   constructor(private db: Database.Database, private projectId: number) {
-    this.meta = new MetaHelper(db, GRAPH);
+    this.meta = new MetaHelper(db, `${projectId}:${GRAPH}`);
   }
 
   // =========================================================================
@@ -207,17 +207,7 @@ export class SqliteDocsStore implements DocsStore {
   }
 
   searchFiles(query: SearchQuery): SearchResult[] {
-    const allResults = hybridSearch(this.db, SEARCH_CONFIG, query, this.projectId);
-    if (allResults.length === 0) return [];
-
-    const ids = allResults.map(r => r.id);
-    const placeholders = ids.map(() => '?').join(',');
-    const fileIds = this.db.prepare(
-      `SELECT id FROM docs WHERE id IN (${placeholders}) AND project_id = ? AND kind = 'file'`
-    ).all(...ids, this.projectId) as Array<{ id: bigint }>;
-
-    const fileIdSet = new Set(fileIds.map(r => num(r.id)));
-    return allResults.filter(r => fileIdSet.has(r.id));
+    return hybridSearch(this.db, { ...SEARCH_CONFIG, extraJoinCondition: "AND p.kind = 'file'" }, query, this.projectId);
   }
 
   listSnippets(language?: string, pagination?: PaginationOptions): { results: DocNode[]; total: number } {
@@ -240,22 +230,19 @@ export class SqliteDocsStore implements DocsStore {
   }
 
   searchSnippets(query: SearchQuery, language?: string): SearchResult[] {
-    const allResults = hybridSearch(this.db, SEARCH_CONFIG, query, this.projectId);
-    if (allResults.length === 0) return [];
+    const config = { ...SEARCH_CONFIG, extraJoinCondition: "AND p.kind = 'chunk' AND p.language IS NOT NULL" };
+    const results = hybridSearch(this.db, config, query, this.projectId);
+    if (!language) return results;
 
-    const ids = allResults.map(r => r.id);
-    const placeholders = ids.map(() => '?').join(',');
-
-    let sql = `SELECT id FROM docs WHERE id IN (${placeholders}) AND project_id = ? AND kind = 'chunk' AND language IS NOT NULL`;
-    const params: unknown[] = [...ids, this.projectId];
-    if (language) {
-      sql += ' AND language = ?';
-      params.push(language);
-    }
-
-    const snippetIds = this.db.prepare(sql).all(...params) as Array<{ id: bigint }>;
-    const snippetIdSet = new Set(snippetIds.map(r => num(r.id)));
-    return allResults.filter(r => snippetIdSet.has(r.id));
+    // Post-filter by specific language (parameterized filtering not possible in extraJoinCondition)
+    const ids = results.map(r => r.id);
+    if (ids.length === 0) return [];
+    const ph = ids.map(() => '?').join(',');
+    const matching = this.db.prepare(
+      `SELECT id FROM docs WHERE id IN (${ph}) AND project_id = ? AND language = ?`
+    ).all(...ids, this.projectId, language) as Array<{ id: bigint }>;
+    const matchSet = new Set(matching.map(r => num(r.id)));
+    return results.filter(r => matchSet.has(r.id));
   }
 
   findBySymbol(symbol: string): DocNode[] {

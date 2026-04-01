@@ -16,7 +16,7 @@ export class SqliteFilesStore implements FilesStore {
   private meta: MetaHelper;
 
   constructor(private db: Database.Database, private projectId: number) {
-    this.meta = new MetaHelper(db, GRAPH);
+    this.meta = new MetaHelper(db, `${projectId}:${GRAPH}`);
   }
 
   // =========================================================================
@@ -159,31 +159,6 @@ export class SqliteFilesStore implements FilesStore {
         this.cleanEmptyDirs(dir.directory as string);
       }
     }
-  }
-
-  // =========================================================================
-  // rebuildDirectoryStats
-  // =========================================================================
-
-  rebuildDirectoryStats(): void {
-    // Update size and fileCount for all directories
-    this.db.prepare(`
-      UPDATE files SET
-        size = COALESCE((
-          SELECT SUM(f2.size) FROM files f2
-          WHERE f2.project_id = files.project_id AND f2.directory = files.file_path AND f2.kind = 'file'
-        ), 0) + COALESCE((
-          SELECT SUM(f3.size) FROM files f3
-          WHERE f3.project_id = files.project_id AND f3.kind = 'directory'
-          AND f3.file_path != files.file_path
-          AND f3.directory = files.file_path
-        ), 0),
-        file_count = COALESCE((
-          SELECT COUNT(*) FROM files f2
-          WHERE f2.project_id = files.project_id AND f2.directory = files.file_path AND f2.kind = 'file'
-        ), 0)
-      WHERE project_id = ? AND kind = 'directory'
-    `).run(this.projectId);
   }
 
   // =========================================================================

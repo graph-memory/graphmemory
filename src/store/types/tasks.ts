@@ -7,7 +7,6 @@ import type { AttachmentMeta } from './attachments';
 
 export type TaskStatus = 'backlog' | 'todo' | 'in_progress' | 'review' | 'done' | 'cancelled';
 export type TaskPriority = 'critical' | 'high' | 'medium' | 'low';
-export type EpicStatus = 'open' | 'in_progress' | 'done' | 'cancelled';
 
 export interface TaskCreate {
   title: string;
@@ -69,56 +68,6 @@ export interface TaskListOptions extends PaginationOptions {
 }
 
 // ---------------------------------------------------------------------------
-// Epic types
-// ---------------------------------------------------------------------------
-
-export interface EpicCreate {
-  title: string;
-  description: string;
-  status?: EpicStatus;
-  priority?: TaskPriority;
-  tags?: string[];
-  authorId?: number;
-}
-
-export interface EpicPatch {
-  title?: string;
-  description?: string;
-  status?: EpicStatus;
-  priority?: TaskPriority;
-  tags?: string[];
-}
-
-export interface EpicRecord {
-  id: number;
-  slug: string;
-  title: string;
-  description: string;
-  status: EpicStatus;
-  priority: TaskPriority;
-  tags: string[];
-  order: number;
-  progress: { total: number; done: number };
-  attachments: AttachmentMeta[];
-  createdAt: number;
-  updatedAt: number;
-  version: number;
-  createdById: number | null;
-  updatedById: number | null;
-}
-
-export interface EpicDetail extends EpicRecord {
-  edges: Edge[];
-}
-
-export interface EpicListOptions extends PaginationOptions {
-  status?: EpicStatus;
-  priority?: TaskPriority;
-  tag?: string;
-  filter?: string;
-}
-
-// ---------------------------------------------------------------------------
 // Tasks Store interface
 // ---------------------------------------------------------------------------
 
@@ -146,13 +95,4 @@ export interface TasksStore extends MetaMixin {
   bulkDelete(taskIds: number[]): number;
   bulkMove(taskIds: number[], status: TaskStatus, authorId?: number): number;
   bulkPriority(taskIds: number[], priority: TaskPriority, authorId?: number): number;
-
-  // --- Epic CRUD ---
-  createEpic(data: EpicCreate, embedding: number[]): EpicRecord;
-  updateEpic(epicId: number, patch: EpicPatch, embedding: number[] | null, authorId?: number, expectedVersion?: number): EpicRecord;
-  deleteEpic(epicId: number): void;
-  getEpic(epicId: number): EpicDetail | null;
-  getEpicBySlug(slug: string): EpicDetail | null;
-  listEpics(opts?: EpicListOptions): { results: EpicRecord[]; total: number };
-  searchEpics(query: SearchQuery): SearchResult[];
 }

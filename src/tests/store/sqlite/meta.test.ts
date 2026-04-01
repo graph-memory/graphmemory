@@ -63,4 +63,22 @@ describe('SQLite MetaHelper', () => {
     expect(a.getMeta('key')).toBeNull();
     expect(b.getMeta('key')).toBe('bbb');
   });
+
+  it('project-scoped stores have isolated meta per project', () => {
+    const p1 = store.projects.create({ slug: 'p1', name: 'P1', directory: '/p1' });
+    const p2 = store.projects.create({ slug: 'p2', name: 'P2', directory: '/p2' });
+
+    const scoped1 = store.project(p1.id);
+    const scoped2 = store.project(p2.id);
+
+    scoped1.knowledge.setMeta('cursor', 'aaa');
+    scoped2.knowledge.setMeta('cursor', 'bbb');
+
+    expect(scoped1.knowledge.getMeta('cursor')).toBe('aaa');
+    expect(scoped2.knowledge.getMeta('cursor')).toBe('bbb');
+
+    scoped1.knowledge.deleteMeta('cursor');
+    expect(scoped1.knowledge.getMeta('cursor')).toBeNull();
+    expect(scoped2.knowledge.getMeta('cursor')).toBe('bbb');
+  });
 });

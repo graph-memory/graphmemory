@@ -4,6 +4,7 @@ import type { DocsStore } from './docs';
 import type { FilesStore } from './files';
 import type { KnowledgeStore } from './knowledge';
 import type { TasksStore } from './tasks';
+import type { EpicsStore } from './epics';
 import type { SkillsStore } from './skills';
 import type { AttachmentsStore } from './attachments';
 import type { ProjectsStore } from './projects';
@@ -21,6 +22,7 @@ export interface ProjectScopedStore {
   readonly files: FilesStore;
   readonly knowledge: KnowledgeStore;
   readonly tasks: TasksStore;
+  readonly epics: EpicsStore;
   readonly skills: SkillsStore;
   readonly attachments: AttachmentsStore;
 

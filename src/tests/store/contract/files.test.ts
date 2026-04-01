@@ -168,20 +168,6 @@ describe('FilesStore contract', () => {
     expect(page.total).toBe(3);
   });
 
-  // --- rebuildDirectoryStats ---
-
-  it('rebuildDirectoryStats computes size and fileCount', () => {
-    files.updateFile('src/a.ts', 100, 1000, seedEmbedding(1));
-    files.updateFile('src/b.ts', 200, 1000, seedEmbedding(2));
-
-    files.rebuildDirectoryStats();
-
-    const dir = files.getFileInfo('src');
-    expect(dir).not.toBeNull();
-    expect(dir!.fileCount).toBe(2);
-    expect(dir!.size).toBe(300);
-  });
-
   // --- search ---
 
   it('searches by keyword (LIKE fallback)', () => {

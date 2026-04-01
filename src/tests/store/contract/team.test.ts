@@ -1,4 +1,4 @@
-import { createSqliteStoreFactory } from '../helpers';
+import { createSqliteStoreFactory, seedEmbedding } from '../helpers';
 import { SqliteStore } from '@/store';
 
 describe('TeamStore contract', () => {
@@ -103,5 +103,42 @@ describe('TeamStore contract', () => {
     expect(store.team.getMeta('version')).toBe('1');
     // Should not collide with store-level meta
     expect(store.getMeta('version')).toBeNull();
+  });
+
+  it('ON DELETE SET NULL clears references when team member is deleted', () => {
+    const project = store.projects.create({ slug: 'p1', name: 'P1', directory: '/p1' });
+    const scoped = store.project(project.id);
+    const member = store.team.create({ slug: 'dev1', name: 'Dev One' });
+
+    // Create a task assigned to the member
+    const task = scoped.tasks.create({
+      title: 'Task 1',
+      description: 'test',
+      assigneeId: member.id,
+      authorId: member.id,
+    }, seedEmbedding(1));
+    expect(task.assigneeId).toBe(member.id);
+    expect(task.createdById).toBe(member.id);
+
+    // Create a note authored by the member
+    const note = scoped.knowledge.create({
+      title: 'Note 1',
+      content: 'test',
+      authorId: member.id,
+    }, seedEmbedding(2));
+    expect(note.createdById).toBe(member.id);
+
+    // Delete the member
+    store.team.delete(member.id);
+
+    // Verify references are nullified
+    const updatedTask = scoped.tasks.get(task.id)!;
+    expect(updatedTask.assigneeId).toBeNull();
+    expect(updatedTask.createdById).toBeNull();
+    expect(updatedTask.updatedById).toBeNull();
+
+    const updatedNote = scoped.knowledge.get(note.id)!;
+    expect(updatedNote.createdById).toBeNull();
+    expect(updatedNote.updatedById).toBeNull();
   });
 });

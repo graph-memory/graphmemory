@@ -27,7 +27,7 @@ export class SqliteSkillsStore implements SkillsStore {
   private helpers: EntityHelpers;
 
   constructor(private db: Database.Database, private projectId: number) {
-    this.meta = new MetaHelper(db, GRAPH);
+    this.meta = new MetaHelper(db, `${projectId}:${GRAPH}`);
     this.helpers = new EntityHelpers(db, projectId);
   }
 

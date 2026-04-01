@@ -22,7 +22,7 @@ export class SqliteCodeStore implements CodeStore {
   private meta: MetaHelper;
 
   constructor(private db: Database.Database, private projectId: number) {
-    this.meta = new MetaHelper(db, GRAPH);
+    this.meta = new MetaHelper(db, `${projectId}:${GRAPH}`);
   }
 
   // =========================================================================
@@ -220,19 +220,7 @@ export class SqliteCodeStore implements CodeStore {
   }
 
   searchFiles(query: SearchQuery): SearchResult[] {
-    // For file search, we use a custom approach: search then filter to file nodes
-    const allResults = hybridSearch(this.db, SEARCH_CONFIG, query, this.projectId);
-    // Filter to file-kind nodes only
-    if (allResults.length === 0) return [];
-
-    const ids = allResults.map(r => r.id);
-    const placeholders = ids.map(() => '?').join(',');
-    const fileIds = this.db.prepare(
-      `SELECT id FROM code WHERE id IN (${placeholders}) AND project_id = ? AND kind = 'file'`
-    ).all(...ids, this.projectId) as Array<{ id: bigint }>;
-
-    const fileIdSet = new Set(fileIds.map(r => num(r.id)));
-    return allResults.filter(r => fileIdSet.has(r.id));
+    return hybridSearch(this.db, { ...SEARCH_CONFIG, extraJoinCondition: "AND p.kind = 'file'" }, query, this.projectId);
   }
 
   findByName(name: string): CodeNode[] {

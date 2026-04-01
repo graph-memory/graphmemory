@@ -9,11 +9,6 @@ import type {
   TaskListOptions,
   TaskStatus,
   TaskPriority,
-  EpicCreate,
-  EpicPatch,
-  EpicRecord,
-  EpicDetail,
-  EpicListOptions,
   SearchQuery,
   SearchResult,
 } from '../../types';
@@ -24,14 +19,10 @@ import { num, now } from '../lib/bigint';
 import { hybridSearch, SearchConfig } from '../lib/search';
 
 const GRAPH_TASKS = 'tasks';
-const GRAPH_EPICS = 'epics';
 const ORDER_GAP = 1000;
 
 const TASK_SEARCH_CONFIG: SearchConfig = {
   ftsTable: 'tasks_fts', vecTable: 'tasks_vec', parentTable: 'tasks', parentIdColumn: 'id',
-};
-const EPIC_SEARCH_CONFIG: SearchConfig = {
-  ftsTable: 'epics_fts', vecTable: 'epics_vec', parentTable: 'epics', parentIdColumn: 'id',
 };
 
 const TERMINAL_STATUSES = new Set<string>(['done', 'cancelled']);
@@ -41,7 +32,7 @@ export class SqliteTasksStore implements TasksStore {
   private helpers: EntityHelpers;
 
   constructor(private db: Database.Database, private projectId: number) {
-    this.meta = new MetaHelper(db, GRAPH_TASKS);
+    this.meta = new MetaHelper(db, `${projectId}:${GRAPH_TASKS}`);
     this.helpers = new EntityHelpers(db, projectId);
   }
 
@@ -260,156 +251,6 @@ export class SqliteTasksStore implements TasksStore {
       WHERE id IN (${ph}) AND project_id = ?
     `).run(priority, authorId ?? null, now(), ...taskIds, this.projectId);
     return num(result.changes);
-  }
-
-  // =========================================================================
-  // Epic CRUD
-  // =========================================================================
-
-  private toEpicRecord(row: Record<string, unknown>, tags?: string[]): EpicRecord {
-    const id = num(row.id as bigint);
-    const progress = this.computeEpicProgress(id);
-    return {
-      id,
-      slug: row.slug as string,
-      title: row.title as string,
-      description: row.description as string,
-      status: row.status as EpicRecord['status'],
-      priority: row.priority as TaskPriority,
-      tags: tags ?? this.helpers.fetchTags(GRAPH_EPICS, id),
-      order: num(row.order as bigint | number),
-      progress,
-      attachments: this.helpers.fetchAttachments(GRAPH_EPICS, id),
-      createdAt: num(row.created_at as bigint),
-      updatedAt: num(row.updated_at as bigint),
-      version: num(row.version as bigint),
-      createdById: row.created_by_id ? num(row.created_by_id as bigint) : null,
-      updatedById: row.updated_by_id ? num(row.updated_by_id as bigint) : null,
-    };
-  }
-
-  private toEpicDetail(row: Record<string, unknown>): EpicDetail {
-    const record = this.toEpicRecord(row);
-    return { ...record, edges: this.helpers.fetchEdges(GRAPH_EPICS, record.id) };
-  }
-
-  private computeEpicProgress(epicId: number): { total: number; done: number } {
-    const row = this.db.prepare(`
-      SELECT COUNT(*) AS total,
-             COALESCE(SUM(CASE WHEN t.status IN ('done', 'cancelled') THEN 1 ELSE 0 END), 0) AS done
-      FROM edges e
-      JOIN tasks t ON t.id = e.to_id AND t.project_id = e.project_id
-      WHERE e.project_id = ? AND e.from_graph = 'epics' AND e.from_id = ? AND e.to_graph = 'tasks' AND e.kind = 'belongs_to'
-    `).get(this.projectId, epicId) as { total: bigint; done: bigint };
-    return { total: num(row.total), done: num(row.done) };
-  }
-
-  createEpic(data: EpicCreate, embedding: number[]): EpicRecord {
-    const slug = randomUUID();
-    const ts = now();
-    const authorId = data.authorId ?? null;
-
-    const result = this.db.prepare(`
-      INSERT INTO epics (project_id, slug, title, description, status, priority, "order", version, created_by_id, updated_by_id, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)
-    `).run(this.projectId, slug, data.title, data.description ?? '', data.status ?? 'open', data.priority ?? 'medium', ORDER_GAP, authorId, authorId, ts, ts);
-    const id = result.lastInsertRowid;
-
-    this.db.prepare('INSERT INTO epics_vec (rowid, embedding) VALUES (?, ?)').run(id, Buffer.from(new Float32Array(embedding).buffer));
-
-    if (data.tags && data.tags.length > 0) this.helpers.setTags(GRAPH_EPICS, num(id), data.tags);
-
-    return this.toEpicRecord(this.db.prepare('SELECT * FROM epics WHERE id = ? AND project_id = ?').get(num(id), this.projectId) as Record<string, unknown>);
-  }
-
-  updateEpic(epicId: number, patch: EpicPatch, embedding: number[] | null, authorId?: number, expectedVersion?: number): EpicRecord {
-    const row = this.db.prepare('SELECT * FROM epics WHERE id = ? AND project_id = ?').get(epicId, this.projectId) as Record<string, unknown> | undefined;
-    if (!row) throw new Error(`Epic ${epicId} not found`);
-
-    if (expectedVersion !== undefined) {
-      const current = num(row.version as bigint);
-      if (current !== expectedVersion) throw new VersionConflictError(current, expectedVersion);
-    }
-
-    const fields: string[] = [];
-    const params: unknown[] = [];
-    const set = (col: string, val: unknown) => { fields.push(`${col} = ?`); params.push(val); };
-
-    if (patch.title !== undefined) set('title', patch.title);
-    if (patch.description !== undefined) set('description', patch.description);
-    if (patch.status !== undefined) set('status', patch.status);
-    if (patch.priority !== undefined) set('priority', patch.priority);
-
-    set('version', num(row.version as bigint) + 1);
-    set('updated_by_id', authorId ?? null);
-    set('updated_at', now());
-
-    params.push(epicId, this.projectId);
-    this.db.prepare(`UPDATE epics SET ${fields.join(', ')} WHERE id = ? AND project_id = ?`).run(...params);
-
-    if (embedding) {
-      this.db.prepare('DELETE FROM epics_vec WHERE rowid = ?').run(BigInt(epicId));
-      this.db.prepare('INSERT INTO epics_vec (rowid, embedding) VALUES (?, ?)').run(BigInt(epicId), Buffer.from(new Float32Array(embedding).buffer));
-    }
-
-    if (patch.tags !== undefined) this.helpers.setTags(GRAPH_EPICS, epicId, patch.tags);
-
-    return this.toEpicRecord(this.db.prepare('SELECT * FROM epics WHERE id = ? AND project_id = ?').get(epicId, this.projectId) as Record<string, unknown>);
-  }
-
-  deleteEpic(epicId: number): void {
-    this.db.prepare('DELETE FROM epics WHERE id = ? AND project_id = ?').run(epicId, this.projectId);
-  }
-
-  getEpic(epicId: number): EpicDetail | null {
-    const row = this.db.prepare('SELECT * FROM epics WHERE id = ? AND project_id = ?').get(epicId, this.projectId) as Record<string, unknown> | undefined;
-    return row ? this.toEpicDetail(row) : null;
-  }
-
-  getEpicBySlug(slug: string): EpicDetail | null {
-    const row = this.db.prepare('SELECT * FROM epics WHERE slug = ? AND project_id = ?').get(slug, this.projectId) as Record<string, unknown> | undefined;
-    return row ? this.toEpicDetail(row) : null;
-  }
-
-  listEpics(opts?: EpicListOptions): { results: EpicRecord[]; total: number } {
-    const limit = opts?.limit ?? 50;
-    const offset = opts?.offset ?? 0;
-    const conditions: string[] = ['e.project_id = ?'];
-    const params: unknown[] = [this.projectId];
-
-    if (opts?.status) { conditions.push('e.status = ?'); params.push(opts.status); }
-    if (opts?.priority) { conditions.push('e.priority = ?'); params.push(opts.priority); }
-    if (opts?.filter) { conditions.push('(e.title LIKE ? OR e.description LIKE ?)'); const like = `%${opts.filter}%`; params.push(like, like); }
-    if (opts?.tag) {
-      conditions.push(`EXISTS (
-        SELECT 1 FROM edges ed JOIN tags tg ON tg.id = ed.from_id AND tg.project_id = ed.project_id
-        WHERE ed.project_id = e.project_id AND ed.to_graph = 'epics' AND ed.to_id = e.id
-        AND ed.from_graph = 'tags' AND ed.kind = 'tagged' AND tg.name = ?
-      )`);
-      params.push(opts.tag);
-    }
-
-    const where = conditions.join(' AND ');
-    const rows = this.db.prepare(`SELECT e.* FROM epics e WHERE ${where} ORDER BY e."order" LIMIT ? OFFSET ?`)
-      .all(...params, limit, offset) as Array<Record<string, unknown>>;
-    const total = num((this.db.prepare(`SELECT COUNT(*) AS c FROM epics e WHERE ${where}`).get(...params) as { c: bigint }).c);
-
-    const ids = rows.map(r => num(r.id as bigint));
-    const tagsMap = this.helpers.fetchTagsBatch(GRAPH_EPICS, ids);
-    const attachMap = this.helpers.fetchAttachmentsBatch(GRAPH_EPICS, ids);
-
-    const results = rows.map(r => {
-      const id = num(r.id as bigint);
-      const record = this.toEpicRecord(r, tagsMap.get(id));
-      record.attachments = attachMap.get(id) ?? [];
-      return record;
-    });
-
-    return { results, total };
-  }
-
-  searchEpics(query: SearchQuery): SearchResult[] {
-    return hybridSearch(this.db, EPIC_SEARCH_CONFIG, query, this.projectId);
   }
 
   // =========================================================================

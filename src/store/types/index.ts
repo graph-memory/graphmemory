@@ -4,6 +4,7 @@ export * from './docs';
 export * from './files';
 export * from './knowledge';
 export * from './tasks';
+export * from './epics';
 export * from './skills';
 export * from './tags';
 export * from './attachments';

@@ -17,6 +17,8 @@ export interface SearchConfig {
   parentTable: string;
   /** Column to join parent table to FTS rowid (usually 'id') */
   parentIdColumn: string;
+  /** Optional extra SQL appended to the JOIN condition on parent table (e.g. "AND p.kind = 'file'") */
+  extraJoinCondition?: string;
 }
 
 /**
@@ -42,12 +44,14 @@ export function hybridSearch(
   let ftsRanked: Array<{ id: number; rn: number }> = [];
   let vecRanked: Array<{ id: number; rn: number }> = [];
 
+  const extraJoin = config.extraJoinCondition ?? '';
+
   // FTS5 keyword search
   if (mode !== 'vector' && query.text) {
     const rows = db.prepare(`
       SELECT p.${config.parentIdColumn} AS id, ROW_NUMBER() OVER (ORDER BY rank) AS rn
       FROM ${config.ftsTable} fts
-      JOIN ${config.parentTable} p ON p.${config.parentIdColumn} = fts.rowid AND p.project_id = ?
+      JOIN ${config.parentTable} p ON p.${config.parentIdColumn} = fts.rowid AND p.project_id = ? ${extraJoin}
       WHERE ${config.ftsTable} MATCH ?
       LIMIT ?
     `).all(projectId, query.text, topK) as Array<{ id: bigint; rn: bigint }>;
@@ -64,7 +68,7 @@ export function hybridSearch(
     const rows = db.prepare(`
       SELECT v.rowid AS id, v.distance, ROW_NUMBER() OVER (ORDER BY v.distance) AS rn
       FROM ${config.vecTable} v
-      JOIN ${config.parentTable} p ON p.${config.parentIdColumn} = v.rowid AND p.project_id = ?
+      JOIN ${config.parentTable} p ON p.${config.parentIdColumn} = v.rowid AND p.project_id = ? ${extraJoin}
       WHERE v.embedding MATCH ? AND v.k = ?
     `).all(projectId, embeddingBuf, vecK) as Array<{ id: bigint; distance: number; rn: bigint }>;
 

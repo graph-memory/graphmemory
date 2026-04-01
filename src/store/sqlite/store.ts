@@ -12,7 +12,7 @@ import type {
 import { openDatabase } from './lib/db';
 import { runMigrations } from './lib/migrate';
 import { MetaHelper } from './lib/meta';
-import { num } from './lib/bigint';
+import { EdgeHelper } from './lib/edge-helper';
 import { v001 } from './migrations/v001';
 import { SqliteTeamStore } from './stores/team';
 import { SqliteProjectsStore } from './stores/projects';
@@ -23,6 +23,7 @@ const ALL_MIGRATIONS = [v001];
 export class SqliteStore implements Store {
   private db: Database.Database | null = null;
   private metaHelper: MetaHelper | null = null;
+  private edgeHelper: EdgeHelper | null = null;
   private scopedCache = new Map<number, ProjectScopedStore>();
   private _projects: SqliteProjectsStore | null = null;
   private _team: SqliteTeamStore | null = null;
@@ -46,6 +47,7 @@ export class SqliteStore implements Store {
     this.db = openDatabase(opts.dbPath);
     runMigrations(this.db, ALL_MIGRATIONS);
     this.metaHelper = new MetaHelper(this.db, '');
+    this.edgeHelper = new EdgeHelper(this.db);
     this._projects = new SqliteProjectsStore(this.db);
     this._team = new SqliteTeamStore(this.db);
   }
@@ -55,6 +57,7 @@ export class SqliteStore implements Store {
     this.scopedCache.clear();
     this._projects = null;
     this._team = null;
+    this.edgeHelper = null;
     this.db.pragma('wal_checkpoint(TRUNCATE)');
     this.db.close();
     this.db = null;
@@ -77,52 +80,27 @@ export class SqliteStore implements Store {
 
   createEdge(projectId: number, edge: Edge): void {
     this.requireDb();
-    this.db!.prepare(`
-      INSERT OR IGNORE INTO edges (project_id, from_graph, from_id, to_graph, to_id, kind)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(projectId, edge.fromGraph, edge.fromId, edge.toGraph, edge.toId, edge.kind);
+    this.edgeHelper!.createEdge(projectId, edge);
   }
 
   deleteEdge(projectId: number, edge: Edge): void {
     this.requireDb();
-    this.db!.prepare(`
-      DELETE FROM edges
-      WHERE project_id = ? AND from_graph = ? AND from_id = ? AND to_graph = ? AND to_id = ? AND kind = ?
-    `).run(projectId, edge.fromGraph, edge.fromId, edge.toGraph, edge.toId, edge.kind);
+    this.edgeHelper!.deleteEdge(projectId, edge);
   }
 
   listEdges(filter: EdgeFilter & { projectId?: number }): Edge[] {
     this.requireDb();
-    const conditions: string[] = [];
-    const params: unknown[] = [];
-
-    if (filter.projectId !== undefined) { conditions.push('project_id = ?'); params.push(filter.projectId); }
-    if (filter.fromGraph) { conditions.push('from_graph = ?'); params.push(filter.fromGraph); }
-    if (filter.fromId !== undefined) { conditions.push('from_id = ?'); params.push(filter.fromId); }
-    if (filter.toGraph) { conditions.push('to_graph = ?'); params.push(filter.toGraph); }
-    if (filter.toId !== undefined) { conditions.push('to_id = ?'); params.push(filter.toId); }
-    if (filter.kind) { conditions.push('kind = ?'); params.push(filter.kind); }
-
-    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-    const rows = this.db!.prepare(
-      `SELECT from_graph, from_id, to_graph, to_id, kind FROM edges ${where}`
-    ).all(...params) as Array<Record<string, unknown>>;
-
-    return rows.map(r => ({
-      fromGraph: r.from_graph as GraphName,
-      fromId: num(r.from_id as bigint),
-      toGraph: r.to_graph as GraphName,
-      toId: num(r.to_id as bigint),
-      kind: r.kind as string,
-    }));
+    return this.edgeHelper!.listEdges(filter);
   }
 
   findIncomingEdges(targetGraph: GraphName, targetId: number, projectId?: number): Edge[] {
-    return this.listEdges({ toGraph: targetGraph, toId: targetId, projectId });
+    this.requireDb();
+    return this.edgeHelper!.findIncomingEdges(targetGraph, targetId, projectId);
   }
 
   findOutgoingEdges(fromGraph: GraphName, fromId: number, projectId?: number): Edge[] {
-    return this.listEdges({ fromGraph, fromId, projectId });
+    this.requireDb();
+    return this.edgeHelper!.findOutgoingEdges(fromGraph, fromId, projectId);
   }
 
   // --- Transaction ---

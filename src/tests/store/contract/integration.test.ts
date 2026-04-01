@@ -212,14 +212,14 @@ describe('Store integration', () => {
     const project = store.projects.create({ slug: 'test', name: 'Test', directory: '/test' });
     const scoped = store.project(project.id);
 
-    const epic = scoped.tasks.createEpic({ title: 'MVP', description: 'Minimum viable product' }, seedEmbedding(1));
+    const epic = scoped.epics.create({ title: 'MVP', description: 'Minimum viable product' }, seedEmbedding(1));
     const task = scoped.tasks.create({ title: 'Auth', description: '' }, seedEmbedding(2));
 
     // Link task to epic
-    scoped.createEdge({ fromGraph: 'epics', fromId: epic.id, toGraph: 'tasks', toId: task.id, kind: 'belongs_to' });
+    scoped.epics.linkTask(epic.id, task.id);
     scoped.tasks.move(task.id, 'done');
 
-    const epicDetail = scoped.tasks.getEpic(epic.id)!;
+    const epicDetail = scoped.epics.get(epic.id)!;
     expect(epicDetail.progress).toEqual({ total: 1, done: 1 });
   });
 });

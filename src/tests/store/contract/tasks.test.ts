@@ -250,11 +250,79 @@ describe('TasksStore contract', () => {
     expect(epicDetail.progress).toEqual({ total: 2, done: 1 });
   });
 
+  // --- List filters (additional) ---
+
+  it('lists with assigneeId filter', () => {
+    const member = store.team.create({ slug: 'dev', name: 'Dev' });
+    tasks.create({ title: 'Assigned', description: '', assigneeId: member.id }, seedEmbedding(1));
+    tasks.create({ title: 'Unassigned', description: '' }, seedEmbedding(2));
+
+    const result = tasks.list({ assigneeId: member.id });
+    expect(result.results.length).toBe(1);
+    expect(result.results[0].title).toBe('Assigned');
+  });
+
+  it('lists with priority filter', () => {
+    tasks.create({ title: 'High', description: '', priority: 'high' }, seedEmbedding(1));
+    tasks.create({ title: 'Low', description: '', priority: 'low' }, seedEmbedding(2));
+
+    const result = tasks.list({ priority: 'high' });
+    expect(result.results.length).toBe(1);
+    expect(result.results[0].title).toBe('High');
+  });
+
+  // --- Epic extra tests ---
+
+  it('getEpicBySlug works', () => {
+    const epic = tasks.createEpic({ title: 'Slug', description: '' }, seedEmbedding(1));
+    const found = tasks.getEpicBySlug(epic.slug);
+    expect(found).not.toBeNull();
+    expect(found!.id).toBe(epic.id);
+  });
+
+  it('getEpicBySlug returns null for missing slug', () => {
+    expect(tasks.getEpicBySlug('nonexistent')).toBeNull();
+  });
+
+  it('searchEpics by keyword', () => {
+    tasks.createEpic({ title: 'MVP Release', description: 'Ship it' }, seedEmbedding(1));
+    tasks.createEpic({ title: 'Tech Debt', description: 'Cleanup' }, seedEmbedding(2));
+
+    const results = tasks.searchEpics({ text: 'MVP', searchMode: 'keyword' });
+    expect(results.length).toBeGreaterThan(0);
+  });
+
+  it('listEpics with status filter', () => {
+    tasks.createEpic({ title: 'Open', description: '' }, seedEmbedding(1));
+    tasks.createEpic({ title: 'Closed', description: '', status: 'done' }, seedEmbedding(2));
+
+    const result = tasks.listEpics({ status: 'open' });
+    expect(result.results.length).toBe(1);
+    expect(result.results[0].title).toBe('Open');
+  });
+
   // --- Timestamps ---
 
   it('getUpdatedAt works', () => {
     const task = tasks.create({ title: 'T', description: '' }, seedEmbedding(1));
     expect(tasks.getUpdatedAt(task.id)).toBe(task.updatedAt);
     expect(tasks.getUpdatedAt(999)).toBeNull();
+  });
+
+  // --- Orphaned tags cleanup ---
+
+  it('updating tags cleans up orphaned tags', () => {
+    const task = tasks.create({ title: 'T', description: '', tags: ['old-tag'] }, seedEmbedding(1));
+    const db = store.getDb();
+
+    // Verify tag exists
+    const before = Number((db.prepare("SELECT COUNT(*) AS c FROM tags WHERE project_id = ? AND name = 'old-tag'").get(projectId) as { c: bigint }).c);
+    expect(before).toBe(1);
+
+    // Update to new tags — old-tag should be removed
+    tasks.update(task.id, { tags: ['new-tag'] }, null);
+
+    const after = Number((db.prepare("SELECT COUNT(*) AS c FROM tags WHERE project_id = ? AND name = 'old-tag'").get(projectId) as { c: bigint }).c);
+    expect(after).toBe(0);
   });
 });

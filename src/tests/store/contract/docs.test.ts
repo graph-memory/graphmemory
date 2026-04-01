@@ -232,6 +232,20 @@ describe('DocsStore contract', () => {
     }
   });
 
+  it('searchSnippets filters by language', () => {
+    docs.updateFile('docs/guide.md', makeChunks(), 1000, makeEmbeddings());
+
+    const yaml = docs.searchSnippets({ text: 'configure', searchMode: 'keyword' }, 'yaml');
+    const python = docs.searchSnippets({ text: 'configure', searchMode: 'keyword' }, 'python');
+
+    // yaml snippet matches, python does not
+    for (const r of yaml) {
+      const node = docs.getNode(r.id);
+      expect(node!.language).toBe('yaml');
+    }
+    expect(python.length).toBe(0);
+  });
+
   // --- Meta ---
 
   it('meta is prefixed', () => {

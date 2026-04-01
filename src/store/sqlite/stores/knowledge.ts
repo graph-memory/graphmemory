@@ -148,7 +148,7 @@ export class SqliteKnowledgeStore implements KnowledgeStore {
     if (tag) {
       conditions.push(`EXISTS (
         SELECT 1 FROM edges e JOIN tags t ON t.id = e.from_id AND t.project_id = e.project_id
-        WHERE e.project_id = k.project_id AND e.to_graph = '${GRAPH}' AND e.to_id = k.id
+        WHERE e.project_id = k.project_id AND e.to_graph = 'knowledge' AND e.to_id = k.id
         AND e.from_graph = 'tags' AND e.kind = 'tagged' AND t.name = ?
       )`);
       params.push(tag);

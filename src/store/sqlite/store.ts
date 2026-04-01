@@ -12,9 +12,11 @@ import type {
 import { openDatabase } from './lib/db';
 import { runMigrations } from './lib/migrate';
 import { MetaHelper } from './lib/meta';
+import { num } from './lib/bigint';
 import { v001 } from './migrations/v001';
 import { SqliteTeamStore } from './stores/team';
 import { SqliteProjectsStore } from './stores/projects';
+import { SqliteProjectScopedStore } from './stores/project-scoped';
 
 const ALL_MIGRATIONS = [v001];
 
@@ -61,30 +63,66 @@ export class SqliteStore implements Store {
 
   // --- Project scoping ---
 
-  project(_projectId: number): ProjectScopedStore {
-    throw new Error('Not implemented yet (Phase 6)');
+  project(projectId: number): ProjectScopedStore {
+    this.requireDb();
+    let scoped = this.scopedCache.get(projectId);
+    if (!scoped) {
+      scoped = new SqliteProjectScopedStore(this.db!, projectId);
+      this.scopedCache.set(projectId, scoped);
+    }
+    return scoped;
   }
 
   // --- Edges ---
 
-  createEdge(_projectId: number, _edge: Edge): void {
-    throw new Error('Not implemented yet (Phase 6)');
+  createEdge(projectId: number, edge: Edge): void {
+    this.requireDb();
+    this.db!.prepare(`
+      INSERT OR IGNORE INTO edges (project_id, from_graph, from_id, to_graph, to_id, kind)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(projectId, edge.fromGraph, edge.fromId, edge.toGraph, edge.toId, edge.kind);
   }
 
-  deleteEdge(_projectId: number, _edge: Edge): void {
-    throw new Error('Not implemented yet (Phase 6)');
+  deleteEdge(projectId: number, edge: Edge): void {
+    this.requireDb();
+    this.db!.prepare(`
+      DELETE FROM edges
+      WHERE project_id = ? AND from_graph = ? AND from_id = ? AND to_graph = ? AND to_id = ? AND kind = ?
+    `).run(projectId, edge.fromGraph, edge.fromId, edge.toGraph, edge.toId, edge.kind);
   }
 
-  listEdges(_filter: EdgeFilter & { projectId?: number }): Edge[] {
-    throw new Error('Not implemented yet (Phase 6)');
+  listEdges(filter: EdgeFilter & { projectId?: number }): Edge[] {
+    this.requireDb();
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+
+    if (filter.projectId !== undefined) { conditions.push('project_id = ?'); params.push(filter.projectId); }
+    if (filter.fromGraph) { conditions.push('from_graph = ?'); params.push(filter.fromGraph); }
+    if (filter.fromId !== undefined) { conditions.push('from_id = ?'); params.push(filter.fromId); }
+    if (filter.toGraph) { conditions.push('to_graph = ?'); params.push(filter.toGraph); }
+    if (filter.toId !== undefined) { conditions.push('to_id = ?'); params.push(filter.toId); }
+    if (filter.kind) { conditions.push('kind = ?'); params.push(filter.kind); }
+
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const rows = this.db!.prepare(
+      `SELECT from_graph, from_id, to_graph, to_id, kind FROM edges ${where}`
+    ).all(...params) as Array<Record<string, unknown>>;
+
+    return rows.map(r => ({
+      fromGraph: r.from_graph as GraphName,
+      fromId: num(r.from_id as bigint),
+      toGraph: r.to_graph as GraphName,
+      toId: num(r.to_id as bigint),
+      kind: r.kind as string,
+    }));
   }
 
-  findIncomingEdges(_targetGraph: GraphName, _targetId: number, _projectId?: number): Edge[] {
-    throw new Error('Not implemented yet (Phase 6)');
+  findIncomingEdges(targetGraph: GraphName, targetId: number, projectId?: number): Edge[] {
+    return this.listEdges({ toGraph: targetGraph, toId: targetId, projectId });
   }
 
-  findOutgoingEdges(_fromGraph: GraphName, _fromId: number, _projectId?: number): Edge[] {
-    throw new Error('Not implemented yet (Phase 6)');
+  findOutgoingEdges(fromGraph: GraphName, fromId: number, projectId?: number): Edge[] {
+    return this.listEdges({ fromGraph, fromId, projectId });
   }
 
   // --- Transaction ---
@@ -113,7 +151,7 @@ export class SqliteStore implements Store {
 
   // --- Internal ---
 
-  /** Get the raw database handle (for sub-stores) */
+  /** Get the raw database handle (for sub-stores and tests) */
   getDb(): Database.Database {
     this.requireDb();
     return this.db!;

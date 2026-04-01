@@ -1,6 +1,6 @@
 /** Shared types used across all store modules. */
 
-export type GraphName = 'code' | 'docs' | 'files' | 'knowledge' | 'tasks' | 'skills';
+export type GraphName = 'code' | 'docs' | 'files' | 'knowledge' | 'tasks' | 'skills' | 'epics' | 'tags';
 
 // ---------------------------------------------------------------------------
 // Search

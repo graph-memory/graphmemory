@@ -41,7 +41,7 @@ export class SqliteCodeStore implements CodeStore {
       body: row.body as string,
       startLine: num(row.start_line as bigint),
       endLine: num(row.end_line as bigint),
-      isExported: (row.is_exported as number | bigint) === 1 || (row.is_exported as number | bigint) === BigInt(1),
+      isExported: row.is_exported === BigInt(1),
       mtime: num(row.mtime as bigint),
     };
   }

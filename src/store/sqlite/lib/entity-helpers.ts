@@ -12,8 +12,25 @@ export class EntityHelpers {
   // --- Tags ---
 
   setTags(graph: string, entityId: number, tags: string[]): void {
-    this.db.prepare(`DELETE FROM edges WHERE project_id = ? AND to_graph = ? AND to_id = ? AND from_graph = 'tags'`)
+    // Collect old tag ids before deleting edges
+    const oldTagIds = this.db.prepare(
+      `SELECT from_id FROM edges WHERE project_id = ? AND to_graph = ? AND to_id = ? AND from_graph = 'tags' AND kind = 'tagged'`
+    ).all(this.projectId, graph, entityId) as Array<{ from_id: bigint }>;
+
+    this.db.prepare(`DELETE FROM edges WHERE project_id = ? AND to_graph = ? AND to_id = ? AND from_graph = 'tags' AND kind = 'tagged'`)
       .run(this.projectId, graph, entityId);
+
+    // Clean up orphaned tags (tags with no remaining edges)
+    for (const old of oldTagIds) {
+      const edgeCount = num((this.db.prepare(
+        `SELECT COUNT(*) AS c FROM edges WHERE project_id = ? AND from_graph = 'tags' AND from_id = ? AND kind = 'tagged'`
+      ).get(this.projectId, num(old.from_id)) as { c: bigint }).c);
+      if (edgeCount === 0) {
+        this.db.prepare('DELETE FROM tags WHERE id = ? AND project_id = ?').run(num(old.from_id), this.projectId);
+      }
+    }
+
+    // Insert new tags
     for (const tag of tags) {
       this.db.prepare('INSERT OR IGNORE INTO tags (project_id, name) VALUES (?, ?)').run(this.projectId, tag);
       const row = this.db.prepare('SELECT id FROM tags WHERE project_id = ? AND name = ?').get(this.projectId, tag) as { id: bigint };

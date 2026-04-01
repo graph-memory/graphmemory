@@ -40,6 +40,8 @@ export class SqliteFilesStore implements FilesStore {
   }
 
   private ensureDirectory(dirPath: string): number {
+    if (!dirPath || dirPath === '.' || dirPath === '') return -1;
+
     // Check if directory already exists
     const existing = this.db.prepare(
       "SELECT id FROM files WHERE project_id = ? AND file_path = ? AND kind = 'directory'"
@@ -47,8 +49,13 @@ export class SqliteFilesStore implements FilesStore {
 
     if (existing) return num(existing.id);
 
-    const dirName = path.basename(dirPath) || dirPath;
+    // Recursively ensure parent exists first
     const parentDir = path.dirname(dirPath);
+    if (parentDir !== dirPath && parentDir !== '.' && parentDir !== '') {
+      this.ensureDirectory(parentDir);
+    }
+
+    const dirName = path.basename(dirPath) || dirPath;
 
     const result = this.db.prepare(`
       INSERT INTO files (project_id, kind, file_path, file_name, directory, extension, size, file_count, mtime)
@@ -229,6 +236,8 @@ export class SqliteFilesStore implements FilesStore {
     const mode = query.searchMode ?? 'hybrid';
     const maxResults = query.maxResults ?? 20;
 
+    const minScore = query.minScore ?? 0;
+
     if (mode === 'keyword' && query.text) {
       // Fallback: LIKE-based search on file_path
       const rows = this.db.prepare(`
@@ -236,7 +245,9 @@ export class SqliteFilesStore implements FilesStore {
         ORDER BY file_path ASC LIMIT ?
       `).all(this.projectId, `%${query.text}%`, maxResults) as Array<{ id: bigint }>;
 
-      return rows.map((r, i) => ({ id: num(r.id), score: 1 / (60 + i + 1) }));
+      return rows
+        .map((r, i) => ({ id: num(r.id), score: 1 / (60 + i + 1) }))
+        .filter(r => r.score >= minScore);
     }
 
     if (mode === 'vector' && query.embedding) {
@@ -251,10 +262,9 @@ export class SqliteFilesStore implements FilesStore {
         WHERE v.embedding MATCH ? AND v.k = ?
       `).all(this.projectId, embeddingBuf, topK * 3) as Array<{ id: bigint; distance: number }>;
 
-      return rows.slice(0, maxResults).map((r, i) => ({
-        id: num(r.id),
-        score: 1 / (60 + i + 1),
-      }));
+      return rows.slice(0, maxResults)
+        .map((r, i) => ({ id: num(r.id), score: 1 / (60 + i + 1) }))
+        .filter(r => r.score >= minScore);
     }
 
     // Hybrid: combine LIKE + vector
@@ -288,7 +298,6 @@ export class SqliteFilesStore implements FilesStore {
       for (const r of likeResults) scores.set(r.id, (scores.get(r.id) ?? 0) + 1 / (K + r.rn));
       for (const r of vecResults) scores.set(r.id, (scores.get(r.id) ?? 0) + 1 / (K + r.rn));
 
-      const minScore = query.minScore ?? 0;
       return [...scores.entries()]
         .map(([id, score]) => ({ id, score }))
         .filter(r => r.score >= minScore)

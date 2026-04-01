@@ -42,6 +42,17 @@ describe('FilesStore contract', () => {
     expect(dir!.fileName).toBe('utils');
   });
 
+  it('creates full directory chain for deeply nested files', () => {
+    files.updateFile('a/b/c/file.ts', 100, 1000, seedEmbedding(1));
+
+    expect(files.getFileInfo('a')).not.toBeNull();
+    expect(files.getFileInfo('a')!.kind).toBe('directory');
+    expect(files.getFileInfo('a/b')).not.toBeNull();
+    expect(files.getFileInfo('a/b')!.kind).toBe('directory');
+    expect(files.getFileInfo('a/b/c')).not.toBeNull();
+    expect(files.getFileInfo('a/b/c')!.kind).toBe('directory');
+  });
+
   it('updates existing file', () => {
     files.updateFile('src/index.ts', 1024, 1000, seedEmbedding(1));
     files.updateFile('src/index.ts', 2048, 2000, seedEmbedding(2));

@@ -1,0 +1,9 @@
+/** Convert BigInt (from better-sqlite3 safeIntegers) to number */
+export function num(v: bigint | number): number {
+  return typeof v === 'bigint' ? Number(v) : v;
+}
+
+/** Current timestamp in ms as BigInt (for SQLite INTEGER columns) */
+export function now(): bigint {
+  return BigInt(Date.now());
+}

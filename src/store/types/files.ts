@@ -4,8 +4,11 @@ import type { MetaMixin, PaginationOptions, SearchQuery, SearchResult } from './
 // File Index Store (indexed)
 // ---------------------------------------------------------------------------
 
-export interface FileEntry {
+export type FileNodeKind = 'file' | 'directory';
+
+export interface FileNode {
   id: number;
+  kind: FileNodeKind;
   filePath: string;
   fileName: string;
   directory: string;
@@ -13,16 +16,8 @@ export interface FileEntry {
   language: string | null;
   mimeType: string | null;
   size: number;
-  mtime: number;
-}
-
-export interface DirectoryEntry {
-  id: number;
-  filePath: string;
-  fileName: string;
-  directory: string;
-  size: number;
   fileCount: number;
+  mtime: number;
 }
 
 export interface FileListOptions extends PaginationOptions {
@@ -48,10 +43,10 @@ export interface FilesStore extends MetaMixin {
   getFileMtime(filePath: string): number | null;
 
   /** List files/directories */
-  listFiles(opts?: FileListOptions): { results: Array<FileEntry | DirectoryEntry>; total: number };
+  listFiles(opts?: FileListOptions): { results: FileNode[]; total: number };
 
   /** Get info for a single file or directory */
-  getFileInfo(filePath: string): (FileEntry | DirectoryEntry) | null;
+  getFileInfo(filePath: string): FileNode | null;
 
   /** Search files by path */
   search(query: SearchQuery): SearchResult[];

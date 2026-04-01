@@ -1,4 +1,4 @@
-import type { CrossLink, MetaMixin, PaginationOptions, Relation, SearchQuery, SearchResult } from './common';
+import type { Edge, MetaMixin, PaginationOptions, SearchQuery, SearchResult } from './common';
 import type { AttachmentMeta } from './attachments';
 
 // ---------------------------------------------------------------------------
@@ -31,8 +31,7 @@ export interface NoteRecord {
 }
 
 export interface NoteDetail extends NoteRecord {
-  relations: { incoming: Relation[]; outgoing: Relation[] };
-  crossLinks: CrossLink[];
+  edges: Edge[];
 }
 
 export interface KnowledgeStore extends MetaMixin {
@@ -46,11 +45,6 @@ export interface KnowledgeStore extends MetaMixin {
 
   // --- Search ---
   search(query: SearchQuery): SearchResult[];
-
-  // --- Same-graph relations ---
-  createRelation(fromId: number, toId: number, kind: string): void;
-  deleteRelation(fromId: number, toId: number): void;
-  listRelations(noteId: number): { incoming: Relation[]; outgoing: Relation[] };
 
   // --- Timestamps ---
   getUpdatedAt(noteId: number): number | null;

@@ -1,4 +1,4 @@
-import type { CrossLink, MetaMixin, PaginationOptions, Relation, SearchQuery, SearchResult } from './common';
+import type { Edge, MetaMixin, PaginationOptions, SearchQuery, SearchResult } from './common';
 import type { AttachmentMeta } from './attachments';
 
 // ---------------------------------------------------------------------------
@@ -53,11 +53,7 @@ export interface SkillRecord {
 }
 
 export interface SkillDetail extends SkillRecord {
-  dependsOn: Relation[];
-  dependedBy: Relation[];
-  related: Relation[];
-  variants: Relation[];
-  crossLinks: CrossLink[];
+  edges: Edge[];
 }
 
 export interface SkillListOptions extends PaginationOptions {
@@ -78,11 +74,6 @@ export interface SkillsStore extends MetaMixin {
 
   /** Increment usageCount, set lastUsedAt */
   bumpUsage(skillId: number): void;
-
-  // --- Same-graph relations ---
-  createRelation(fromId: number, toId: number, kind: string): void;
-  deleteRelation(fromId: number, toId: number): void;
-  listRelations(skillId: number): { incoming: Relation[]; outgoing: Relation[] };
 
   // --- Timestamps ---
   getUpdatedAt(skillId: number): number | null;

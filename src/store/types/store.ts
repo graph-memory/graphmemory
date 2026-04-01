@@ -1,4 +1,4 @@
-import type { CrossLink, CrossLinkFilter, GraphName } from './common';
+import type { Edge, EdgeFilter, GraphName } from './common';
 import type { CodeStore } from './code';
 import type { DocsStore } from './docs';
 import type { FilesStore } from './files';
@@ -26,11 +26,14 @@ export interface ProjectScopedStore {
   readonly tags: TagsStore;
   readonly attachments: AttachmentsStore;
 
-  // --- Cross-graph links scoped to this project ---
-  createCrossLink(link: CrossLink): void;
-  deleteCrossLink(link: CrossLink): void;
-  listCrossLinks(filter: CrossLinkFilter): CrossLink[];
-  findIncomingCrossLinks(targetGraph: GraphName, targetId: number): CrossLink[];
+  // --- Edges (unified graph edges — same-graph and cross-graph) ---
+  createEdge(edge: Edge): void;
+  deleteEdge(edge: Edge): void;
+  listEdges(filter: EdgeFilter): Edge[];
+  /** Find all edges pointing TO a given node */
+  findIncomingEdges(targetGraph: GraphName, targetId: number): Edge[];
+  /** Find all edges going FROM a given node */
+  findOutgoingEdges(fromGraph: GraphName, fromId: number): Edge[];
 }
 
 // ---------------------------------------------------------------------------
@@ -56,11 +59,12 @@ export interface Store {
   /** Get a project-scoped view on all sub-stores */
   project(projectId: number): ProjectScopedStore;
 
-  // --- Cross-graph links (across all projects) ---
-  createCrossLink(projectId: number, link: CrossLink): void;
-  deleteCrossLink(projectId: number, link: CrossLink): void;
-  listCrossLinks(filter: CrossLinkFilter & { projectId?: number }): CrossLink[];
-  findIncomingCrossLinks(targetGraph: GraphName, targetId: number, projectId?: number): CrossLink[];
+  // --- Edges (across all projects) ---
+  createEdge(projectId: number, edge: Edge): void;
+  deleteEdge(projectId: number, edge: Edge): void;
+  listEdges(filter: EdgeFilter & { projectId?: number }): Edge[];
+  findIncomingEdges(targetGraph: GraphName, targetId: number, projectId?: number): Edge[];
+  findOutgoingEdges(fromGraph: GraphName, fromId: number, projectId?: number): Edge[];
 
   /**
    * Run multiple store operations atomically.

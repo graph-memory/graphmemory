@@ -1,4 +1,4 @@
-import type { CrossLink, MetaMixin, PaginationOptions, Relation, SearchQuery, SearchResult } from './common';
+import type { Edge, MetaMixin, PaginationOptions, SearchQuery, SearchResult } from './common';
 import type { AttachmentMeta } from './attachments';
 
 // ---------------------------------------------------------------------------
@@ -55,12 +55,7 @@ export interface TaskRecord {
 }
 
 export interface TaskDetail extends TaskRecord {
-  subtasks: Relation[];
-  blockedBy: Relation[];
-  blocks: Relation[];
-  related: Relation[];
-  crossLinks: CrossLink[];
-  epicId: number | null;
+  edges: Edge[];
 }
 
 export interface TaskListOptions extends PaginationOptions {
@@ -109,8 +104,7 @@ export interface EpicRecord {
 }
 
 export interface EpicDetail extends EpicRecord {
-  tasks: TaskRecord[];
-  crossLinks: CrossLink[];
+  edges: Edge[];
 }
 
 export interface EpicListOptions extends PaginationOptions {
@@ -141,11 +135,6 @@ export interface TasksStore extends MetaMixin {
   /** Get next order value for a status column */
   nextOrderForStatus(status: TaskStatus): number;
 
-  // --- Task relations ---
-  createRelation(fromId: number, toId: number, kind: string): void;
-  deleteRelation(fromId: number, toId: number): void;
-  listRelations(taskId: number): { incoming: Relation[]; outgoing: Relation[] };
-
   // --- Timestamps ---
   getUpdatedAt(taskId: number): number | null;
 
@@ -162,9 +151,4 @@ export interface TasksStore extends MetaMixin {
   getEpicBySlug(slug: string): EpicDetail | null;
   listEpics(opts?: EpicListOptions): { results: EpicRecord[]; total: number };
   searchEpics(query: SearchQuery): SearchResult[];
-
-  // --- Epic ↔ Task links ---
-  linkTaskToEpic(taskId: number, epicId: number): void;
-  unlinkTaskFromEpic(taskId: number, epicId: number): void;
-  listEpicTasks(epicId: number): TaskRecord[];
 }

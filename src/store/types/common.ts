@@ -24,7 +24,7 @@ export interface SearchQuery {
 }
 
 export interface SearchResult {
-  id: string;
+  id: number;
   score: number;
 }
 
@@ -48,22 +48,22 @@ export interface PaginationOptions {
 }
 
 // ---------------------------------------------------------------------------
-// Cross-graph links (replaces proxy nodes)
+// Edges (unified graph edges — same-graph and cross-graph)
 // ---------------------------------------------------------------------------
 
-export interface CrossLink {
-  sourceGraph: GraphName;
-  sourceId: number;
-  targetGraph: GraphName;
-  targetId: number;
+export interface Edge {
+  fromGraph: GraphName;
+  fromId: number;
+  toGraph: GraphName;
+  toId: number;
   kind: string;
 }
 
-export interface CrossLinkFilter {
-  sourceGraph?: GraphName;
-  sourceId?: number;
-  targetGraph?: GraphName;
-  targetId?: number;
+export interface EdgeFilter {
+  fromGraph?: GraphName;
+  fromId?: number;
+  toGraph?: GraphName;
+  toId?: number;
   kind?: string;
 }
 
@@ -80,14 +80,3 @@ export class VersionConflictError extends Error {
     this.name = 'VersionConflictError';
   }
 }
-
-// ---------------------------------------------------------------------------
-// Relation (same-graph edge)
-// ---------------------------------------------------------------------------
-
-export interface Relation {
-  fromId: number;
-  toId: number;
-  kind: string;
-}
-

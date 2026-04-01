@@ -4,13 +4,10 @@ import type { MetaMixin, PaginationOptions, SearchQuery, SearchResult } from './
 // Code Store (indexed)
 // ---------------------------------------------------------------------------
 
-/** Parser decides what kinds exist per language (e.g. 'function', 'struct', 'trait', 'macro') */
+/** Parser decides what kinds exist per language (e.g. 'file', 'function', 'struct', 'trait') */
 export type CodeNodeKind = string;
 
-/** Parser decides what edge kinds exist per language (e.g. 'contains', 'imports', 'implements') */
-export type CodeEdgeKind = string;
-
-export interface CodeSymbol {
+export interface CodeNode {
   id: number;
   kind: CodeNodeKind;
   fileId: string;
@@ -22,12 +19,7 @@ export interface CodeSymbol {
   startLine: number;
   endLine: number;
   isExported: boolean;
-}
-
-export interface CodeEdge {
-  fromId: number;
-  toId: number;
-  kind: CodeEdgeKind;
+  mtime: number;
 }
 
 export interface CodeFileEntry {
@@ -40,17 +32,17 @@ export interface CodeFileEntry {
 
 export interface CodeStore extends MetaMixin {
   /**
-   * Replace all symbols for a file (called by indexer).
-   * Handles insert/update of nodes and intra-file edges (contains).
-   * embeddings: symbolId → vector (keyed by symbol name or temp ref from parser)
+   * Replace all nodes for a file (called by indexer).
+   * Inserts file node + symbol nodes + edges (contains, intra-file).
+   * embeddings: node name/ref → vector
    */
-  updateFile(fileId: string, symbols: Omit<CodeSymbol, 'id'>[], edges: Array<{ fromName: string; toName: string; kind: CodeEdgeKind }>, mtime: number, embeddings: Map<string, number[]>): void;
+  updateFile(fileId: string, nodes: Omit<CodeNode, 'id'>[], edges: Array<{ fromName: string; toName: string; kind: string }>, mtime: number, embeddings: Map<string, number[]>): void;
 
-  /** Remove all symbols and edges for a file */
+  /** Remove all nodes and edges for a file */
   removeFile(fileId: string): void;
 
   /** Resolve pending cross-file edges (imports, extends, implements) after full index */
-  resolveEdges(edges: Array<{ fromName: string; toName: string; kind: CodeEdgeKind }>): void;
+  resolveEdges(edges: Array<{ fromName: string; toName: string; kind: string }>): void;
 
   /** Get mtime for a file (null if not indexed) */
   getFileMtime(fileId: string): number | null;
@@ -58,18 +50,18 @@ export interface CodeStore extends MetaMixin {
   /** List indexed files with symbol counts */
   listFiles(filter?: string, pagination?: PaginationOptions): { results: CodeFileEntry[]; total: number };
 
-  /** Get all symbols for a file, sorted by startLine */
-  getFileSymbols(fileId: string): CodeSymbol[];
+  /** Get all symbol nodes for a file, sorted by startLine */
+  getFileSymbols(fileId: string): CodeNode[];
 
-  /** Get a single symbol with its edges */
-  getSymbol(symbolId: number): (CodeSymbol & { edges: Array<{ id: number; kind: CodeEdgeKind; direction: 'in' | 'out' }> }) | null;
+  /** Get a single node by id */
+  getNode(nodeId: number): CodeNode | null;
 
-  /** Search symbols (hybrid: FTS5 + sqlite-vec) */
+  /** Search nodes (hybrid: FTS5 + sqlite-vec) */
   search(query: SearchQuery): SearchResult[];
 
   /** Search files by path */
   searchFiles(query: SearchQuery): SearchResult[];
 
-  /** Find symbols by exact name (for cross-references, explain-symbol) */
-  findByName(name: string): CodeSymbol[];
+  /** Find nodes by exact name (for cross-references, explain-symbol) */
+  findByName(name: string): CodeNode[];
 }

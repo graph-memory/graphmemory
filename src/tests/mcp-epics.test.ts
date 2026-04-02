@@ -1,26 +1,29 @@
-import { createTaskGraph } from '@/graphs/task-types';
 import {
-  setupMcpClient, createFakeEmbed, json, text, jsonList,
-  type McpTestContext,
+  createFakeEmbed, createTestStoreManager, setupMcpClient, json, text, jsonList,
+  type McpTestContext, type TestStoreContext,
 } from '@/tests/helpers';
 
-type CreateResult = { epicId: string };
-type UpdateResult = { epicId: string; updated: boolean };
-type DeleteResult = { epicId: string; deleted: boolean };
-type LinkResult = { epicId: string; taskId: string; linked: boolean };
+type CreateResult = { epicId: number };
+type UpdateResult = { epicId: number; updated: boolean };
+type DeleteResult = { epicId: number; deleted: boolean };
+type LinkResult = { epicId: number; taskId: number; linked: boolean };
 
 describe('MCP Epics', () => {
   let ctx: McpTestContext;
-  let epicId1: string;
-  let epicId2: string;
+  let storeCtx: TestStoreContext;
+  let epicId1: number;
+  let epicId2: number;
 
   beforeAll(async () => {
     const embedFn = createFakeEmbed([['deploy', 1], ['roadmap', 2], ['auth', 3], ['docker', 4]]);
-    const taskGraph = createTaskGraph();
-    ctx = await setupMcpClient({ taskGraph, embedFn });
+    storeCtx = createTestStoreManager(embedFn);
+    ctx = await setupMcpClient({ storeManager: storeCtx.storeManager, embedFn });
   });
 
-  afterAll(async () => { await ctx.close(); });
+  afterAll(async () => {
+    await ctx.close();
+    storeCtx.cleanup();
+  });
 
   // -- Create --
 
@@ -30,7 +33,7 @@ describe('MCP Epics', () => {
       description: 'Set up CI/CD pipeline',
       priority: 'high',
     }));
-    expect(r.epicId).toBeTruthy();
+    expect(typeof r.epicId).toBe('number');
     epicId1 = r.epicId;
   });
 
@@ -41,7 +44,7 @@ describe('MCP Epics', () => {
       priority: 'medium',
       tags: ['auth', 'security'],
     }));
-    expect(r.epicId).toBeTruthy();
+    expect(typeof r.epicId).toBe('number');
     epicId2 = r.epicId;
   });
 
@@ -56,7 +59,7 @@ describe('MCP Epics', () => {
   });
 
   it('returns error for non-existent epic', async () => {
-    const r = await ctx.call('epics_get', { epicId: 'nonexistent' });
+    const r = await ctx.call('epics_get', { epicId: 999999 });
     expect(r.isError).toBe(true);
     expect(text(r)).toContain('not found');
   });
@@ -106,14 +109,14 @@ describe('MCP Epics', () => {
   });
 
   it('update non-existent returns error', async () => {
-    const r = await ctx.call('epics_update', { epicId: 'nonexistent', title: 'x' });
+    const r = await ctx.call('epics_update', { epicId: 999999, title: 'x' });
     expect(r.isError).toBe(true);
   });
 
   // -- Link task to epic --
 
   it('creates a task and links to epic', async () => {
-    const cr = json<{ taskId: string }>(await ctx.call('tasks_create', {
+    const cr = json<{ taskId: number }>(await ctx.call('tasks_create', {
       title: 'Set up Docker',
       description: 'Docker compose config',
       priority: 'medium',
@@ -145,7 +148,7 @@ describe('MCP Epics', () => {
   });
 
   it('delete non-existent returns error', async () => {
-    const r = await ctx.call('epics_delete', { epicId: 'nonexistent' });
+    const r = await ctx.call('epics_delete', { epicId: 999999 });
     expect(r.isError).toBe(true);
   });
 });

@@ -137,21 +137,8 @@ export function createSkillsRouter(_users?: Record<string, UserConfig>): Router 
     } catch (err) { next(err); }
   });
 
-  // Delete skill
-  router.delete('/:skillId', requireWriteAccess, async (req, res, next) => {
-    try {
-      const p = getProject(req);
-      const skillId = Number(req.params.skillId);
-      const existing = p.storeManager.getSkill(skillId);
-      if (!existing) return res.status(404).json({ error: 'Skill not found' });
-      await p.mutationQueue.enqueue(async () => {
-        p.storeManager.deleteSkill(skillId);
-      });
-      res.status(204).end();
-    } catch (err) { next(err); }
-  });
-
   // Create skill link (skill-to-skill or cross-graph)
+  // Must be registered before DELETE /:skillId to avoid 'links' being parsed as a skillId
   router.post('/links', requireWriteAccess, validateBody(createSkillLinkSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
@@ -170,6 +157,7 @@ export function createSkillsRouter(_users?: Record<string, UserConfig>): Router 
   });
 
   // Delete skill link
+  // Must be registered before DELETE /:skillId to avoid 'links' being parsed as a skillId
   router.delete('/links', requireWriteAccess, validateBody(createSkillLinkSchema.pick({ fromId: true, toId: true, targetGraph: true, projectId: true })), async (req, res, next) => {
     try {
       const p = getProject(req);
@@ -182,6 +170,20 @@ export function createSkillsRouter(_users?: Record<string, UserConfig>): Router 
           toId: Number(toId),
           kind: '',
         });
+      });
+      res.status(204).end();
+    } catch (err) { next(err); }
+  });
+
+  // Delete skill
+  router.delete('/:skillId', requireWriteAccess, async (req, res, next) => {
+    try {
+      const p = getProject(req);
+      const skillId = Number(req.params.skillId);
+      const existing = p.storeManager.getSkill(skillId);
+      if (!existing) return res.status(404).json({ error: 'Skill not found' });
+      await p.mutationQueue.enqueue(async () => {
+        p.storeManager.deleteSkill(skillId);
       });
       res.status(204).end();
     } catch (err) { next(err); }

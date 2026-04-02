@@ -2,42 +2,41 @@
 // Verifies that readonlyGraphs hides mutation tools, and userAccess
 // controls tool visibility (deny hides all, 'r' hides mutations).
 
-import { createKnowledgeGraph } from '@/graphs/knowledge-types';
-import { createTaskGraph } from '@/graphs/task-types';
-import { createSkillGraph } from '@/graphs/skill-types';
 import { createMcpServer } from '@/api/index';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import type { AccessLevel } from '@/lib/multi-config';
+import { createTestStoreManager, createFakeEmbed } from '@/tests/helpers';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-const fakeEmbed = async (_text: string): Promise<number[]> => Array(384).fill(0);
+const fakeEmbed = createFakeEmbed([['test', 0]]);
 
 async function listToolNames(
   readonlyGraphs?: Set<string>,
   userAccess?: Map<string, AccessLevel>,
 ): Promise<string[]> {
-  const kg = createKnowledgeGraph();
-  const tg = createTaskGraph();
-  const sg = createSkillGraph();
+  const storeCtx = createTestStoreManager(fakeEmbed);
 
   const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
   const server = createMcpServer(
     undefined,   // docGraph
     undefined,   // codeGraph
-    kg,          // knowledgeGraph
+    undefined,   // knowledgeGraph
     undefined,   // fileIndexGraph
-    tg,          // taskGraph
+    undefined,   // taskGraph
     fakeEmbed,   // embedFn
     undefined,   // mutationQueue
     undefined,   // projectDir
-    sg,          // skillGraph
+    undefined,   // skillGraph
     undefined,   // sessionContext
     readonlyGraphs,
     userAccess,
+    undefined,   // getSessionId
+    undefined,   // users
+    storeCtx.storeManager,
   );
   await server.connect(serverTransport);
 
@@ -49,6 +48,7 @@ async function listToolNames(
 
   await client.close();
   await server.close();
+  storeCtx.cleanup();
 
   return names;
 }
@@ -120,7 +120,7 @@ describe('MCP readonly graphs', () => {
 
   it('knowledge readonly — hides 7 knowledge mutation tools', async () => {
     const names = await listToolNames(new Set(['knowledge']));
-    expect(names.length).toBe(ALL_TOOLS_COUNT - KNOWLEDGE_MUTATION.length); // 33
+    expect(names.length).toBe(ALL_TOOLS_COUNT - KNOWLEDGE_MUTATION.length);
     for (const t of KNOWLEDGE_READ) expect(names).toContain(t);
     for (const t of KNOWLEDGE_MUTATION) expect(names).not.toContain(t);
   });
@@ -136,7 +136,7 @@ describe('MCP readonly graphs', () => {
 
   it('skills readonly — hides 9 skill mutation tools', async () => {
     const names = await listToolNames(new Set(['skills']));
-    expect(names.length).toBe(ALL_TOOLS_COUNT - SKILL_MUTATION.length); // 31
+    expect(names.length).toBe(ALL_TOOLS_COUNT - SKILL_MUTATION.length);
     for (const t of SKILL_READ) expect(names).toContain(t);
     for (const t of SKILL_MUTATION) expect(names).not.toContain(t);
   });
@@ -157,7 +157,7 @@ describe('MCP per-user access', () => {
   it('knowledge "r" — same as readonly, mutation tools hidden', async () => {
     const access = new Map<string, AccessLevel>([['knowledge', 'r']]);
     const names = await listToolNames(undefined, access);
-    expect(names.length).toBe(ALL_TOOLS_COUNT - KNOWLEDGE_MUTATION.length); // 33
+    expect(names.length).toBe(ALL_TOOLS_COUNT - KNOWLEDGE_MUTATION.length);
     for (const t of KNOWLEDGE_READ) expect(names).toContain(t);
     for (const t of KNOWLEDGE_MUTATION) expect(names).not.toContain(t);
   });
@@ -166,7 +166,7 @@ describe('MCP per-user access', () => {
     const access = new Map<string, AccessLevel>([['knowledge', 'deny']]);
     const names = await listToolNames(undefined, access);
     const hiddenCount = KNOWLEDGE_READ.length + KNOWLEDGE_MUTATION.length;
-    expect(names.length).toBe(ALL_TOOLS_COUNT - hiddenCount); // 28
+    expect(names.length).toBe(ALL_TOOLS_COUNT - hiddenCount);
     for (const t of [...KNOWLEDGE_READ, ...KNOWLEDGE_MUTATION]) expect(names).not.toContain(t);
     // Tasks, epics, and skills still visible
     for (const t of [...TASK_READ, ...TASK_MUTATION]) expect(names).toContain(t);
@@ -186,13 +186,15 @@ describe('MCP per-user access', () => {
   });
 
   it('read tools still work when knowledge is readonly', async () => {
-    const kg = createKnowledgeGraph();
+    const storeCtx = createTestStoreManager(fakeEmbed);
     const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
     const server = createMcpServer(
-      undefined, undefined, kg, undefined, undefined,
+      undefined, undefined, undefined, undefined, undefined,
       fakeEmbed,
       undefined, undefined, undefined, undefined,
       new Set(['knowledge']),
+      undefined, undefined, undefined,
+      storeCtx.storeManager,
     );
     await server.connect(serverTransport);
 
@@ -202,17 +204,18 @@ describe('MCP per-user access', () => {
     // notes_search should still work (read tool) even on a readonly graph
     const result = await client.callTool({
       name: 'notes_search',
-      arguments: { query: 'test query', limit: 5 },
+      arguments: { query: 'test query', maxResults: 5 },
     }) as { content: Array<{ type: string; text: string }> };
 
     expect(result.content).toBeDefined();
     expect(result.content[0].type).toBe('text');
-    // Empty graph → expect empty results, not an error
+    // Empty store → expect empty results, not an error
     const parsed = JSON.parse(result.content[0].text);
     expect(Array.isArray(parsed)).toBe(true);
     expect(parsed.length).toBe(0);
 
     await client.close();
     await server.close();
+    storeCtx.cleanup();
   });
 });

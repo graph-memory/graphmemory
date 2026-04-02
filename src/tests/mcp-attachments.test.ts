@@ -5,18 +5,17 @@
  * - skills_add_attachment / skills_remove_attachment
  *
  * Tests cover: successful attach, file not found, not a file (directory),
- * size limit (mocked), remove success, remove not found, filename validation.
+ * path traversal, remove success, remove not found, filename validation.
+ *
+ * Migrated to StoreManager / SQLite — entities created via MCP tools.
  */
 
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { createKnowledgeGraph, createNote } from '@/graphs/knowledge';
-import { createTaskGraph, createTask } from '@/graphs/task';
-import { createSkillGraph, createSkill } from '@/graphs/skill';
 import {
-  unitVec, createFakeEmbed, setupMcpClient, json, text,
-  type McpTestContext,
+  createFakeEmbed, createTestStoreManager, setupMcpClient, json, text,
+  type McpTestContext, type TestStoreContext,
 } from '@/tests/helpers';
 
 const QUERY_AXES: Array<[string, number]> = [['test', 0]];
@@ -41,7 +40,8 @@ function createTmpFile(dir: string, name: string, content: string): string {
 
 describe('MCP note attachment tools', () => {
   let ctx: McpTestContext;
-  let noteId: string;
+  let storeCtx: TestStoreContext;
+  let noteId: number;
   let projectDir: string;
   let filePath: string;
 
@@ -49,18 +49,24 @@ describe('MCP note attachment tools', () => {
     projectDir = makeTmpDir();
     filePath = createTmpFile(projectDir, 'doc.txt', 'Hello attachment');
 
-    const knowledgeGraph = createKnowledgeGraph();
-    noteId = createNote(knowledgeGraph, 'Test Note', 'content', [], unitVec(0));
-
+    const embedFn = createFakeEmbed(QUERY_AXES);
+    storeCtx = createTestStoreManager(embedFn, { projectDir });
     ctx = await setupMcpClient({
-      knowledgeGraph,
-      embedFn: createFakeEmbed(QUERY_AXES),
+      storeManager: storeCtx.storeManager,
+      embedFn,
       projectDir,
     });
+
+    // Create a note via tool call
+    const res = json<{ noteId: number }>(await ctx.call('notes_create', {
+      title: 'Test Note', content: 'content', tags: ['test'],
+    }));
+    noteId = res.noteId;
   });
 
   afterAll(async () => {
     await ctx.close();
+    storeCtx.cleanup();
     fs.rmSync(projectDir, { recursive: true, force: true });
   });
 
@@ -96,7 +102,7 @@ describe('MCP note attachment tools', () => {
   });
 
   it('notes_add_attachment: note not found returns error', async () => {
-    const result = await ctx.call('notes_add_attachment', { noteId: 'ghost-note', filePath });
+    const result = await ctx.call('notes_add_attachment', { noteId: 999999, filePath });
     expect(result.isError).toBe(true);
   });
 
@@ -110,9 +116,10 @@ describe('MCP note attachment tools', () => {
     expect(data.deleted).toBe('doc.txt');
   });
 
-  it('notes_remove_attachment: not found returns error', async () => {
+  it('notes_remove_attachment: missing file is a no-op', async () => {
     const result = await ctx.call('notes_remove_attachment', { noteId, filename: 'ghost.txt' });
-    expect(result.isError).toBe(true);
+    // StoreManager silently removes non-existent attachments
+    expect(result.isError).toBeFalsy();
   });
 });
 
@@ -122,7 +129,8 @@ describe('MCP note attachment tools', () => {
 
 describe('MCP task attachment tools', () => {
   let ctx: McpTestContext;
-  let taskId: string;
+  let storeCtx: TestStoreContext;
+  let taskId: number;
   let projectDir: string;
   let filePath: string;
 
@@ -130,18 +138,23 @@ describe('MCP task attachment tools', () => {
     projectDir = makeTmpDir();
     filePath = createTmpFile(projectDir, 'report.csv', 'id,name\n1,alice');
 
-    const taskGraph = createTaskGraph();
-    taskId = createTask(taskGraph, 'Test Task', 'desc', 'todo', 'medium', [], unitVec(0));
-
+    const embedFn = createFakeEmbed(QUERY_AXES);
+    storeCtx = createTestStoreManager(embedFn, { projectDir });
     ctx = await setupMcpClient({
-      taskGraph,
-      embedFn: createFakeEmbed(QUERY_AXES),
+      storeManager: storeCtx.storeManager,
+      embedFn,
       projectDir,
     });
+
+    const res = json<{ taskId: number }>(await ctx.call('tasks_create', {
+      title: 'Test Task', description: 'desc', priority: 'medium',
+    }));
+    taskId = res.taskId;
   });
 
   afterAll(async () => {
     await ctx.close();
+    storeCtx.cleanup();
     fs.rmSync(projectDir, { recursive: true, force: true });
   });
 
@@ -180,9 +193,9 @@ describe('MCP task attachment tools', () => {
     expect(json<{ deleted: string }>(result).deleted).toBe('report.csv');
   });
 
-  it('tasks_remove_attachment: not found', async () => {
+  it('tasks_remove_attachment: missing file is a no-op', async () => {
     const result = await ctx.call('tasks_remove_attachment', { taskId, filename: 'nope.txt' });
-    expect(result.isError).toBe(true);
+    expect(result.isError).toBeFalsy();
   });
 });
 
@@ -192,7 +205,8 @@ describe('MCP task attachment tools', () => {
 
 describe('MCP skill attachment tools', () => {
   let ctx: McpTestContext;
-  let skillId: string;
+  let storeCtx: TestStoreContext;
+  let skillId: number;
   let projectDir: string;
   let filePath: string;
 
@@ -200,18 +214,23 @@ describe('MCP skill attachment tools', () => {
     projectDir = makeTmpDir();
     filePath = createTmpFile(projectDir, 'template.yaml', 'key: value');
 
-    const skillGraph = createSkillGraph();
-    skillId = createSkill(skillGraph, 'Test Skill', 'desc', [], [], [], [], [], 'user', 1, unitVec(0));
-
+    const embedFn = createFakeEmbed(QUERY_AXES);
+    storeCtx = createTestStoreManager(embedFn, { projectDir });
     ctx = await setupMcpClient({
-      skillGraph,
-      embedFn: createFakeEmbed(QUERY_AXES),
+      storeManager: storeCtx.storeManager,
+      embedFn,
       projectDir,
     });
+
+    const res = json<{ skillId: number }>(await ctx.call('skills_create', {
+      title: 'Test Skill', description: 'desc', source: 'user',
+    }));
+    skillId = res.skillId;
   });
 
   afterAll(async () => {
     await ctx.close();
+    storeCtx.cleanup();
     fs.rmSync(projectDir, { recursive: true, force: true });
   });
 
@@ -250,61 +269,16 @@ describe('MCP skill attachment tools', () => {
     expect(json<{ deleted: string }>(result).deleted).toBe('template.yaml');
   });
 
-  it('skills_remove_attachment: not found', async () => {
+  it('skills_remove_attachment: missing file is a no-op', async () => {
     const result = await ctx.call('skills_remove_attachment', { skillId, filename: 'ghost.bin' });
-    expect(result.isError).toBe(true);
+    expect(result.isError).toBeFalsy();
   });
 });
 
 // ---------------------------------------------------------------------------
-// No project directory configured
+// No project directory — N/A with StoreManager (always has projectDir)
+// StoreManager requires projectDir in its constructor.
 // ---------------------------------------------------------------------------
-
-describe('attachment tools without projectDir', () => {
-  let ctx: McpTestContext;
-  let noteId: string;
-  let taskId: string;
-  let skillId: string;
-
-  beforeAll(async () => {
-    const knowledgeGraph = createKnowledgeGraph();
-    noteId = createNote(knowledgeGraph, 'No-Dir Note', 'content', [], unitVec(0));
-
-    const taskGraph = createTaskGraph();
-    taskId = createTask(taskGraph, 'No-Dir Task', 'desc', 'todo', 'medium', [], unitVec(0));
-
-    const skillGraph = createSkillGraph();
-    skillId = createSkill(skillGraph, 'No-Dir Skill', 'desc', [], [], [], [], [], 'user', 1, unitVec(0));
-
-    ctx = await setupMcpClient({
-      knowledgeGraph,
-      taskGraph,
-      skillGraph,
-      embedFn: createFakeEmbed(QUERY_AXES),
-      // no projectDir
-    });
-  });
-
-  afterAll(async () => { await ctx.close(); });
-
-  it('notes_add_attachment: rejects when no projectDir', async () => {
-    const result = await ctx.call('notes_add_attachment', { noteId, filePath: '/tmp/any.txt' });
-    expect(result.isError).toBe(true);
-    expect(text(result)).toContain('No project directory configured');
-  });
-
-  it('tasks_add_attachment: rejects when no projectDir', async () => {
-    const result = await ctx.call('tasks_add_attachment', { taskId, filePath: '/tmp/any.txt' });
-    expect(result.isError).toBe(true);
-    expect(text(result)).toContain('No project directory configured');
-  });
-
-  it('skills_add_attachment: rejects when no projectDir', async () => {
-    const result = await ctx.call('skills_add_attachment', { skillId, filePath: '/tmp/any.txt' });
-    expect(result.isError).toBe(true);
-    expect(text(result)).toContain('No project directory configured');
-  });
-});
 
 // ---------------------------------------------------------------------------
 // Filename validation (path traversal prevention)
@@ -312,20 +286,27 @@ describe('attachment tools without projectDir', () => {
 
 describe('attachment filename validation', () => {
   let ctx: McpTestContext;
-  let noteId: string;
+  let storeCtx: TestStoreContext;
+  let noteId: number;
 
   beforeAll(async () => {
     const projectDir = makeTmpDir();
-    const knowledgeGraph = createKnowledgeGraph();
-    noteId = createNote(knowledgeGraph, 'Val Note', '', [], unitVec(0));
+    const embedFn = createFakeEmbed(QUERY_AXES);
+    storeCtx = createTestStoreManager(embedFn, { projectDir });
     ctx = await setupMcpClient({
-      knowledgeGraph,
-      embedFn: createFakeEmbed(QUERY_AXES),
+      storeManager: storeCtx.storeManager,
+      embedFn,
       projectDir,
     });
+    noteId = json<{ noteId: number }>(await ctx.call('notes_create', {
+      title: 'Val Note', content: '',
+    })).noteId;
   });
 
-  afterAll(async () => { await ctx.close(); });
+  afterAll(async () => {
+    await ctx.close();
+    storeCtx.cleanup();
+  });
 
   it('rejects filename with path separator /', async () => {
     const result = await ctx.call('notes_remove_attachment', { noteId, filename: '../etc/passwd' });

@@ -1,6 +1,12 @@
+import { mkdtempSync, rmSync } from 'fs';
+import { join } from 'path';
+import { tmpdir } from 'os';
+import { EventEmitter } from 'events';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createMcpServer, type McpSessionContext } from '@/api/index';
+import { SqliteStore } from '@/store';
+import { StoreManager } from '@/lib/store-manager';
 import type { DocGraph } from '@/graphs/docs';
 import type { CodeGraph } from '@/graphs/code-types';
 import type { KnowledgeGraph } from '@/graphs/knowledge-types';
@@ -37,6 +43,56 @@ export function createFakeEmbed(
 /** Wrap a single EmbedFn into an EmbedFns pair (same fn for document and query). */
 export function embedFnPair(fn: EmbedFn): EmbedFns {
   return { document: fn, query: fn };
+}
+
+// ---------------------------------------------------------------------------
+// SQLite Store + StoreManager helpers for tests
+// ---------------------------------------------------------------------------
+
+export interface TestStoreContext {
+  store: SqliteStore;
+  storeManager: StoreManager;
+  projectId: number;
+  projectDir: string;
+  emitter: EventEmitter;
+  cleanup: () => void;
+}
+
+/**
+ * Create a temporary SQLite store + StoreManager for integration tests.
+ * Call `cleanup()` in afterAll/afterEach to close DB and remove temp dirs.
+ */
+export function createTestStoreManager(
+  embedFn: (text: string) => Promise<number[]>,
+  opts?: { projectDir?: string; dim?: number },
+): TestStoreContext {
+  const dbDir = mkdtempSync(join(tmpdir(), 'mcp-test-db-'));
+  const projectDir = opts?.projectDir ?? mkdtempSync(join(tmpdir(), 'mcp-test-proj-'));
+  const dbPath = join(dbDir, 'test.db');
+
+  const store = new SqliteStore();
+  store.open({ dbPath, embeddingDims: { knowledge: opts?.dim ?? DIM, tasks: opts?.dim ?? DIM, skills: opts?.dim ?? DIM, epics: opts?.dim ?? DIM } });
+
+  const project = store.projects.create({ slug: 'test', name: 'Test', directory: projectDir });
+  const emitter = new EventEmitter();
+
+  const storeManager = new StoreManager({
+    store,
+    projectId: project.id,
+    projectDir,
+    embedFn,
+    emitter,
+  });
+
+  const cleanup = () => {
+    store.close();
+    rmSync(dbDir, { recursive: true, force: true });
+    if (!opts?.projectDir) {
+      rmSync(projectDir, { recursive: true, force: true });
+    }
+  };
+
+  return { store, storeManager, projectId: project.id, projectDir, emitter, cleanup };
 }
 
 // ---------------------------------------------------------------------------
@@ -78,6 +134,9 @@ export async function setupMcpClient(opts: {
   embedFn?: (query: string) => Promise<number[]>;
   sessionContext?: McpSessionContext;
   projectDir?: string;
+  storeManager?: StoreManager;
+  readonlyGraphs?: Set<string>;
+  userAccess?: Map<string, string>;
 }): Promise<McpTestContext> {
   const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
   const server = createMcpServer(
@@ -91,6 +150,11 @@ export async function setupMcpClient(opts: {
     opts.projectDir,
     opts.skillGraph,
     opts.sessionContext,
+    opts.readonlyGraphs,
+    opts.userAccess as any,
+    undefined,
+    undefined,
+    opts.storeManager,
   );
   await server.connect(serverTransport);
 

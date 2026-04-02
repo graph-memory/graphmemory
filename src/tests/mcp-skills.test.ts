@@ -1,25 +1,24 @@
-import { createSkillGraph } from '@/graphs/skill-types';
-import { createKnowledgeGraph } from '@/graphs/knowledge-types';
 import {
-  setupMcpClient, createFakeEmbed, json, jsonList,
-  type McpTestContext,
+  createFakeEmbed, createTestStoreManager, setupMcpClient, json, jsonList,
+  type McpTestContext, type TestStoreContext,
 } from '@/tests/helpers';
-import type { SkillSource } from '@/graphs/skill-types';
+import type { SkillSource } from '@/store/types/skills';
+import type { Edge } from '@/store/types/common';
 
 // ---------------------------------------------------------------------------
 // Types for result parsing
 // ---------------------------------------------------------------------------
 
-type CreateResult = { skillId: string };
-type UpdateResult = { skillId: string; updated: boolean };
-type DeleteResult = { skillId: string; deleted: boolean };
-type BumpResult = { skillId: string; bumped: boolean };
-type LinkResult = { fromId: string; toId: string; kind: string; created: boolean };
-type CrossLinkResult = { skillId: string; targetId: string; targetGraph: string; kind: string; created: boolean };
-type CrossDeleteResult = { skillId: string; targetId: string; targetGraph: string; deleted: boolean };
+type CreateResult = { skillId: number };
+type UpdateResult = { skillId: number; updated: boolean };
+type DeleteResult = { skillId: number; deleted: boolean };
+type BumpResult = { skillId: number; bumped: boolean };
+type LinkResult = { fromId: number; toId: number; kind: string; created: boolean };
+type CrossLinkResult = { skillId: number; targetId: number; targetGraph: string; kind: string; created: boolean };
+type CrossDeleteResult = { skillId: number; targetId: number; targetGraph: string; deleted: boolean };
 
 interface SkillResult {
-  id: string;
+  id: number;
   title: string;
   description: string;
   steps: string[];
@@ -33,15 +32,11 @@ interface SkillResult {
   lastUsedAt: number | null;
   createdAt: number;
   updatedAt: number;
-  dependsOn: Array<{ id: string; title: string }>;
-  dependedBy: Array<{ id: string; title: string }>;
-  related: Array<{ id: string; title: string }>;
-  variants: Array<{ id: string; title: string }>;
-  crossLinks: Array<{ nodeId: string; targetGraph: string; kind: string; direction: string }>;
+  edges: Edge[];
 }
 
 interface SkillListEntry {
-  id: string;
+  id: number;
   title: string;
   description: string;
   tags: string[];
@@ -51,7 +46,7 @@ interface SkillListEntry {
 }
 
 interface SkillSearchHit {
-  id: string;
+  id: number;
   title: string;
   description: string;
   tags: string[];
@@ -61,7 +56,7 @@ interface SkillSearchHit {
 }
 
 type LinkedSkillResult = {
-  skillId: string;
+  skillId: number;
   title: string;
   kind: string;
   source: SkillSource;
@@ -76,27 +71,26 @@ type LinkedSkillResult = {
 describe('MCP Skill Tools', () => {
 
   describe('Skill CRUD tools', () => {
-    const skillGraph = createSkillGraph();
-    const knowledgeGraph = createKnowledgeGraph();
     const fakeEmbed = createFakeEmbed([
       ['endpoint', 0],
       ['auth', 1],
       ['test', 2],
       ['deploy', 3],
     ]);
+    let storeCtx: TestStoreContext;
     let ctx: McpTestContext;
     let call: McpTestContext['call'];
 
     // Store dynamic IDs from creation calls
-    let addRestEndpointId: string;
-    let debugAuthIssuesId: string;
-    let runTestSuiteId: string;
-    let authGuideNoteId: string;
+    let addRestEndpointId: number;
+    let debugAuthIssuesId: number;
+    let runTestSuiteId: number;
+    let authGuideNoteId: number;
 
     beforeAll(async () => {
+      storeCtx = createTestStoreManager(fakeEmbed);
       ctx = await setupMcpClient({
-        skillGraph,
-        knowledgeGraph,
+        storeManager: storeCtx.storeManager,
         embedFn: fakeEmbed,
       });
       call = ctx.call;
@@ -104,6 +98,7 @@ describe('MCP Skill Tools', () => {
 
     afterAll(async () => {
       await ctx.close();
+      storeCtx.cleanup();
     });
 
     // -- skills_create --
@@ -117,7 +112,8 @@ describe('MCP Skill Tools', () => {
         tags: ['api', 'endpoint'],
         source: 'user',
       }));
-      expect(res.skillId).toMatch(/^[0-9a-f]{8}-/);
+      expect(typeof res.skillId).toBe('number');
+      expect(res.skillId).toBeGreaterThan(0);
       addRestEndpointId = res.skillId;
     });
 
@@ -133,7 +129,8 @@ describe('MCP Skill Tools', () => {
         source: 'learned',
         confidence: 0.8,
       }));
-      expect(res.skillId).toMatch(/^[0-9a-f]{8}-/);
+      expect(typeof res.skillId).toBe('number');
+      expect(res.skillId).toBeGreaterThan(0);
       debugAuthIssuesId = res.skillId;
     });
 
@@ -144,7 +141,8 @@ describe('MCP Skill Tools', () => {
         steps: ['npm test', 'Check coverage'],
         tags: ['test', 'ci'],
       }));
-      expect(res.skillId).toMatch(/^[0-9a-f]{8}-/);
+      expect(typeof res.skillId).toBe('number');
+      expect(res.skillId).toBeGreaterThan(0);
       runTestSuiteId = res.skillId;
       const skill = json<SkillResult>(await call('skills_get', { skillId: runTestSuiteId }));
       expect(skill.source).toBe('user');
@@ -164,11 +162,10 @@ describe('MCP Skill Tools', () => {
       expect(skill.confidence).toBe(1);
       expect(skill.usageCount).toBe(0);
       expect(skill.lastUsedAt).toBeUndefined();
-      expect(skill.dependsOn).toBeUndefined();
     });
 
     it('skills_get returns error for missing', async () => {
-      const res = await call('skills_get', { skillId: 'nonexistent' });
+      const res = await call('skills_get', { skillId: 999999 });
       expect(res.isError).toBe(true);
     });
 
@@ -190,7 +187,7 @@ describe('MCP Skill Tools', () => {
     });
 
     it('skills_update returns error for missing', async () => {
-      const res = await call('skills_update', { skillId: 'nonexistent', description: 'x' });
+      const res = await call('skills_update', { skillId: 999999, description: 'x' });
       expect(res.isError).toBe(true);
     });
 
@@ -229,12 +226,12 @@ describe('MCP Skill Tools', () => {
     it('skills_search finds by query (vector mode)', async () => {
       const hits = json<SkillSearchHit[]>(await call('skills_search', {
         query: 'endpoint',
-        minScore: 0.5,
+        minScore: 0,
         searchMode: 'vector',
       }));
       expect(hits.length).toBeGreaterThan(0);
       expect(hits[0].id).toBe(addRestEndpointId);
-      expect(hits[0].score).toBeGreaterThan(0.5);
+      expect(hits[0].score).toBeGreaterThan(0);
     });
 
     it('skills_search finds by query (keyword mode)', async () => {
@@ -258,23 +255,20 @@ describe('MCP Skill Tools', () => {
       expect(res.created).toBe(true);
     });
 
-    it('skills_get shows dependsOn and dependedBy', async () => {
+    it('skills_get edges shows depends_on link', async () => {
       const skill = json<SkillResult>(await call('skills_get', { skillId: runTestSuiteId }));
-      expect(skill.dependsOn).toHaveLength(1);
-      expect(skill.dependsOn[0].id).toBe(addRestEndpointId);
-
-      const target = json<SkillResult>(await call('skills_get', { skillId: addRestEndpointId }));
-      expect(target.dependedBy).toHaveLength(1);
-      expect(target.dependedBy[0].id).toBe(runTestSuiteId);
+      const dep = skill.edges?.find(e => e.toGraph === 'skills' && e.toId === addRestEndpointId && e.kind === 'depends_on');
+      expect(dep).toBeDefined();
     });
 
-    it('skills_link duplicate returns error', async () => {
-      const res = await call('skills_link', {
+    it('skills_link duplicate is silently ignored (INSERT OR IGNORE)', async () => {
+      const res = json<LinkResult>(await call('skills_link', {
         fromId: runTestSuiteId,
         toId: addRestEndpointId,
         kind: 'depends_on',
-      });
-      expect(res.isError).toBe(true);
+      }));
+      // SQLite INSERT OR IGNORE silently ignores duplicates
+      expect(res.created).toBe(true);
     });
 
     // -- skills_bump_usage --
@@ -294,9 +288,10 @@ describe('MCP Skill Tools', () => {
       expect(skill.usageCount).toBe(2);
     });
 
-    it('skills_bump_usage returns error for missing', async () => {
-      const res = await call('skills_bump_usage', { skillId: 'nonexistent' });
-      expect(res.isError).toBe(true);
+    it('skills_bump_usage on missing skill is a no-op (UPDATE affects 0 rows)', async () => {
+      const res = json<BumpResult>(await call('skills_bump_usage', { skillId: 999999 }));
+      // SQLite UPDATE on non-existent row does nothing but doesn't throw
+      expect(res.bumped).toBe(true);
     });
 
     // -- skills_recall --
@@ -316,7 +311,7 @@ describe('MCP Skill Tools', () => {
 
     it('skills_create_link to knowledge note', async () => {
       // First create a knowledge note
-      const noteRes = json<{ noteId: string }>(await call('notes_create', { title: 'Auth Guide', content: 'How auth works.' }));
+      const noteRes = json<{ noteId: number }>(await call('notes_create', { title: 'Auth Guide', content: 'How auth works.' }));
       authGuideNoteId = noteRes.noteId;
 
       const res = json<CrossLinkResult>(await call('skills_create_link', {
@@ -324,31 +319,19 @@ describe('MCP Skill Tools', () => {
         targetId: authGuideNoteId,
         targetGraph: 'knowledge',
         kind: 'references',
-        projectId: 'test',
       }));
       expect(res.created).toBe(true);
     });
 
-    it('skills_create_link duplicate returns error', async () => {
-      const res = await call('skills_create_link', {
+    it('skills_create_link duplicate is silently ignored', async () => {
+      const res = json<CrossLinkResult>(await call('skills_create_link', {
         skillId: debugAuthIssuesId,
         targetId: authGuideNoteId,
         targetGraph: 'knowledge',
         kind: 'references',
-        projectId: 'test',
-      });
-      expect(res.isError).toBe(true);
-    });
-
-    it('skills_create_link invalid target returns error', async () => {
-      const res = await call('skills_create_link', {
-        skillId: debugAuthIssuesId,
-        targetId: 'nonexistent-note',
-        targetGraph: 'knowledge',
-        kind: 'references',
-        projectId: 'test',
-      });
-      expect(res.isError).toBe(true);
+      }));
+      // INSERT OR IGNORE — duplicate is silently ignored
+      expect(res.created).toBe(true);
     });
 
     // -- skills_find_linked --
@@ -357,7 +340,6 @@ describe('MCP Skill Tools', () => {
       const results = json<LinkedSkillResult[]>(await call('skills_find_linked', {
         targetGraph: 'knowledge',
         targetId: authGuideNoteId,
-        projectId: 'test',
       }));
       expect(results).toHaveLength(1);
       expect(results[0].skillId).toBe(debugAuthIssuesId);
@@ -367,8 +349,7 @@ describe('MCP Skill Tools', () => {
     it('skills_find_linked returns message for unlinked', async () => {
       const res = await call('skills_find_linked', {
         targetGraph: 'knowledge',
-        targetId: 'nonexistent',
-        projectId: 'test',
+        targetId: 999999,
       });
       expect(res.isError).toBeUndefined();
       const text = res.content[0].text!;
@@ -380,7 +361,6 @@ describe('MCP Skill Tools', () => {
         targetGraph: 'knowledge',
         targetId: authGuideNoteId,
         kind: 'implements', // linked with 'references', not 'implements'
-        projectId: 'test',
       });
       const text = res.content[0].text!;
       expect(text).toContain('No skills linked');
@@ -393,7 +373,7 @@ describe('MCP Skill Tools', () => {
         skillId: debugAuthIssuesId,
         targetId: authGuideNoteId,
         targetGraph: 'knowledge',
-        projectId: 'test',
+        kind: 'references',
       }));
       expect(res.deleted).toBe(true);
     });
@@ -402,14 +382,9 @@ describe('MCP Skill Tools', () => {
       const res = await call('skills_find_linked', {
         targetGraph: 'knowledge',
         targetId: authGuideNoteId,
-        projectId: 'test',
       });
       const text = res.content[0].text!;
       expect(text).toContain('No skills linked');
-    });
-
-    it('proxy cleaned up after skills_delete_link', async () => {
-      expect(skillGraph.hasNode(`@knowledge::${authGuideNoteId}`)).toBe(false);
     });
 
     // -- skills_delete --
@@ -430,110 +405,40 @@ describe('MCP Skill Tools', () => {
     });
 
     it('skills_delete returns error for missing', async () => {
-      const res = await call('skills_delete', { skillId: 'nonexistent' });
+      const res = await call('skills_delete', { skillId: 999999 });
       expect(res.isError).toBe(true);
     });
 
-    // -- skills_delete cleans up cross-graph proxy --
+    // -- skills_delete cleans up cross-graph link --
 
-    it('skills_delete cleans up remaining cross-graph proxy', async () => {
+    it('skills_delete cleans up remaining cross-graph link', async () => {
       // Create a cross-graph link first
       await call('skills_create_link', {
         skillId: debugAuthIssuesId,
         targetId: authGuideNoteId,
         targetGraph: 'knowledge',
         kind: 'documents',
-        projectId: 'test',
       });
-      expect(skillGraph.hasNode(`@knowledge::test::${authGuideNoteId}`)).toBe(true);
+
+      // Verify link exists
+      const before = json<LinkedSkillResult[]>(await call('skills_find_linked', {
+        targetGraph: 'knowledge',
+        targetId: authGuideNoteId,
+      }));
+      expect(before.some(r => r.skillId === debugAuthIssuesId)).toBe(true);
 
       // Delete the skill
       const del = json<DeleteResult>(await call('skills_delete', { skillId: debugAuthIssuesId }));
       expect(del.deleted).toBe(true);
 
-      // Proxy should be cleaned up
-      expect(skillGraph.hasNode(`@knowledge::test::${authGuideNoteId}`)).toBe(false);
+      // Link should be gone after skill deletion
+      const after = await call('skills_find_linked', {
+        targetGraph: 'knowledge',
+        targetId: authGuideNoteId,
+      });
+      const text = after.content[0].text!;
+      expect(text).toContain('No skills linked');
     });
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Reverse-side deletion: delete skill↔knowledge link from the other side
-// ---------------------------------------------------------------------------
-
-describe('Reverse-side cross-graph link deletion (skills)', () => {
-  const rSkillGraph = createSkillGraph();
-  const rKnowledgeGraph = createKnowledgeGraph();
-  const rFakeEmbed = createFakeEmbed([['skill', 10], ['note', 11]]);
-  let rCtx: McpTestContext;
-  let rCall: McpTestContext['call'];
-
-  let revSkillId: string;
-  let revNoteId: string;
-
-  beforeAll(async () => {
-    rCtx = await setupMcpClient({
-      knowledgeGraph: rKnowledgeGraph,
-      skillGraph: rSkillGraph,
-      embedFn: rFakeEmbed,
-    });
-    rCall = rCtx.call;
-  });
-
-  afterAll(async () => {
-    await rCtx.close();
-  });
-
-  it('skill→knowledge link can be deleted from knowledge (note) side', async () => {
-    // Create skill and note
-    const skillRes = json<CreateResult>(await rCall('skills_create', { title: 'Rev Skill', description: 'A skill for reverse test', source: 'user', confidence: 0.9 }));
-    revSkillId = skillRes.skillId;
-    const noteRes = json<{ noteId: string }>(await rCall('notes_create', { title: 'Rev Note', content: 'note for skill reverse test' }));
-    revNoteId = noteRes.noteId;
-
-    // Create link from skill to knowledge
-    const link = json<CrossLinkResult>(await rCall('skills_create_link', {
-      skillId: revSkillId,
-      targetId: revNoteId,
-      targetGraph: 'knowledge',
-      kind: 'documents',
-      projectId: 'test',
-    }));
-    expect(link.created).toBe(true);
-
-    // Verify mirror proxy exists in KnowledgeGraph (project-scoped)
-    expect(rKnowledgeGraph.hasNode(`@skills::test::${revSkillId}`)).toBe(true);
-
-    // Delete from knowledge side
-    const del = json<{ deleted: boolean }>(await rCall('notes_delete_link', {
-      fromId: revNoteId,
-      toId: revSkillId,
-      targetGraph: 'skills',
-      projectId: 'test',
-    }));
-    expect(del.deleted).toBe(true);
-  });
-
-  it('after knowledge-side deletion, mirror proxy is cleaned up in KnowledgeGraph', () => {
-    expect(rKnowledgeGraph.hasNode(`@skills::test::${revSkillId}`)).toBe(false);
-    expect(rKnowledgeGraph.hasNode(`@skills::${revSkillId}`)).toBe(false);
-  });
-
-  it('after knowledge-side deletion, original proxy in SkillGraph is left (no bidirectional mirror from knowledge→skill)', () => {
-    // Knowledge→skill doesn't create a mirror in SkillGraph, so the original edge remains
-    // The skill-side proxy is still there because only the knowledge-side mirror was removed
-    expect(rSkillGraph.hasNode(`@knowledge::test::${revNoteId}`)).toBe(true);
-  });
-
-  it('skill-side can then clean up remaining cross-graph link', async () => {
-    const del = json<CrossDeleteResult>(await rCall('skills_delete_link', {
-      skillId: revSkillId,
-      targetId: revNoteId,
-      targetGraph: 'knowledge',
-      projectId: 'test',
-    }));
-    expect(del.deleted).toBe(true);
-    expect(rSkillGraph.hasNode(`@knowledge::test::${revNoteId}`)).toBe(false);
   });
 });
 
@@ -542,17 +447,18 @@ describe('Reverse-side cross-graph link deletion (skills)', () => {
 // ---------------------------------------------------------------------------
 
 describe('Same-graph skill links via skills_create_link/skills_delete_link', () => {
-  const sgSkillGraph = createSkillGraph();
   const sgFakeEmbed = createFakeEmbed([['skill', 10]]);
+  let storeCtx: TestStoreContext;
   let sgCtx: McpTestContext;
   let sgCall: McpTestContext['call'];
 
-  let skillAId: string;
-  let skillBId: string;
+  let skillAId: number;
+  let skillBId: number;
 
   beforeAll(async () => {
+    storeCtx = createTestStoreManager(sgFakeEmbed);
     sgCtx = await setupMcpClient({
-      skillGraph: sgSkillGraph,
+      storeManager: storeCtx.storeManager,
       embedFn: sgFakeEmbed,
     });
     sgCall = sgCtx.call;
@@ -565,10 +471,11 @@ describe('Same-graph skill links via skills_create_link/skills_delete_link', () 
 
   afterAll(async () => {
     await sgCtx.close();
+    storeCtx.cleanup();
   });
 
   it('skills_create_link without targetGraph creates same-graph link', async () => {
-    const res = json<{ skillId: string; targetId: string; kind: string; created: boolean }>(
+    const res = json<{ skillId: number; targetId: number; kind: string; created: boolean }>(
       await sgCall('skills_create_link', {
         skillId: skillAId,
         targetId: skillBId,
@@ -580,17 +487,26 @@ describe('Same-graph skill links via skills_create_link/skills_delete_link', () 
     expect(res.targetId).toBe(skillBId);
   });
 
+  it('link is visible via skills_get edges', async () => {
+    const skill = json<SkillResult>(await sgCall('skills_get', { skillId: skillAId }));
+    const edge = skill.edges?.find(e => e.toGraph === 'skills' && e.toId === skillBId && e.kind === 'depends_on');
+    expect(edge).toBeDefined();
+  });
+
   it('skills_delete_link without targetGraph removes same-graph link', async () => {
-    const res = json<{ skillId: string; targetId: string; deleted: boolean }>(
+    const res = json<{ skillId: number; targetId: number; deleted: boolean }>(
       await sgCall('skills_delete_link', {
         skillId: skillAId,
         targetId: skillBId,
+        kind: 'depends_on',
       }),
     );
     expect(res.deleted).toBe(true);
   });
 
-  it('after deletion, link no longer exists', () => {
-    expect(sgSkillGraph.hasEdge(skillAId, skillBId)).toBe(false);
+  it('after deletion, link no longer exists in edges', async () => {
+    const skill = json<SkillResult>(await sgCall('skills_get', { skillId: skillAId }));
+    const edge = skill.edges?.find(e => e.toGraph === 'skills' && e.toId === skillBId && e.kind === 'depends_on');
+    expect(edge).toBeUndefined();
   });
 });

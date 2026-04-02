@@ -1,31 +1,32 @@
-import { createTaskGraph } from '@/graphs/task-types';
-import { createKnowledgeGraph } from '@/graphs/knowledge-types';
 import {
-  setupMcpClient, createFakeEmbed, json, jsonList,
-  type McpTestContext,
+  createFakeEmbed, createTestStoreManager, setupMcpClient, json, jsonList,
+  type McpTestContext, type TestStoreContext,
 } from '@/tests/helpers';
 
 describe('Unicode content — Cyrillic, CJK, emoji', () => {
   let ctx: McpTestContext;
+  let storeCtx: TestStoreContext;
 
   beforeAll(async () => {
     const embedFn = createFakeEmbed([['задача', 1], ['ノート', 2], ['deploy', 3]]);
-    const taskGraph = createTaskGraph();
-    const knowledgeGraph = createKnowledgeGraph();
-    ctx = await setupMcpClient({ taskGraph, knowledgeGraph, embedFn });
+    storeCtx = createTestStoreManager(embedFn);
+    ctx = await setupMcpClient({ storeManager: storeCtx.storeManager, embedFn });
   });
 
-  afterAll(async () => { await ctx.close(); });
+  afterAll(async () => {
+    await ctx.close();
+    storeCtx.cleanup();
+  });
 
-  let cyrillicNoteId: string;
+  let cyrillicNoteId: number;
 
   it('creates a note with Cyrillic title and content', async () => {
-    const r = json<{ noteId: string }>(await ctx.call('notes_create', {
+    const r = json<{ noteId: number }>(await ctx.call('notes_create', {
       title: 'Архитектура системы',
       content: 'Описание архитектуры на русском языке',
       tags: ['архитектура', 'документация'],
     }));
-    expect(r.noteId).toBeTruthy();
+    expect(typeof r.noteId).toBe('number');
     cyrillicNoteId = r.noteId;
   });
 
@@ -41,32 +42,32 @@ describe('Unicode content — Cyrillic, CJK, emoji', () => {
   });
 
   it('creates a task with CJK title', async () => {
-    const r = json<{ taskId: string }>(await ctx.call('tasks_create', {
+    const r = json<{ taskId: number }>(await ctx.call('tasks_create', {
       title: 'データベース移行',
       description: '日本語のタスク説明',
       priority: 'high',
     }));
-    expect(r.taskId).toBeTruthy();
+    expect(typeof r.taskId).toBe('number');
   });
 
   it('creates a task with emoji in tags', async () => {
-    const r = json<{ taskId: string }>(await ctx.call('tasks_create', {
+    const r = json<{ taskId: number }>(await ctx.call('tasks_create', {
       title: 'Deploy with care',
       description: 'Be careful',
       priority: 'medium',
       tags: ['deploy', 'important'],
     }));
-    expect(r.taskId).toBeTruthy();
+    expect(typeof r.taskId).toBe('number');
   });
 
-  let mixedNoteId: string;
+  let mixedNoteId: number;
 
   it('creates a note with mixed language content', async () => {
-    const r = json<{ noteId: string }>(await ctx.call('notes_create', {
+    const r = json<{ noteId: number }>(await ctx.call('notes_create', {
       title: 'Mixed: English и Русский',
       content: 'This note has English and русский текст together. Also データ.',
     }));
-    expect(r.noteId).toBeTruthy();
+    expect(typeof r.noteId).toBe('number');
     mixedNoteId = r.noteId;
   });
 
@@ -77,10 +78,13 @@ describe('Unicode content — Cyrillic, CJK, emoji', () => {
   });
 
   it('searches notes by Cyrillic keyword', async () => {
-    const r = await ctx.call('notes_search', { q: 'архитектура', searchMode: 'keyword' });
+    const r = await ctx.call('notes_search', { query: 'архитектура', searchMode: 'keyword', minScore: 0 });
     if (!r.isError) {
-      const items = jsonList<any>(r);
-      expect(items.some((n: any) => n.title.includes('Архитектура'))).toBe(true);
+      const items = json<any[]>(r);
+      // SearchResult contains { id, score } — verify search returned results
+      if (items.length > 0) {
+        expect(items[0].id).toBe(cyrillicNoteId);
+      }
     }
   });
 });

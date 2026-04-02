@@ -1,32 +1,33 @@
-import { createTaskGraph } from '@/graphs/task-types';
-import { createKnowledgeGraph } from '@/graphs/knowledge-types';
 import {
-  setupMcpClient, createFakeEmbed, json, text,
-  type McpTestContext,
+  createFakeEmbed, createTestStoreManager, setupMcpClient, json, text,
+  type McpTestContext, type TestStoreContext,
 } from '@/tests/helpers';
 
 describe('Optimistic locking — version conflicts', () => {
   let ctx: McpTestContext;
-  let noteId: string;
-  let taskId: string;
+  let storeCtx: TestStoreContext;
+  let noteId: number;
+  let taskId: number;
 
   beforeAll(async () => {
     const embedFn = createFakeEmbed([['test', 1], ['conflict', 2]]);
-    const taskGraph = createTaskGraph();
-    const knowledgeGraph = createKnowledgeGraph();
-    ctx = await setupMcpClient({ taskGraph, knowledgeGraph, embedFn });
+    storeCtx = createTestStoreManager(embedFn);
+    ctx = await setupMcpClient({ storeManager: storeCtx.storeManager, embedFn });
 
     // Create test entities
-    noteId = json<{ noteId: string }>(await ctx.call('notes_create', {
+    noteId = json<{ noteId: number }>(await ctx.call('notes_create', {
       title: 'Conflict test note', content: 'original',
     })).noteId;
 
-    taskId = json<{ taskId: string }>(await ctx.call('tasks_create', {
+    taskId = json<{ taskId: number }>(await ctx.call('tasks_create', {
       title: 'Conflict test task', description: 'original', priority: 'medium',
     })).taskId;
   });
 
-  afterAll(async () => { await ctx.close(); });
+  afterAll(async () => {
+    await ctx.close();
+    storeCtx.cleanup();
+  });
 
   // -- Notes --
 
@@ -81,6 +82,6 @@ describe('Optimistic locking — version conflicts', () => {
     const r = json<any>(await ctx.call('tasks_move', {
       taskId, status: 'done', expectedVersion: 2,
     }));
-    expect(r.taskId).toBeTruthy();
+    expect(typeof r.taskId).toBe('number');
   });
 });

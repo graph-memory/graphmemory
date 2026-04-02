@@ -1,9 +1,9 @@
 // Jest integration test for MCP file index tools.
-// Exercises files_list, files_search, files_get_info + cross-graph links to files.
+// Exercises files_list, files_search, files_get_info.
+// File index still uses Graphology (indexed graph — not yet migrated to SQLite).
 
 import { createFileIndexGraph } from '@/graphs/file-index-types';
 import { updateFileEntry, rebuildDirectoryStats } from '@/graphs/file-index';
-import { createKnowledgeGraph } from '@/graphs/knowledge-types';
 import { createFakeEmbed, setupMcpClient, json, jsonList, unitVec, type McpTestContext } from '@/tests/helpers';
 
 // ---------------------------------------------------------------------------
@@ -196,135 +196,5 @@ describe('files_get_info', () => {
   it('returns error for nonexistent file', async () => {
     const res = await call('files_get_info', { filePath: 'ghost.ts' });
     expect(res.isError).toBe(true);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Cross-graph links: knowledge → files
-// ---------------------------------------------------------------------------
-
-describe('cross-graph relation to files', () => {
-  const xKnowledgeGraph = createKnowledgeGraph();
-  const xFileIndexGraph = createFileIndexGraph();
-  const xFakeEmbed = createFakeEmbed([['note', 10]]);
-  let xCtx: McpTestContext;
-  let xCall: McpTestContext['call'];
-
-  type RelCreateResult = { fromId: string; toId: string; kind: string; targetGraph: string; created: boolean };
-  type RelEntry = { fromId: string; toId: string; kind: string; targetGraph?: string };
-
-  beforeAll(async () => {
-    // Add file and directory nodes
-    updateFileEntry(xFileIndexGraph, 'src/config.ts', 1024, 1000, unitVec(0));
-    rebuildDirectoryStats(xFileIndexGraph);
-
-    xCtx = await setupMcpClient({
-      knowledgeGraph: xKnowledgeGraph,
-      fileIndexGraph: xFileIndexGraph,
-      embedFn: xFakeEmbed,
-    });
-    xCall = xCtx.call;
-  });
-
-  afterAll(async () => {
-    await xCtx.close();
-  });
-
-  let noteId: string;
-
-  it('create a note', async () => {
-    const res = json<{ noteId: string }>(await xCall('notes_create', {
-      title: 'Config note',
-      content: 'About config file.',
-      tags: ['config'],
-    }));
-    noteId = res.noteId;
-    expect(noteId).toMatch(/^[0-9a-f]{8}-/);
-  });
-
-  it('notes_create_link to file node', async () => {
-    const res = json<RelCreateResult>(await xCall('notes_create_link', {
-      fromId: noteId,
-      toId: 'src/config.ts',
-      kind: 'references',
-      targetGraph: 'files',
-      projectId: 'test',
-    }));
-    expect(res.created).toBe(true);
-    expect(res.targetGraph).toBe('files');
-  });
-
-  it('notes_create_link to directory node', async () => {
-    const res = json<RelCreateResult>(await xCall('notes_create_link', {
-      fromId: noteId,
-      toId: 'src',
-      kind: 'part_of',
-      targetGraph: 'files',
-      projectId: 'test',
-    }));
-    expect(res.created).toBe(true);
-    expect(res.targetGraph).toBe('files');
-  });
-
-  it('duplicate cross relation returns error', async () => {
-    const res = await xCall('notes_create_link', {
-      fromId: noteId,
-      toId: 'src/config.ts',
-      kind: 'references',
-      targetGraph: 'files',
-      projectId: 'test',
-    });
-    expect(res.isError).toBe(true);
-  });
-
-  it('cross relation to nonexistent target returns error', async () => {
-    const res = await xCall('notes_create_link', {
-      fromId: noteId,
-      toId: 'nonexistent.ts',
-      kind: 'references',
-      targetGraph: 'files',
-      projectId: 'test',
-    });
-    expect(res.isError).toBe(true);
-  });
-
-  it('notes_list_links shows files cross-graph relations', async () => {
-    const rels = json<RelEntry[]>(await xCall('notes_list_links', { noteId }));
-    expect(rels).toHaveLength(2);
-
-    const fileRel = rels.find(r => r.toId === 'src/config.ts');
-    expect(fileRel).toBeDefined();
-    expect(fileRel!.targetGraph).toBe('files');
-    expect(fileRel!.kind).toBe('references');
-
-    const dirRel = rels.find(r => r.toId === 'src');
-    expect(dirRel).toBeDefined();
-    expect(dirRel!.targetGraph).toBe('files');
-    expect(dirRel!.kind).toBe('part_of');
-  });
-
-  it('notes_delete_link with targetGraph files', async () => {
-    const res = json<{ fromId: string; toId: string; deleted: boolean }>(
-      await xCall('notes_delete_link', {
-        fromId: noteId,
-        toId: 'src/config.ts',
-        targetGraph: 'files',
-        projectId: 'test',
-      }),
-    );
-    expect(res.deleted).toBe(true);
-  });
-
-  it('after delete, only directory relation remains', async () => {
-    const rels = json<RelEntry[]>(await xCall('notes_list_links', { noteId }));
-    expect(rels).toHaveLength(1);
-    expect(rels[0].toId).toBe('src');
-    expect(rels[0].targetGraph).toBe('files');
-  });
-
-  it('notes_delete cleans up remaining files proxy', async () => {
-    const del = json<{ deleted: boolean }>(await xCall('notes_delete', { noteId }));
-    expect(del.deleted).toBe(true);
-    expect(xKnowledgeGraph.order).toBe(0);
   });
 });

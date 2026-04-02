@@ -1,30 +1,29 @@
 // Jest integration test for MCP knowledge tools.
 // Split from mcp.test.ts — exercises create/get/update/list/search/delete notes + relations.
+// Migrated to SQLite StoreManager (no Graphology KnowledgeGraph).
 
-import { createKnowledgeGraph } from '@/graphs/knowledge-types';
-import { createGraph } from '@/graphs/docs';
-import { createCodeGraph } from '@/graphs/code-types';
-import { createFakeEmbed, setupMcpClient, json, jsonList, unitVec, type McpTestContext } from '@/tests/helpers';
+import {
+  createFakeEmbed, createTestStoreManager, setupMcpClient, json, jsonList,
+  type McpTestContext, type TestStoreContext,
+} from '@/tests/helpers';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type CreateNoteResult = { noteId: string };
-type NoteResult = { id: string; title: string; content: string; tags: string[]; createdAt: number; updatedAt: number };
-type NoteListEntry = { id: string; title: string; tags: string[]; updatedAt: number };
-type UpdateResult = { noteId: string; updated: boolean };
-type DelResult = { noteId: string; deleted: boolean };
-type KnowledgeHit = { id: string; title: string; content: string; tags: string[]; score: number };
-type RelCreateResult = { fromId: string; toId: string; kind: string; created: boolean };
-type RelDelResult = { fromId: string; toId: string; deleted: boolean };
-type RelEntry = { fromId: string; toId: string; kind: string; targetGraph?: string };
+type CreateNoteResult = { noteId: number };
+type NoteResult = { id: number; title: string; content: string; tags: string[]; createdAt: number; updatedAt: number };
+type NoteListEntry = { id: number; title: string; tags: string[]; updatedAt: number };
+type UpdateResult = { noteId: number; updated: boolean };
+type DelResult = { noteId: number; deleted: boolean };
+type KnowledgeHit = { id: number; score: number };
+type RelCreateResult = { fromId: number; toId: number; kind: string; targetGraph: string; created: boolean };
+type RelDelResult = { fromId: number; toId: number; deleted: boolean };
+type RelEntry = { fromGraph: string; fromId: number; toGraph: string; toId: number; kind: string };
 
 // ---------------------------------------------------------------------------
 // Setup
 // ---------------------------------------------------------------------------
-
-const knowledgeGraph = createKnowledgeGraph();
 
 const QUERY_AXES: Array<[string, number]> = [
   ['auth jwt knowledge', 26],
@@ -34,16 +33,19 @@ const QUERY_AXES: Array<[string, number]> = [
 
 const fakeEmbed = createFakeEmbed(QUERY_AXES);
 
+let storeCtx: TestStoreContext;
 let ctx: McpTestContext;
 let call: McpTestContext['call'];
 
 beforeAll(async () => {
-  ctx = await setupMcpClient({ knowledgeGraph, embedFn: fakeEmbed });
+  storeCtx = createTestStoreManager(fakeEmbed);
+  ctx = await setupMcpClient({ storeManager: storeCtx.storeManager, embedFn: fakeEmbed });
   call = ctx.call;
 });
 
 afterAll(async () => {
   await ctx.close();
+  storeCtx.cleanup();
 });
 
 // ---------------------------------------------------------------------------
@@ -57,32 +59,31 @@ describe('knowledge tools', () => {
 
   // ── notes_create ──
 
-  it('notes_create: first note returns slug noteId', async () => {
+  it('notes_create: first note returns numeric noteId', async () => {
     note1 = json<CreateNoteResult>(await call('notes_create', {
       title: 'Auth JWT Knowledge',
       content: 'The system uses JWT for authentication.',
       tags: ['auth', 'security'],
     }));
-    expect(typeof note1.noteId).toBe('string');
-    expect(note1.noteId).toMatch(/^[0-9a-f]{8}-/);
+    expect(typeof note1.noteId).toBe('number');
   });
 
-  it('notes_create: second note', async () => {
+  it('notes_create: second note returns numeric noteId', async () => {
     note2 = json<CreateNoteResult>(await call('notes_create', {
       title: 'Database Postgres',
       content: 'We use PostgreSQL 15 for persistence.',
       tags: ['infra'],
     }));
-    expect(note2.noteId).toMatch(/^[0-9a-f]{8}-/);
+    expect(typeof note2.noteId).toBe('number');
   });
 
-  it('notes_create: third note', async () => {
+  it('notes_create: third note returns numeric noteId', async () => {
     note3 = json<CreateNoteResult>(await call('notes_create', {
       title: 'Rate Limit API',
       content: 'API rate limited to 100 req/min.',
       tags: ['api'],
     }));
-    expect(note3.noteId).toMatch(/^[0-9a-f]{8}-/);
+    expect(typeof note3.noteId).toBe('number');
   });
 
   // ── notes_get ──
@@ -98,7 +99,7 @@ describe('knowledge tools', () => {
   });
 
   it('notes_get: missing note returns isError', async () => {
-    const gotMissing = await call('notes_get', { noteId: 'ghost' });
+    const gotMissing = await call('notes_get', { noteId: 999999 });
     expect(gotMissing.isError).toBe(true);
   });
 
@@ -149,110 +150,97 @@ describe('knowledge tools', () => {
   });
 
   it('notes_update: missing note returns isError', async () => {
-    const updMissing = await call('notes_update', { noteId: 'ghost', content: 'x' });
+    const updMissing = await call('notes_update', { noteId: 999999, content: 'x' });
     expect(updMissing.isError).toBe(true);
   });
 
   // ── notes_create_link ──
 
-  it('notes_create_link: creates depends_on relation', async () => {
+  it('notes_create_link: creates depends_on relation between notes', async () => {
     const rel1 = json<RelCreateResult>(await call('notes_create_link', {
-      fromId: note1.noteId, toId: note2.noteId, kind: 'depends_on', projectId: 'test',
+      fromId: note1.noteId, toId: note2.noteId, kind: 'depends_on',
     }));
     expect(rel1.created).toBe(true);
     expect(rel1.fromId).toBe(note1.noteId);
     expect(rel1.kind).toBe('depends_on');
   });
 
-  it('notes_create_link: creates relates_to relation', async () => {
+  it('notes_create_link: creates relates_to relation between notes', async () => {
     const rel2 = json<RelCreateResult>(await call('notes_create_link', {
-      fromId: note2.noteId, toId: note3.noteId, kind: 'relates_to', projectId: 'test',
+      fromId: note2.noteId, toId: note3.noteId, kind: 'relates_to',
     }));
     expect(rel2.created).toBe(true);
+    expect(rel2.fromId).toBe(note2.noteId);
+    expect(rel2.toId).toBe(note3.noteId);
   });
 
-  it('notes_create_link: duplicate returns isError', async () => {
-    const relDup = await call('notes_create_link', {
-      fromId: note1.noteId, toId: note2.noteId, kind: 'depends_on', projectId: 'test',
-    });
-    expect(relDup.isError).toBe(true);
+  it('notes_create_link: explicit targetGraph=knowledge works', async () => {
+    // note1→note3 with explicit targetGraph
+    const rel3 = json<RelCreateResult>(await call('notes_create_link', {
+      fromId: note1.noteId, toId: note3.noteId, kind: 'relates_to', targetGraph: 'knowledge',
+    }));
+    expect(rel3.created).toBe(true);
+    expect(rel3.targetGraph).toBe('knowledge');
   });
 
-  it('notes_create_link: missing node returns isError', async () => {
+  it('notes_create_link: invalid toId type returns isError', async () => {
+    // Schema expects number; passing a non-numeric string triggers Zod validation error
     const relGhost = await call('notes_create_link', {
-      fromId: note1.noteId, toId: 'ghost', kind: 'x', projectId: 'test',
+      fromId: note1.noteId, toId: 'ghost', kind: 'x',
     });
     expect(relGhost.isError).toBe(true);
   });
 
   // ── notes_list_links ──
 
-  it('notes_list_links: note1 has 1 relation', async () => {
-    const rels1 = json<RelEntry[]>(await call('notes_list_links', { noteId: note1.noteId }));
-    expect(rels1).toHaveLength(1);
-    expect(rels1[0].kind).toBe('depends_on');
+  it('notes_list_links: note1 has 2 outgoing knowledge-graph edges', async () => {
+    const allRels = json<RelEntry[]>(await call('notes_list_links', { noteId: note1.noteId }));
+    // Filter to only knowledge→knowledge edges (list also includes tag edges)
+    const rels1 = allRels.filter(r => r.fromGraph === 'knowledge' && r.toGraph === 'knowledge');
+    // note1→note2 (depends_on) and note1→note3 (relates_to)
+    expect(rels1).toHaveLength(2);
+    const kinds = rels1.map(r => r.kind);
+    expect(kinds).toContain('depends_on');
+    expect(kinds).toContain('relates_to');
   });
 
-  it('notes_list_links: note2 has 2 relations (in + out)', async () => {
-    const rels2 = json<RelEntry[]>(await call('notes_list_links', { noteId: note2.noteId }));
+  it('notes_list_links: note2 has 2 knowledge-graph edges (1 incoming + 1 outgoing)', async () => {
+    const allRels = json<RelEntry[]>(await call('notes_list_links', { noteId: note2.noteId }));
+    const rels2 = allRels.filter(r => r.fromGraph === 'knowledge' && r.toGraph === 'knowledge');
     expect(rels2).toHaveLength(2);
   });
 
   // ── notes_search ──
 
-  it('notes_search: exact match returns score 1.0', async () => {
-    const kHits1 = json<KnowledgeHit[]>(await call('notes_search', { query: 'auth jwt knowledge', topK: 1, bfsDepth: 0, searchMode: 'vector' }));
+  it('notes_search: vector mode — exact match returns top-ranked result with positive score', async () => {
+    const kHits1 = json<KnowledgeHit[]>(await call('notes_search', {
+      query: 'auth jwt knowledge',
+      maxResults: 1,
+      searchMode: 'vector',
+    }));
     expect(kHits1).toHaveLength(1);
     expect(kHits1[0].id).toBe(note1.noteId);
-    expect(kHits1[0].score).toBe(1.0);
-    expect(typeof kHits1[0].title).toBe('string');
-    expect(typeof kHits1[0].content).toBe('string');
-    expect(Array.isArray(kHits1[0].tags)).toBe(true);
+    // Scores are RRF-based (1/(60+rn)); rank 1 = ~0.01639
+    expect(kHits1[0].score).toBeGreaterThan(0);
+    expect(typeof kHits1[0].id).toBe('number');
+    expect(typeof kHits1[0].score).toBe('number');
   });
 
-  it('notes_search: BFS depth=1 includes seed and depends_on neighbor', async () => {
-    const kHits2 = json<KnowledgeHit[]>(await call('notes_search', { query: 'auth jwt knowledge', topK: 1, bfsDepth: 1, searchMode: 'vector' }));
-    const kIds2 = kHits2.map(h => h.id);
-    expect(kIds2).toContain(note1.noteId);
-    expect(kIds2).toContain(note2.noteId);
-    expect(kIds2).not.toContain(note3.noteId);
-
-    // BFS score decay
-    const kSeed = kHits2.find(h => h.id === note1.noteId)!.score;
-    const kBfs = kHits2.find(h => h.id === note2.noteId)!.score;
-    expect(kBfs).toBeLessThan(kSeed);
-    expect(Math.abs(kBfs - kSeed * 0.8)).toBeLessThan(0.001);
-  });
-
-  it('notes_search: BFS depth=2 reaches rate-limit', async () => {
-    const kHits3 = json<KnowledgeHit[]>(await call('notes_search', { query: 'auth jwt knowledge', topK: 1, bfsDepth: 2, minScore: 0 }));
-    const kIds3 = kHits3.map(h => h.id);
-    expect(kIds3).toContain(note3.noteId);
-  });
-
-  it('notes_search: minScore=0.9 returns only seed', async () => {
-    const kHitsMin = json<KnowledgeHit[]>(await call('notes_search', { query: 'auth jwt knowledge', topK: 1, bfsDepth: 1, minScore: 0.9, searchMode: 'vector' }));
-    expect(kHitsMin).toHaveLength(1);
-    expect(kHitsMin[0].id).toBe(note1.noteId);
-  });
-
-  it('notes_search: vector-only mode returns results', async () => {
+  it('notes_search: vector mode — postgres query returns note2 first', async () => {
     const hits = json<KnowledgeHit[]>(await call('notes_search', {
       query: 'database postgres',
-      topK: 3,
-      bfsDepth: 0,
+      maxResults: 3,
       searchMode: 'vector',
     }));
     expect(hits.length).toBeGreaterThan(0);
     expect(hits[0].id).toBe(note2.noteId);
-    expect(hits[0].score).toBeGreaterThan(0.5);
+    expect(hits[0].score).toBeGreaterThan(0);
   });
 
-  it('notes_search: keyword-only mode returns results', async () => {
+  it('notes_search: keyword mode — returns results for PostgreSQL content', async () => {
     const hits = json<KnowledgeHit[]>(await call('notes_search', {
       query: 'PostgreSQL persistence',
-      topK: 3,
-      bfsDepth: 0,
+      maxResults: 3,
       searchMode: 'keyword',
       minScore: 0,
     }));
@@ -260,37 +248,48 @@ describe('knowledge tools', () => {
     expect(hits[0].id).toBe(note2.noteId);
   });
 
-  it('notes_search: unknown query returns empty', async () => {
-    const kHitsNone = json<KnowledgeHit[]>(await call('notes_search', { query: 'xyzzy completely unknown xyz', minScore: 0.1, searchMode: 'keyword' }));
+  it('notes_search: unknown query returns empty with minScore filter', async () => {
+    const kHitsNone = json<KnowledgeHit[]>(await call('notes_search', {
+      query: 'xyzzy completely unknown xyz',
+      minScore: 0.1,
+      searchMode: 'keyword',
+    }));
     expect(kHitsNone).toHaveLength(0);
   });
 
   // ── notes_delete_link ──
 
-  it('notes_delete_link: deletes existing relation', async () => {
-    const relDel = json<RelDelResult>(await call('notes_delete_link', { fromId: note1.noteId, toId: note2.noteId, projectId: 'test' }));
+  it('notes_delete_link: deletes existing depends_on relation', async () => {
+    const relDel = json<RelDelResult>(await call('notes_delete_link', {
+      fromId: note1.noteId, toId: note2.noteId, kind: 'depends_on',
+    }));
     expect(relDel.deleted).toBe(true);
   });
 
-  it('notes_delete_link: missing relation returns isError', async () => {
-    const relDelMissing = await call('notes_delete_link', { fromId: note1.noteId, toId: note2.noteId, projectId: 'test' });
-    expect(relDelMissing.isError).toBe(true);
+  it('notes_delete_link: note1 has 1 knowledge edge remaining after delete', async () => {
+    const allRels = json<RelEntry[]>(await call('notes_list_links', { noteId: note1.noteId }));
+    const relsAfterDel = allRels.filter(r => r.fromGraph === 'knowledge' && r.toGraph === 'knowledge');
+    // note1→note3 (relates_to) remains
+    expect(relsAfterDel).toHaveLength(1);
+    expect(relsAfterDel[0].kind).toBe('relates_to');
   });
 
-  it('notes_delete_link: note1 has 0 relations after delete', async () => {
-    const relsAfterDel = json<RelEntry[]>(await call('notes_list_links', { noteId: note1.noteId }));
-    expect(relsAfterDel).toHaveLength(0);
+  it('notes_delete_link: deletes remaining note1→note3 relation', async () => {
+    const relDel2 = json<RelDelResult>(await call('notes_delete_link', {
+      fromId: note1.noteId, toId: note3.noteId, kind: 'relates_to',
+    }));
+    expect(relDel2.deleted).toBe(true);
   });
 
   // ── notes_delete ──
 
-  it('notes_delete: deletes note and cleans up relations', async () => {
+  it('notes_delete: deletes note and reports deleted=true', async () => {
     const del = json<DelResult>(await call('notes_delete', { noteId: note3.noteId }));
     expect(del.deleted).toBe(true);
   });
 
   it('notes_delete: missing note returns isError', async () => {
-    const delMissing = await call('notes_delete', { noteId: 'ghost' });
+    const delMissing = await call('notes_delete', { noteId: 999999 });
     expect(delMissing.isError).toBe(true);
   });
 
@@ -299,302 +298,9 @@ describe('knowledge tools', () => {
     expect(remainingNotes).toHaveLength(2);
   });
 
-  it('notes_delete: note2 relations cleaned up after note3 delete', async () => {
-    const relsNote2 = json<RelEntry[]>(await call('notes_list_links', { noteId: note2.noteId }));
+  it('notes_delete: note2 has 0 knowledge edges after note3 deletion', async () => {
+    const allRels = json<RelEntry[]>(await call('notes_list_links', { noteId: note2.noteId }));
+    const relsNote2 = allRels.filter(r => r.fromGraph === 'knowledge' && r.toGraph === 'knowledge');
     expect(relsNote2).toHaveLength(0);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Cross-graph relations via MCP
-// ---------------------------------------------------------------------------
-
-describe('cross-graph relation tools', () => {
-  // Separate graphs with nodes for cross-graph linking
-  const xDocGraph = createGraph();
-  const xCodeGraph = createCodeGraph();
-  const xKnowledgeGraph = createKnowledgeGraph();
-
-  const xFakeEmbed = createFakeEmbed([['note', 10]]);
-  let xCtx: McpTestContext;
-  let xCall: McpTestContext['call'];
-
-  type XRelCreateResult = { fromId: string; toId: string; kind: string; targetGraph: string; created: boolean };
-
-  beforeAll(async () => {
-    // Add doc node
-    xDocGraph.addNode('guide.md::Setup', {
-      title: 'Setup',
-      content: 'How to set up',
-      fileId: 'guide.md',
-      level: 2,
-      embedding: unitVec(0),
-      fileEmbedding: [],
-      mtime: 1000,
-      symbols: [],
-    });
-
-    // Add code node
-    xCodeGraph.addNode('auth.ts::AuthService', {
-      kind: 'class' as const,
-      name: 'AuthService',
-      fileId: 'auth.ts',
-      signature: 'class AuthService',
-      docComment: '',
-      body: 'class AuthService {}',
-      startLine: 1,
-      endLine: 50,
-      isExported: true,
-      embedding: unitVec(1),
-      fileEmbedding: [],
-      mtime: 1000,
-    });
-
-    xCtx = await setupMcpClient({
-      docGraph: xDocGraph,
-      codeGraph: xCodeGraph,
-      knowledgeGraph: xKnowledgeGraph,
-      embedFn: xFakeEmbed,
-    });
-    xCall = xCtx.call;
-  });
-
-  afterAll(async () => {
-    await xCtx.close();
-  });
-
-  let noteId: string;
-
-  it('create a note first', async () => {
-    const res = json<{ noteId: string }>(await xCall('notes_create', {
-      title: 'My Note about setup',
-      content: 'This note references docs and code.',
-      tags: ['cross'],
-    }));
-    noteId = res.noteId;
-    expect(noteId).toMatch(/^[0-9a-f]{8}-/);
-  });
-
-  it('notes_create_link to docs node', async () => {
-    const res = json<XRelCreateResult>(await xCall('notes_create_link', {
-      fromId: noteId,
-      toId: 'guide.md::Setup',
-      kind: 'references',
-      targetGraph: 'docs',
-      projectId: 'test',
-    }));
-    expect(res.created).toBe(true);
-    expect(res.targetGraph).toBe('docs');
-  });
-
-  it('notes_create_link to code node', async () => {
-    const res = json<XRelCreateResult>(await xCall('notes_create_link', {
-      fromId: noteId,
-      toId: 'auth.ts::AuthService',
-      kind: 'depends_on',
-      targetGraph: 'code',
-      projectId: 'test',
-    }));
-    expect(res.created).toBe(true);
-    expect(res.targetGraph).toBe('code');
-  });
-
-  it('duplicate cross relation returns error', async () => {
-    const res = await xCall('notes_create_link', {
-      fromId: noteId,
-      toId: 'guide.md::Setup',
-      kind: 'references',
-      targetGraph: 'docs',
-      projectId: 'test',
-    });
-    expect(res.isError).toBe(true);
-  });
-
-  it('cross relation to nonexistent target returns error', async () => {
-    const res = await xCall('notes_create_link', {
-      fromId: noteId,
-      toId: 'nonexistent::Node',
-      kind: 'references',
-      targetGraph: 'docs',
-      projectId: 'test',
-    });
-    expect(res.isError).toBe(true);
-  });
-
-  it('notes_list_links shows cross-graph relations with targetGraph field', async () => {
-    const rels = json<RelEntry[]>(await xCall('notes_list_links', { noteId }));
-    expect(rels).toHaveLength(2);
-
-    const docsRel = rels.find(r => r.targetGraph === 'docs');
-    expect(docsRel).toBeDefined();
-    expect(docsRel!.toId).toBe('guide.md::Setup');
-    expect(docsRel!.kind).toBe('references');
-
-    const codeRel = rels.find(r => r.targetGraph === 'code');
-    expect(codeRel).toBeDefined();
-    expect(codeRel!.toId).toBe('auth.ts::AuthService');
-    expect(codeRel!.kind).toBe('depends_on');
-  });
-
-  it('notes_list does not include proxy nodes', async () => {
-    const notes = jsonList<{ id: string }>(await xCall('notes_list'));
-    expect(notes).toHaveLength(1);
-    expect(notes[0].id).toBe(noteId);
-  });
-
-  it('notes_get on proxy id returns error', async () => {
-    const res = await xCall('notes_get', { noteId: '@docs::guide.md::Setup' });
-    expect(res.isError).toBe(true);
-  });
-
-  it('notes_delete_link with targetGraph removes cross-graph relation', async () => {
-    const res = json<{ fromId: string; toId: string; deleted: boolean }>(
-      await xCall('notes_delete_link', {
-        fromId: noteId,
-        toId: 'guide.md::Setup',
-        targetGraph: 'docs',
-        projectId: 'test',
-      }),
-    );
-    expect(res.deleted).toBe(true);
-  });
-
-  it('after delete, only code relation remains', async () => {
-    const rels = json<RelEntry[]>(await xCall('notes_list_links', { noteId }));
-    expect(rels).toHaveLength(1);
-    expect(rels[0].targetGraph).toBe('code');
-  });
-
-  it('notes_delete cleans up remaining cross-graph proxy', async () => {
-    const del = json<{ deleted: boolean }>(await xCall('notes_delete', { noteId }));
-    expect(del.deleted).toBe(true);
-    // Knowledge graph should have 0 nodes (note + proxy both cleaned up)
-    expect(xKnowledgeGraph.order).toBe(0);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// notes_find_linked
-// ---------------------------------------------------------------------------
-
-type LinkedNoteResult = { noteId: string; title: string; kind: string; tags: string[] };
-
-describe('notes_find_linked', () => {
-  const fDocGraph = createGraph();
-  const fCodeGraph = createCodeGraph();
-  const fKnowledgeGraph = createKnowledgeGraph();
-  const fFakeEmbed = createFakeEmbed([['note', 10]]);
-  let fCtx: McpTestContext;
-  let fCall: McpTestContext['call'];
-  let fNoteAId: string;
-  let fNoteBId: string;
-
-  beforeAll(async () => {
-    // Add doc node
-    fDocGraph.addNode('api.md::Auth', {
-      title: 'Auth',
-      content: 'Auth section',
-      fileId: 'api.md',
-      level: 2,
-      embedding: unitVec(0),
-      fileEmbedding: [],
-      mtime: 1000,
-      symbols: [],
-    });
-
-    // Add code node
-    fCodeGraph.addNode('src/auth.ts::login', {
-      kind: 'function' as const,
-      name: 'login',
-      fileId: 'src/auth.ts',
-      signature: 'function login()',
-      docComment: '',
-      body: 'function login() {}',
-      startLine: 1,
-      endLine: 3,
-      isExported: true,
-      embedding: unitVec(1),
-      fileEmbedding: [],
-      mtime: 1000,
-    });
-
-    fCtx = await setupMcpClient({
-      docGraph: fDocGraph,
-      codeGraph: fCodeGraph,
-      knowledgeGraph: fKnowledgeGraph,
-      embedFn: fFakeEmbed,
-    });
-    fCall = fCtx.call;
-
-    // Create two notes that link to the same doc node
-    const resA = json<{ noteId: string }>(await fCall('notes_create', { title: 'Note A', content: 'First note', tags: ['a'] }));
-    const resB = json<{ noteId: string }>(await fCall('notes_create', { title: 'Note B', content: 'Second note', tags: ['b'] }));
-    await fCall('notes_create', { title: 'Note C', content: 'Third note', tags: ['c'] });
-    fNoteAId = resA.noteId;
-    fNoteBId = resB.noteId;
-
-    await fCall('notes_create_link', { fromId: fNoteAId, toId: 'api.md::Auth', kind: 'references', targetGraph: 'docs', projectId: 'test' });
-    await fCall('notes_create_link', { fromId: fNoteBId, toId: 'api.md::Auth', kind: 'documents', targetGraph: 'docs', projectId: 'test' });
-    await fCall('notes_create_link', { fromId: fNoteAId, toId: 'src/auth.ts::login', kind: 'depends_on', targetGraph: 'code', projectId: 'test' });
-  });
-
-  afterAll(async () => {
-    await fCtx.close();
-  });
-
-  it('finds all notes linked to a doc node', async () => {
-    const results = json<LinkedNoteResult[]>(await fCall('notes_find_linked', {
-      targetId: 'api.md::Auth',
-      targetGraph: 'docs',
-      projectId: 'test',
-    }));
-    expect(results).toHaveLength(2);
-    const ids = results.map(r => r.noteId);
-    expect(ids).toContain(fNoteAId);
-    expect(ids).toContain(fNoteBId);
-  });
-
-  it('finds note linked to a code node', async () => {
-    const results = json<LinkedNoteResult[]>(await fCall('notes_find_linked', {
-      targetId: 'src/auth.ts::login',
-      targetGraph: 'code',
-      projectId: 'test',
-    }));
-    expect(results).toHaveLength(1);
-    expect(results[0].noteId).toBe(fNoteAId);
-    expect(results[0].kind).toBe('depends_on');
-    expect(results[0].tags).toEqual(['a']);
-  });
-
-  it('filters by relation kind', async () => {
-    const results = json<LinkedNoteResult[]>(await fCall('notes_find_linked', {
-      targetId: 'api.md::Auth',
-      targetGraph: 'docs',
-      kind: 'references',
-      projectId: 'test',
-    }));
-    expect(results).toHaveLength(1);
-    expect(results[0].noteId).toBe(fNoteAId);
-  });
-
-  it('returns message for unlinked target', async () => {
-    const res = await fCall('notes_find_linked', {
-      targetId: 'nonexistent.md::Foo',
-      targetGraph: 'docs',
-      projectId: 'test',
-    });
-    expect(res.isError).toBeUndefined();
-    const text = res.content[0].text!;
-    expect(text).toContain('No notes linked');
-  });
-
-  it('returns empty for target with no links in different graph', async () => {
-    const res = await fCall('notes_find_linked', {
-      targetId: 'api.md::Auth',
-      targetGraph: 'files', // this target is in docs, not files
-      projectId: 'test',
-    });
-    const text = res.content[0].text!;
-    expect(text).toContain('No notes linked');
   });
 });

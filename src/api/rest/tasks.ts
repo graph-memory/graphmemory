@@ -178,27 +178,14 @@ export function createTasksRouter(_users?: Record<string, unknown>): Router {
         return p.storeManager.reorderTask(taskId, order, status);
       });
       res.json(result);
-    } catch (err) { next(err); }
-  });
-
-  // Delete task
-  router.delete('/:taskId', requireWriteAccess, async (req, res, next) => {
-    try {
-      const p = getProject(req);
-      const taskId = Number(req.params.taskId);
-      await p.mutationQueue.enqueue(async () => {
-        const existing = p.storeManager.getTask(taskId);
-        if (!existing) throw Object.assign(new Error('Task not found'), { status: 404 });
-        p.storeManager.deleteTask(taskId);
-      });
-      res.status(204).end();
     } catch (err: any) {
-      if (err.status === 404) return res.status(404).json({ error: err.message });
+      if (err?.message?.includes('not found')) return res.status(404).json({ error: err.message });
       next(err);
     }
   });
 
   // Create edge (task-to-task or cross-graph)
+  // Must be registered before DELETE /:taskId to avoid 'links' being parsed as a taskId
   router.post('/links', requireWriteAccess, validateBody(createTaskLinkSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
@@ -218,6 +205,7 @@ export function createTasksRouter(_users?: Record<string, unknown>): Router {
   });
 
   // Delete edge
+  // Must be registered before DELETE /:taskId to avoid 'links' being parsed as a taskId
   router.delete('/links', requireWriteAccess, validateBody(createTaskLinkSchema.pick({ fromId: true, toId: true, targetGraph: true, projectId: true })), async (req, res, next) => {
     try {
       const p = getProject(req);
@@ -234,6 +222,23 @@ export function createTasksRouter(_users?: Record<string, unknown>): Router {
       });
       res.status(204).end();
     } catch (err) { next(err); }
+  });
+
+  // Delete task
+  router.delete('/:taskId', requireWriteAccess, async (req, res, next) => {
+    try {
+      const p = getProject(req);
+      const taskId = Number(req.params.taskId);
+      await p.mutationQueue.enqueue(async () => {
+        const existing = p.storeManager.getTask(taskId);
+        if (!existing) throw Object.assign(new Error('Task not found'), { status: 404 });
+        p.storeManager.deleteTask(taskId);
+      });
+      res.status(204).end();
+    } catch (err: any) {
+      if (err.status === 404) return res.status(404).json({ error: err.message });
+      next(err);
+    }
   });
 
   // List edges for a task

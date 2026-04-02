@@ -64,16 +64,19 @@ CREATE INDEX idx_attachments_entity ON attachments(project_id, graph, entity_id)
 -- =============================================
 
 CREATE TABLE edges (
-  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  from_graph TEXT NOT NULL,
-  from_id    INTEGER NOT NULL,
-  to_graph   TEXT NOT NULL,
-  to_id      INTEGER NOT NULL,
-  kind       TEXT NOT NULL,
-  PRIMARY KEY (project_id, from_graph, from_id, to_graph, to_id, kind)
+  from_project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  from_graph      TEXT NOT NULL,
+  from_id         INTEGER NOT NULL,
+  to_project_id   INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  to_graph        TEXT NOT NULL,
+  to_id           INTEGER NOT NULL,
+  kind            TEXT NOT NULL,
+  PRIMARY KEY (from_graph, from_id, to_graph, to_id, kind)
 );
-CREATE INDEX idx_edges_target ON edges(project_id, to_graph, to_id);
-CREATE INDEX idx_edges_source ON edges(project_id, from_graph, from_id);
+CREATE INDEX idx_edges_target ON edges(to_graph, to_id);
+CREATE INDEX idx_edges_source ON edges(from_graph, from_id);
+CREATE INDEX idx_edges_from_project ON edges(from_project_id);
+CREATE INDEX idx_edges_to_project ON edges(to_project_id);
 
 -- =============================================
 -- Knowledge (notes)
@@ -113,8 +116,8 @@ CREATE VIRTUAL TABLE knowledge_vec USING vec0(embedding float[${d('knowledge')}]
 
 CREATE TRIGGER knowledge_cleanup AFTER DELETE ON knowledge BEGIN
   DELETE FROM edges WHERE
-    (from_graph = 'knowledge' AND from_id = old.id AND project_id = old.project_id) OR
-    (to_graph = 'knowledge' AND to_id = old.id AND project_id = old.project_id);
+    (from_graph = 'knowledge' AND from_id = old.id) OR
+    (to_graph = 'knowledge' AND to_id = old.id);
   DELETE FROM attachments WHERE graph = 'knowledge' AND entity_id = old.id AND project_id = old.project_id;
   DELETE FROM knowledge_vec WHERE rowid = old.id;
 END;
@@ -166,8 +169,8 @@ CREATE VIRTUAL TABLE tasks_vec USING vec0(embedding float[${d('tasks')}]);
 
 CREATE TRIGGER tasks_cleanup AFTER DELETE ON tasks BEGIN
   DELETE FROM edges WHERE
-    (from_graph = 'tasks' AND from_id = old.id AND project_id = old.project_id) OR
-    (to_graph = 'tasks' AND to_id = old.id AND project_id = old.project_id);
+    (from_graph = 'tasks' AND from_id = old.id) OR
+    (to_graph = 'tasks' AND to_id = old.id);
   DELETE FROM attachments WHERE graph = 'tasks' AND entity_id = old.id AND project_id = old.project_id;
   DELETE FROM tasks_vec WHERE rowid = old.id;
 END;
@@ -213,8 +216,8 @@ CREATE VIRTUAL TABLE epics_vec USING vec0(embedding float[${d('epics')}]);
 
 CREATE TRIGGER epics_cleanup AFTER DELETE ON epics BEGIN
   DELETE FROM edges WHERE
-    (from_graph = 'epics' AND from_id = old.id AND project_id = old.project_id) OR
-    (to_graph = 'epics' AND to_id = old.id AND project_id = old.project_id);
+    (from_graph = 'epics' AND from_id = old.id) OR
+    (to_graph = 'epics' AND to_id = old.id);
   DELETE FROM attachments WHERE graph = 'epics' AND entity_id = old.id AND project_id = old.project_id;
   DELETE FROM epics_vec WHERE rowid = old.id;
 END;
@@ -265,8 +268,8 @@ CREATE VIRTUAL TABLE skills_vec USING vec0(embedding float[${d('skills')}]);
 
 CREATE TRIGGER skills_cleanup AFTER DELETE ON skills BEGIN
   DELETE FROM edges WHERE
-    (from_graph = 'skills' AND from_id = old.id AND project_id = old.project_id) OR
-    (to_graph = 'skills' AND to_id = old.id AND project_id = old.project_id);
+    (from_graph = 'skills' AND from_id = old.id) OR
+    (to_graph = 'skills' AND to_id = old.id);
   DELETE FROM attachments WHERE graph = 'skills' AND entity_id = old.id AND project_id = old.project_id;
   DELETE FROM skills_vec WHERE rowid = old.id;
 END;
@@ -317,8 +320,8 @@ CREATE VIRTUAL TABLE code_vec USING vec0(embedding float[${d('code')}]);
 
 CREATE TRIGGER code_cleanup AFTER DELETE ON code BEGIN
   DELETE FROM edges WHERE
-    (from_graph = 'code' AND from_id = old.id AND project_id = old.project_id) OR
-    (to_graph = 'code' AND to_id = old.id AND project_id = old.project_id);
+    (from_graph = 'code' AND from_id = old.id) OR
+    (to_graph = 'code' AND to_id = old.id);
   DELETE FROM attachments WHERE graph = 'code' AND entity_id = old.id AND project_id = old.project_id;
   DELETE FROM code_vec WHERE rowid = old.id;
 END;
@@ -361,8 +364,8 @@ CREATE VIRTUAL TABLE docs_vec USING vec0(embedding float[${d('docs')}]);
 
 CREATE TRIGGER docs_cleanup AFTER DELETE ON docs BEGIN
   DELETE FROM edges WHERE
-    (from_graph = 'docs' AND from_id = old.id AND project_id = old.project_id) OR
-    (to_graph = 'docs' AND to_id = old.id AND project_id = old.project_id);
+    (from_graph = 'docs' AND from_id = old.id) OR
+    (to_graph = 'docs' AND to_id = old.id);
   DELETE FROM attachments WHERE graph = 'docs' AND entity_id = old.id AND project_id = old.project_id;
   DELETE FROM docs_vec WHERE rowid = old.id;
 END;
@@ -393,8 +396,8 @@ CREATE VIRTUAL TABLE files_vec USING vec0(embedding float[${d('files')}]);
 
 CREATE TRIGGER files_cleanup AFTER DELETE ON files BEGIN
   DELETE FROM edges WHERE
-    (from_graph = 'files' AND from_id = old.id AND project_id = old.project_id) OR
-    (to_graph = 'files' AND to_id = old.id AND project_id = old.project_id);
+    (from_graph = 'files' AND from_id = old.id) OR
+    (to_graph = 'files' AND to_id = old.id);
   DELETE FROM attachments WHERE graph = 'files' AND entity_id = old.id AND project_id = old.project_id;
   DELETE FROM files_vec WHERE rowid = old.id;
 END;
@@ -402,8 +405,8 @@ END;
 -- Tags cleanup: when a tag is deleted, remove its edges
 CREATE TRIGGER tags_cleanup AFTER DELETE ON tags BEGIN
   DELETE FROM edges WHERE
-    (from_graph = 'tags' AND from_id = old.id AND project_id = old.project_id) OR
-    (to_graph = 'tags' AND to_id = old.id AND project_id = old.project_id);
+    (from_graph = 'tags' AND from_id = old.id) OR
+    (to_graph = 'tags' AND to_id = old.id);
 END;
 `,
   };

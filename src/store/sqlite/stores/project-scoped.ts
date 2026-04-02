@@ -53,22 +53,26 @@ export class SqliteProjectScopedStore implements ProjectScopedStore {
   // =========================================================================
 
   createEdge(edge: Edge): void {
-    this.edgeHelper.createEdge(this.projectId, edge);
+    this.edgeHelper.createEdge(this.projectId, this.projectId, edge);
+  }
+
+  createCrossProjectEdge(toProjectId: number, edge: Edge): void {
+    this.edgeHelper.createEdge(this.projectId, toProjectId, edge);
   }
 
   deleteEdge(edge: Edge): void {
-    this.edgeHelper.deleteEdge(this.projectId, edge);
+    this.edgeHelper.deleteEdge(edge);
   }
 
   listEdges(filter: EdgeFilter): Edge[] {
-    return this.edgeHelper.listEdges({ ...filter, projectId: this.projectId });
+    return this.edgeHelper.listEdges({ ...filter, fromProjectId: filter.fromProjectId ?? this.projectId });
   }
 
   findIncomingEdges(targetGraph: GraphName, targetId: number): Edge[] {
-    return this.edgeHelper.findIncomingEdges(targetGraph, targetId, this.projectId);
+    return this.edgeHelper.findIncomingEdges(targetGraph, targetId);
   }
 
   findOutgoingEdges(fromGraph: GraphName, fromId: number): Edge[] {
-    return this.edgeHelper.findOutgoingEdges(fromGraph, fromId, this.projectId);
+    return this.edgeHelper.findOutgoingEdges(fromGraph, fromId);
   }
 }

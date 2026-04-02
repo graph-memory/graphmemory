@@ -84,17 +84,17 @@ export class SqliteStore implements Store {
 
   // --- Edges ---
 
-  createEdge(projectId: number, edge: Edge): void {
+  createEdge(fromProjectId: number, toProjectId: number, edge: Edge): void {
     this.requireDb();
-    this.edgeHelper!.createEdge(projectId, edge);
+    this.edgeHelper!.createEdge(fromProjectId, toProjectId, edge);
   }
 
-  deleteEdge(projectId: number, edge: Edge): void {
+  deleteEdge(edge: Edge): void {
     this.requireDb();
-    this.edgeHelper!.deleteEdge(projectId, edge);
+    this.edgeHelper!.deleteEdge(edge);
   }
 
-  listEdges(filter: EdgeFilter & { projectId?: number }): Edge[] {
+  listEdges(filter: EdgeFilter): Edge[] {
     this.requireDb();
     return this.edgeHelper!.listEdges(filter);
   }

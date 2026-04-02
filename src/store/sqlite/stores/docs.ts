@@ -89,8 +89,8 @@ export class SqliteDocsStore implements DocsStore {
     `);
     const insertVec = this.db.prepare('INSERT INTO docs_vec (rowid, embedding) VALUES (?, ?)');
     const insertEdge = this.db.prepare(`
-      INSERT OR IGNORE INTO edges (project_id, from_graph, from_id, to_graph, to_id, kind)
-      VALUES (?, 'docs', ?, 'docs', ?, ?)
+      INSERT OR IGNORE INTO edges (from_project_id, from_graph, from_id, to_project_id, to_graph, to_id, kind)
+      VALUES (?, 'docs', ?, ?, 'docs', ?, ?)
     `);
 
     for (let i = 0; i < chunks.length; i++) {
@@ -113,7 +113,7 @@ export class SqliteDocsStore implements DocsStore {
       }
 
       // Edge: file → chunk (contains)
-      insertEdge.run(this.projectId, fileNodeId, chunkId, 'contains');
+      insertEdge.run(this.projectId, fileNodeId, this.projectId, chunkId, 'contains');
     }
   }
 
@@ -135,15 +135,15 @@ export class SqliteDocsStore implements DocsStore {
       "SELECT id FROM docs WHERE project_id = ? AND file_id = ? AND kind = 'file' LIMIT 1"
     );
     const insertEdge = this.db.prepare(`
-      INSERT OR IGNORE INTO edges (project_id, from_graph, from_id, to_graph, to_id, kind)
-      VALUES (?, 'docs', ?, 'docs', ?, 'references')
+      INSERT OR IGNORE INTO edges (from_project_id, from_graph, from_id, to_project_id, to_graph, to_id, kind)
+      VALUES (?, 'docs', ?, ?, 'docs', ?, 'references')
     `);
 
     for (const edge of edges) {
       const fromRow = findFile.get(this.projectId, edge.fromFileId) as { id: bigint } | undefined;
       const toRow = findFile.get(this.projectId, edge.toFileId) as { id: bigint } | undefined;
       if (fromRow && toRow) {
-        insertEdge.run(this.projectId, num(fromRow.id), num(toRow.id));
+        insertEdge.run(this.projectId, num(fromRow.id), this.projectId, num(toRow.id));
       }
     }
   }

@@ -95,8 +95,8 @@ export class SqliteCodeStore implements CodeStore {
     `);
     const insertVec = this.db.prepare('INSERT INTO code_vec (rowid, embedding) VALUES (?, ?)');
     const insertEdge = this.db.prepare(`
-      INSERT OR IGNORE INTO edges (project_id, from_graph, from_id, to_graph, to_id, kind)
-      VALUES (?, 'code', ?, 'code', ?, ?)
+      INSERT OR IGNORE INTO edges (from_project_id, from_graph, from_id, to_project_id, to_graph, to_id, kind)
+      VALUES (?, 'code', ?, ?, 'code', ?, ?)
     `);
 
     const nameToId = new Map<string, number>();
@@ -119,7 +119,7 @@ export class SqliteCodeStore implements CodeStore {
       }
 
       // Edge: file → symbol (contains)
-      insertEdge.run(this.projectId, fileNodeId, nodeId, 'contains');
+      insertEdge.run(this.projectId, fileNodeId, this.projectId, nodeId, 'contains');
     }
 
     // 4. Insert intra-file edges
@@ -127,7 +127,7 @@ export class SqliteCodeStore implements CodeStore {
       const fromId = nameToId.get(edge.fromName);
       const toId = nameToId.get(edge.toName);
       if (fromId !== undefined && toId !== undefined) {
-        insertEdge.run(this.projectId, fromId, toId, edge.kind);
+        insertEdge.run(this.projectId, fromId, this.projectId, toId, edge.kind);
       }
     }
   }
@@ -149,8 +149,8 @@ export class SqliteCodeStore implements CodeStore {
   resolveEdges(edges: Array<{ fromName: string; toName: string; kind: string }>): void {
     const findByName = this.db.prepare("SELECT id FROM code WHERE project_id = ? AND name = ? AND kind != 'file'");
     const insertEdge = this.db.prepare(`
-      INSERT OR IGNORE INTO edges (project_id, from_graph, from_id, to_graph, to_id, kind)
-      VALUES (?, 'code', ?, 'code', ?, ?)
+      INSERT OR IGNORE INTO edges (from_project_id, from_graph, from_id, to_project_id, to_graph, to_id, kind)
+      VALUES (?, 'code', ?, ?, 'code', ?, ?)
     `);
 
     for (const edge of edges) {
@@ -158,7 +158,7 @@ export class SqliteCodeStore implements CodeStore {
       const toRows = findByName.all(this.projectId, edge.toName) as Array<{ id: bigint }>;
       for (const fromRow of fromRows) {
         for (const toRow of toRows) {
-          insertEdge.run(this.projectId, num(fromRow.id), num(toRow.id), edge.kind);
+          insertEdge.run(this.projectId, num(fromRow.id), this.projectId, num(toRow.id), edge.kind);
         }
       }
     }

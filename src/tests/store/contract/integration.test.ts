@@ -150,11 +150,11 @@ describe('Store integration', () => {
     store.project(p2.id).knowledge.create({ title: 'N2', content: '' }, seedEmbedding(2));
     const t1 = store.project(p1.id).tasks.create({ title: 'T1', description: '' }, seedEmbedding(3));
 
-    store.createEdge(p1.id, { fromGraph: 'knowledge', fromId: n1.id, toGraph: 'tasks', toId: t1.id, kind: 'related_to' });
+    store.createEdge(p1.id, p1.id, { fromGraph: 'knowledge', fromId: n1.id, toGraph: 'tasks', toId: t1.id, kind: 'related_to' });
 
     // With projectId filter
-    expect(store.listEdges({ projectId: p1.id }).length).toBe(1);
-    expect(store.listEdges({ projectId: p2.id }).length).toBe(0);
+    expect(store.listEdges({ fromProjectId: p1.id }).length).toBe(1);
+    expect(store.listEdges({ fromProjectId: p2.id }).length).toBe(0);
 
     // findIncoming with projectId
     expect(store.findIncomingEdges('tasks', t1.id, p1.id).length).toBe(1);
@@ -164,8 +164,8 @@ describe('Store integration', () => {
     expect(store.findOutgoingEdges('knowledge', n1.id, p1.id).length).toBe(1);
 
     // Delete edge
-    store.deleteEdge(p1.id, { fromGraph: 'knowledge', fromId: n1.id, toGraph: 'tasks', toId: t1.id, kind: 'related_to' });
-    expect(store.listEdges({ projectId: p1.id }).length).toBe(0);
+    store.deleteEdge({ fromGraph: 'knowledge', fromId: n1.id, toGraph: 'tasks', toId: t1.id, kind: 'related_to' });
+    expect(store.listEdges({ fromProjectId: p1.id }).length).toBe(0);
   });
 
   // --- Store lifecycle ---

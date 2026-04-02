@@ -64,7 +64,7 @@ describe('DocsStore contract', () => {
 
     const db = store.getDb();
     const edges = db.prepare(
-      "SELECT * FROM edges WHERE project_id = ? AND from_graph = 'docs' AND kind = 'contains'"
+      "SELECT * FROM edges WHERE from_project_id = ? AND from_graph = 'docs' AND kind = 'contains'"
     ).all(projectId);
     expect(edges.length).toBe(2);
   });
@@ -137,7 +137,7 @@ describe('DocsStore contract', () => {
 
     const db = store.getDb();
     const refEdges = db.prepare(
-      "SELECT * FROM edges WHERE project_id = ? AND kind = 'references'"
+      "SELECT * FROM edges WHERE from_project_id = ? AND kind = 'references'"
     ).all(projectId);
     expect(refEdges.length).toBe(1);
   });

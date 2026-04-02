@@ -1,9 +1,9 @@
 /**
- * GraphOrchestrator — thin layer between API (MCP/REST) and Store (SQLite).
+ * StoreManager — thin layer between API (MCP/REST) and Store (SQLite).
  *
  * Handles: embedding generation, file mirror sync, event emission.
  * Does NOT own the store — receives it as dependency.
- * One orchestrator per project.
+ * One StoreManager per project.
  */
 import { EventEmitter } from 'events';
 import type {
@@ -54,7 +54,7 @@ import {
 } from './file-mirror';
 import { createLogger } from './logger';
 
-const log = createLogger('orchestrator');
+const log = createLogger('store-manager');
 
 // ---------------------------------------------------------------------------
 // Types
@@ -62,7 +62,7 @@ const log = createLogger('orchestrator');
 
 export type EmbedFn = (text: string) => Promise<number[]>;
 
-export interface OrchestratorConfig {
+export interface StoreManagerConfig {
   store: Store;
   projectId: number;
   projectDir: string;
@@ -72,10 +72,10 @@ export interface OrchestratorConfig {
 }
 
 // ---------------------------------------------------------------------------
-// GraphOrchestrator
+// StoreManager
 // ---------------------------------------------------------------------------
 
-export class GraphOrchestrator {
+export class StoreManager {
   readonly store: Store;
   readonly scoped: ProjectScopedStore;
   readonly projectId: number;
@@ -83,7 +83,7 @@ export class GraphOrchestrator {
   private embedFn: EmbedFn;
   private emitter: EventEmitter;
 
-  constructor(config: OrchestratorConfig) {
+  constructor(config: StoreManagerConfig) {
     this.store = config.store;
     this.projectId = config.projectId;
     this.projectDir = config.projectDir;

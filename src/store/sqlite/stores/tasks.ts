@@ -188,8 +188,8 @@ export class SqliteTasksStore implements TasksStore {
     if (opts?.filter) { conditions.push("(t.title LIKE ? ESCAPE '\\' OR t.description LIKE ? ESCAPE '\\')"); const like = `%${likeEscape(opts.filter)}%`; params.push(like, like); }
     if (opts?.tag) {
       conditions.push(`EXISTS (
-        SELECT 1 FROM edges e JOIN tags tg ON tg.id = e.from_id AND tg.project_id = e.project_id
-        WHERE e.project_id = t.project_id AND e.to_graph = 'tasks' AND e.to_id = t.id
+        SELECT 1 FROM edges e JOIN tags tg ON tg.id = e.from_id
+        WHERE e.to_graph = 'tasks' AND e.to_id = t.id
         AND e.from_graph = 'tags' AND e.kind = 'tagged' AND tg.name = ?
       )`);
       params.push(opts.tag);

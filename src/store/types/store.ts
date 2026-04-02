@@ -27,12 +27,15 @@ export interface ProjectScopedStore {
   readonly attachments: AttachmentsStore;
 
   // --- Edges (unified graph edges — same-graph and cross-graph) ---
+  /** Create an edge within the same project */
   createEdge(edge: Edge): void;
+  /** Create a cross-project edge (from this project to another) */
+  createCrossProjectEdge(toProjectId: number, edge: Edge): void;
   deleteEdge(edge: Edge): void;
   listEdges(filter: EdgeFilter): Edge[];
-  /** Find all edges pointing TO a given node */
+  /** Find all edges pointing TO a given node (across all projects) */
   findIncomingEdges(targetGraph: GraphName, targetId: number): Edge[];
-  /** Find all edges going FROM a given node */
+  /** Find all edges going FROM a given node (across all projects) */
   findOutgoingEdges(fromGraph: GraphName, fromId: number): Edge[];
 }
 
@@ -65,9 +68,9 @@ export interface Store {
   evictProject(projectId: number): void;
 
   // --- Edges (across all projects) ---
-  createEdge(projectId: number, edge: Edge): void;
-  deleteEdge(projectId: number, edge: Edge): void;
-  listEdges(filter: EdgeFilter & { projectId?: number }): Edge[];
+  createEdge(fromProjectId: number, toProjectId: number, edge: Edge): void;
+  deleteEdge(edge: Edge): void;
+  listEdges(filter: EdgeFilter): Edge[];
   findIncomingEdges(targetGraph: GraphName, targetId: number, projectId?: number): Edge[];
   findOutgoingEdges(fromGraph: GraphName, fromId: number, projectId?: number): Edge[];
 

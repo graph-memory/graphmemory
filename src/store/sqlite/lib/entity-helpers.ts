@@ -14,11 +14,11 @@ export class EntityHelpers {
   setTags(graph: string, entityId: number, tags: string[]): void {
     // Collect old tag ids before deleting edges
     const oldTagIds = this.db.prepare(
-      `SELECT from_id FROM edges WHERE project_id = ? AND to_graph = ? AND to_id = ? AND from_graph = 'tags' AND kind = 'tagged'`
-    ).all(this.projectId, graph, entityId) as Array<{ from_id: bigint }>;
+      `SELECT from_id FROM edges WHERE to_graph = ? AND to_id = ? AND from_graph = 'tags' AND kind = 'tagged'`
+    ).all(graph, entityId) as Array<{ from_id: bigint }>;
 
-    this.db.prepare(`DELETE FROM edges WHERE project_id = ? AND to_graph = ? AND to_id = ? AND from_graph = 'tags' AND kind = 'tagged'`)
-      .run(this.projectId, graph, entityId);
+    this.db.prepare(`DELETE FROM edges WHERE to_graph = ? AND to_id = ? AND from_graph = 'tags' AND kind = 'tagged'`)
+      .run(graph, entityId);
 
     // Clean up orphaned tags in one query
     if (oldTagIds.length > 0) {
@@ -27,7 +27,7 @@ export class EntityHelpers {
       this.db.prepare(`
         DELETE FROM tags WHERE project_id = ? AND id IN (${ph})
         AND NOT EXISTS (
-          SELECT 1 FROM edges WHERE project_id = tags.project_id AND from_graph = 'tags' AND from_id = tags.id AND kind = 'tagged'
+          SELECT 1 FROM edges WHERE from_graph = 'tags' AND from_id = tags.id AND kind = 'tagged'
         )
       `).run(this.projectId, ...ids);
     }
@@ -36,22 +36,22 @@ export class EntityHelpers {
     const uniqueTags = [...new Set(tags)];
     const insertTag = this.db.prepare('INSERT OR IGNORE INTO tags (project_id, name) VALUES (?, ?)');
     const selectTag = this.db.prepare('SELECT id FROM tags WHERE project_id = ? AND name = ?');
-    const insertEdge = this.db.prepare(`INSERT OR IGNORE INTO edges (project_id, from_graph, from_id, to_graph, to_id, kind) VALUES (?, 'tags', ?, ?, ?, 'tagged')`);
+    const insertEdge = this.db.prepare(`INSERT OR IGNORE INTO edges (from_project_id, from_graph, from_id, to_project_id, to_graph, to_id, kind) VALUES (?, 'tags', ?, ?, ?, ?, 'tagged')`);
     for (const tag of uniqueTags) {
       insertTag.run(this.projectId, tag);
       const row = selectTag.get(this.projectId, tag) as { id: bigint } | undefined;
       if (!row) throw new Error(`Failed to resolve tag: ${tag}`);
-      insertEdge.run(this.projectId, num(row.id), graph, entityId);
+      insertEdge.run(this.projectId, num(row.id), this.projectId, graph, entityId);
     }
   }
 
   fetchTags(graph: string, entityId: number): string[] {
     const rows = this.db.prepare(`
       SELECT t.name FROM tags t
-      JOIN edges e ON e.from_graph = 'tags' AND e.from_id = t.id AND e.project_id = ?
+      JOIN edges e ON e.from_graph = 'tags' AND e.from_id = t.id
       WHERE e.to_graph = ? AND e.to_id = ? AND e.kind = 'tagged'
       ORDER BY t.name
-    `).all(this.projectId, graph, entityId) as Array<{ name: string }>;
+    `).all(graph, entityId) as Array<{ name: string }>;
     return rows.map(r => r.name);
   }
 
@@ -66,11 +66,11 @@ export class EntityHelpers {
       const rows = this.db.prepare(`
         SELECT e.to_id AS entity_id, t.name
         FROM edges e
-        JOIN tags t ON t.id = e.from_id AND t.project_id = e.project_id
-        WHERE e.project_id = ? AND e.from_graph = 'tags' AND e.to_graph = ? AND e.kind = 'tagged'
+        JOIN tags t ON t.id = e.from_id
+        WHERE e.from_graph = 'tags' AND e.to_graph = ? AND e.kind = 'tagged'
         AND e.to_id IN (${ph})
         ORDER BY t.name
-      `).all(this.projectId, graph, ...batch) as Array<{ entity_id: bigint; name: string }>;
+      `).all(graph, ...batch) as Array<{ entity_id: bigint; name: string }>;
 
       for (const r of rows) {
         const id = num(r.entity_id);
@@ -129,10 +129,10 @@ export class EntityHelpers {
   fetchEdges(graph: string, entityId: number): Edge[] {
     const rows = this.db.prepare(`
       SELECT from_graph, from_id, to_graph, to_id, kind FROM edges
-      WHERE project_id = ? AND (
+      WHERE (
         (from_graph = ? AND from_id = ?) OR (to_graph = ? AND to_id = ?)
       ) AND from_graph != 'tags'
-    `).all(this.projectId, graph, entityId, graph, entityId) as Array<Record<string, unknown>>;
+    `).all(graph, entityId, graph, entityId) as Array<Record<string, unknown>>;
     return rows.map(r => ({
       fromGraph: r.from_graph as GraphName,
       fromId: num(r.from_id as bigint),

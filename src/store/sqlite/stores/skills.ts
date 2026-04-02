@@ -187,8 +187,8 @@ export class SqliteSkillsStore implements SkillsStore {
     if (opts?.filter) { conditions.push("(s.title LIKE ? ESCAPE '\\' OR s.description LIKE ? ESCAPE '\\')"); const like = `%${likeEscape(opts.filter)}%`; params.push(like, like); }
     if (opts?.tag) {
       conditions.push(`EXISTS (
-        SELECT 1 FROM edges e JOIN tags t ON t.id = e.from_id AND t.project_id = e.project_id
-        WHERE e.project_id = s.project_id AND e.to_graph = 'skills' AND e.to_id = s.id
+        SELECT 1 FROM edges e JOIN tags t ON t.id = e.from_id
+        WHERE e.to_graph = 'skills' AND e.to_id = s.id
         AND e.from_graph = 'tags' AND e.kind = 'tagged' AND t.name = ?
       )`);
       params.push(opts.tag);

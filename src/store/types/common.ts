@@ -60,8 +60,10 @@ export interface Edge {
 }
 
 export interface EdgeFilter {
+  fromProjectId?: number;
   fromGraph?: GraphName;
   fromId?: number;
+  toProjectId?: number;
   toGraph?: GraphName;
   toId?: number;
   kind?: string;

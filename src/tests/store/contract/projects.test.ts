@@ -109,14 +109,14 @@ describe('ProjectsStore contract', () => {
     // Create a knowledge entry + edge
     const kResult = db.prepare('INSERT INTO knowledge (project_id, slug, title, content) VALUES (?, ?, ?, ?)').run(project.id, 'n1', 'Note', 'Content');
     const kId = Number(kResult.lastInsertRowid);
-    db.prepare('INSERT INTO edges (project_id, from_graph, from_id, to_graph, to_id, kind) VALUES (?, ?, ?, ?, ?, ?)').run(project.id, 'knowledge', kId, 'tasks', 1, 'relates_to');
+    db.prepare('INSERT INTO edges (from_project_id, from_graph, from_id, to_project_id, to_graph, to_id, kind) VALUES (?, ?, ?, ?, ?, ?, ?)').run(project.id, 'knowledge', kId, project.id, 'tasks', 1, 'relates_to');
 
-    const before = Number((db.prepare('SELECT COUNT(*) AS c FROM edges WHERE project_id = ?').get(project.id) as { c: bigint }).c);
+    const before = Number((db.prepare('SELECT COUNT(*) AS c FROM edges WHERE from_project_id = ?').get(project.id) as { c: bigint }).c);
     expect(before).toBe(1);
 
     store.projects.delete(project.id);
 
-    const after = Number((db.prepare('SELECT COUNT(*) AS c FROM edges WHERE project_id = ?').get(project.id) as { c: bigint }).c);
+    const after = Number((db.prepare('SELECT COUNT(*) AS c FROM edges WHERE from_project_id = ?').get(project.id) as { c: bigint }).c);
     expect(after).toBe(0);
   });
 

@@ -67,7 +67,7 @@ describe('CodeStore contract', () => {
 
     const db = store.getDb();
     const edges = db.prepare(
-      "SELECT * FROM edges WHERE project_id = ? AND from_graph = 'code' AND kind = 'contains'"
+      "SELECT * FROM edges WHERE from_project_id = ? AND from_graph = 'code' AND kind = 'contains'"
     ).all(projectId) as Array<Record<string, unknown>>;
     expect(edges.length).toBe(2); // file → add, file → subtract
   });
@@ -78,7 +78,7 @@ describe('CodeStore contract', () => {
 
     const db = store.getDb();
     const callEdges = db.prepare(
-      "SELECT * FROM edges WHERE project_id = ? AND from_graph = 'code' AND kind = 'calls'"
+      "SELECT * FROM edges WHERE from_project_id = ? AND from_graph = 'code' AND kind = 'calls'"
     ).all(projectId) as Array<Record<string, unknown>>;
     expect(callEdges.length).toBe(1);
   });
@@ -164,7 +164,7 @@ describe('CodeStore contract', () => {
 
     const db = store.getDb();
     const importEdges = db.prepare(
-      "SELECT * FROM edges WHERE project_id = ? AND kind = 'imports'"
+      "SELECT * FROM edges WHERE from_project_id = ? AND kind = 'imports'"
     ).all(projectId);
     expect(importEdges.length).toBe(1);
   });

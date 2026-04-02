@@ -3,16 +3,16 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import { EventEmitter } from 'events';
 import { SqliteStore } from '@/store';
-import { GraphOrchestrator } from '@/lib/orchestrator';
+import { StoreManager } from '@/lib/store-manager';
 import { seedEmbedding } from './helpers';
 
 async function fakeEmbed(text: string): Promise<number[]> {
   return seedEmbedding(text.length);
 }
 
-describe('GraphOrchestrator', () => {
+describe('StoreManager', () => {
   let store: SqliteStore;
-  let orchestrator: GraphOrchestrator;
+  let manager: StoreManager;
   let emitter: EventEmitter;
   let projectDir: string;
   let cleanup: () => void;
@@ -28,7 +28,7 @@ describe('GraphOrchestrator', () => {
     const project = store.projects.create({ slug: 'test', name: 'Test', directory: projectDir });
     emitter = new EventEmitter();
 
-    orchestrator = new GraphOrchestrator({
+    manager = new StoreManager({
       store,
       projectId: project.id,
       projectDir,
@@ -54,7 +54,7 @@ describe('GraphOrchestrator', () => {
       const events: unknown[] = [];
       emitter.on('note:created', (d) => events.push(d));
 
-      const record = await orchestrator.createNote({ title: 'Hello', content: 'World', tags: ['test'] });
+      const record = await manager.createNote({ title: 'Hello', content: 'World', tags: ['test'] });
 
       expect(record.title).toBe('Hello');
       expect(record.content).toBe('World');
@@ -67,29 +67,29 @@ describe('GraphOrchestrator', () => {
     });
 
     it('updates a note with re-embedding on content change', async () => {
-      const record = await orchestrator.createNote({ title: 'Original', content: 'Content' });
-      const updated = await orchestrator.updateNote(record.id, { content: 'New content' });
+      const record = await manager.createNote({ title: 'Original', content: 'Content' });
+      const updated = await manager.updateNote(record.id, { content: 'New content' });
 
       expect(updated.content).toBe('New content');
       expect(updated.version).toBe(record.version + 1);
     });
 
     it('deletes a note and removes mirror dir', async () => {
-      const record = await orchestrator.createNote({ title: 'ToDelete', content: '' });
+      const record = await manager.createNote({ title: 'ToDelete', content: '' });
       const mirrorDir = join(projectDir, '.notes', record.slug);
       expect(existsSync(mirrorDir)).toBe(true);
 
-      orchestrator.deleteNote(record.id);
+      manager.deleteNote(record.id);
 
-      expect(orchestrator.getNote(record.id)).toBeNull();
+      expect(manager.getNote(record.id)).toBeNull();
       expect(existsSync(mirrorDir)).toBe(false);
     });
 
     it('searches notes', async () => {
-      await orchestrator.createNote({ title: 'Alpha', content: 'First note' });
-      await orchestrator.createNote({ title: 'Beta', content: 'Second note' });
+      await manager.createNote({ title: 'Alpha', content: 'First note' });
+      await manager.createNote({ title: 'Beta', content: 'Second note' });
 
-      const results = await orchestrator.searchNotes({ text: 'alpha', searchMode: 'keyword' });
+      const results = await manager.searchNotes({ text: 'alpha', searchMode: 'keyword' });
       expect(results.length).toBe(1);
     });
   });
@@ -100,7 +100,7 @@ describe('GraphOrchestrator', () => {
 
   describe('tasks', () => {
     it('creates a task with mirror', async () => {
-      const record = await orchestrator.createTask({
+      const record = await manager.createTask({
         title: 'Fix bug', description: 'Urgent', status: 'todo', priority: 'high',
       });
 
@@ -110,20 +110,20 @@ describe('GraphOrchestrator', () => {
     });
 
     it('moves a task', async () => {
-      const record = await orchestrator.createTask({
+      const record = await manager.createTask({
         title: 'Task', description: '', status: 'backlog', priority: 'medium',
       });
-      const moved = orchestrator.moveTask(record.id, 'done');
+      const moved = manager.moveTask(record.id, 'done');
 
       expect(moved.status).toBe('done');
       expect(moved.completedAt).not.toBeNull();
     });
 
     it('bulk deletes tasks', async () => {
-      const t1 = await orchestrator.createTask({ title: 'A', description: '' });
-      const t2 = await orchestrator.createTask({ title: 'B', description: '' });
+      const t1 = await manager.createTask({ title: 'A', description: '' });
+      const t2 = await manager.createTask({ title: 'B', description: '' });
 
-      const count = orchestrator.bulkDeleteTasks([t1.id, t2.id]);
+      const count = manager.bulkDeleteTasks([t1.id, t2.id]);
       expect(count).toBe(2);
     });
   });
@@ -134,7 +134,7 @@ describe('GraphOrchestrator', () => {
 
   describe('epics', () => {
     it('creates an epic with mirror', async () => {
-      const record = await orchestrator.createEpic({
+      const record = await manager.createEpic({
         title: 'Release v2', description: 'Major release',
       });
 
@@ -144,16 +144,16 @@ describe('GraphOrchestrator', () => {
     });
 
     it('links and unlinks a task to an epic', async () => {
-      const epic = await orchestrator.createEpic({ title: 'Epic', description: '' });
-      const task = await orchestrator.createTask({ title: 'Task', description: '' });
+      const epic = await manager.createEpic({ title: 'Epic', description: '' });
+      const task = await manager.createTask({ title: 'Task', description: '' });
 
-      orchestrator.linkTaskToEpic(epic.id, task.id);
+      manager.linkTaskToEpic(epic.id, task.id);
 
-      const epicDetail = orchestrator.getEpic(epic.id)!;
+      const epicDetail = manager.getEpic(epic.id)!;
       expect(epicDetail.progress.total).toBe(1);
 
-      orchestrator.unlinkTaskFromEpic(epic.id, task.id);
-      const epicAfter = orchestrator.getEpic(epic.id)!;
+      manager.unlinkTaskFromEpic(epic.id, task.id);
+      const epicAfter = manager.getEpic(epic.id)!;
       expect(epicAfter.progress.total).toBe(0);
     });
   });
@@ -164,7 +164,7 @@ describe('GraphOrchestrator', () => {
 
   describe('skills', () => {
     it('creates a skill with mirror', async () => {
-      const record = await orchestrator.createSkill({
+      const record = await manager.createSkill({
         title: 'Deploy', description: 'Deploy to prod',
         steps: ['build', 'push'], triggers: ['on merge'],
       });
@@ -174,12 +174,12 @@ describe('GraphOrchestrator', () => {
     });
 
     it('bumps skill usage', async () => {
-      const record = await orchestrator.createSkill({ title: 'Skill', description: '' });
+      const record = await manager.createSkill({ title: 'Skill', description: '' });
       expect(record.usageCount).toBe(0);
 
-      orchestrator.bumpSkillUsage(record.id);
+      manager.bumpSkillUsage(record.id);
 
-      const updated = orchestrator.getSkill(record.id)!;
+      const updated = manager.getSkill(record.id)!;
       expect(updated.usageCount).toBe(1);
       expect(updated.lastUsedAt).not.toBeNull();
     });
@@ -191,16 +191,16 @@ describe('GraphOrchestrator', () => {
 
   describe('edges', () => {
     it('creates and lists edges', async () => {
-      const note = await orchestrator.createNote({ title: 'Note', content: '' });
-      const task = await orchestrator.createTask({ title: 'Task', description: '' });
+      const note = await manager.createNote({ title: 'Note', content: '' });
+      const task = await manager.createTask({ title: 'Task', description: '' });
 
-      orchestrator.createEdge({
+      manager.createEdge({
         fromGraph: 'knowledge', fromId: note.id,
         toGraph: 'tasks', toId: task.id,
         kind: 'relates_to',
       });
 
-      const edges = orchestrator.listEdges({ fromGraph: 'knowledge', fromId: note.id });
+      const edges = manager.listEdges({ fromGraph: 'knowledge', fromId: note.id });
       expect(edges.length).toBe(1);
       expect(edges[0].toId).toBe(task.id);
     });
@@ -212,18 +212,18 @@ describe('GraphOrchestrator', () => {
 
   describe('attachments', () => {
     it('adds and removes an attachment', async () => {
-      const note = await orchestrator.createNote({ title: 'Note', content: '' });
+      const note = await manager.createNote({ title: 'Note', content: '' });
       const data = Buffer.from('hello');
 
-      const meta = orchestrator.addAttachment('knowledge', note.id, note.slug, 'test.txt', data);
+      const meta = manager.addAttachment('knowledge', note.id, note.slug, 'test.txt', data);
       expect(meta.filename).toBe('test.txt');
       expect(meta.size).toBe(5);
 
-      const list = orchestrator.listAttachments('knowledge', note.id);
+      const list = manager.listAttachments('knowledge', note.id);
       expect(list.length).toBe(1);
 
-      orchestrator.removeAttachment('knowledge', note.id, note.slug, 'test.txt');
-      expect(orchestrator.listAttachments('knowledge', note.id).length).toBe(0);
+      manager.removeAttachment('knowledge', note.id, note.slug, 'test.txt');
+      expect(manager.listAttachments('knowledge', note.id).length).toBe(0);
     });
   });
 });

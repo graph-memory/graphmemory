@@ -70,9 +70,9 @@ export class SqliteEpicsStore implements EpicsStore {
       SELECT COALESCE(SUM(CASE WHEN t.status != 'cancelled' THEN 1 ELSE 0 END), 0) AS total,
              COALESCE(SUM(CASE WHEN t.status = 'done' THEN 1 ELSE 0 END), 0) AS done
       FROM edges e
-      JOIN tasks t ON t.id = e.to_id AND t.project_id = e.project_id
-      WHERE e.project_id = ? AND e.from_graph = 'epics' AND e.from_id = ? AND e.to_graph = 'tasks' AND e.kind = 'belongs_to'
-    `).get(this.projectId, epicId) as { total: bigint; done: bigint };
+      JOIN tasks t ON t.id = e.to_id
+      WHERE e.from_graph = 'epics' AND e.from_id = ? AND e.to_graph = 'tasks' AND e.kind = 'belongs_to'
+    `).get(epicId) as { total: bigint; done: bigint };
     return { total: num(row.total), done: num(row.done) };
   }
 
@@ -88,11 +88,11 @@ export class SqliteEpicsStore implements EpicsStore {
           COALESCE(SUM(CASE WHEN t.status != 'cancelled' THEN 1 ELSE 0 END), 0) AS total,
           COALESCE(SUM(CASE WHEN t.status = 'done' THEN 1 ELSE 0 END), 0) AS done
         FROM edges e
-        JOIN tasks t ON t.id = e.to_id AND t.project_id = e.project_id
-        WHERE e.project_id = ? AND e.from_graph = 'epics' AND e.to_graph = 'tasks' AND e.kind = 'belongs_to'
+        JOIN tasks t ON t.id = e.to_id
+        WHERE e.from_graph = 'epics' AND e.to_graph = 'tasks' AND e.kind = 'belongs_to'
         AND e.from_id IN (${ph})
         GROUP BY e.from_id
-      `).all(this.projectId, ...batch) as Array<{ epic_id: bigint; total: bigint; done: bigint }>;
+      `).all(...batch) as Array<{ epic_id: bigint; total: bigint; done: bigint }>;
 
       for (const r of rows) {
         result.set(num(r.epic_id), { total: num(r.total), done: num(r.done) });
@@ -210,8 +210,8 @@ export class SqliteEpicsStore implements EpicsStore {
     if (opts?.filter) { conditions.push("(e.title LIKE ? ESCAPE '\\' OR e.description LIKE ? ESCAPE '\\')"); const like = `%${likeEscape(opts.filter)}%`; params.push(like, like); }
     if (opts?.tag) {
       conditions.push(`EXISTS (
-        SELECT 1 FROM edges ed JOIN tags tg ON tg.id = ed.from_id AND tg.project_id = ed.project_id
-        WHERE ed.project_id = e.project_id AND ed.to_graph = 'epics' AND ed.to_id = e.id
+        SELECT 1 FROM edges ed JOIN tags tg ON tg.id = ed.from_id
+        WHERE ed.to_graph = 'epics' AND ed.to_id = e.id
         AND ed.from_graph = 'tags' AND ed.kind = 'tagged' AND tg.name = ?
       )`);
       params.push(opts.tag);
@@ -260,17 +260,17 @@ export class SqliteEpicsStore implements EpicsStore {
     if (!task) throw new Error(`Task ${taskId} not found`);
 
     this.db.prepare(`
-      INSERT OR IGNORE INTO edges (project_id, from_graph, from_id, to_graph, to_id, kind)
-      VALUES (?, 'epics', ?, 'tasks', ?, 'belongs_to')
-    `).run(this.projectId, epicId, taskId);
+      INSERT OR IGNORE INTO edges (from_project_id, from_graph, from_id, to_project_id, to_graph, to_id, kind)
+      VALUES (?, 'epics', ?, ?, 'tasks', ?, 'belongs_to')
+    `).run(this.projectId, epicId, this.projectId, taskId);
   }
 
   unlinkTask(epicId: number, taskId: number): void {
     this.db.prepare(`
       DELETE FROM edges
-      WHERE project_id = ? AND from_graph = 'epics' AND from_id = ?
+      WHERE from_graph = 'epics' AND from_id = ?
       AND to_graph = 'tasks' AND to_id = ? AND kind = 'belongs_to'
-    `).run(this.projectId, epicId, taskId);
+    `).run(epicId, taskId);
   }
 
   // =========================================================================

@@ -9,27 +9,28 @@ import { num } from './bigint';
 export class EdgeHelper {
   constructor(private db: Database.Database) {}
 
-  createEdge(projectId: number, edge: Edge): void {
+  createEdge(fromProjectId: number, toProjectId: number, edge: Edge): void {
     this.db.prepare(`
-      INSERT OR IGNORE INTO edges (project_id, from_graph, from_id, to_graph, to_id, kind)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(projectId, edge.fromGraph, edge.fromId, edge.toGraph, edge.toId, edge.kind);
+      INSERT OR IGNORE INTO edges (from_project_id, from_graph, from_id, to_project_id, to_graph, to_id, kind)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(fromProjectId, edge.fromGraph, edge.fromId, toProjectId, edge.toGraph, edge.toId, edge.kind);
   }
 
-  deleteEdge(projectId: number, edge: Edge): void {
+  deleteEdge(edge: Edge): void {
     this.db.prepare(`
       DELETE FROM edges
-      WHERE project_id = ? AND from_graph = ? AND from_id = ? AND to_graph = ? AND to_id = ? AND kind = ?
-    `).run(projectId, edge.fromGraph, edge.fromId, edge.toGraph, edge.toId, edge.kind);
+      WHERE from_graph = ? AND from_id = ? AND to_graph = ? AND to_id = ? AND kind = ?
+    `).run(edge.fromGraph, edge.fromId, edge.toGraph, edge.toId, edge.kind);
   }
 
-  listEdges(filter: EdgeFilter & { projectId?: number }): Edge[] {
+  listEdges(filter: EdgeFilter): Edge[] {
     const conditions: string[] = [];
     const params: unknown[] = [];
 
-    if (filter.projectId !== undefined) { conditions.push('project_id = ?'); params.push(filter.projectId); }
+    if (filter.fromProjectId !== undefined) { conditions.push('from_project_id = ?'); params.push(filter.fromProjectId); }
     if (filter.fromGraph) { conditions.push('from_graph = ?'); params.push(filter.fromGraph); }
     if (filter.fromId !== undefined) { conditions.push('from_id = ?'); params.push(filter.fromId); }
+    if (filter.toProjectId !== undefined) { conditions.push('to_project_id = ?'); params.push(filter.toProjectId); }
     if (filter.toGraph) { conditions.push('to_graph = ?'); params.push(filter.toGraph); }
     if (filter.toId !== undefined) { conditions.push('to_id = ?'); params.push(filter.toId); }
     if (filter.kind) { conditions.push('kind = ?'); params.push(filter.kind); }
@@ -49,10 +50,14 @@ export class EdgeHelper {
   }
 
   findIncomingEdges(targetGraph: GraphName, targetId: number, projectId?: number): Edge[] {
-    return this.listEdges({ toGraph: targetGraph, toId: targetId, projectId });
+    const filter: EdgeFilter = { toGraph: targetGraph, toId: targetId };
+    if (projectId !== undefined) filter.toProjectId = projectId;
+    return this.listEdges(filter);
   }
 
   findOutgoingEdges(fromGraph: GraphName, fromId: number, projectId?: number): Edge[] {
-    return this.listEdges({ fromGraph, fromId, projectId });
+    const filter: EdgeFilter = { fromGraph, fromId };
+    if (projectId !== undefined) filter.fromProjectId = projectId;
+    return this.listEdges(filter);
   }
 }

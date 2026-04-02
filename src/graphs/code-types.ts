@@ -1,5 +1,3 @@
-import { DirectedGraph } from 'graphology';
-
 export type CodeNodeKind =
   | 'file'        // file root (imports + file-level JSDoc)
   | 'function'    // function / arrow function assigned to const
@@ -38,11 +36,4 @@ export interface CodeEdgeAttributes {
   kind: CodeEdgeKind;
 }
 
-export type CodeGraph = DirectedGraph<CodeNodeAttributes, CodeEdgeAttributes>;
-
-export function createCodeGraph(): CodeGraph {
-  return new DirectedGraph<CodeNodeAttributes, CodeEdgeAttributes>({
-    multi: false,
-    allowSelfLoops: false,
-  });
-}
+// CodeGraph type alias and createCodeGraph() removed — indexed graphs now use SQLite Store.

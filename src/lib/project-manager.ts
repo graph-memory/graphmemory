@@ -147,12 +147,10 @@ export class ProjectManager extends EventEmitter {
       author: formatAuthor(config.author),
     };
 
-    // ExternalGraphs for workspace — projectGraphs will be populated as projects are added
     const ext: ExternalGraphs = {
       knowledgeGraph,
       taskGraph,
       skillGraph,
-      projectGraphs: new Map(),
     };
 
     const knowledgeEmbedFns = {
@@ -496,12 +494,10 @@ export class ProjectManager extends EventEmitter {
     if (instance.mcpClientCleanup) await instance.mcpClientCleanup();
     this.saveProject(instance);
 
-    // Clean up workspace shared graphs: remove projectGraphs reference and orphaned proxies
+    // Clean up workspace shared graphs: remove orphaned proxy nodes
     if (instance.workspaceId) {
       const ws = this.workspaces.get(instance.workspaceId);
       if (ws) {
-        ws.knowledgeManager.externalGraphs?.projectGraphs?.delete(id);
-        // Remove orphaned proxy nodes that reference this project
         for (const graph of [ws.knowledgeManager.graph, ws.taskManager?.graph, ws.skillManager?.graph]) {
           if (!graph) continue;
           const toRemove: string[] = [];
@@ -509,7 +505,6 @@ export class ProjectManager extends EventEmitter {
             if (attrs.proxyFor?.projectId === id) {
               toRemove.push(nodeId);
             } else if (attrs.proxyFor && !attrs.proxyFor.projectId && graph.degree(nodeId) === 0) {
-              // Legacy proxy (no projectId) — clean up if orphaned (zero edges)
               toRemove.push(nodeId);
             }
           });

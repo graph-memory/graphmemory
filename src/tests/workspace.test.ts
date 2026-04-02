@@ -1,9 +1,6 @@
 import { createKnowledgeGraph } from '@/graphs/knowledge-types';
 import { createTaskGraph } from '@/graphs/task-types';
 import { createSkillGraph } from '@/graphs/skill-types';
-import { createFileIndexGraph } from '@/graphs/file-index-types';
-import { createCodeGraph } from '@/graphs/code-types';
-import { createGraph as createDocGraph } from '@/graphs/docs';
 import {
   proxyId as knowledgeProxyId,
   createCrossRelation as knowledgeCreateCross,
@@ -221,30 +218,17 @@ describe('workspace shared graphs', () => {
   const sharedSkillGraph = createSkillGraph();
   const sharedMutationQueue = new PromiseQueue();
 
-  // Per-project graphs
-  const projectADocGraph = createDocGraph();
-  const projectACodeGraph = createCodeGraph();
-  const projectAFileIndexGraph = createFileIndexGraph();
-
-  const projectBDocGraph = createDocGraph();
-  const projectBCodeGraph = createCodeGraph();
-  const projectBFileIndexGraph = createFileIndexGraph();
-
   // Standalone project (no workspace) — separate graphs
   const standaloneKnowledgeGraph = createKnowledgeGraph();
   const standaloneTaskGraph = createTaskGraph();
   const standaloneSkillGraph = createSkillGraph();
 
-  // Workspace context and external graphs
+  // Workspace context and external graphs (indexed graphs now use SQLite Store)
   const wsCtx = noopContext('workspace');
   const wsExt: ExternalGraphs = {
     knowledgeGraph: sharedKnowledgeGraph,
     taskGraph: sharedTaskGraph,
     skillGraph: sharedSkillGraph,
-    projectGraphs: new Map([
-      ['proj-a', { docGraph: projectADocGraph, codeGraph: projectACodeGraph, fileIndexGraph: projectAFileIndexGraph }],
-      ['proj-b', { docGraph: projectBDocGraph, codeGraph: projectBCodeGraph, fileIndexGraph: projectBFileIndexGraph }],
-    ]),
   };
 
   // Shared managers (workspace-level, used by both projects)
@@ -324,12 +308,6 @@ describe('workspace shared graphs', () => {
     expect(skill).not.toBeNull();
     expect(skill!.title).toBe('Shared Skill');
     expect(skill!.steps).toEqual(['step 1']);
-  });
-
-  it('per-project graphs (docGraph, codeGraph, fileIndexGraph) are NOT shared', () => {
-    expect(projectADocGraph).not.toBe(projectBDocGraph);
-    expect(projectACodeGraph).not.toBe(projectBCodeGraph);
-    expect(projectAFileIndexGraph).not.toBe(projectBFileIndexGraph);
   });
 
   it('standalone project has its own separate knowledge graph', async () => {

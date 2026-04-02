@@ -691,7 +691,7 @@ export class KnowledgeGraphManager {
     const pid = projectId || this.ctx.projectId;
     let ok: boolean;
     if (targetGraph) {
-      const extGraph = resolveExternalGraph(this.ext, targetGraph, pid);
+      const extGraph = resolveExternalGraph(this.ext, targetGraph);
       ok = createCrossRelation(this._graph, fromId, targetGraph, toId, kind, extGraph, pid);
       // Bidirectional: create mirror proxy in TaskGraph
       if (ok && targetGraph === 'tasks' && this.taskGraph) {

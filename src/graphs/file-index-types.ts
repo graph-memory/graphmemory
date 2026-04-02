@@ -1,5 +1,3 @@
-import { DirectedGraph } from 'graphology';
-
 export type FileIndexNodeKind = 'file' | 'directory';
 
 export type FileIndexEdgeKind = 'contains';
@@ -22,11 +20,4 @@ export interface FileIndexEdgeAttributes {
   kind: FileIndexEdgeKind;
 }
 
-export type FileIndexGraph = DirectedGraph<FileIndexNodeAttributes, FileIndexEdgeAttributes>;
-
-export function createFileIndexGraph(): FileIndexGraph {
-  return new DirectedGraph<FileIndexNodeAttributes, FileIndexEdgeAttributes>({
-    multi: false,
-    allowSelfLoops: false,
-  });
-}
+// FileIndexGraph type alias and createFileIndexGraph() removed — indexed graphs now use SQLite Store.

@@ -7,10 +7,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createMcpServer, type McpSessionContext } from '@/api/index';
 import { SqliteStore } from '@/store';
 import { StoreManager } from '@/lib/store-manager';
-import type { DocGraph } from '@/graphs/docs';
-import type { CodeGraph } from '@/graphs/code-types';
 import type { KnowledgeGraph } from '@/graphs/knowledge-types';
-import type { FileIndexGraph } from '@/graphs/file-index-types';
 import type { TaskGraph } from '@/graphs/task-types';
 import type { SkillGraph } from '@/graphs/skill-types';
 import type { EmbedFn, EmbedFns } from '@/graphs/manager-types';
@@ -127,10 +124,7 @@ export interface McpTestContext {
 }
 
 export async function setupMcpClient(opts: {
-  docGraph?: DocGraph;
-  codeGraph?: CodeGraph;
   knowledgeGraph?: KnowledgeGraph;
-  fileIndexGraph?: FileIndexGraph;
   taskGraph?: TaskGraph;
   skillGraph?: SkillGraph;
   embedFn?: (query: string) => Promise<number[]>;
@@ -143,10 +137,10 @@ export async function setupMcpClient(opts: {
 }): Promise<McpTestContext> {
   const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
   const server = createMcpServer(
-    opts.docGraph,
-    opts.codeGraph,
+    undefined, // docGraph (removed)
+    undefined, // codeGraph (removed)
     opts.knowledgeGraph,
-    opts.fileIndexGraph,
+    undefined, // fileIndexGraph (removed)
     opts.taskGraph,
     opts.embedFn,
     undefined,

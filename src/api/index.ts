@@ -12,10 +12,7 @@ import { attachWebSocket } from '@/api/rest/websocket';
 import { resolveUserFromBearer, resolveAccess, canWrite, canRead } from '@/lib/access';
 import { MAX_BODY_SIZE, SESSION_SWEEP_INTERVAL_MS } from '@/lib/defaults';
 import { GRAPH_NAMES, type GraphName, type AccessLevel, type UserConfig } from '@/lib/multi-config';
-import type { DocGraph } from '@/graphs/docs';
-import type { CodeGraph } from '@/graphs/code-types';
 import type { KnowledgeGraph } from '@/graphs/knowledge-types';
-import type { FileIndexGraph } from '@/graphs/file-index-types';
 import type { TaskGraph } from '@/graphs/task-types';
 import type { SkillGraph } from '@/graphs/skill-types';
 import type { StoreManager } from '@/lib/store-manager';
@@ -169,10 +166,10 @@ function buildInstructions(ctx: McpSessionContext): string {
  * @param mutationQueue  Optional PromiseQueue to serialize mutation tool handlers.
  */
 export function createMcpServer(
-  _docGraph?: DocGraph,
-  _codeGraph?: CodeGraph,
+  _docGraph?: unknown,
+  _codeGraph?: unknown,
   _knowledgeGraph?: KnowledgeGraph,
-  _fileIndexGraph?: FileIndexGraph,
+  _fileIndexGraph?: unknown,
   _taskGraph?: TaskGraph,
   embedFn?: EmbedFn | Partial<EmbedFnMap>,
   mutationQueue?: PromiseQueue,
@@ -381,10 +378,10 @@ export async function startHttpServer(
   host: string,
   port: number,
   sessionTimeoutMs: number,
-  docGraph?: DocGraph,
-  codeGraph?: CodeGraph,
+  _docGraph?: unknown,
+  _codeGraph?: unknown,
   knowledgeGraph?: KnowledgeGraph,
-  fileIndexGraph?: FileIndexGraph,
+  _fileIndexGraph?: unknown,
   taskGraph?: TaskGraph,
   embedFn?: EmbedFn | Partial<EmbedFnMap>,
   projectDir?: string,
@@ -450,7 +447,7 @@ export async function startHttpServer(
         const sid = transport.sessionId;
         if (sid) sessions.delete(sid);
       };
-      const mcpServer = createMcpServer(docGraph, codeGraph, knowledgeGraph, fileIndexGraph, taskGraph, embedFn, undefined, projectDir, skillGraph, sessionContext, readonlyGraphs, undefined, () => transport.sessionId);
+      const mcpServer = createMcpServer(undefined, undefined, knowledgeGraph, undefined, taskGraph, embedFn, undefined, projectDir, skillGraph, sessionContext, readonlyGraphs, undefined, () => transport.sessionId);
       await mcpServer.connect(transport);
       await transport.handleRequest(req, res, body);
     } catch (err) {

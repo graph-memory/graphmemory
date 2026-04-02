@@ -1311,7 +1311,7 @@ export class TaskGraphManager {
   createCrossLink(taskId: string, targetId: string, targetGraph: TaskCrossGraphType, kind: string, projectId?: string, author?: string): boolean {
     const by = author ?? this.ctx.author;
     const pid = projectId || this.ctx.projectId;
-    const extGraph = resolveExternalGraph(this.ext, targetGraph, pid);
+    const extGraph = resolveExternalGraph(this.ext, targetGraph);
     const ok = createCrossRelation(this._graph, taskId, targetGraph, targetId, kind, extGraph, pid);
     // Bidirectional: create mirror proxy in KnowledgeGraph
     if (ok && targetGraph === 'knowledge' && this.knowledgeGraph) {

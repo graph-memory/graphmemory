@@ -1,9 +1,10 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import type { SkillGraphManager } from '@/graphs/skill';
-import { MAX_TARGET_NODE_ID_LEN, MAX_LINK_KIND_LEN, MAX_PROJECT_ID_LEN } from '@/lib/defaults';
+import type { StoreManager } from '@/lib/store-manager';
+import type { GraphName } from '@/store/types';
+import { MAX_LINK_KIND_LEN } from '@/lib/defaults';
 
-export function register(server: McpServer, mgr: SkillGraphManager): void {
+export function register(server: McpServer, mgr: StoreManager): void {
   server.registerTool(
     'skills_find_linked',
     {
@@ -13,18 +14,25 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
         'Returns an array of { skillId, title, kind, source, confidence, tags }. ' +
         'Use skills_get to fetch full content of a returned skill.',
       inputSchema: {
-        targetGraph:  z.enum(['docs', 'code', 'files', 'knowledge', 'tasks'])
+        targetGraph: z.enum(['docs', 'code', 'files', 'knowledge', 'tasks'])
           .describe('Which graph the target belongs to: "docs", "code", "files", "knowledge", or "tasks"'),
-        targetId:     z.string().min(1).max(MAX_TARGET_NODE_ID_LEN).describe('Target node ID in the external graph, e.g. "src/auth.ts" or "guide.md::Setup"'),
-        kind:         z.string().max(MAX_LINK_KIND_LEN).optional().describe('Filter by relation kind. If omitted, returns all relations.'),
-        projectId:    z.string().max(MAX_PROJECT_ID_LEN).optional().describe('Project ID that the target node belongs to. Defaults to the current project.'),
+        targetId:    z.number().int().positive().describe('Target node ID'),
+        kind:        z.string().max(MAX_LINK_KIND_LEN).optional().describe('Filter by relation kind. If omitted, returns all relations.'),
       },
     },
-    async ({ targetGraph, targetId, kind, projectId }) => {
-      const results = mgr.findLinkedSkills(targetGraph, targetId, kind, projectId);
-      if (results.length === 0) {
+    async ({ targetGraph, targetId, kind }) => {
+      const edges = mgr.listEdges({ fromGraph: 'skills', toGraph: targetGraph as GraphName, toId: targetId });
+      const filtered = kind ? edges.filter(e => e.kind === kind) : edges;
+
+      if (filtered.length === 0) {
         return { content: [{ type: 'text', text: `No skills linked to ${targetGraph}::${targetId}` }] };
       }
+
+      const results = filtered.map(e => {
+        const skill = mgr.getSkill(e.fromId);
+        return skill ? { skillId: skill.id, title: skill.title, kind: e.kind, source: skill.source, confidence: skill.confidence, tags: skill.tags } : null;
+      }).filter(Boolean);
+
       const clean = (_k: string, v: any) => (Array.isArray(v) && v.length === 0 ? undefined : v);
       return { content: [{ type: 'text', text: JSON.stringify(results, clean, 2) }] };
     },

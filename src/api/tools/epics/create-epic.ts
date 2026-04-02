@@ -1,9 +1,9 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import type { TaskGraphManager } from '@/graphs/task';
+import type { StoreManager } from '@/lib/store-manager';
 import { MAX_TITLE_LEN, MAX_DESCRIPTION_LEN, MAX_TAG_LEN, MAX_TAGS_COUNT } from '@/lib/defaults';
 
-export function register(server: McpServer, mgr: TaskGraphManager, resolveAuthor: () => string): void {
+export function register(server: McpServer, mgr: StoreManager): void {
   server.registerTool(
     'epics_create',
     {
@@ -19,11 +19,8 @@ export function register(server: McpServer, mgr: TaskGraphManager, resolveAuthor
       },
     },
     async ({ title, description, status, priority, tags }) => {
-      const author = resolveAuthor();
-      const epicId = await mgr.createEpic(
-        title, description ?? '', status ?? 'open', priority ?? 'medium', tags ?? [], author,
-      );
-      return { content: [{ type: 'text', text: JSON.stringify({ epicId }, null, 2) }] };
+      const record = await mgr.createEpic({ title, description: description ?? '', status, priority, tags: tags ?? [] });
+      return { content: [{ type: 'text', text: JSON.stringify({ epicId: record.id }, null, 2) }] };
     },
   );
 }

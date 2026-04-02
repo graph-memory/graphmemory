@@ -1,9 +1,9 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import type { SkillGraphManager } from '@/graphs/skill';
+import type { StoreManager } from '@/lib/store-manager';
 import { MAX_TAG_LEN } from '@/lib/defaults';
 
-export function register(server: McpServer, mgr: SkillGraphManager): void {
+export function register(server: McpServer, mgr: StoreManager): void {
   server.registerTool(
     'skills_list',
     {
@@ -22,8 +22,7 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
     async ({ source, tag, filter, limit, offset }) => {
       const { results, total } = mgr.listSkills({ source, tag, filter, limit, offset });
       const clean = (k: string, v: any) => (k !== '' && (v === null || (Array.isArray(v) && v.length === 0)) ? undefined : v);
-      const output = results.map(({ version: _, ...r }) => r);
-      return { content: [{ type: 'text', text: JSON.stringify({ results: output, total }, clean, 2) }] };
+      return { content: [{ type: 'text', text: JSON.stringify({ results, total }, clean, 2) }] };
     },
   );
 }

@@ -1,17 +1,17 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import type { KnowledgeGraphManager } from '@/graphs/knowledge';
+import type { StoreManager } from '@/lib/store-manager';
 import { MAX_TITLE_LEN, MAX_NOTE_CONTENT_LEN, MAX_TAG_LEN, MAX_TAGS_COUNT } from '@/lib/defaults';
 
-export function register(server: McpServer, mgr: KnowledgeGraphManager, resolveAuthor: () => string): void {
+export function register(server: McpServer, mgr: StoreManager): void {
   server.registerTool(
     'notes_create',
     {
       description:
         'Create a new note or fact in the knowledge graph. ' +
         'The note is automatically embedded for semantic search. ' +
-        'Returns the generated noteId (slug from title). ' +
-        'Use create_relation to link notes together.',
+        'Returns the generated noteId. ' +
+        'Use notes_create_link to link notes together.',
       inputSchema: {
         title:   z.string().min(1).max(MAX_TITLE_LEN).describe('Short title for the note, e.g. "Auth uses JWT tokens"'),
         content: z.string().max(MAX_NOTE_CONTENT_LEN).describe('Full text content of the note (markdown)'),
@@ -19,9 +19,8 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager, resolveA
       },
     },
     async ({ title, content, tags }) => {
-      const author = resolveAuthor();
-      const noteId = await mgr.createNote(title, content, tags ?? [], author);
-      return { content: [{ type: 'text', text: JSON.stringify({ noteId }, null, 2) }] };
+      const record = await mgr.createNote({ title, content, tags: tags ?? [] });
+      return { content: [{ type: 'text', text: JSON.stringify({ noteId: record.id }, null, 2) }] };
     },
   );
 }

@@ -3,43 +3,59 @@ import mime from 'mime';
 import { Router } from 'express';
 import multer from 'multer';
 import type { ProjectInstance } from '@/lib/project-manager';
+import type { StoreManager } from '@/lib/store-manager';
+import type { PromiseQueue } from '@/lib/promise-queue';
 import { validateBody, validateQuery, createNoteSchema, updateNoteSchema, createRelationSchema, noteSearchSchema, noteListSchema, linkedQuerySchema, attachmentFilenameSchema } from '@/api/rest/validation';
 import { requireWriteAccess } from '@/api/rest/index';
-import { VersionConflictError } from '@/graphs/manager-types';
+import { VersionConflictError } from '@/store/types/common';
+import type { GraphName } from '@/store/types/common';
 import { MAX_UPLOAD_SIZE } from '@/lib/defaults';
-import { resolveRequestAuthor, type UserConfig } from '@/lib/multi-config';
+// TODO: uncomment when authorId support lands
+// import { resolveRequestAuthor } from '@/lib/multi-config';
+import type { UserConfig } from '@/lib/multi-config';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_UPLOAD_SIZE } });
 
-export function createKnowledgeRouter(users?: Record<string, UserConfig>): Router {
+function parseNoteId(raw: string | string[]): number {
+  if (Array.isArray(raw)) raw = raw[0];
+  const id = Number(raw);
+  if (!Number.isFinite(id) || id < 1 || id !== Math.floor(id)) {
+    const err = new Error('Invalid note ID');
+    (err as any).status = 400;
+    throw err;
+  }
+  return id;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- will be wired when authorId support lands
+export function createKnowledgeRouter(_users?: Record<string, UserConfig>): Router {
   const router = Router({ mergeParams: true });
 
-  function getProject(req: any) {
-    return req.project as ProjectInstance & { knowledgeManager: NonNullable<ProjectInstance['knowledgeManager']> };
+  function getProject(req: any): { storeManager: StoreManager; mutationQueue: PromiseQueue } {
+    const p = req.project as ProjectInstance;
+    return { storeManager: (p as any).storeManager as StoreManager, mutationQueue: p.mutationQueue };
   }
 
   // List notes
   router.get('/notes', validateQuery(noteListSchema), (req, res, next) => {
     try {
-      const p = getProject(req);
+      const { storeManager: mgr } = getProject(req);
       const q = req.validatedQuery;
-      const { results: notes, total } = p.knowledgeManager.listNotes(q.filter, q.tag, q.limit, q.offset);
-      res.json({ results: notes, total });
+      const { results, total } = mgr.listNotes({ filter: q.filter, tag: q.tag, limit: q.limit, offset: q.offset });
+      res.json({ results, total });
     } catch (err) { next(err); }
   });
 
   // Search notes
   router.get('/search', validateQuery(noteSearchSchema), async (req, res, next) => {
     try {
-      const p = getProject(req);
+      const { storeManager: mgr } = getProject(req);
       const q = req.validatedQuery;
-      const results = await p.knowledgeManager.searchNotes(q.q, {
-        topK: q.topK,
+      const results = await mgr.searchNotes({
+        text: q.q,
+        maxResults: q.maxResults,
         minScore: q.minScore,
         searchMode: q.searchMode,
-        bfsDepth: q.bfsDepth,
-        maxResults: q.maxResults,
-        bfsDecay: q.bfsDecay,
       });
       res.json({ results });
     } catch (err) { next(err); }
@@ -48,10 +64,11 @@ export function createKnowledgeRouter(users?: Record<string, UserConfig>): Route
   // Get note
   router.get('/notes/:noteId', (req, res, next) => {
     try {
-      const p = getProject(req);
-      const note = p.knowledgeManager.getNote(req.params.noteId as string);
+      const { storeManager: mgr } = getProject(req);
+      const noteId = parseNoteId(req.params.noteId);
+      const note = mgr.getNote(noteId);
       if (!note) return res.status(404).json({ error: 'Note not found' });
-      const { embedding: _, ...rest } = note;
+      const { embedding: _, ...rest } = note as any;
       res.json(rest);
     } catch (err) { next(err); }
   });
@@ -59,12 +76,11 @@ export function createKnowledgeRouter(users?: Record<string, UserConfig>): Route
   // Create note
   router.post('/notes', requireWriteAccess, validateBody(createNoteSchema), async (req, res, next) => {
     try {
-      const p = getProject(req);
+      const { storeManager: mgr, mutationQueue } = getProject(req);
       const { title, content, tags } = req.body;
-      const author = resolveRequestAuthor(req.userId, users);
-      const created = await p.mutationQueue.enqueue(async () => {
-        const noteId = await p.knowledgeManager.createNote(title, content, tags, author);
-        return p.knowledgeManager.getNote(noteId);
+      const created = await mutationQueue.enqueue(async () => {
+        const record = await mgr.createNote({ title, content, tags });
+        return record;
       });
       res.status(201).json(created);
     } catch (err) { next(err); }
@@ -73,14 +89,12 @@ export function createKnowledgeRouter(users?: Record<string, UserConfig>): Route
   // Update note
   router.put('/notes/:noteId', requireWriteAccess, validateBody(updateNoteSchema), async (req, res, next) => {
     try {
-      const p = getProject(req);
-      const noteId = req.params.noteId as string;
+      const { storeManager: mgr, mutationQueue } = getProject(req);
+      const noteId = parseNoteId(req.params.noteId);
       const { version, ...patch } = req.body;
-      const author = resolveRequestAuthor(req.userId, users);
-      const result = await p.mutationQueue.enqueue(async () => {
-        const ok = await p.knowledgeManager.updateNote(noteId, patch, version, author);
-        if (!ok) return null;
-        return p.knowledgeManager.getNote(noteId);
+      const result = await mutationQueue.enqueue(async () => {
+        const updated = await mgr.updateNote(noteId, patch, undefined, version);
+        return updated;
       });
       if (!result) return res.status(404).json({ error: 'Note not found' });
       res.json(result);
@@ -95,60 +109,65 @@ export function createKnowledgeRouter(users?: Record<string, UserConfig>): Route
   // Delete note
   router.delete('/notes/:noteId', requireWriteAccess, async (req, res, next) => {
     try {
-      const p = getProject(req);
-      const noteId = req.params.noteId as string;
-      const author = resolveRequestAuthor(req.userId, users);
-      const ok = await p.mutationQueue.enqueue(async () => {
-        return p.knowledgeManager.deleteNote(noteId, author);
+      const { storeManager: mgr, mutationQueue } = getProject(req);
+      const noteId = parseNoteId(req.params.noteId);
+      const note = mgr.getNote(noteId);
+      if (!note) return res.status(404).json({ error: 'Note not found' });
+      await mutationQueue.enqueue(async () => {
+        mgr.deleteNote(noteId);
       });
-      if (!ok) return res.status(404).json({ error: 'Note not found' });
       res.status(204).end();
     } catch (err) { next(err); }
   });
 
-  // Create relation
+  // Create edge (relation)
   router.post('/relations', requireWriteAccess, validateBody(createRelationSchema), async (req, res, next) => {
     try {
-      const p = getProject(req);
-      const { fromId, toId, kind, targetGraph, projectId } = req.body;
-      const author = resolveRequestAuthor(req.userId, users);
-      const ok = await p.mutationQueue.enqueue(async () => {
-        return p.knowledgeManager.createRelation(fromId, toId, kind, targetGraph, projectId, author);
+      const { storeManager: mgr, mutationQueue } = getProject(req);
+      const { fromId, toId, kind, targetGraph } = req.body;
+      const fromGraph: GraphName = 'knowledge';
+      const toGraph: GraphName = targetGraph || 'knowledge';
+      await mutationQueue.enqueue(async () => {
+        mgr.createEdge({ fromGraph, fromId: Number(fromId), toGraph, toId: Number(toId), kind });
       });
-      if (!ok) return res.status(400).json({ error: 'Failed to create relation' });
       res.status(201).json({ fromId, toId, kind, targetGraph: targetGraph || undefined });
     } catch (err) { next(err); }
   });
 
-  // Delete relation
+  // Delete edge (relation)
   router.delete('/relations', requireWriteAccess, validateBody(createRelationSchema.pick({ fromId: true, toId: true, targetGraph: true, projectId: true })), async (req, res, next) => {
     try {
-      const p = getProject(req);
-      const { fromId, toId, targetGraph, projectId } = req.body;
-      const author = resolveRequestAuthor(req.userId, users);
-      const ok = await p.mutationQueue.enqueue(async () => {
-        return p.knowledgeManager.deleteRelation(fromId, toId, targetGraph, projectId, author);
+      const { storeManager: mgr, mutationQueue } = getProject(req);
+      const { fromId, toId, targetGraph } = req.body;
+      const fromGraph: GraphName = 'knowledge';
+      const toGraph: GraphName = targetGraph || 'knowledge';
+      await mutationQueue.enqueue(async () => {
+        mgr.deleteEdge({ fromGraph, fromId: Number(fromId), toGraph, toId: Number(toId), kind: '' });
       });
-      if (!ok) return res.status(404).json({ error: 'Relation not found' });
       res.status(204).end();
     } catch (err) { next(err); }
   });
 
-  // List relations for a note
+  // List edges for a note
   router.get('/notes/:noteId/relations', (req, res, next) => {
     try {
-      const p = getProject(req);
-      const relations = p.knowledgeManager.listRelations(req.params.noteId as string);
-      res.json({ results: relations });
+      const { storeManager: mgr } = getProject(req);
+      const noteId = parseNoteId(req.params.noteId);
+      const outgoing = mgr.findOutgoingEdges('knowledge', noteId);
+      const incoming = mgr.findIncomingEdges('knowledge', noteId);
+      res.json({ results: [...outgoing, ...incoming] });
     } catch (err) { next(err); }
   });
 
   // Find notes linked to an external entity
   router.get('/linked', validateQuery(linkedQuerySchema), (req, res, next) => {
     try {
-      const p = getProject(req);
-      const { targetGraph, targetNodeId, kind, projectId } = req.validatedQuery;
-      const notes = p.knowledgeManager.findLinkedNotes(targetGraph, targetNodeId, kind, projectId ?? (req.params as any).projectId);
+      const { storeManager: mgr } = getProject(req);
+      const { targetGraph, targetNodeId } = req.validatedQuery;
+      const edges = mgr.listEdges({ fromGraph: 'knowledge', toGraph: targetGraph as GraphName, toId: Number(targetNodeId) });
+      const notes = edges
+        .map(e => mgr.getNote(e.fromId))
+        .filter((n): n is NonNullable<typeof n> => n != null);
       res.json({ results: notes });
     } catch (err) { next(err); }
   });
@@ -158,17 +177,18 @@ export function createKnowledgeRouter(users?: Record<string, UserConfig>): Route
   // Upload attachment
   router.post('/notes/:noteId/attachments', requireWriteAccess, upload.single('file'), async (req, res, next) => {
     try {
-      const p = getProject(req);
-      const noteId = req.params.noteId as string;
+      const { storeManager: mgr, mutationQueue } = getProject(req);
+      const noteId = parseNoteId(req.params.noteId);
       const file = req.file;
       if (!file) return res.status(400).json({ error: 'No file uploaded' });
       const filename = attachmentFilenameSchema.parse(file.originalname);
-      const author = resolveRequestAuthor(req.userId, users);
 
-      const meta = await p.mutationQueue.enqueue(async () => {
-        return p.knowledgeManager.addAttachment(noteId, filename, file.buffer, author);
+      const note = mgr.getNote(noteId);
+      if (!note) return res.status(404).json({ error: 'Note not found' });
+
+      const meta = await mutationQueue.enqueue(async () => {
+        return mgr.addAttachment('knowledge', noteId, note.slug, filename, file.buffer);
       });
-      if (!meta) return res.status(404).json({ error: 'Note not found' });
       res.status(201).json(meta);
     } catch (err) { next(err); }
   });
@@ -176,8 +196,9 @@ export function createKnowledgeRouter(users?: Record<string, UserConfig>): Route
   // List attachments
   router.get('/notes/:noteId/attachments', (req, res, next) => {
     try {
-      const p = getProject(req);
-      const attachments = p.knowledgeManager.listAttachments(req.params.noteId as string);
+      const { storeManager: mgr } = getProject(req);
+      const noteId = parseNoteId(req.params.noteId);
+      const attachments = mgr.listAttachments('knowledge', noteId);
       res.json({ results: attachments });
     } catch (err) { next(err); }
   });
@@ -185,9 +206,14 @@ export function createKnowledgeRouter(users?: Record<string, UserConfig>): Route
   // Download attachment
   router.get('/notes/:noteId/attachments/:filename', (req, res, next) => {
     try {
-      const p = getProject(req);
+      const { storeManager: mgr } = getProject(req);
+      const noteId = parseNoteId(req.params.noteId);
       const filename = attachmentFilenameSchema.parse(req.params.filename);
-      const filePath = p.knowledgeManager.getAttachmentPath(req.params.noteId as string, filename);
+
+      const note = mgr.getNote(noteId);
+      if (!note) return res.status(404).json({ error: 'Note not found' });
+
+      const filePath = mgr.getAttachmentPath('knowledge', note.slug, filename);
       if (!filePath) return res.status(404).json({ error: 'Attachment not found' });
       const mimeType = mime.getType(filePath) ?? 'application/octet-stream';
       res.setHeader('Content-Type', mimeType);
@@ -202,14 +228,16 @@ export function createKnowledgeRouter(users?: Record<string, UserConfig>): Route
   // Delete attachment
   router.delete('/notes/:noteId/attachments/:filename', requireWriteAccess, async (req, res, next) => {
     try {
-      const p = getProject(req);
-      const noteId = req.params.noteId as string;
+      const { storeManager: mgr, mutationQueue } = getProject(req);
+      const noteId = parseNoteId(req.params.noteId);
       const filename = attachmentFilenameSchema.parse(req.params.filename);
-      const author = resolveRequestAuthor(req.userId, users);
-      const ok = await p.mutationQueue.enqueue(async () => {
-        return p.knowledgeManager.removeAttachment(noteId, filename, author);
+
+      const note = mgr.getNote(noteId);
+      if (!note) return res.status(404).json({ error: 'Note not found' });
+
+      await mutationQueue.enqueue(async () => {
+        mgr.removeAttachment('knowledge', noteId, note.slug, filename);
       });
-      if (!ok) return res.status(404).json({ error: 'Attachment not found' });
       res.status(204).end();
     } catch (err) { next(err); }
   });

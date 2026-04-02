@@ -25,6 +25,7 @@ import { ensureAuthorInTeam } from '@/lib/team';
 import path from 'path';
 import { AUTO_SAVE_INTERVAL_MS } from '@/lib/defaults';
 import { createLogger } from '@/lib/logger';
+import type { StoreManager } from '@/lib/store-manager';
 
 const log = createLogger('project-manager');
 
@@ -47,6 +48,7 @@ export interface ProjectInstance {
   fileIndexManager?: FileIndexGraphManager;
   taskManager?: TaskGraphManager;
   skillManager?: SkillGraphManager;
+  storeManager?: StoreManager;
   indexer?: ProjectIndexer;
   watcher?: WatcherHandle;
   embedFns: EmbedFnMap;

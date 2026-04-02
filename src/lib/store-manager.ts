@@ -51,6 +51,7 @@ import {
   writeAttachment,
   deleteAttachment,
   deleteMirrorDir,
+  getAttachmentPath as getAttPath,
 } from './file-mirror';
 import { createLogger } from './logger';
 import mime from 'mime';
@@ -368,6 +369,17 @@ export class StoreManager {
     return this.scoped.epics.search(query);
   }
 
+  getEpicBySlug(slug: string): EpicDetail | null {
+    return this.scoped.epics.getBySlug(slug);
+  }
+
+  listEpicTasks(epicId: number): TaskRecord[] {
+    const taskIds = this.scoped.epics.listTasks(epicId);
+    return taskIds
+      .map(id => this.scoped.tasks.get(id))
+      .filter((t): t is TaskDetail => t !== null);
+  }
+
   linkTaskToEpic(epicId: number, taskId: number): void {
     this.scoped.epics.linkTask(epicId, taskId);
     this.emit('epic:task_linked', { projectId: this.projectId, epicId, taskId });
@@ -504,6 +516,11 @@ export class StoreManager {
 
   listAttachments(graph: GraphName, entityId: number): AttachmentMeta[] {
     return this.scoped.attachments.list(graph, entityId);
+  }
+
+  getAttachmentPath(graph: GraphName, entitySlug: string, filename: string): string | null {
+    const mirrorBase = this.mirrorDirForGraph(graph);
+    return getAttPath(mirrorBase, entitySlug, filename);
   }
 
   // =========================================================================

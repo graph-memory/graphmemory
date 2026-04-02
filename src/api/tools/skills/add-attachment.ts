@@ -2,29 +2,30 @@ import fs from 'fs';
 import path from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import type { SkillGraphManager } from '@/graphs/skill';
+import type { StoreManager } from '@/lib/store-manager';
 import { MAX_UPLOAD_SIZE } from '@/lib/defaults';
 
-export function register(server: McpServer, mgr: SkillGraphManager, resolveAuthor: () => string): void {
+export function register(server: McpServer, mgr: StoreManager): void {
   server.registerTool(
     'skills_add_attachment',
     {
       description:
         'Attach a file to a skill. Provide the absolute path to a local file. ' +
-        'The file is copied into the skill directory (.skills/{skillId}/). ' +
+        'The file is copied into the skill directory (.skills/{slug}/). ' +
         'Returns attachment metadata (filename, mimeType, size).',
       inputSchema: {
-        skillId:  z.string().min(1).max(500).describe('ID of the skill to attach the file to'),
+        skillId:  z.number().int().positive().describe('ID of the skill to attach the file to'),
         filePath: z.string().min(1).max(4096).describe('Absolute path to the file on disk'),
       },
     },
     async ({ skillId, filePath }) => {
-      const resolved = path.resolve(filePath);
-
-      const projectDir = mgr.projectDir;
-      if (!projectDir) {
-        return { content: [{ type: 'text', text: JSON.stringify({ error: 'No project directory configured' }) }], isError: true };
+      const skill = mgr.getSkill(skillId);
+      if (!skill) {
+        return { content: [{ type: 'text', text: JSON.stringify({ error: 'Skill not found' }) }], isError: true };
       }
+
+      const resolved = path.resolve(filePath);
+      const projectDir = mgr.projectDir;
 
       let realResolved: string;
       try { realResolved = fs.realpathSync(resolved); } catch {
@@ -52,12 +53,7 @@ export function register(server: McpServer, mgr: SkillGraphManager, resolveAutho
 
       const data = fs.readFileSync(realResolved);
       const filename = path.basename(resolved);
-      const author = resolveAuthor();
-      const meta = mgr.addAttachment(skillId, filename, data, author);
-
-      if (!meta) {
-        return { content: [{ type: 'text', text: JSON.stringify({ error: 'Skill not found or no project dir' }) }], isError: true };
-      }
+      const meta = mgr.addAttachment('skills', skillId, skill.slug, filename, data);
 
       return { content: [{ type: 'text', text: JSON.stringify(meta, null, 2) }] };
     },

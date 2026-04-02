@@ -273,6 +273,15 @@ export class SqliteEpicsStore implements EpicsStore {
     `).run(epicId, taskId);
   }
 
+  listTasks(epicId: number): number[] {
+    const rows = this.db.prepare(`
+      SELECT e.to_id FROM edges e
+      WHERE e.from_graph = 'epics' AND e.from_id = ?
+      AND e.to_graph = 'tasks' AND e.kind = 'belongs_to'
+    `).all(epicId) as Array<{ to_id: bigint }>;
+    return rows.map(r => num(r.to_id));
+  }
+
   // =========================================================================
   // Timestamps
   // =========================================================================

@@ -1,20 +1,20 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import type { SkillGraphManager } from '@/graphs/skill';
+import type { StoreManager } from '@/lib/store-manager';
 import {
   MAX_TITLE_LEN, MAX_DESCRIPTION_LEN, MAX_TAG_LEN, MAX_TAGS_COUNT,
   MAX_SKILL_STEP_LEN, MAX_SKILL_STEPS_COUNT,
   MAX_SKILL_TRIGGER_LEN, MAX_SKILL_TRIGGERS_COUNT,
 } from '@/lib/defaults';
 
-export function register(server: McpServer, mgr: SkillGraphManager, resolveAuthor: () => string): void {
+export function register(server: McpServer, mgr: StoreManager): void {
   server.registerTool(
     'skills_create',
     {
       description:
         'Create a new skill (reusable recipe/procedure) in the skill graph. ' +
         'The skill is automatically embedded for semantic search. ' +
-        'Returns the generated skillId (slug from title). ' +
+        'Returns the generated skillId. ' +
         'Use link_skill to connect skills, or create_skill_link to link to docs/code/files/knowledge/tasks.',
       inputSchema: {
         title:        z.string().min(1).max(MAX_TITLE_LEN).describe('Short title for the skill, e.g. "Deploy to staging"'),
@@ -29,13 +29,13 @@ export function register(server: McpServer, mgr: SkillGraphManager, resolveAutho
       },
     },
     async ({ title, description, steps, triggers, inputHints, filePatterns, tags, source, confidence }) => {
-      const author = resolveAuthor();
-      const skillId = await mgr.createSkill(
+      const record = await mgr.createSkill({
         title, description,
-        steps ?? [], triggers ?? [], inputHints ?? [], filePatterns ?? [],
-        tags ?? [], source ?? 'user', confidence ?? 1, author,
-      );
-      return { content: [{ type: 'text', text: JSON.stringify({ skillId }, null, 2) }] };
+        steps: steps ?? [], triggers: triggers ?? [],
+        inputHints: inputHints ?? [], filePatterns: filePatterns ?? [],
+        tags: tags ?? [], source: source ?? 'user', confidence: confidence ?? 1,
+      });
+      return { content: [{ type: 'text', text: JSON.stringify({ skillId: record.id }, null, 2) }] };
     },
   );
 }

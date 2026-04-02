@@ -5,17 +5,18 @@ import multer from 'multer';
 import type { ProjectInstance } from '@/lib/project-manager';
 import { validateBody, validateQuery, createSkillSchema, updateSkillSchema, createSkillLinkSchema, skillSearchSchema, skillListSchema, linkedQuerySchema, attachmentFilenameSchema } from '@/api/rest/validation';
 import { requireWriteAccess } from '@/api/rest/index';
-import { VersionConflictError } from '@/graphs/manager-types';
+import { VersionConflictError } from '@/store/types';
+import type { Edge } from '@/store/types';
 import { MAX_UPLOAD_SIZE } from '@/lib/defaults';
-import { resolveRequestAuthor, type UserConfig } from '@/lib/multi-config';
+import type { UserConfig } from '@/lib/multi-config';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_UPLOAD_SIZE } });
 
-export function createSkillsRouter(users?: Record<string, UserConfig>): Router {
+export function createSkillsRouter(_users?: Record<string, UserConfig>): Router {
   const router = Router({ mergeParams: true });
 
   function getProject(req: any) {
-    return req.project as ProjectInstance & { skillManager: NonNullable<ProjectInstance['skillManager']> };
+    return req.project as ProjectInstance & { storeManager: NonNullable<ProjectInstance['storeManager']> };
   }
 
   // List skills
@@ -23,8 +24,8 @@ export function createSkillsRouter(users?: Record<string, UserConfig>): Router {
     try {
       const p = getProject(req);
       const q = req.validatedQuery;
-      const { results: skills, total } = p.skillManager.listSkills(q);
-      res.json({ results: skills, total });
+      const { results, total } = p.storeManager.listSkills(q);
+      res.json({ results, total });
     } catch (err) { next(err); }
   });
 
@@ -33,13 +34,11 @@ export function createSkillsRouter(users?: Record<string, UserConfig>): Router {
     try {
       const p = getProject(req);
       const q = req.validatedQuery;
-      const results = await p.skillManager.searchSkills(q.q, {
-        topK: q.topK,
-        minScore: q.minScore,
+      const results = await p.storeManager.searchSkills({
+        text: q.q,
         searchMode: q.searchMode,
-        bfsDepth: q.bfsDepth,
         maxResults: q.maxResults,
-        bfsDecay: q.bfsDecay,
+        minScore: q.minScore,
       });
       res.json({ results });
     } catch (err) { next(err); }
@@ -50,13 +49,11 @@ export function createSkillsRouter(users?: Record<string, UserConfig>): Router {
     try {
       const p = getProject(req);
       const q = req.validatedQuery;
-      const results = await p.skillManager.searchSkills(q.q, {
-        topK: q.topK,
-        minScore: q.minScore ?? 0.3,
+      const results = await p.storeManager.searchSkills({
+        text: q.q,
         searchMode: q.searchMode,
-        bfsDepth: q.bfsDepth,
         maxResults: q.maxResults,
-        bfsDecay: q.bfsDecay,
+        minScore: q.minScore ?? 0.3,
       });
       res.json({ results });
     } catch (err) { next(err); }
@@ -66,9 +63,14 @@ export function createSkillsRouter(users?: Record<string, UserConfig>): Router {
   router.get('/linked', validateQuery(linkedQuerySchema), (req, res, next) => {
     try {
       const p = getProject(req);
-      const { targetGraph, targetNodeId, kind, projectId } = req.validatedQuery;
-      const skills = p.skillManager.findLinkedSkills(targetGraph, targetNodeId, kind, projectId ?? (req.params as any).projectId);
-      res.json({ results: skills });
+      const { targetGraph, targetNodeId, kind } = req.validatedQuery;
+      const edges = p.storeManager.findIncomingEdges(targetGraph, Number(targetNodeId));
+      const filtered = edges.filter((e: Edge) => e.fromGraph === 'skills' && (!kind || e.kind === kind));
+      const results = filtered.map((e: Edge) => {
+        const skill = p.storeManager.getSkill(e.fromId);
+        return skill ? { ...skill, edgeKind: e.kind } : null;
+      }).filter(Boolean);
+      res.json({ results });
     } catch (err) { next(err); }
   });
 
@@ -76,10 +78,14 @@ export function createSkillsRouter(users?: Record<string, UserConfig>): Router {
   router.get('/:skillId', (req, res, next) => {
     try {
       const p = getProject(req);
-      const skill = p.skillManager.getSkill(req.params.skillId as string);
+      const skillId = Number(req.params.skillId);
+      const skill = p.storeManager.getSkill(skillId);
       if (!skill) return res.status(404).json({ error: 'Skill not found' });
-      const relations = p.skillManager.listRelations(req.params.skillId as string);
-      res.json({ ...skill, relations });
+      const edges = [
+        ...p.storeManager.findOutgoingEdges('skills', skillId),
+        ...p.storeManager.findIncomingEdges('skills', skillId),
+      ];
+      res.json({ ...skill, relations: edges });
     } catch (err) { next(err); }
   });
 
@@ -88,10 +94,11 @@ export function createSkillsRouter(users?: Record<string, UserConfig>): Router {
     try {
       const p = getProject(req);
       const { title, description, steps, triggers, inputHints, filePatterns, tags, source, confidence } = req.body;
-      const author = resolveRequestAuthor(req.userId, users);
       const created = await p.mutationQueue.enqueue(async () => {
-        const skillId = await p.skillManager.createSkill(title, description, steps, triggers, inputHints, filePatterns, tags, source, confidence, author);
-        return p.skillManager.getSkill(skillId);
+        const skill = await p.storeManager.createSkill({
+          title, description, steps, triggers, inputHints, filePatterns, tags, source, confidence,
+        });
+        return p.storeManager.getSkill(skill.id);
       });
       res.status(201).json(created);
     } catch (err) { next(err); }
@@ -101,15 +108,12 @@ export function createSkillsRouter(users?: Record<string, UserConfig>): Router {
   router.put('/:skillId', requireWriteAccess, validateBody(updateSkillSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
-      const skillId = req.params.skillId as string;
+      const skillId = Number(req.params.skillId);
       const { version, ...patch } = req.body;
-      const author = resolveRequestAuthor(req.userId, users);
       const result = await p.mutationQueue.enqueue(async () => {
-        const ok = await p.skillManager.updateSkill(skillId, patch, version, author);
-        if (!ok) return null;
-        return p.skillManager.getSkill(skillId);
+        const updated = await p.storeManager.updateSkill(skillId, patch, undefined, version);
+        return p.storeManager.getSkill(updated.id);
       });
-      if (!result) return res.status(404).json({ error: 'Skill not found' });
       res.json(result);
     } catch (err) {
       if (err instanceof VersionConflictError) {
@@ -123,12 +127,10 @@ export function createSkillsRouter(users?: Record<string, UserConfig>): Router {
   router.post('/:skillId/bump', requireWriteAccess, async (req, res, next) => {
     try {
       const p = getProject(req);
-      const skillId = req.params.skillId as string;
-      const author = resolveRequestAuthor(req.userId, users);
+      const skillId = Number(req.params.skillId);
       const result = await p.mutationQueue.enqueue(async () => {
-        const ok = p.skillManager.bumpUsage(skillId, author);
-        if (!ok) return null;
-        return p.skillManager.getSkill(skillId);
+        p.storeManager.bumpSkillUsage(skillId);
+        return p.storeManager.getSkill(skillId);
       });
       if (!result) return res.status(404).json({ error: 'Skill not found' });
       res.json(result);
@@ -139,12 +141,12 @@ export function createSkillsRouter(users?: Record<string, UserConfig>): Router {
   router.delete('/:skillId', requireWriteAccess, async (req, res, next) => {
     try {
       const p = getProject(req);
-      const skillId = req.params.skillId as string;
-      const author = resolveRequestAuthor(req.userId, users);
-      const ok = await p.mutationQueue.enqueue(async () => {
-        return p.skillManager.deleteSkill(skillId, author);
+      const skillId = Number(req.params.skillId);
+      const existing = p.storeManager.getSkill(skillId);
+      if (!existing) return res.status(404).json({ error: 'Skill not found' });
+      await p.mutationQueue.enqueue(async () => {
+        p.storeManager.deleteSkill(skillId);
       });
-      if (!ok) return res.status(404).json({ error: 'Skill not found' });
       res.status(204).end();
     } catch (err) { next(err); }
   });
@@ -153,16 +155,16 @@ export function createSkillsRouter(users?: Record<string, UserConfig>): Router {
   router.post('/links', requireWriteAccess, validateBody(createSkillLinkSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
-      const { fromId, toId, kind, targetGraph, projectId } = req.body;
-      const author = resolveRequestAuthor(req.userId, users);
-      const ok = await p.mutationQueue.enqueue(async () => {
-        if (targetGraph) {
-          return p.skillManager.createCrossLink(fromId, toId, targetGraph, kind, projectId, author);
-        } else {
-          return p.skillManager.linkSkills(fromId, toId, kind, author);
-        }
+      const { fromId, toId, kind, targetGraph } = req.body;
+      await p.mutationQueue.enqueue(async () => {
+        p.storeManager.createEdge({
+          fromGraph: 'skills',
+          fromId: Number(fromId),
+          toGraph: targetGraph ?? 'skills',
+          toId: Number(toId),
+          kind: kind ?? 'related',
+        });
       });
-      if (!ok) return res.status(400).json({ error: 'Failed to create link' });
       res.status(201).json({ fromId, toId, kind, targetGraph: targetGraph || undefined });
     } catch (err) { next(err); }
   });
@@ -171,16 +173,16 @@ export function createSkillsRouter(users?: Record<string, UserConfig>): Router {
   router.delete('/links', requireWriteAccess, validateBody(createSkillLinkSchema.pick({ fromId: true, toId: true, targetGraph: true, projectId: true })), async (req, res, next) => {
     try {
       const p = getProject(req);
-      const { fromId, toId, targetGraph, projectId } = req.body;
-      const author = resolveRequestAuthor(req.userId, users);
-      const ok = await p.mutationQueue.enqueue(async () => {
-        if (targetGraph) {
-          return p.skillManager.deleteCrossLink(fromId, toId, targetGraph, projectId, author);
-        } else {
-          return p.skillManager.deleteSkillLink(fromId, toId, author);
-        }
+      const { fromId, toId, targetGraph } = req.body;
+      await p.mutationQueue.enqueue(async () => {
+        p.storeManager.deleteEdge({
+          fromGraph: 'skills',
+          fromId: Number(fromId),
+          toGraph: targetGraph ?? 'skills',
+          toId: Number(toId),
+          kind: '',
+        });
       });
-      if (!ok) return res.status(404).json({ error: 'Link not found' });
       res.status(204).end();
     } catch (err) { next(err); }
   });
@@ -189,8 +191,12 @@ export function createSkillsRouter(users?: Record<string, UserConfig>): Router {
   router.get('/:skillId/relations', (req, res, next) => {
     try {
       const p = getProject(req);
-      const relations = p.skillManager.listRelations(req.params.skillId as string);
-      res.json({ results: relations });
+      const skillId = Number(req.params.skillId);
+      const edges = [
+        ...p.storeManager.findOutgoingEdges('skills', skillId),
+        ...p.storeManager.findIncomingEdges('skills', skillId),
+      ];
+      res.json({ results: edges });
     } catch (err) { next(err); }
   });
 
@@ -200,16 +206,17 @@ export function createSkillsRouter(users?: Record<string, UserConfig>): Router {
   router.post('/:skillId/attachments', requireWriteAccess, upload.single('file'), async (req, res, next) => {
     try {
       const p = getProject(req);
-      const skillId = req.params.skillId as string;
+      const skillId = Number(req.params.skillId);
       const file = req.file;
       if (!file) return res.status(400).json({ error: 'No file uploaded' });
       const filename = attachmentFilenameSchema.parse(file.originalname);
-      const author = resolveRequestAuthor(req.userId, users);
+
+      const skill = p.storeManager.getSkill(skillId);
+      if (!skill) return res.status(404).json({ error: 'Skill not found' });
 
       const meta = await p.mutationQueue.enqueue(async () => {
-        return p.skillManager.addAttachment(skillId, filename, file.buffer, author);
+        return p.storeManager.addAttachment('skills', skillId, skill.slug, filename, file.buffer);
       });
-      if (!meta) return res.status(404).json({ error: 'Skill not found' });
       res.status(201).json(meta);
     } catch (err) { next(err); }
   });
@@ -218,7 +225,8 @@ export function createSkillsRouter(users?: Record<string, UserConfig>): Router {
   router.get('/:skillId/attachments', (req, res, next) => {
     try {
       const p = getProject(req);
-      const attachments = p.skillManager.listAttachments(req.params.skillId as string);
+      const skillId = Number(req.params.skillId);
+      const attachments = p.storeManager.listAttachments('skills', skillId);
       res.json({ results: attachments });
     } catch (err) { next(err); }
   });
@@ -227,8 +235,11 @@ export function createSkillsRouter(users?: Record<string, UserConfig>): Router {
   router.get('/:skillId/attachments/:filename', (req, res, next) => {
     try {
       const p = getProject(req);
+      const skillId = Number(req.params.skillId);
       const filename = attachmentFilenameSchema.parse(req.params.filename);
-      const filePath = p.skillManager.getAttachmentPath(req.params.skillId as string, filename);
+      const skill = p.storeManager.getSkill(skillId);
+      if (!skill) return res.status(404).json({ error: 'Skill not found' });
+      const filePath = p.storeManager.getAttachmentPath('skills', skill.slug, filename);
       if (!filePath) return res.status(404).json({ error: 'Attachment not found' });
       const mimeType = mime.getType(filePath) ?? 'application/octet-stream';
       res.setHeader('Content-Type', mimeType);
@@ -244,13 +255,13 @@ export function createSkillsRouter(users?: Record<string, UserConfig>): Router {
   router.delete('/:skillId/attachments/:filename', requireWriteAccess, async (req, res, next) => {
     try {
       const p = getProject(req);
-      const skillId = req.params.skillId as string;
+      const skillId = Number(req.params.skillId);
       const filename = attachmentFilenameSchema.parse(req.params.filename);
-      const author = resolveRequestAuthor(req.userId, users);
-      const ok = await p.mutationQueue.enqueue(async () => {
-        return p.skillManager.removeAttachment(skillId, filename, author);
+      const skill = p.storeManager.getSkill(skillId);
+      if (!skill) return res.status(404).json({ error: 'Skill not found' });
+      await p.mutationQueue.enqueue(async () => {
+        p.storeManager.removeAttachment('skills', skillId, skill.slug, filename);
       });
-      if (!ok) return res.status(404).json({ error: 'Attachment not found' });
       res.status(204).end();
     } catch (err) { next(err); }
   });

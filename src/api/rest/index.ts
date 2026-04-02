@@ -466,10 +466,10 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
 
   // Mount domain routers (gated by manager existence + read access)
   // Mutation endpoints (POST/PUT/DELETE) inside routers check req.accessLevel for write access
-  app.use('/api/projects/:projectId/knowledge', ...graphMiddleware('knowledgeManager', 'knowledge'), createKnowledgeRouter(users));
-  app.use('/api/projects/:projectId/tasks', ...graphMiddleware('taskManager', 'tasks'), createTasksRouter(users));
-  app.use('/api/projects/:projectId/epics', ...graphMiddleware('taskManager', 'tasks'), createEpicsRouter(users));
-  app.use('/api/projects/:projectId/skills', ...graphMiddleware('skillManager', 'skills'), createSkillsRouter(users));
+  app.use('/api/projects/:projectId/knowledge', ...graphMiddleware('storeManager', 'knowledge'), createKnowledgeRouter(users));
+  app.use('/api/projects/:projectId/tasks', ...graphMiddleware('storeManager', 'tasks'), createTasksRouter(users));
+  app.use('/api/projects/:projectId/epics', ...graphMiddleware('storeManager', 'tasks'), createEpicsRouter(users));
+  app.use('/api/projects/:projectId/skills', ...graphMiddleware('storeManager', 'skills'), createSkillsRouter(users));
   app.use('/api/projects/:projectId/docs', ...graphMiddleware('docManager', 'docs'), createDocsRouter());
   app.use('/api/projects/:projectId/code', ...graphMiddleware('codeManager', 'code'), createCodeRouter());
   app.use('/api/projects/:projectId/files', ...graphMiddleware('fileIndexManager', 'files'), createFilesRouter());

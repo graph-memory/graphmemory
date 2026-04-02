@@ -1,26 +1,28 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import type { TaskGraphManager } from '@/graphs/task';
+import type { StoreManager } from '@/lib/store-manager';
 
-export function register(server: McpServer, mgr: TaskGraphManager, resolveAuthor: () => string): void {
+export function register(server: McpServer, mgr: StoreManager): void {
   server.registerTool(
     'tasks_delete',
     {
       description:
         'Delete a task and all its edges (relations, cross-graph links). ' +
-        'Orphaned proxy nodes are cleaned up automatically. ' +
         'This action is irreversible.',
       inputSchema: {
-        taskId: z.string().min(1).max(500).describe('Task ID to delete (slug, e.g. "fix-auth-redirect-loop")'),
+        taskId: z.number().int().positive().describe('Task ID to delete'),
       },
     },
     async ({ taskId }) => {
-      const author = resolveAuthor();
-      const deleted = mgr.deleteTask(taskId, author);
-      if (!deleted) {
-        return { content: [{ type: 'text', text: 'Task not found' }], isError: true };
+      try {
+        mgr.deleteTask(taskId);
+        return { content: [{ type: 'text', text: JSON.stringify({ taskId, deleted: true }, null, 2) }] };
+      } catch (err) {
+        if (err instanceof Error && err.message.includes('not found')) {
+          return { content: [{ type: 'text', text: 'Task not found' }], isError: true };
+        }
+        throw err;
       }
-      return { content: [{ type: 'text', text: JSON.stringify({ taskId, deleted: true }, null, 2) }] };
     },
   );
 }

@@ -1,17 +1,17 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import type { TaskGraphManager } from '@/graphs/task';
+import type { StoreManager } from '@/lib/store-manager';
 
-export function register(server: McpServer, mgr: TaskGraphManager): void {
+export function register(server: McpServer, mgr: StoreManager): void {
   server.registerTool(
     'tasks_get',
     {
       description:
-        'Get full details of a task by ID, including subtasks, blockers, related tasks, and cross-graph links. ' +
+        'Get full details of a task by ID, including edges and cross-graph links. ' +
         'Returns: id, title, description, status, priority, tags, dueDate, estimate, ' +
-        'completedAt, createdAt, updatedAt, subtasks[], blockedBy[], blocks[], related[], crossLinks[].',
+        'completedAt, createdAt, updatedAt, edges.',
       inputSchema: {
-        taskId: z.string().min(1).max(500).describe('Task ID to retrieve (slug, e.g. "fix-auth-redirect-loop")'),
+        taskId: z.number().int().positive().describe('Task ID (numeric)'),
       },
     },
     async ({ taskId }) => {
@@ -19,9 +19,8 @@ export function register(server: McpServer, mgr: TaskGraphManager): void {
       if (!task) {
         return { content: [{ type: 'text', text: 'Task not found' }], isError: true };
       }
-      const { version: _version, ...rest } = task;
       const clean = (_k: string, v: any) => (v === null || (Array.isArray(v) && v.length === 0) ? undefined : v);
-      return { content: [{ type: 'text', text: JSON.stringify(rest, clean, 2) }] };
+      return { content: [{ type: 'text', text: JSON.stringify(task, clean, 2) }] };
     },
   );
 }

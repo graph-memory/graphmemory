@@ -1,15 +1,15 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import type { SkillGraphManager } from '@/graphs/skill';
+import type { StoreManager } from '@/lib/store-manager';
 
-export function register(server: McpServer, mgr: SkillGraphManager, resolveAuthor: () => string): void {
+export function register(server: McpServer, mgr: StoreManager): void {
   server.registerTool(
     'skills_remove_attachment',
     {
       description:
         'Remove an attachment from a skill. The file is deleted from disk.',
       inputSchema: {
-        skillId:  z.string().min(1).max(500).describe('ID of the skill'),
+        skillId:  z.number().int().positive().describe('ID of the skill'),
         filename: z.string().min(1).max(255)
           .refine(s => !/[/\\]/.test(s), 'Filename must not contain path separators')
           .refine(s => !s.includes('..'), 'Filename must not contain ..')
@@ -18,11 +18,11 @@ export function register(server: McpServer, mgr: SkillGraphManager, resolveAutho
       },
     },
     async ({ skillId, filename }) => {
-      const author = resolveAuthor();
-      const ok = mgr.removeAttachment(skillId, filename, author);
-      if (!ok) {
-        return { content: [{ type: 'text', text: JSON.stringify({ error: 'Attachment not found' }) }], isError: true };
+      const skill = mgr.getSkill(skillId);
+      if (!skill) {
+        return { content: [{ type: 'text', text: JSON.stringify({ error: 'Skill not found' }) }], isError: true };
       }
+      mgr.removeAttachment('skills', skillId, skill.slug, filename);
       return { content: [{ type: 'text', text: JSON.stringify({ deleted: filename }) }] };
     },
   );

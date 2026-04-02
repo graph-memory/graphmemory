@@ -1,8 +1,8 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import type { SkillGraphManager } from '@/graphs/skill';
+import type { StoreManager } from '@/lib/store-manager';
 
-export function register(server: McpServer, mgr: SkillGraphManager): void {
+export function register(server: McpServer, mgr: StoreManager): void {
   server.registerTool(
     'skills_get',
     {
@@ -12,7 +12,7 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
         'Returns: id, title, description, steps, triggers, inputHints, filePatterns, tags, ' +
         'source, confidence, usageCount, lastUsedAt, createdAt, updatedAt, crossLinks[].',
       inputSchema: {
-        skillId: z.string().min(1).max(500).describe('Skill ID to retrieve'),
+        skillId: z.number().int().positive().describe('Skill ID to retrieve'),
       },
     },
     async ({ skillId }) => {
@@ -20,9 +20,8 @@ export function register(server: McpServer, mgr: SkillGraphManager): void {
       if (!skill) {
         return { content: [{ type: 'text', text: 'Skill not found' }], isError: true };
       }
-      const { version: _version, ...rest } = skill;
       const clean = (_k: string, v: any) => (v === null || (Array.isArray(v) && v.length === 0) ? undefined : v);
-      return { content: [{ type: 'text', text: JSON.stringify(rest, clean, 2) }] };
+      return { content: [{ type: 'text', text: JSON.stringify(skill, clean, 2) }] };
     },
   );
 }

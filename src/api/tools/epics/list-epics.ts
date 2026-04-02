@@ -1,9 +1,9 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import type { TaskGraphManager } from '@/graphs/task';
+import type { StoreManager } from '@/lib/store-manager';
 import { MAX_TAG_LEN } from '@/lib/defaults';
 
-export function register(server: McpServer, mgr: TaskGraphManager): void {
+export function register(server: McpServer, mgr: StoreManager): void {
   server.registerTool(
     'epics_list',
     {

@@ -11,20 +11,21 @@ import { createRestApp } from '@/api/rest/index';
 import { attachWebSocket } from '@/api/rest/websocket';
 import { resolveUserFromBearer, resolveAccess, canWrite, canRead } from '@/lib/access';
 import { MAX_BODY_SIZE, SESSION_SWEEP_INTERVAL_MS } from '@/lib/defaults';
-import { GRAPH_NAMES, type GraphName, type AccessLevel, resolveRequestAuthor, type UserConfig } from '@/lib/multi-config';
+import { GRAPH_NAMES, type GraphName, type AccessLevel, type UserConfig } from '@/lib/multi-config';
 import type { DocGraph } from '@/graphs/docs';
 import { DocGraphManager } from '@/graphs/docs';
 import type { CodeGraph } from '@/graphs/code-types';
 import { CodeGraphManager } from '@/graphs/code';
 import type { KnowledgeGraph } from '@/graphs/knowledge-types';
-import { KnowledgeGraphManager } from '@/graphs/knowledge';
+// KnowledgeGraphManager removed — using StoreManager
 import type { FileIndexGraph } from '@/graphs/file-index-types';
 import { FileIndexGraphManager } from '@/graphs/file-index';
 import type { TaskGraph } from '@/graphs/task-types';
-import { TaskGraphManager } from '@/graphs/task';
+// TaskGraphManager removed — using StoreManager
 import type { SkillGraph } from '@/graphs/skill-types';
-import { SkillGraphManager } from '@/graphs/skill';
-import { noopContext, type ExternalGraphs } from '@/graphs/manager-types';
+// SkillGraphManager removed — using StoreManager
+import { type ExternalGraphs } from '@/graphs/manager-types';
+import type { StoreManager } from '@/lib/store-manager';
 import * as listTopics from '@/api/tools/docs/list-topics';
 import * as getToc from '@/api/tools/docs/get-toc';
 import * as search from '@/api/tools/docs/search';
@@ -184,13 +185,14 @@ export function createMcpServer(
   taskGraph?: TaskGraph,
   embedFn?: EmbedFn | Partial<EmbedFnMap>,
   mutationQueue?: PromiseQueue,
-  projectDir?: string,
+  _projectDir?: string,
   skillGraph?: SkillGraph,
   sessionContext?: McpSessionContext,
   readonlyGraphs?: Set<string>,
   userAccess?: Map<string, AccessLevel>,
   getSessionId?: () => string | undefined,
-  users?: Record<string, UserConfig>,
+  _users?: Record<string, UserConfig>,
+  storeManager?: StoreManager,
 ): McpServer {
   // Backward-compat: single EmbedFn → use for both document and query
   const defaultPair: EmbedFns = { document: (q) => embed(q, ''), query: (q) => embed(q, '') };
@@ -222,7 +224,7 @@ export function createMcpServer(
   );
   // Mutation tools are registered through mutServer to serialize concurrent writes
   const mutServer = mutationQueue ? createMutationServer(server, mutationQueue, getSessionId) : server;
-  const resolveAuthor = () => resolveRequestAuthor(sessionContext?.userId, users);
+  void _users; // reserved for future author resolution wiring
 
   // Check if mutation tools should be registered for a graph:
   // - graph must not be readonly (global setting — tools hidden for all)
@@ -288,88 +290,76 @@ export function createMcpServer(
     getFileInfo.register(server, fileIndexMgr);
   }
 
-  // Knowledge tools — read tools gated by canAccess, mutation tools gated by canMutate
-  if (knowledgeGraph && canAccess('knowledge')) {
-    const ctx = projectDir ? { ...noopContext(), projectDir } : noopContext();
-    const knowledgeMgr = new KnowledgeGraphManager(knowledgeGraph, fns.knowledge, ctx, {
-      docGraph, codeGraph, fileIndexGraph, taskGraph, skillGraph,
-    });
-    getNote.register(server, knowledgeMgr);
-    listNotes.register(server, knowledgeMgr);
-    searchNotes.register(server, knowledgeMgr);
-    listRelations.register(server, knowledgeMgr);
-    findLinkedNotes.register(server, knowledgeMgr);
+  // Knowledge tools — uses StoreManager (read gated by canAccess, mutation by canMutate)
+  if (storeManager && canAccess('knowledge')) {
+    getNote.register(server, storeManager);
+    listNotes.register(server, storeManager);
+    searchNotes.register(server, storeManager);
+    listRelations.register(server, storeManager);
+    findLinkedNotes.register(server, storeManager);
     if (canMutate('knowledge')) {
-      createNote.register(mutServer, knowledgeMgr, resolveAuthor);
-      updateNote.register(mutServer, knowledgeMgr, resolveAuthor);
-      deleteNote.register(mutServer, knowledgeMgr, resolveAuthor);
-      createRelation.register(mutServer, knowledgeMgr, resolveAuthor);
-      deleteRelation.register(mutServer, knowledgeMgr, resolveAuthor);
-      addNoteAttachment.register(mutServer, knowledgeMgr, resolveAuthor);
-      removeNoteAttachment.register(mutServer, knowledgeMgr, resolveAuthor);
+      createNote.register(mutServer, storeManager);
+      updateNote.register(mutServer, storeManager);
+      deleteNote.register(mutServer, storeManager);
+      createRelation.register(mutServer, storeManager);
+      deleteRelation.register(mutServer, storeManager);
+      addNoteAttachment.register(mutServer, storeManager);
+      removeNoteAttachment.register(mutServer, storeManager);
     }
   }
 
-  // Task tools — read tools gated by canAccess, mutation tools gated by canMutate
-  if (taskGraph && canAccess('tasks')) {
-    const taskCtx = projectDir ? { ...noopContext(), projectDir } : noopContext();
-    const taskMgr = new TaskGraphManager(taskGraph, fns.tasks, taskCtx, {
-      docGraph, codeGraph, knowledgeGraph, fileIndexGraph, skillGraph,
-    });
-    getTask.register(server, taskMgr);
-    listTasksTool.register(server, taskMgr);
-    searchTasksTool.register(server, taskMgr);
-    findLinkedTasks.register(server, taskMgr);
+  // Task tools — uses StoreManager (read gated by canAccess, mutation by canMutate)
+  if (storeManager && canAccess('tasks')) {
+    getTask.register(server, storeManager);
+    listTasksTool.register(server, storeManager);
+    searchTasksTool.register(server, storeManager);
+    findLinkedTasks.register(server, storeManager);
     if (canMutate('tasks')) {
-      createTask.register(mutServer, taskMgr, resolveAuthor);
-      updateTask.register(mutServer, taskMgr, resolveAuthor);
-      deleteTask.register(mutServer, taskMgr, resolveAuthor);
-      moveTask.register(mutServer, taskMgr, resolveAuthor);
-      reorderTaskTool.register(mutServer, taskMgr, resolveAuthor);
-      linkTask.register(mutServer, taskMgr, resolveAuthor);
-      createTaskLink.register(mutServer, taskMgr, resolveAuthor);
-      deleteTaskLink.register(mutServer, taskMgr, resolveAuthor);
-      bulkMove.register(mutServer, taskMgr, resolveAuthor);
-      bulkPriority.register(mutServer, taskMgr, resolveAuthor);
-      bulkDelete.register(mutServer, taskMgr, resolveAuthor);
-      addTaskAttachment.register(mutServer, taskMgr, resolveAuthor);
-      removeTaskAttachment.register(mutServer, taskMgr, resolveAuthor);
+      createTask.register(mutServer, storeManager);
+      updateTask.register(mutServer, storeManager);
+      deleteTask.register(mutServer, storeManager);
+      moveTask.register(mutServer, storeManager);
+      reorderTaskTool.register(mutServer, storeManager);
+      linkTask.register(mutServer, storeManager);
+      createTaskLink.register(mutServer, storeManager);
+      deleteTaskLink.register(mutServer, storeManager);
+      bulkMove.register(mutServer, storeManager);
+      bulkPriority.register(mutServer, storeManager);
+      bulkDelete.register(mutServer, storeManager);
+      addTaskAttachment.register(mutServer, storeManager);
+      removeTaskAttachment.register(mutServer, storeManager);
     }
 
-    // Epic tools (same graph, same access)
-    getEpicTool.register(server, taskMgr);
-    listEpicsTool.register(server, taskMgr);
-    searchEpicsTool.register(server, taskMgr);
+    // Epic tools (same access as tasks)
+    getEpicTool.register(server, storeManager);
+    listEpicsTool.register(server, storeManager);
+    searchEpicsTool.register(server, storeManager);
     if (canMutate('tasks')) {
-      createEpicTool.register(mutServer, taskMgr, resolveAuthor);
-      updateEpicTool.register(mutServer, taskMgr, resolveAuthor);
-      deleteEpicTool.register(mutServer, taskMgr, resolveAuthor);
-      linkEpicTaskTool.register(mutServer, taskMgr, resolveAuthor);
-      unlinkEpicTaskTool.register(mutServer, taskMgr, resolveAuthor);
+      createEpicTool.register(mutServer, storeManager);
+      updateEpicTool.register(mutServer, storeManager);
+      deleteEpicTool.register(mutServer, storeManager);
+      linkEpicTaskTool.register(mutServer, storeManager);
+      unlinkEpicTaskTool.register(mutServer, storeManager);
     }
   }
 
-  // Skill tools — read tools gated by canAccess, mutation tools gated by canMutate
-  if (skillGraph && canAccess('skills')) {
-    const skillCtx = projectDir ? { ...noopContext(), projectDir } : noopContext();
-    const skillMgr = new SkillGraphManager(skillGraph, fns.skills, skillCtx, {
-      docGraph, codeGraph, knowledgeGraph, fileIndexGraph, taskGraph,
-    });
-    getSkillTool.register(server, skillMgr);
-    listSkillsTool.register(server, skillMgr);
-    searchSkillsTool.register(server, skillMgr);
-    findLinkedSkills.register(server, skillMgr);
-    recallSkills.register(server, skillMgr);
+  // Skill tools — uses StoreManager (read gated by canAccess, mutation by canMutate)
+  if (storeManager && canAccess('skills')) {
+    getSkillTool.register(server, storeManager);
+    listSkillsTool.register(server, storeManager);
+    searchSkillsTool.register(server, storeManager);
+    findLinkedSkills.register(server, storeManager);
+    recallSkills.register(server, storeManager);
     if (canMutate('skills')) {
-      createSkillTool.register(mutServer, skillMgr, resolveAuthor);
-      updateSkillTool.register(mutServer, skillMgr, resolveAuthor);
-      deleteSkillTool.register(mutServer, skillMgr, resolveAuthor);
-      linkSkill.register(mutServer, skillMgr, resolveAuthor);
-      createSkillLink.register(mutServer, skillMgr, resolveAuthor);
-      deleteSkillLink.register(mutServer, skillMgr, resolveAuthor);
-      addSkillAttachment.register(mutServer, skillMgr, resolveAuthor);
-      removeSkillAttachment.register(mutServer, skillMgr, resolveAuthor);
-      bumpSkillUsage.register(mutServer, skillMgr, resolveAuthor);
+      createSkillTool.register(mutServer, storeManager);
+      updateSkillTool.register(mutServer, storeManager);
+      deleteSkillTool.register(mutServer, storeManager);
+      linkSkill.register(mutServer, storeManager);
+      createSkillLink.register(mutServer, storeManager);
+      deleteSkillLink.register(mutServer, storeManager);
+      addSkillAttachment.register(mutServer, storeManager);
+      removeSkillAttachment.register(mutServer, storeManager);
+      bumpSkillUsage.register(mutServer, storeManager);
     }
   }
 
@@ -687,6 +677,7 @@ export async function startMultiProjectHttpServer(
       mcpUserAccess,
       () => transport.sessionId,
       users,
+      project.storeManager,
     );
     await mcpServer.connect(transport);
     await transport.handleRequest(req, res, body);

@@ -2,15 +2,14 @@ import { Router } from 'express';
 import type { ProjectInstance } from '@/lib/project-manager';
 import { validateBody, validateQuery, createEpicSchema, updateEpicSchema, epicSearchSchema, epicListSchema, epicLinkSchema } from '@/api/rest/validation';
 import { requireWriteAccess } from '@/api/rest/index';
-import { VersionConflictError } from '@/graphs/manager-types';
-import type { EpicStatus } from '@/graphs/task-types';
-import { resolveRequestAuthor, type UserConfig } from '@/lib/multi-config';
+import { VersionConflictError } from '@/store/types';
+import type { UserConfig } from '@/lib/multi-config';
 
-export function createEpicsRouter(users?: Record<string, UserConfig>): Router {
+export function createEpicsRouter(_users?: Record<string, UserConfig>): Router {
   const router = Router({ mergeParams: true });
 
   function getProject(req: any) {
-    return req.project as ProjectInstance & { taskManager: NonNullable<ProjectInstance['taskManager']> };
+    return req.project as ProjectInstance & { storeManager: NonNullable<ProjectInstance['storeManager']> };
   }
 
   // List epics
@@ -18,8 +17,8 @@ export function createEpicsRouter(users?: Record<string, UserConfig>): Router {
     try {
       const p = getProject(req);
       const q = req.validatedQuery;
-      const { results: epics, total } = p.taskManager.listEpics(q);
-      res.json({ results: epics, total });
+      const { results, total } = p.storeManager.listEpics(q);
+      res.json({ results, total });
     } catch (err) { next(err); }
   });
 
@@ -28,8 +27,11 @@ export function createEpicsRouter(users?: Record<string, UserConfig>): Router {
     try {
       const p = getProject(req);
       const q = req.validatedQuery;
-      const results = await p.taskManager.searchEpics(q.q, {
-        topK: q.topK, minScore: q.minScore, searchMode: q.searchMode,
+      const results = await p.storeManager.searchEpics({
+        text: q.q,
+        searchMode: q.searchMode,
+        maxResults: q.maxResults,
+        minScore: q.minScore,
       });
       res.json({ results });
     } catch (err) { next(err); }
@@ -39,7 +41,8 @@ export function createEpicsRouter(users?: Record<string, UserConfig>): Router {
   router.get('/:epicId', (req, res, next) => {
     try {
       const p = getProject(req);
-      const epic = p.taskManager.getEpic(req.params.epicId as string);
+      const epicId = Number(req.params.epicId);
+      const epic = p.storeManager.getEpic(epicId);
       if (!epic) return res.status(404).json({ error: 'Epic not found' });
       res.json(epic);
     } catch (err) { next(err); }
@@ -49,9 +52,10 @@ export function createEpicsRouter(users?: Record<string, UserConfig>): Router {
   router.get('/:epicId/tasks', (req, res, next) => {
     try {
       const p = getProject(req);
-      const epic = p.taskManager.getEpic(req.params.epicId as string);
+      const epicId = Number(req.params.epicId);
+      const epic = p.storeManager.getEpic(epicId);
       if (!epic) return res.status(404).json({ error: 'Epic not found' });
-      const tasks = p.taskManager.listEpicTasks(req.params.epicId as string);
+      const tasks = p.storeManager.listEpicTasks(epicId);
       res.json({ results: tasks, progress: epic.progress });
     } catch (err) { next(err); }
   });
@@ -60,11 +64,12 @@ export function createEpicsRouter(users?: Record<string, UserConfig>): Router {
   router.post('/', requireWriteAccess, validateBody(createEpicSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
-      const author = resolveRequestAuthor(req.userId, users);
       const { title, description, status, priority, tags } = req.body;
       const created = await p.mutationQueue.enqueue(async () => {
-        const epicId = await p.taskManager.createEpic(title, description, status, priority, tags, author);
-        return p.taskManager.getEpic(epicId);
+        const epic = await p.storeManager.createEpic({
+          title, description: description ?? '', status, priority, tags,
+        });
+        return p.storeManager.getEpic(epic.id);
       });
       res.status(201).json(created);
     } catch (err) { next(err); }
@@ -74,15 +79,12 @@ export function createEpicsRouter(users?: Record<string, UserConfig>): Router {
   router.put('/:epicId', requireWriteAccess, validateBody(updateEpicSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
-      const author = resolveRequestAuthor(req.userId, users);
-      const epicId = req.params.epicId as string;
-      const { version, status, ...patch } = req.body;
+      const epicId = Number(req.params.epicId);
+      const { version, ...patch } = req.body;
       const result = await p.mutationQueue.enqueue(async () => {
-        const ok = await p.taskManager.updateEpic(epicId, patch, status as EpicStatus | undefined, version, author);
-        if (!ok) return null;
-        return p.taskManager.getEpic(epicId);
+        const updated = await p.storeManager.updateEpic(epicId, patch, undefined, version);
+        return p.storeManager.getEpic(updated.id);
       });
-      if (!result) return res.status(404).json({ error: 'Epic not found' });
       res.json(result);
     } catch (err) {
       if (err instanceof VersionConflictError) {
@@ -96,12 +98,12 @@ export function createEpicsRouter(users?: Record<string, UserConfig>): Router {
   router.delete('/:epicId', requireWriteAccess, async (req, res, next) => {
     try {
       const p = getProject(req);
-      const author = resolveRequestAuthor(req.userId, users);
-      const epicId = req.params.epicId as string;
-      const ok = await p.mutationQueue.enqueue(async () => {
-        return p.taskManager.deleteEpic(epicId, author);
+      const epicId = Number(req.params.epicId);
+      const existing = p.storeManager.getEpic(epicId);
+      if (!existing) return res.status(404).json({ error: 'Epic not found' });
+      await p.mutationQueue.enqueue(async () => {
+        p.storeManager.deleteEpic(epicId);
       });
-      if (!ok) return res.status(404).json({ error: 'Epic not found' });
       res.status(204).end();
     } catch (err) { next(err); }
   });
@@ -110,13 +112,11 @@ export function createEpicsRouter(users?: Record<string, UserConfig>): Router {
   router.post('/:epicId/link', requireWriteAccess, validateBody(epicLinkSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
-      const author = resolveRequestAuthor(req.userId, users);
-      const epicId = req.params.epicId as string;
-      const { taskId } = req.body;
-      const ok = await p.mutationQueue.enqueue(async () => {
-        return p.taskManager.linkTaskToEpic(taskId, epicId, author);
+      const epicId = Number(req.params.epicId);
+      const taskId = Number(req.body.taskId);
+      await p.mutationQueue.enqueue(async () => {
+        p.storeManager.linkTaskToEpic(epicId, taskId);
       });
-      if (!ok) return res.status(400).json({ error: 'Failed to link task to epic' });
       res.status(201).json({ taskId, epicId, linked: true });
     } catch (err) { next(err); }
   });
@@ -125,13 +125,11 @@ export function createEpicsRouter(users?: Record<string, UserConfig>): Router {
   router.delete('/:epicId/link', requireWriteAccess, validateBody(epicLinkSchema), async (req, res, next) => {
     try {
       const p = getProject(req);
-      const author = resolveRequestAuthor(req.userId, users);
-      const epicId = req.params.epicId as string;
-      const { taskId } = req.body;
-      const ok = await p.mutationQueue.enqueue(async () => {
-        return p.taskManager.unlinkTaskFromEpic(taskId, epicId, author);
+      const epicId = Number(req.params.epicId);
+      const taskId = Number(req.body.taskId);
+      await p.mutationQueue.enqueue(async () => {
+        p.storeManager.unlinkTaskFromEpic(epicId, taskId);
       });
-      if (!ok) return res.status(404).json({ error: 'Link not found' });
       res.status(204).end();
     } catch (err) { next(err); }
   });

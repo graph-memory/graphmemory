@@ -1,22 +1,23 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import type { KnowledgeGraphManager } from '@/graphs/knowledge';
+import type { StoreManager } from '@/lib/store-manager';
 
-export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
+export function register(server: McpServer, mgr: StoreManager): void {
   server.registerTool(
     'notes_list_links',
     {
       description:
-        'List all relations (incoming and outgoing) for a note. ' +
-        'Returns an array of { fromId, toId, kind, targetGraph? }. ' +
-        'Cross-graph links include targetGraph ("docs", "code", "files", or "tasks") and resolve the real node ID.',
+        'List all edges (incoming and outgoing) for a note. ' +
+        'Returns an array of { fromGraph, fromId, toGraph, toId, kind }.',
       inputSchema: {
-        noteId: z.string().min(1).max(500).describe('Note ID to list relations for'),
+        noteId: z.number().int().positive().describe('Note ID to list edges for'),
       },
     },
     async ({ noteId }) => {
-      const relations = mgr.listRelations(noteId);
-      return { content: [{ type: 'text', text: JSON.stringify(relations, null, 2) }] };
+      const outgoing = mgr.findOutgoingEdges('knowledge', noteId);
+      const incoming = mgr.findIncomingEdges('knowledge', noteId);
+      const edges = [...outgoing, ...incoming];
+      return { content: [{ type: 'text', text: JSON.stringify(edges, null, 2) }] };
     },
   );
 }

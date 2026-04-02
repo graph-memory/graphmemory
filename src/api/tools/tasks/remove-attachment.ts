@@ -1,15 +1,15 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import type { TaskGraphManager } from '@/graphs/task';
+import type { StoreManager } from '@/lib/store-manager';
 
-export function register(server: McpServer, mgr: TaskGraphManager, resolveAuthor: () => string): void {
+export function register(server: McpServer, mgr: StoreManager): void {
   server.registerTool(
     'tasks_remove_attachment',
     {
       description:
         'Remove an attachment from a task. The file is deleted from disk.',
       inputSchema: {
-        taskId:   z.string().min(1).max(500).describe('Task ID (slug)'),
+        taskId:   z.number().int().positive().describe('Task ID'),
         filename: z.string().min(1).max(255)
           .refine(s => !/[/\\]/.test(s), 'Filename must not contain path separators')
           .refine(s => !s.includes('..'), 'Filename must not contain ..')
@@ -18,11 +18,11 @@ export function register(server: McpServer, mgr: TaskGraphManager, resolveAuthor
       },
     },
     async ({ taskId, filename }) => {
-      const author = resolveAuthor();
-      const ok = mgr.removeAttachment(taskId, filename, author);
-      if (!ok) {
-        return { content: [{ type: 'text', text: JSON.stringify({ error: 'Attachment not found' }) }], isError: true };
+      const task = mgr.getTask(taskId);
+      if (!task) {
+        return { content: [{ type: 'text', text: JSON.stringify({ error: 'Task not found' }) }], isError: true };
       }
+      mgr.removeAttachment('tasks', taskId, task.slug, filename);
       return { content: [{ type: 'text', text: JSON.stringify({ deleted: filename }) }] };
     },
   );

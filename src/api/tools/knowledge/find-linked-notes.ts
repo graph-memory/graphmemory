@@ -1,30 +1,38 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import type { KnowledgeGraphManager } from '@/graphs/knowledge';
-import { MAX_TARGET_NODE_ID_LEN, MAX_LINK_KIND_LEN, MAX_PROJECT_ID_LEN } from '@/lib/defaults';
+import type { StoreManager } from '@/lib/store-manager';
+import type { GraphName } from '@/store/types';
+import { MAX_LINK_KIND_LEN } from '@/lib/defaults';
 
-export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
+export function register(server: McpServer, mgr: StoreManager): void {
   server.registerTool(
     'notes_find_linked',
     {
       description:
-        'Find all notes in the knowledge graph that link to a specific node in the docs, code, files, or tasks graph. ' +
-        'This is a reverse lookup — given a target (e.g. a file, a code symbol, or a doc section), ' +
-        'returns all notes that reference it via cross-graph relations. ' +
-        'Returns an array of { noteId, title, kind, tags }. ' +
+        'Find all notes that link to a specific node in another graph. ' +
+        'Reverse lookup — given a target (e.g. a code symbol or task), ' +
+        'returns all notes that reference it. ' +
         'Use notes_get to fetch full content of a returned note.',
       inputSchema: {
-        targetId:    z.string().min(1).max(MAX_TARGET_NODE_ID_LEN).describe('Target node ID in the external graph (e.g. "src/config.ts", "src/auth.ts::login", "docs/api.md::Setup")'),
-        targetGraph: z.enum(['docs', 'code', 'files', 'tasks', 'skills']).describe('Which graph the target belongs to: "docs", "code", "files", "tasks", or "skills"'),
-        kind:        z.string().max(MAX_LINK_KIND_LEN).optional().describe('Filter by relation kind (e.g. "references", "depends_on"). If omitted, returns all relations.'),
-        projectId:   z.string().max(MAX_PROJECT_ID_LEN).optional().describe('Project ID that the target node belongs to. Defaults to the current project.'),
+        targetId:    z.number().int().positive().describe('Target node ID'),
+        targetGraph: z.enum(['docs', 'code', 'files', 'tasks', 'skills']).describe('Which graph the target belongs to'),
+        kind:        z.string().max(MAX_LINK_KIND_LEN).optional().describe('Filter by edge kind. If omitted, returns all edges.'),
       },
     },
-    async ({ targetId, targetGraph, kind, projectId }) => {
-      const results = mgr.findLinkedNotes(targetGraph, targetId, kind, projectId);
-      if (results.length === 0) {
+    async ({ targetId, targetGraph, kind }) => {
+      // Find edges from knowledge → targetGraph where toId = targetId
+      const edges = mgr.listEdges({ fromGraph: 'knowledge', toGraph: targetGraph as GraphName, toId: targetId });
+      const filtered = kind ? edges.filter(e => e.kind === kind) : edges;
+
+      if (filtered.length === 0) {
         return { content: [{ type: 'text', text: `No notes linked to ${targetGraph}::${targetId}` }] };
       }
+
+      const results = filtered.map(e => {
+        const note = mgr.getNote(e.fromId);
+        return note ? { noteId: note.id, title: note.title, kind: e.kind, tags: note.tags } : null;
+      }).filter(Boolean);
+
       const clean = (_k: string, v: any) => (Array.isArray(v) && v.length === 0 ? undefined : v);
       return { content: [{ type: 'text', text: JSON.stringify(results, clean, 2) }] };
     },

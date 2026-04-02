@@ -68,6 +68,8 @@ async function getClient(p: ProjectInstance, pm: ProjectManager): Promise<Client
     p.taskGraph, p.embedFns, p.mutationQueue,
     p.config.projectDir, p.skillGraph, sessionCtx,
     readonlyGraphs.size > 0 ? readonlyGraphs : undefined,
+    undefined, undefined, undefined,
+    p.storeManager,
   );
   await server.connect(serverTransport);
 

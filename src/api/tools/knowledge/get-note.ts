@@ -1,16 +1,16 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import type { KnowledgeGraphManager } from '@/graphs/knowledge';
+import type { StoreManager } from '@/lib/store-manager';
 
-export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
+export function register(server: McpServer, mgr: StoreManager): void {
   server.registerTool(
     'notes_get',
     {
       description:
         'Return the full content of a note by its ID. ' +
-        'Returns id, title, content, tags, createdAt, updatedAt, and relations (including cross-graph links from/to tasks, docs, code, files).',
+        'Returns id, title, content, tags, createdAt, updatedAt, and edges.',
       inputSchema: {
-        noteId: z.string().min(1).max(500).describe('Note ID, e.g. "auth-uses-jwt-tokens"'),
+        noteId: z.number().int().positive().describe('Note ID'),
       },
     },
     async ({ noteId }) => {
@@ -18,9 +18,8 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager): void {
       if (!note) {
         return { content: [{ type: 'text', text: 'Note not found' }], isError: true };
       }
-      const { embedding: _embedding, version: _version, ...rest } = note;
       const clean = (_k: string, v: any) => (v === null || (Array.isArray(v) && v.length === 0) ? undefined : v);
-      return { content: [{ type: 'text', text: JSON.stringify(rest, clean, 2) }] };
+      return { content: [{ type: 'text', text: JSON.stringify(note, clean, 2) }] };
     },
   );
 }

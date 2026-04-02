@@ -2,29 +2,30 @@ import fs from 'fs';
 import path from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import type { KnowledgeGraphManager } from '@/graphs/knowledge';
+import type { StoreManager } from '@/lib/store-manager';
 import { MAX_UPLOAD_SIZE } from '@/lib/defaults';
 
-export function register(server: McpServer, mgr: KnowledgeGraphManager, resolveAuthor: () => string): void {
+export function register(server: McpServer, mgr: StoreManager): void {
   server.registerTool(
     'notes_add_attachment',
     {
       description:
         'Attach a file to a note. Provide the absolute path to a local file. ' +
-        'The file is copied into the note directory (.notes/{noteId}/). ' +
+        'The file is copied into the note directory (.notes/{slug}/). ' +
         'Returns attachment metadata (filename, mimeType, size).',
       inputSchema: {
-        noteId:   z.string().min(1).max(500).describe('ID of the note to attach the file to'),
+        noteId:   z.number().int().positive().describe('ID of the note to attach the file to'),
         filePath: z.string().min(1).max(4096).describe('Absolute path to the file on disk'),
       },
     },
     async ({ noteId, filePath }) => {
-      const resolved = path.resolve(filePath);
-
-      const projectDir = mgr.projectDir;
-      if (!projectDir) {
-        return { content: [{ type: 'text', text: JSON.stringify({ error: 'No project directory configured' }) }], isError: true };
+      const note = mgr.getNote(noteId);
+      if (!note) {
+        return { content: [{ type: 'text', text: JSON.stringify({ error: 'Note not found' }) }], isError: true };
       }
+
+      const resolved = path.resolve(filePath);
+      const projectDir = mgr.projectDir;
 
       let realResolved: string;
       try { realResolved = fs.realpathSync(resolved); } catch {
@@ -52,12 +53,7 @@ export function register(server: McpServer, mgr: KnowledgeGraphManager, resolveA
 
       const data = fs.readFileSync(realResolved);
       const filename = path.basename(resolved);
-      const author = resolveAuthor();
-      const meta = mgr.addAttachment(noteId, filename, data, author);
-
-      if (!meta) {
-        return { content: [{ type: 'text', text: JSON.stringify({ error: 'Note not found or no project dir' }) }], isError: true };
-      }
+      const meta = mgr.addAttachment('knowledge', noteId, note.slug, filename, data);
 
       return { content: [{ type: 'text', text: JSON.stringify(meta, null, 2) }] };
     },

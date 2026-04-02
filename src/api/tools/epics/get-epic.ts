@@ -1,14 +1,14 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import type { TaskGraphManager } from '@/graphs/task';
+import type { StoreManager } from '@/lib/store-manager';
 
-export function register(server: McpServer, mgr: TaskGraphManager): void {
+export function register(server: McpServer, mgr: StoreManager): void {
   server.registerTool(
     'epics_get',
     {
       description: 'Get a single epic by ID. Returns title, status, priority, tags, progress (done/total), and cross-links.',
       inputSchema: {
-        epicId: z.string().min(1).max(500).describe('Epic ID'),
+        epicId: z.number().int().positive().describe('Epic ID'),
       },
     },
     async ({ epicId }) => {

@@ -71,6 +71,7 @@ export interface EpicsStore extends MetaMixin {
   reorder(epicId: number, order: number, authorId?: number): EpicRecord;
   linkTask(epicId: number, taskId: number): void;
   unlinkTask(epicId: number, taskId: number): void;
+  listTasks(epicId: number): number[];
 
   // --- Timestamps ---
   getUpdatedAt(epicId: number): number | null;

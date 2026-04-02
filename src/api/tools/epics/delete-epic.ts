@@ -1,21 +1,26 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import type { TaskGraphManager } from '@/graphs/task';
+import type { StoreManager } from '@/lib/store-manager';
 
-export function register(server: McpServer, mgr: TaskGraphManager, resolveAuthor: () => string): void {
+export function register(server: McpServer, mgr: StoreManager): void {
   server.registerTool(
     'epics_delete',
     {
       description: 'Delete an epic. Tasks linked to it are NOT deleted, only the epic and its links.',
       inputSchema: {
-        epicId: z.string().min(1).max(500).describe('Epic ID to delete'),
+        epicId: z.number().int().positive().describe('Epic ID to delete'),
       },
     },
     async ({ epicId }) => {
-      const author = resolveAuthor();
-      const ok = mgr.deleteEpic(epicId, author);
-      if (!ok) return { content: [{ type: 'text', text: 'Epic not found' }], isError: true };
-      return { content: [{ type: 'text', text: JSON.stringify({ epicId, deleted: true }, null, 2) }] };
+      try {
+        mgr.deleteEpic(epicId);
+        return { content: [{ type: 'text', text: JSON.stringify({ epicId, deleted: true }, null, 2) }] };
+      } catch (err) {
+        if (err instanceof Error && err.message.includes('not found')) {
+          return { content: [{ type: 'text', text: 'Epic not found' }], isError: true };
+        }
+        throw err;
+      }
     },
   );
 }

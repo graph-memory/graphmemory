@@ -8,7 +8,7 @@ import type {
   PaginationOptions,
 } from '../../types';
 import { MetaHelper } from '../lib/meta';
-import { num } from '../lib/bigint';
+import { num, likeEscape } from '../lib/bigint';
 import { hybridSearch, SearchConfig } from '../lib/search';
 import * as path from 'path';
 
@@ -187,8 +187,8 @@ export class SqliteCodeStore implements CodeStore {
     const params: unknown[] = [this.projectId];
 
     if (filter) {
-      conditions.push('f.file_id LIKE ?');
-      params.push(`%${filter}%`);
+      conditions.push("f.file_id LIKE ? ESCAPE '\\'");
+      params.push(`%${likeEscape(filter)}%`);
     }
 
     const where = conditions.join(' AND ');

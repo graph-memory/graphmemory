@@ -4,17 +4,29 @@ import { num } from './bigint';
 
 const RRF_K = 60;
 
+/** Validate SQL identifier (table/column name) — alphanumeric + underscore only */
+function assertIdentifier(name: string, label: string): void {
+  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)) {
+    throw new Error(`Invalid ${label}: ${name}`);
+  }
+}
+
 /**
  * Escape user text for FTS5 MATCH — wrap each token in double quotes.
  * Preserves FTS5 operators (AND, OR, NOT, NEAR) when used explicitly.
+ * Returns empty string if no valid tokens remain.
  */
 function ftsEscape(text: string): string {
   const FTS5_OPS = new Set(['AND', 'OR', 'NOT', 'NEAR']);
-  return text
+  const tokens = text
     .split(/\s+/)
-    .filter(t => t.length > 0)
+    .filter(t => t.length > 0);
+  const escaped = tokens
     .map(t => FTS5_OPS.has(t) ? t : `"${t.replace(/"/g, '""')}"`)
     .join(' ');
+  // If all tokens were FTS5 operators, result is unusable — return empty
+  if (tokens.length > 0 && tokens.every(t => FTS5_OPS.has(t))) return '';
+  return escaped;
 }
 
 /**
@@ -57,17 +69,25 @@ export function hybridSearch(
   let ftsRanked: Array<{ id: number; rn: number }> = [];
   let vecRanked: Array<{ id: number; rn: number }> = [];
 
+  // Validate config identifiers to prevent SQL injection
+  assertIdentifier(config.ftsTable, 'ftsTable');
+  assertIdentifier(config.vecTable, 'vecTable');
+  assertIdentifier(config.parentTable, 'parentTable');
+  assertIdentifier(config.parentIdColumn, 'parentIdColumn');
+
   const extraJoin = config.extraJoinCondition ?? '';
 
   // FTS5 keyword search
   if (mode !== 'vector' && query.text) {
+    const escaped = ftsEscape(query.text);
+    if (!escaped) return [];
     const rows = db.prepare(`
       SELECT p.${config.parentIdColumn} AS id, ROW_NUMBER() OVER (ORDER BY rank) AS rn
       FROM ${config.ftsTable} fts
       JOIN ${config.parentTable} p ON p.${config.parentIdColumn} = fts.rowid AND p.project_id = ? ${extraJoin}
       WHERE ${config.ftsTable} MATCH ?
       LIMIT ?
-    `).all(projectId, ftsEscape(query.text), topK) as Array<{ id: bigint; rn: bigint }>;
+    `).all(projectId, escaped, topK) as Array<{ id: bigint; rn: bigint }>;
 
     ftsRanked = rows.map(r => ({ id: num(r.id), rn: num(r.rn) }));
   }

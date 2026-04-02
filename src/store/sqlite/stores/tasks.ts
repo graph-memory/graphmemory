@@ -16,7 +16,7 @@ import type {
 import { VersionConflictError } from '../../types';
 import { MetaHelper } from '../lib/meta';
 import { EntityHelpers } from '../lib/entity-helpers';
-import { num, now } from '../lib/bigint';
+import { num, now, likeEscape } from '../lib/bigint';
 import { hybridSearch, SearchConfig } from '../lib/search';
 
 const GRAPH_TASKS = 'tasks';
@@ -158,7 +158,7 @@ export class SqliteTasksStore implements TasksStore {
     if (opts?.status) { conditions.push('t.status = ?'); params.push(opts.status); }
     if (opts?.priority) { conditions.push('t.priority = ?'); params.push(opts.priority); }
     if (opts?.assigneeId) { conditions.push('t.assignee_id = ?'); params.push(opts.assigneeId); }
-    if (opts?.filter) { conditions.push('(t.title LIKE ? OR t.description LIKE ?)'); const like = `%${opts.filter}%`; params.push(like, like); }
+    if (opts?.filter) { conditions.push("(t.title LIKE ? ESCAPE '\\' OR t.description LIKE ? ESCAPE '\\')"); const like = `%${likeEscape(opts.filter)}%`; params.push(like, like); }
     if (opts?.tag) {
       conditions.push(`EXISTS (
         SELECT 1 FROM edges e JOIN tags tg ON tg.id = e.from_id AND tg.project_id = e.project_id

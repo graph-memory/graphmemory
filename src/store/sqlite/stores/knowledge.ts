@@ -14,7 +14,7 @@ import type {
 import { VersionConflictError } from '../../types';
 import { MetaHelper } from '../lib/meta';
 import { EntityHelpers } from '../lib/entity-helpers';
-import { num, now } from '../lib/bigint';
+import { num, now, likeEscape } from '../lib/bigint';
 import { hybridSearch, SearchConfig } from '../lib/search';
 
 const GRAPH = 'knowledge';
@@ -141,8 +141,8 @@ export class SqliteKnowledgeStore implements KnowledgeStore {
     const params: unknown[] = [this.projectId];
 
     if (filter) {
-      conditions.push('(k.title LIKE ? OR k.content LIKE ?)');
-      const like = `%${filter}%`;
+      conditions.push("(k.title LIKE ? ESCAPE '\\' OR k.content LIKE ? ESCAPE '\\')");
+      const like = `%${likeEscape(filter)}%`;
       params.push(like, like);
     }
 

@@ -8,7 +8,7 @@ import type {
   PaginationOptions,
 } from '../../types';
 import { MetaHelper } from '../lib/meta';
-import { num, safeJson } from '../lib/bigint';
+import { num, safeJson, likeEscape } from '../lib/bigint';
 import { hybridSearch, SearchConfig } from '../lib/search';
 
 const GRAPH = 'docs';
@@ -171,8 +171,8 @@ export class SqliteDocsStore implements DocsStore {
     const params: unknown[] = [this.projectId];
 
     if (filter) {
-      conditions.push('(d.file_id LIKE ? OR d.title LIKE ?)');
-      const like = `%${filter}%`;
+      conditions.push("(d.file_id LIKE ? ESCAPE '\\' OR d.title LIKE ? ESCAPE '\\')");
+      const like = `%${likeEscape(filter)}%`;
       params.push(like, like);
     }
 

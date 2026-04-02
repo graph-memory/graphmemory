@@ -14,7 +14,7 @@ import type {
 import { VersionConflictError } from '../../types';
 import { MetaHelper } from '../lib/meta';
 import { EntityHelpers } from '../lib/entity-helpers';
-import { num, now, safeJson } from '../lib/bigint';
+import { num, now, safeJson, likeEscape } from '../lib/bigint';
 import { hybridSearch, SearchConfig } from '../lib/search';
 
 const GRAPH = 'skills';
@@ -152,7 +152,7 @@ export class SqliteSkillsStore implements SkillsStore {
     const params: unknown[] = [this.projectId];
 
     if (opts?.source) { conditions.push('s.source = ?'); params.push(opts.source); }
-    if (opts?.filter) { conditions.push('(s.title LIKE ? OR s.description LIKE ?)'); const like = `%${opts.filter}%`; params.push(like, like); }
+    if (opts?.filter) { conditions.push("(s.title LIKE ? ESCAPE '\\' OR s.description LIKE ? ESCAPE '\\')"); const like = `%${likeEscape(opts.filter)}%`; params.push(like, like); }
     if (opts?.tag) {
       conditions.push(`EXISTS (
         SELECT 1 FROM edges e JOIN tags t ON t.id = e.from_id AND t.project_id = e.project_id

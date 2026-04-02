@@ -35,9 +35,10 @@ export class EntityHelpers {
     // Insert new tags
     for (const tag of tags) {
       this.db.prepare('INSERT OR IGNORE INTO tags (project_id, name) VALUES (?, ?)').run(this.projectId, tag);
-      const row = this.db.prepare('SELECT id FROM tags WHERE project_id = ? AND name = ?').get(this.projectId, tag) as { id: bigint };
+      const row = this.db.prepare('SELECT id FROM tags WHERE project_id = ? AND name = ?').get(this.projectId, tag) as { id: bigint } | undefined;
+      if (!row) throw new Error(`Failed to resolve tag: ${tag}`);
       this.db.prepare(`INSERT INTO edges (project_id, from_graph, from_id, to_graph, to_id, kind) VALUES (?, 'tags', ?, ?, ?, 'tagged')`)
-        .run(this.projectId, Number(row.id), graph, entityId);
+        .run(this.projectId, num(row.id), graph, entityId);
     }
   }
 
@@ -69,7 +70,8 @@ export class EntityHelpers {
 
     for (const r of rows) {
       const id = num(r.entity_id);
-      result.get(id)!.push(r.name);
+      const arr = result.get(id);
+      if (arr) arr.push(r.name);
     }
     return result;
   }
@@ -99,7 +101,8 @@ export class EntityHelpers {
 
     for (const r of rows) {
       const id = num(r.entity_id as bigint);
-      result.get(id)!.push(this.toAttachmentMeta(r));
+      const arr = result.get(id);
+      if (arr) arr.push(this.toAttachmentMeta(r));
     }
     return result;
   }

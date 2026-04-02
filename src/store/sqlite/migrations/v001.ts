@@ -53,6 +53,7 @@ CREATE TABLE attachments (
   added_at   INTEGER NOT NULL DEFAULT (unixepoch('now','subsec') * 1000),
   UNIQUE(project_id, graph, entity_id, filename)
 );
+CREATE INDEX idx_attachments_project ON attachments(project_id);
 
 -- =============================================
 -- Unified edges (same-graph + cross-graph)

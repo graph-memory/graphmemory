@@ -22,6 +22,9 @@ export function runMigrations(db: Database.Database, migrations: Migration[]): n
     if (m.version > current) {
       db.transaction(() => {
         db.exec(m.sql);
+        if (!Number.isInteger(m.version) || m.version < 0) {
+          throw new Error(`Invalid migration version: ${m.version}`);
+        }
         db.pragma(`user_version = ${m.version}`);
       })();
       applied++;

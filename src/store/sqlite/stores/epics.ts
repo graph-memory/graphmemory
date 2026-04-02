@@ -16,7 +16,7 @@ import type {
 import { VersionConflictError } from '../../types';
 import { MetaHelper } from '../lib/meta';
 import { EntityHelpers } from '../lib/entity-helpers';
-import { num, now } from '../lib/bigint';
+import { num, now, likeEscape } from '../lib/bigint';
 import { hybridSearch, SearchConfig } from '../lib/search';
 
 const GRAPH = 'epics';
@@ -178,7 +178,7 @@ export class SqliteEpicsStore implements EpicsStore {
 
     if (opts?.status) { conditions.push('e.status = ?'); params.push(opts.status); }
     if (opts?.priority) { conditions.push('e.priority = ?'); params.push(opts.priority); }
-    if (opts?.filter) { conditions.push('(e.title LIKE ? OR e.description LIKE ?)'); const like = `%${opts.filter}%`; params.push(like, like); }
+    if (opts?.filter) { conditions.push("(e.title LIKE ? ESCAPE '\\' OR e.description LIKE ? ESCAPE '\\')"); const like = `%${likeEscape(opts.filter)}%`; params.push(like, like); }
     if (opts?.tag) {
       conditions.push(`EXISTS (
         SELECT 1 FROM edges ed JOIN tags tg ON tg.id = ed.from_id AND tg.project_id = ed.project_id
@@ -189,7 +189,7 @@ export class SqliteEpicsStore implements EpicsStore {
     }
 
     const where = conditions.join(' AND ');
-    const rows = this.db.prepare(`SELECT e.* FROM epics e WHERE ${where} ORDER BY e."order" LIMIT ? OFFSET ?`)
+    const rows = this.db.prepare(`SELECT e.* FROM epics e WHERE ${where} ORDER BY e."order", e.created_at LIMIT ? OFFSET ?`)
       .all(...params, limit, offset) as Array<Record<string, unknown>>;
     const total = num((this.db.prepare(`SELECT COUNT(*) AS c FROM epics e WHERE ${where}`).get(...params) as { c: bigint }).c);
 

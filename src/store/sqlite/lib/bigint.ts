@@ -8,6 +8,11 @@ export function now(): bigint {
   return BigInt(Date.now());
 }
 
+/** Escape LIKE special characters (%, _) for safe use in SQL LIKE patterns */
+export function likeEscape(text: string): string {
+  return text.replace(/[%_]/g, '\\$&');
+}
+
 /** Safely parse JSON with a fallback for corrupted data */
 export function safeJson<T>(raw: string, fallback: T): T {
   try {

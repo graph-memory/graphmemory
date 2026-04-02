@@ -8,7 +8,7 @@ import type {
   SearchResult,
 } from '../../types';
 import { MetaHelper } from '../lib/meta';
-import { num } from '../lib/bigint';
+import { num, likeEscape } from '../lib/bigint';
 
 const GRAPH = 'files';
 
@@ -187,8 +187,8 @@ export class SqliteFilesStore implements FilesStore {
     }
 
     if (opts?.filter) {
-      conditions.push('file_path LIKE ?');
-      params.push(`%${opts.filter}%`);
+      conditions.push("file_path LIKE ? ESCAPE '\\'");
+      params.push(`%${likeEscape(opts.filter)}%`);
     }
 
     const where = conditions.join(' AND ');
@@ -215,9 +215,9 @@ export class SqliteFilesStore implements FilesStore {
     if (mode === 'keyword' && query.text) {
       // Fallback: LIKE-based search on file_path
       const rows = this.db.prepare(`
-        SELECT id FROM files WHERE project_id = ? AND file_path LIKE ? AND kind = 'file'
+        SELECT id FROM files WHERE project_id = ? AND file_path LIKE ? ESCAPE '\\' AND kind = 'file'
         ORDER BY file_path ASC LIMIT ?
-      `).all(this.projectId, `%${query.text}%`, maxResults) as Array<{ id: bigint }>;
+      `).all(this.projectId, `%${likeEscape(query.text)}%`, maxResults) as Array<{ id: bigint }>;
 
       return rows
         .map((r, i) => ({ id: num(r.id), score: 1 / (60 + i + 1) }))
@@ -248,9 +248,9 @@ export class SqliteFilesStore implements FilesStore {
 
       if (query.text) {
         const rows = this.db.prepare(`
-          SELECT id FROM files WHERE project_id = ? AND file_path LIKE ? AND kind = 'file'
+          SELECT id FROM files WHERE project_id = ? AND file_path LIKE ? ESCAPE '\\' AND kind = 'file'
           ORDER BY file_path ASC LIMIT ?
-        `).all(this.projectId, `%${query.text}%`, query.topK ?? 50) as Array<{ id: bigint }>;
+        `).all(this.projectId, `%${likeEscape(query.text)}%`, query.topK ?? 50) as Array<{ id: bigint }>;
         rows.forEach((r, i) => likeResults.push({ id: num(r.id), rn: i + 1 }));
       }
 

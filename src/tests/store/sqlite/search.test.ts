@@ -178,6 +178,13 @@ describe('hybridSearch', () => {
     expect(hybrid.map(r => r.id)).toEqual(keyword.map(r => r.id));
   });
 
+  it('throws on invalid table identifier', () => {
+    expect(() => hybridSearch(db, {
+      ...config,
+      ftsTable: 'test; DROP TABLE test_items',
+    }, { text: 'hello', searchMode: 'keyword' }, projectId)).toThrow('Invalid ftsTable');
+  });
+
   it('hybrid with only embedding (no text) behaves like vector', () => {
     const hybrid = hybridSearch(db, config, {
       embedding: seedEmbedding(2),

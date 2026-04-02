@@ -282,4 +282,15 @@ describe('TasksStore contract', () => {
     const after = Number((db.prepare("SELECT COUNT(*) AS c FROM tags WHERE project_id = ? AND name = 'old-tag'").get(projectId) as { c: bigint }).c);
     expect(after).toBe(0);
   });
+
+  // --- Embedding dimension ---
+
+  it('create throws on wrong embedding dimension', () => {
+    expect(() => tasks.create({ title: 'Bad', description: '' }, [1, 2, 3])).toThrow('Embedding dimension mismatch');
+  });
+
+  it('update throws on wrong embedding dimension', () => {
+    const task = tasks.create({ title: 'T', description: '' }, seedEmbedding(1));
+    expect(() => tasks.update(task.id, { title: 'T2' }, [1, 2, 3])).toThrow('Embedding dimension mismatch');
+  });
 });

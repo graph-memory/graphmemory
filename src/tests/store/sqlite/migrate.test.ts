@@ -87,4 +87,12 @@ describe('SQLite migrations', () => {
     expect(applied).toBe(0);
     expect(getSchemaVersion(db)).toBe(v1);
   });
+
+  it('rejects invalid migration version', () => {
+    const db = store.getDb();
+    const { runMigrations } = require('@/store/sqlite/lib/migrate');
+
+    expect(() => runMigrations(db, [{ version: 1.5, sql: 'SELECT 1' }])).toThrow('Invalid migration version');
+    expect(() => runMigrations(db, [{ version: 999.5, sql: 'SELECT 1' }])).toThrow('Invalid migration version');
+  });
 });

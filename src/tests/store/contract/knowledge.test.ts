@@ -219,4 +219,15 @@ describe('KnowledgeStore contract', () => {
     expect(knowledge.getMeta('key')).toBe('val');
     expect(store.getMeta('key')).toBeNull();
   });
+
+  // --- Embedding dimension ---
+
+  it('create throws on wrong embedding dimension', () => {
+    expect(() => knowledge.create({ title: 'Bad', content: '' }, [1, 2, 3])).toThrow('Embedding dimension mismatch');
+  });
+
+  it('update throws on wrong embedding dimension', () => {
+    const note = knowledge.create({ title: 'N', content: '' }, seedEmbedding(1));
+    expect(() => knowledge.update(note.id, { title: 'N2' }, [1, 2, 3])).toThrow('Embedding dimension mismatch');
+  });
 });

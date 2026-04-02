@@ -144,6 +144,49 @@ describe('EpicsStore contract', () => {
     expect(epics.get(epic.id)!.progress.total).toBe(1);
   });
 
+  // --- Reorder ---
+
+  it('reorders an epic', () => {
+    const epic = epics.create({ title: 'E', description: '' }, seedEmbedding(1));
+    const reordered = epics.reorder(epic.id, 5000);
+    expect(reordered.order).toBe(5000);
+    expect(reordered.version).toBe(2);
+  });
+
+  // --- Version conflict ---
+
+  it('update throws on version conflict', () => {
+    const epic = epics.create({ title: 'E', description: '' }, seedEmbedding(1));
+    expect(() => epics.update(epic.id, { title: 'X' }, null, undefined, 99)).toThrow('Version conflict');
+  });
+
+  it('update with embedding replaces vec0', () => {
+    const epic = epics.create({ title: 'E', description: '' }, seedEmbedding(1));
+    const updated = epics.update(epic.id, { title: 'E2' }, seedEmbedding(2));
+    expect(updated.title).toBe('E2');
+    // Verify vector search still works after replacement
+    const results = epics.search({ embedding: seedEmbedding(2), searchMode: 'vector' });
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].id).toBe(epic.id);
+  });
+
+  // --- Tag filter ---
+
+  it('list with tag filter', () => {
+    epics.create({ title: 'Tagged', description: '', tags: ['important'] }, seedEmbedding(1));
+    epics.create({ title: 'Untagged', description: '' }, seedEmbedding(2));
+
+    const result = epics.list({ tag: 'important' });
+    expect(result.results.length).toBe(1);
+    expect(result.results[0].title).toBe('Tagged');
+  });
+
+  // --- Embedding dim mismatch ---
+
+  it('create throws on wrong embedding dimension', () => {
+    expect(() => epics.create({ title: 'Bad', description: '' }, [1, 2, 3])).toThrow('Embedding dimension mismatch');
+  });
+
   // --- Hybrid search ---
 
   it('hybrid search combines keyword and vector', () => {

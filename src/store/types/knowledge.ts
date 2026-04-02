@@ -12,6 +12,17 @@ export interface NoteCreate {
   authorId?: number;
 }
 
+/** Data for importing a note from file mirror (events.jsonl replay). */
+export interface NoteImport {
+  slug: string;
+  title: string;
+  content: string;
+  tags?: string[];
+  createdAt: number;
+  updatedAt: number;
+  version: number;
+}
+
 export interface NotePatch {
   title?: string;
   content?: string;
@@ -55,4 +66,8 @@ export interface KnowledgeStore extends MetaMixin {
 
   // --- Timestamps ---
   getUpdatedAt(noteId: number): number | null;
+
+  // --- Import (from file mirror) ---
+  /** Upsert a note from file mirror data. If slug exists → update, else → insert. */
+  importRecord(data: NoteImport, embedding: number[]): NoteRecord;
 }

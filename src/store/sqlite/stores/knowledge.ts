@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import type {
   KnowledgeStore,
   NoteCreate,
+  NoteImport,
   NotePatch,
   NoteRecord,
   NoteDetail,
@@ -188,6 +189,39 @@ export class SqliteKnowledgeStore implements KnowledgeStore {
   getUpdatedAt(noteId: number): number | null {
     const row = this.stmts.getUpdatedAt.get(noteId, this.projectId) as { updated_at: bigint } | undefined;
     return row ? num(row.updated_at) : null;
+  }
+
+  importRecord(data: NoteImport, embedding: number[]): NoteRecord {
+    assertEmbeddingDim(embedding, this.embeddingDim);
+
+    const existing = this.stmts.getBySlug.get(data.slug, this.projectId) as Record<string, unknown> | undefined;
+
+    if (existing) {
+      const id = num(existing.id as bigint);
+      this.db.prepare(`
+        UPDATE knowledge SET title = ?, content = ?, version = ?, updated_at = ?
+        WHERE id = ? AND project_id = ?
+      `).run(data.title, data.content, data.version, data.updatedAt, id, this.projectId);
+
+      this.stmts.deleteVec.run(BigInt(id));
+      this.stmts.insertVec.run(BigInt(id), Buffer.from(new Float32Array(embedding).buffer));
+
+      if (data.tags) this.helpers.setTags(GRAPH, id, data.tags);
+
+      return this.toRecord(this.stmts.getById.get(id, this.projectId) as Record<string, unknown>);
+    }
+
+    const result = this.db.prepare(`
+      INSERT INTO knowledge (project_id, slug, title, content, version, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(this.projectId, data.slug, data.title, data.content, data.version, data.createdAt, data.updatedAt);
+    const id = num(result.lastInsertRowid);
+
+    this.stmts.insertVec.run(BigInt(id), Buffer.from(new Float32Array(embedding).buffer));
+
+    if (data.tags && data.tags.length > 0) this.helpers.setTags(GRAPH, id, data.tags);
+
+    return this.toRecord(this.stmts.getById.get(id, this.projectId) as Record<string, unknown>);
   }
 
   getMeta(key: string): string | null { return this.meta.getMeta(key); }

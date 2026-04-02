@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import type {
   TasksStore,
   TaskCreate,
+  TaskImport,
   TaskPatch,
   TaskRecord,
   TaskDetail,
@@ -271,6 +272,51 @@ export class SqliteTasksStore implements TasksStore {
   // =========================================================================
   // Meta
   // =========================================================================
+
+  importRecord(data: TaskImport, embedding: number[]): TaskRecord {
+    assertEmbeddingDim(embedding, this.embeddingDim);
+
+    const existing = this.db.prepare('SELECT * FROM tasks WHERE slug = ? AND project_id = ?').get(data.slug, this.projectId) as Record<string, unknown> | undefined;
+
+    if (existing) {
+      const id = num(existing.id as bigint);
+      this.db.prepare(`
+        UPDATE tasks SET title = ?, description = ?, status = ?, priority = ?,
+        due_date = ?, estimate = ?, completed_at = ?, "order" = ?,
+        version = ?, updated_at = ?
+        WHERE id = ? AND project_id = ?
+      `).run(
+        data.title, data.description, data.status, data.priority,
+        data.dueDate ?? null, data.estimate ?? null, data.completedAt ?? null,
+        data.order ?? num(existing.order as bigint | number),
+        data.version, data.updatedAt, id, this.projectId,
+      );
+
+      this.db.prepare('DELETE FROM tasks_vec WHERE rowid = ?').run(BigInt(id));
+      this.db.prepare('INSERT INTO tasks_vec (rowid, embedding) VALUES (?, ?)').run(BigInt(id), Buffer.from(new Float32Array(embedding).buffer));
+
+      if (data.tags) this.helpers.setTags(GRAPH_TASKS, id, data.tags);
+
+      return this.toTaskRecord(this.db.prepare('SELECT * FROM tasks WHERE id = ? AND project_id = ?').get(id, this.projectId) as Record<string, unknown>);
+    }
+
+    const order = data.order ?? this.nextOrderForStatus(data.status);
+    const result = this.db.prepare(`
+      INSERT INTO tasks (project_id, slug, title, description, status, priority, "order", due_date, estimate, completed_at, version, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      this.projectId, data.slug, data.title, data.description, data.status, data.priority,
+      order, data.dueDate ?? null, data.estimate ?? null, data.completedAt ?? null,
+      data.version, data.createdAt, data.updatedAt,
+    );
+    const id = num(result.lastInsertRowid);
+
+    this.db.prepare('INSERT INTO tasks_vec (rowid, embedding) VALUES (?, ?)').run(BigInt(id), Buffer.from(new Float32Array(embedding).buffer));
+
+    if (data.tags && data.tags.length > 0) this.helpers.setTags(GRAPH_TASKS, id, data.tags);
+
+    return this.toTaskRecord(this.db.prepare('SELECT * FROM tasks WHERE id = ? AND project_id = ?').get(id, this.projectId) as Record<string, unknown>);
+  }
 
   getMeta(key: string): string | null { return this.meta.getMeta(key); }
   setMeta(key: string, value: string): void { this.meta.setMeta(key, value); }

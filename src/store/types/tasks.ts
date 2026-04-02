@@ -21,6 +21,23 @@ export interface TaskCreate {
   authorId?: number;
 }
 
+/** Data for importing a task from file mirror (events.jsonl replay). */
+export interface TaskImport {
+  slug: string;
+  title: string;
+  description: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+  tags?: string[];
+  dueDate?: number | null;
+  estimate?: number | null;
+  completedAt?: number | null;
+  order?: number;
+  createdAt: number;
+  updatedAt: number;
+  version: number;
+}
+
 export interface TaskPatch {
   title?: string;
   description?: string;
@@ -95,4 +112,8 @@ export interface TasksStore extends MetaMixin {
   bulkDelete(taskIds: number[]): number;
   bulkMove(taskIds: number[], status: TaskStatus, authorId?: number): number;
   bulkPriority(taskIds: number[], priority: TaskPriority, authorId?: number): number;
+
+  // --- Import (from file mirror) ---
+  /** Upsert a task from file mirror data. If slug exists → update, else → insert. */
+  importRecord(data: TaskImport, embedding: number[]): TaskRecord;
 }

@@ -20,6 +20,25 @@ export interface SkillCreate {
   authorId?: number;
 }
 
+/** Data for importing a skill from file mirror (events.jsonl replay). */
+export interface SkillImport {
+  slug: string;
+  title: string;
+  description: string;
+  steps?: string[];
+  triggers?: string[];
+  inputHints?: string[];
+  filePatterns?: string[];
+  tags?: string[];
+  source?: SkillSource;
+  confidence?: number;
+  usageCount?: number;
+  lastUsedAt?: number | null;
+  createdAt: number;
+  updatedAt: number;
+  version: number;
+}
+
 export interface SkillPatch {
   title?: string;
   description?: string;
@@ -79,4 +98,8 @@ export interface SkillsStore extends MetaMixin {
 
   // --- Timestamps ---
   getUpdatedAt(skillId: number): number | null;
+
+  // --- Import (from file mirror) ---
+  /** Upsert a skill from file mirror data. If slug exists → update, else → insert. */
+  importRecord(data: SkillImport, embedding: number[]): SkillRecord;
 }

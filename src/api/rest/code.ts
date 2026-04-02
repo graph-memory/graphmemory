@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { ProjectInstance } from '@/lib/project-manager';
 import { validateQuery, searchQuerySchema, listQuerySchema } from '@/api/rest/validation';
+import type { SearchQuery } from '@/store/types';
 
 /** Express 5 wildcard params are arrays — join them back into a path string. */
 function joinParam(value: unknown): string {
@@ -11,17 +12,16 @@ export function createCodeRouter(): Router {
   const router = Router({ mergeParams: true });
 
   function getProject(req: any) {
-    return req.project as ProjectInstance & { codeManager: NonNullable<ProjectInstance['codeManager']> };
+    return req.project as ProjectInstance;
   }
 
   // List code files
   router.get('/files', validateQuery(listQuerySchema), (req, res, next) => {
     try {
       const p = getProject(req);
-      if (!p.codeManager) return res.json({ results: [] });
       const q = req.validatedQuery;
-      const { results: files, total } = p.codeManager.listFiles(q.filter, q.limit, q.offset);
-      res.json({ results: files, total });
+      const { results, total } = p.scopedStore.code.listFiles(q.filter, { limit: q.limit, offset: q.offset });
+      res.json({ results, total });
     } catch (err) { next(err); }
   });
 
@@ -29,35 +29,21 @@ export function createCodeRouter(): Router {
   router.get('/files/*fileId/symbols', (req, res, next) => {
     try {
       const p = getProject(req);
-      if (!p.codeManager) return res.status(404).json({ error: 'No code graph' });
       const fileId = joinParam((req.params as any).fileId);
-      const symbols = p.codeManager.getFileSymbols(fileId);
+      const symbols = p.scopedStore.code.getFileSymbols(fileId);
       res.json({ results: symbols });
     } catch (err) { next(err); }
   });
 
-  // Get edges for a symbol (imports, contains, extends, implements)
-  // Must be registered before /symbols/*symbolId to avoid wildcard consuming "edges"
-  router.get('/symbols/*symbolId/edges', (req, res, next) => {
-    try {
-      const p = getProject(req);
-      if (!p.codeManager) return res.status(404).json({ error: 'No code graph' });
-      const symbolId = joinParam((req.params as any).symbolId);
-      const edges = p.codeManager.getSymbolEdges(symbolId);
-      res.json({ results: edges });
-    } catch (err) { next(err); }
-  });
-
   // Get symbol by ID
-  router.get('/symbols/*symbolId', (req, res, next) => {
+  router.get('/symbols/:symbolId', (req, res, next) => {
     try {
       const p = getProject(req);
-      if (!p.codeManager) return res.status(404).json({ error: 'No code graph' });
-      const symbolId = joinParam((req.params as any).symbolId);
-      const symbol = p.codeManager.getSymbol(symbolId);
+      const symbolId = Number(req.params.symbolId);
+      if (!Number.isFinite(symbolId)) return res.status(400).json({ error: 'Invalid symbolId' });
+      const symbol = p.scopedStore.code.getNode(symbolId);
       if (!symbol) return res.status(404).json({ error: 'Symbol not found' });
-      const { embedding: _, fileEmbedding: _fe, ...rest } = symbol;
-      res.json(rest);
+      res.json(symbol);
     } catch (err) { next(err); }
   });
 
@@ -65,17 +51,18 @@ export function createCodeRouter(): Router {
   router.get('/search', validateQuery(searchQuerySchema), async (req, res, next) => {
     try {
       const p = getProject(req);
-      if (!p.codeManager) return res.json({ results: [] });
       const q = req.validatedQuery;
-      const results = await p.codeManager.search(q.q, {
+      const sq: SearchQuery = {
+        text: q.q,
         topK: q.topK,
         minScore: q.minScore,
         searchMode: q.searchMode,
-        bfsDepth: q.bfsDepth,
         maxResults: q.maxResults,
-        bfsDecay: q.bfsDecay,
-        includeBody: q.includeBody,
-      });
+      };
+      if (q.searchMode !== 'keyword') {
+        sq.embedding = await p.embedFns.code.query(q.q);
+      }
+      const results = p.scopedStore.code.search(sq);
       res.json({ results });
     } catch (err) { next(err); }
   });

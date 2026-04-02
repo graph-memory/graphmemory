@@ -25,7 +25,9 @@ import { ensureAuthorInTeam } from '@/lib/team';
 import path from 'path';
 import { AUTO_SAVE_INTERVAL_MS } from '@/lib/defaults';
 import { createLogger } from '@/lib/logger';
-import type { StoreManager } from '@/lib/store-manager';
+import { StoreManager } from '@/lib/store-manager';
+import { SqliteStore } from '@/store';
+import type { Store, ProjectScopedStore } from '@/store/types';
 
 const log = createLogger('project-manager');
 
@@ -36,6 +38,10 @@ const log = createLogger('project-manager');
 export interface ProjectInstance {
   id: string;
   config: ProjectConfig;
+  /** SQLite project-scoped store (always present when Store is open) */
+  scopedStore: ProjectScopedStore;
+  /** Numeric project ID in SQLite Store */
+  dbProjectId: number;
   docGraph?: DocGraph;
   codeGraph?: CodeGraph;
   knowledgeGraph?: KnowledgeGraph;
@@ -91,6 +97,8 @@ export class ProjectManager extends EventEmitter {
   private workspaces = new Map<string, WorkspaceInstance>();
   private autoSaveInterval: ReturnType<typeof setInterval> | undefined;
   private cacheFactory?: EmbeddingCacheFactory;
+  /** Per-project SQLite stores — keyed by project id */
+  private stores = new Map<string, Store>();
 
   private hasUsers: boolean;
 
@@ -241,6 +249,26 @@ export class ProjectManager extends EventEmitter {
 
     const gc = config.graphConfigs;
 
+    // ---------------------------------------------------------------------------
+    // SQLite Store — one per project, holds indexed + user-managed graphs
+    // ---------------------------------------------------------------------------
+    const store = new SqliteStore();
+    const dbPath = path.join(config.graphMemory, 'store.db');
+    store.open({ dbPath });
+    this.stores.set(id, store);
+
+    // Ensure project exists in store
+    let dbProject = store.projects.list().results.find(p => p.slug === id);
+    if (!dbProject || reindex) {
+      if (dbProject && reindex) {
+        // TODO: clear indexed data on reindex
+      }
+      if (!dbProject) {
+        dbProject = store.projects.create({ slug: id, name: id, directory: config.projectDir });
+      }
+    }
+    const scopedStore = store.project(dbProject.id);
+
     // Load per-project graphs (gated by enabled flag)
     const docGraph  = gc.docs.enabled ? loadGraph(config.graphMemory, reindex, embeddingFingerprint(gc.docs.model)) : undefined;
     const codeGraph = gc.code.enabled ? loadCodeGraph(config.graphMemory, reindex, embeddingFingerprint(gc.code.model)) : undefined;
@@ -257,15 +285,26 @@ export class ProjectManager extends EventEmitter {
     // Build embed functions (project-scoped model names)
     const embedFns = this.buildEmbedFns(id);
 
+    // Build StoreManager for user-managed graphs (knowledge/tasks/skills/epics)
+    const emitter = this; // ProjectManager is an EventEmitter
+    const embedFn = (text: string) => embed(text, '', `${id}:knowledge`);
+    const storeManager = new StoreManager({
+      store, projectId: dbProject.id, projectDir: config.projectDir,
+      embedFn, emitter,
+    });
+
     const instance: ProjectInstance = {
       id,
       config,
+      scopedStore,
+      dbProjectId: dbProject.id,
       docGraph,
       codeGraph,
       knowledgeGraph,
       fileIndexGraph,
       taskGraph,
       skillGraph,
+      storeManager,
       embedFns,
       mutationQueue: ws ? ws.mutationQueue : new PromiseQueue(),
       dirty: false,
@@ -390,7 +429,7 @@ export class ProjectManager extends EventEmitter {
     clearWikiIndexCache();
 
     const gc = instance.config.graphConfigs;
-    const indexer = createProjectIndexer(instance.docGraph, instance.codeGraph, {
+    const indexer = createProjectIndexer(instance.scopedStore, {
       projectId:           id,
       projectDir:          instance.config.projectDir,
       docsInclude:         gc.docs.enabled ? gc.docs.include : undefined,
@@ -403,7 +442,11 @@ export class ProjectManager extends EventEmitter {
       docsModelName:       `${id}:docs`,
       codeModelName:       `${id}:code`,
       filesModelName:      `${id}:files`,
-    }, instance.knowledgeGraph, instance.fileIndexGraph, instance.taskGraph, instance.skillGraph);
+    }, {
+      docs:  gc.docs.enabled,
+      code:  gc.code.enabled,
+      files: gc.files.enabled,
+    });
 
     instance.indexer = indexer;
   }
@@ -505,6 +548,12 @@ export class ProjectManager extends EventEmitter {
     }
 
     this.projects.delete(id);
+    // Close project's SQLite store
+    const store = this.stores.get(id);
+    if (store) {
+      try { store.close(); } catch { /* ignore */ }
+      this.stores.delete(id);
+    }
     log.info({ project: id }, 'Removed project');
   }
 
@@ -582,6 +631,11 @@ export class ProjectManager extends EventEmitter {
     }
     this.projects.clear();
     this.workspaces.clear();
+    // Close all SQLite stores
+    for (const store of this.stores.values()) {
+      try { store.close(); } catch { /* ignore close errors */ }
+    }
+    this.stores.clear();
     log.info('Shutdown complete');
   }
 

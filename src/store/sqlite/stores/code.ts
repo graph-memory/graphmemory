@@ -165,6 +165,28 @@ export class SqliteCodeStore implements CodeStore {
   }
 
   // =========================================================================
+  // resolveImports
+  // =========================================================================
+
+  resolveImports(imports: Array<{ fromFileId: string; toFileId: string }>): void {
+    const findFile = this.db.prepare(
+      "SELECT id FROM code WHERE project_id = ? AND file_id = ? AND kind = 'file' LIMIT 1"
+    );
+    const insertEdge = this.db.prepare(`
+      INSERT OR IGNORE INTO edges (from_project_id, from_graph, from_id, to_project_id, to_graph, to_id, kind)
+      VALUES (?, 'code', ?, ?, 'code', ?, 'imports')
+    `);
+
+    for (const imp of imports) {
+      const fromRow = findFile.get(this.projectId, imp.fromFileId) as { id: bigint } | undefined;
+      const toRow = findFile.get(this.projectId, imp.toFileId) as { id: bigint } | undefined;
+      if (fromRow && toRow) {
+        insertEdge.run(this.projectId, num(fromRow.id), this.projectId, num(toRow.id));
+      }
+    }
+  }
+
+  // =========================================================================
   // Queries
   // =========================================================================
 

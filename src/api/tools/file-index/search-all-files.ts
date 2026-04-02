@@ -1,9 +1,12 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import type { FileIndexGraphManager } from '@/graphs/file-index';
+import type { FilesStore, SearchQuery } from '@/store/types';
 import { MAX_SEARCH_QUERY_LEN, FILE_SEARCH_TOP_K, SEARCH_MIN_SCORE_FILES } from '@/lib/defaults';
 
-export function register(server: McpServer, mgr: FileIndexGraphManager): void {
+type EmbedQuery = (text: string) => Promise<number[]>;
+interface FilesToolDeps { files: FilesStore; embedQuery: EmbedQuery; }
+
+export function register(server: McpServer, deps: FilesToolDeps): void {
   server.registerTool(
     'files_search',
     {
@@ -12,8 +15,8 @@ export function register(server: McpServer, mgr: FileIndexGraphManager): void {
         'Finds the most relevant files by matching query against file path embeddings using vector similarity. ' +
         'Searches file nodes only (not directories). ' +
         'Returns an array sorted by relevance score (0–1), each with: ' +
-        'filePath, fileName, extension, language, size, score. ' +
-        'Use this to discover which project files are relevant to a topic.',
+        'id, score. ' +
+        'Use get_file_info with a file path to get full metadata for a specific result.',
       inputSchema: {
         query: z.string().max(MAX_SEARCH_QUERY_LEN).describe('Natural language or path search query, e.g. "database config" or "test helpers"'),
         limit: z.number().min(1).max(500).optional()
@@ -23,9 +26,15 @@ export function register(server: McpServer, mgr: FileIndexGraphManager): void {
       },
     },
     async ({ query, limit = FILE_SEARCH_TOP_K, minScore = SEARCH_MIN_SCORE_FILES }) => {
-      const results = await mgr.search(query, { topK: limit, minScore });
-      const clean = (_k: string, v: any) => (v === null ? undefined : v);
-      return { content: [{ type: 'text', text: JSON.stringify(results, clean, 2) }] };
+      const searchQuery: SearchQuery = {
+        text: query,
+        embedding: await deps.embedQuery(query),
+        maxResults: limit,
+        minScore,
+      };
+
+      const results = deps.files.search(searchQuery);
+      return { content: [{ type: 'text', text: JSON.stringify(results, null, 2) }] };
     },
   );
 }

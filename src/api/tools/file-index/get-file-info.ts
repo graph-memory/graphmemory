@@ -1,22 +1,25 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import type { FileIndexGraphManager } from '@/graphs/file-index';
+import type { FilesStore } from '@/store/types';
 
-export function register(server: McpServer, mgr: FileIndexGraphManager): void {
+type EmbedQuery = (text: string) => Promise<number[]>;
+interface FilesToolDeps { files: FilesStore; embedQuery: EmbedQuery; }
+
+export function register(server: McpServer, deps: FilesToolDeps): void {
   server.registerTool(
     'files_get_info',
     {
       description:
         'Get full metadata for a specific file or directory by path. ' +
-        'For files: returns filePath, kind, fileName, directory, extension, language, mimeType, size, mtime, and crossLinks (notes/tasks linking to this file). ' +
-        'For directories: returns filePath, kind, fileName, directory, fileCount, size (total of direct children). ' +
+        'For files: returns filePath, kind, fileName, directory, extension, language, size, mtime. ' +
+        'For directories: returns filePath, kind, fileName, directory, size (total of direct children). ' +
         'Use "." for the project root.',
       inputSchema: {
         filePath: z.string().min(1).max(4096).describe('Relative file or directory path (e.g. "src/lib/config.ts" or "src/lib")'),
       },
     },
     async ({ filePath }) => {
-      const info = mgr.getFileInfo(filePath);
+      const info = deps.files.getFileInfo(filePath);
       if (!info) {
         return { content: [{ type: 'text', text: 'File or directory not found' }], isError: true };
       }

@@ -41,8 +41,11 @@ export interface CodeStore extends MetaMixin {
   /** Remove all nodes and edges for a file */
   removeFile(fileId: string): void;
 
-  /** Resolve pending cross-file edges (imports, extends, implements) after full index */
+  /** Resolve pending cross-file edges (extends, implements) by symbol name after full index */
   resolveEdges(edges: Array<{ fromName: string; toName: string; kind: string }>): void;
+
+  /** Resolve pending import edges (file → file) by file_id after full index */
+  resolveImports(imports: Array<{ fromFileId: string; toFileId: string }>): void;
 
   /** Get mtime for a file (null if not indexed) */
   getFileMtime(fileId: string): number | null;

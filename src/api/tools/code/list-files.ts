@@ -1,8 +1,11 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import type { CodeGraphManager } from '@/graphs/code';
+import type { CodeStore } from '@/store/types';
 
-export function register(server: McpServer, mgr: CodeGraphManager): void {
+type EmbedQuery = (text: string) => Promise<number[]>;
+interface CodeToolDeps { code: CodeStore; embedQuery: EmbedQuery; }
+
+export function register(server: McpServer, deps: CodeToolDeps): void {
   server.registerTool(
     'code_list_files',
     {
@@ -24,7 +27,7 @@ export function register(server: McpServer, mgr: CodeGraphManager): void {
       },
     },
     async ({ filter, limit, offset }) => {
-      const { results, total } = mgr.listFiles(filter, limit, offset);
+      const { results, total } = deps.code.listFiles(filter, { limit, offset });
       return { content: [{ type: 'text', text: JSON.stringify({ results, total }, null, 2) }] };
     },
   );

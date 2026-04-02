@@ -1,12 +1,11 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import type { DocGraph, NodeAttributes } from '@/graphs/docs';
-import type { DocGraphManager } from '@/graphs/docs';
+import type { DocsStore, DocNode } from '@/store/types';
 import { MAX_SEARCH_QUERY_LEN, LIST_LIMIT_SMALL } from '@/lib/defaults';
 
-export function register(server: McpServer, mgr: DocGraphManager): void {
-  const graph = mgr.graph;
+interface DocsToolDeps { docs: DocsStore; }
 
+export function register(server: McpServer, { docs }: DocsToolDeps): void {
   server.registerTool(
     'docs_explain_symbol',
     {
@@ -21,56 +20,49 @@ export function register(server: McpServer, mgr: DocGraphManager): void {
       },
     },
     async ({ symbol, limit = LIST_LIMIT_SMALL }) => {
-      const symbolLower = symbol.toLowerCase();
-      const results: Array<{
-        codeBlock: { id: string; language: string | undefined; symbols: string[]; content: string };
-        explanation: { id: string; title: string; content: string } | null;
-        fileId: string;
-      }> = [];
+      const matches = docs.findBySymbol(symbol);
 
-      graph.forEachNode((id, attrs: NodeAttributes) => {
-        if (results.length >= limit) return;
-        if (attrs.symbols.length === 0) return;
-        if (!attrs.symbols.some(s => s === symbol || s.toLowerCase() === symbolLower)) return;
+      // Filter to code blocks (have a language)
+      const codeBlocks = matches.filter(n => n.language !== undefined).slice(0, limit);
 
-        // Find the parent text section
-        const parent = findParentTextSection(graph, id, attrs);
-
-        results.push({
-          codeBlock: {
-            id,
-            language: attrs.language,
-            symbols: attrs.symbols,
-            content: attrs.content,
-          },
-          explanation: parent
-            ? { id: parent.id, title: parent.title, content: parent.content }
-            : null,
-          fileId: attrs.fileId,
-        });
-      });
-
-      if (results.length === 0) {
+      if (codeBlocks.length === 0) {
         return { content: [{ type: 'text', text: `No documentation found for symbol: ${symbol}` }] };
       }
 
-      const clean = (_k: string, v: any) => (v === null || (Array.isArray(v) && v.length === 0) ? undefined : v);
+      const results = codeBlocks.map(block => {
+        const parent = findParentTextSection(docs, block);
+        return {
+          codeBlock: {
+            id: block.id,
+            language: block.language,
+            symbols: block.symbols,
+            content: block.content,
+          },
+          explanation: parent
+            ? { id: parent.id, title: parent.title, content: parent.content }
+            : undefined,
+          fileId: block.fileId,
+        };
+      });
+
+      const clean = (_k: string, v: any) => (v === undefined || (Array.isArray(v) && v.length === 0) ? undefined : v);
       return { content: [{ type: 'text', text: JSON.stringify(results, clean, 2) }] };
     },
   );
 }
 
 function findParentTextSection(
-  graph: DocGraph,
-  nodeId: string,
-  attrs: NodeAttributes,
-): { id: string; title: string; content: string } | null {
-  // The code block's in-neighbor with same fileId, lower level, and no language = parent text section
-  for (const neighbor of graph.inNeighbors(nodeId)) {
-    const nAttrs = graph.getNodeAttributes(neighbor);
-    if (nAttrs.fileId === attrs.fileId && nAttrs.language === undefined && nAttrs.level < attrs.level) {
-      return { id: neighbor, title: nAttrs.title, content: nAttrs.content };
+  docs: DocsStore,
+  block: DocNode,
+): { id: number; title: string; content: string } | null {
+  const chunks = docs.getFileChunks(block.fileId);
+  // Walk backwards: find closest preceding chunk with lower level and no language
+  let best: DocNode | undefined;
+  for (const c of chunks) {
+    if (c.id >= block.id) break;
+    if (c.language === undefined && c.level < block.level) {
+      best = c;
     }
   }
-  return null;
+  return best ? { id: best.id, title: best.title, content: best.content } : null;
 }

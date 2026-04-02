@@ -1,8 +1,11 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import type { CodeGraphManager } from '@/graphs/code';
+import type { CodeStore } from '@/store/types';
 
-export function register(server: McpServer, mgr: CodeGraphManager): void {
+type EmbedQuery = (text: string) => Promise<number[]>;
+interface CodeToolDeps { code: CodeStore; embedQuery: EmbedQuery; }
+
+export function register(server: McpServer, deps: CodeToolDeps): void {
   server.registerTool(
     'code_get_file_symbols',
     {
@@ -16,7 +19,7 @@ export function register(server: McpServer, mgr: CodeGraphManager): void {
       },
     },
     async ({ fileId }) => {
-      const symbols = mgr.getFileSymbols(fileId);
+      const symbols = deps.code.getFileSymbols(fileId);
       if (symbols.length === 0) {
         return { content: [{ type: 'text', text: 'File not found or contains no symbols' }], isError: true };
       }

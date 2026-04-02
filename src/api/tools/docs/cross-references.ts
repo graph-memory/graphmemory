@@ -1,20 +1,17 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import type { NodeAttributes } from '@/graphs/docs';
-import type { DocGraphManager } from '@/graphs/docs';
-import type { CodeGraphManager } from '@/graphs/code';
+import type { DocsStore, CodeStore, DocNode } from '@/store/types';
 import { MAX_SEARCH_QUERY_LEN } from '@/lib/defaults';
 
-export function register(server: McpServer, docMgr: DocGraphManager, codeMgr: CodeGraphManager): void {
-  const docGraph = docMgr.graph;
-  const codeGraph = codeMgr.graph;
+interface CrossRefDeps { docs: DocsStore; code: CodeStore; }
 
+export function register(server: McpServer, { docs, code }: CrossRefDeps): void {
   server.registerTool(
     'docs_cross_references',
     {
       description:
         'Find all references to a symbol across both code and documentation graphs. ' +
-        'Returns: definitions (from CodeGraph — where the symbol is defined), ' +
+        'Returns: definitions (from CodeStore — where the symbol is defined), ' +
         'documentation (text sections in docs that contain examples using the symbol), ' +
         'and examples (code blocks in docs that contain the symbol). ' +
         'This is the most comprehensive way to understand a symbol — combining source code, docs, and examples.',
@@ -23,37 +20,24 @@ export function register(server: McpServer, docMgr: DocGraphManager, codeMgr: Co
       },
     },
     async ({ symbol }) => {
-      // 1. Search CodeGraph for definitions
-      const definitions: Array<{
-        id: string;
-        fileId: string;
-        kind: string;
-        name: string;
-        signature: string;
-        docComment: string;
-        startLine: number;
-        endLine: number;
-      }> = [];
+      // 1. Search CodeStore for definitions
+      const codeNodes = code.findByName(symbol);
+      const definitions = codeNodes.map(n => ({
+        id: n.id,
+        fileId: n.fileId,
+        kind: n.kind,
+        name: n.name,
+        signature: n.signature,
+        docComment: n.docComment,
+        startLine: n.startLine,
+        endLine: n.endLine,
+      }));
 
-      const symbolLower = symbol.toLowerCase();
-      codeGraph.forEachNode((id, attrs) => {
-        if (attrs.name === symbol || attrs.name.toLowerCase() === symbolLower) {
-          definitions.push({
-            id,
-            fileId: attrs.fileId,
-            kind: attrs.kind,
-            name: attrs.name,
-            signature: attrs.signature,
-            docComment: attrs.docComment,
-            startLine: attrs.startLine,
-            endLine: attrs.endLine,
-          });
-        }
-      });
+      // 2. Search DocsStore for code blocks containing the symbol
+      const docMatches = docs.findBySymbol(symbol);
 
-      // 2. Search DocGraph for code blocks containing the symbol
       const examples: Array<{
-        id: string;
+        id: number;
         fileId: string;
         language: string | undefined;
         symbols: string[];
@@ -61,41 +45,35 @@ export function register(server: McpServer, docMgr: DocGraphManager, codeMgr: Co
       }> = [];
 
       const documentation: Array<{
-        id: string;
+        id: number;
         fileId: string;
         title: string;
         content: string;
       }> = [];
 
-      const seenDocs = new Set<string>();
+      const seenDocs = new Set<number>();
 
-      docGraph.forEachNode((id, attrs: NodeAttributes) => {
-        if (attrs.symbols.length === 0) return;
-        if (!attrs.symbols.some(s => s === symbol || s.toLowerCase() === symbolLower)) return;
-
+      for (const match of docMatches) {
         examples.push({
-          id,
-          fileId: attrs.fileId,
-          language: attrs.language,
-          symbols: attrs.symbols,
-          content: attrs.content,
+          id: match.id,
+          fileId: match.fileId,
+          language: match.language,
+          symbols: match.symbols,
+          content: match.content,
         });
 
         // Find parent text section for documentation context
-        for (const neighbor of docGraph.inNeighbors(id)) {
-          if (seenDocs.has(neighbor)) continue;
-          const nAttrs = docGraph.getNodeAttributes(neighbor);
-          if (nAttrs.fileId === attrs.fileId && nAttrs.language === undefined && nAttrs.level < attrs.level) {
-            seenDocs.add(neighbor);
-            documentation.push({
-              id: neighbor,
-              fileId: nAttrs.fileId,
-              title: nAttrs.title,
-              content: nAttrs.content,
-            });
-          }
+        const parent = findParentTextSection(docs, match);
+        if (parent && !seenDocs.has(parent.id)) {
+          seenDocs.add(parent.id);
+          documentation.push({
+            id: parent.id,
+            fileId: parent.fileId,
+            title: parent.title,
+            content: parent.content,
+          });
         }
-      });
+      }
 
       if (definitions.length === 0 && examples.length === 0) {
         return { content: [{ type: 'text', text: `No references found for symbol: ${symbol}` }] };
@@ -109,4 +87,19 @@ export function register(server: McpServer, docMgr: DocGraphManager, codeMgr: Co
       };
     },
   );
+}
+
+function findParentTextSection(
+  docs: DocsStore,
+  block: DocNode,
+): { id: number; fileId: string; title: string; content: string } | null {
+  const chunks = docs.getFileChunks(block.fileId);
+  let best: DocNode | undefined;
+  for (const c of chunks) {
+    if (c.id >= block.id) break;
+    if (c.language === undefined && c.level < block.level) {
+      best = c;
+    }
+  }
+  return best ? { id: best.id, fileId: best.fileId, title: best.title, content: best.content } : null;
 }

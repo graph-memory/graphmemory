@@ -14,6 +14,7 @@ import type { FileIndexGraph } from '@/graphs/file-index-types';
 import type { TaskGraph } from '@/graphs/task-types';
 import type { SkillGraph } from '@/graphs/skill-types';
 import type { EmbedFn, EmbedFns } from '@/graphs/manager-types';
+import type { ProjectScopedStore } from '@/store/types';
 
 // ---------------------------------------------------------------------------
 // Fake embeddings
@@ -71,7 +72,8 @@ export function createTestStoreManager(
   const dbPath = join(dbDir, 'test.db');
 
   const store = new SqliteStore();
-  store.open({ dbPath, embeddingDims: { knowledge: opts?.dim ?? DIM, tasks: opts?.dim ?? DIM, skills: opts?.dim ?? DIM, epics: opts?.dim ?? DIM } });
+  const d = opts?.dim ?? DIM;
+  store.open({ dbPath, embeddingDims: { knowledge: d, tasks: d, skills: d, epics: d, docs: d, code: d, files: d } });
 
   const project = store.projects.create({ slug: 'test', name: 'Test', directory: projectDir });
   const emitter = new EventEmitter();
@@ -137,6 +139,7 @@ export async function setupMcpClient(opts: {
   storeManager?: StoreManager;
   readonlyGraphs?: Set<string>;
   userAccess?: Map<string, string>;
+  scopedStore?: ProjectScopedStore;
 }): Promise<McpTestContext> {
   const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
   const server = createMcpServer(
@@ -155,6 +158,7 @@ export async function setupMcpClient(opts: {
     undefined,
     undefined,
     opts.storeManager,
+    opts.scopedStore,
   );
   await server.connect(serverTransport);
 

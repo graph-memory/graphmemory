@@ -1,15 +1,17 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import type { DocGraphManager } from '@/graphs/docs';
+import type { DocsStore } from '@/store/types';
 
-export function register(server: McpServer, mgr: DocGraphManager): void {
+interface DocsToolDeps { docs: DocsStore; }
+
+export function register(server: McpServer, { docs }: DocsToolDeps): void {
   server.registerTool(
     'docs_list_files',
     {
       description:
         'List indexed documentation files. ' +
         'Optionally filter by file name substring (case-insensitive) and limit results. ' +
-        'Returns an array of { fileId, title, chunks }. ' +
+        'Returns an array of { fileId, title, chunkCount }. ' +
         'Pass a fileId to get_toc to see its structure, or to search to query it.',
       inputSchema: {
         filter: z.string().max(500).optional().describe(
@@ -24,7 +26,7 @@ export function register(server: McpServer, mgr: DocGraphManager): void {
       },
     },
     async ({ filter, limit, offset }) => {
-      const { results, total } = mgr.listFiles(filter, limit, offset);
+      const { results, total } = docs.listFiles(filter, { limit, offset });
       return { content: [{ type: 'text', text: JSON.stringify({ results, total }, null, 2) }] };
     },
   );

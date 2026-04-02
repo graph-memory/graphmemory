@@ -13,19 +13,13 @@ import { resolveUserFromBearer, resolveAccess, canWrite, canRead } from '@/lib/a
 import { MAX_BODY_SIZE, SESSION_SWEEP_INTERVAL_MS } from '@/lib/defaults';
 import { GRAPH_NAMES, type GraphName, type AccessLevel, type UserConfig } from '@/lib/multi-config';
 import type { DocGraph } from '@/graphs/docs';
-import { DocGraphManager } from '@/graphs/docs';
 import type { CodeGraph } from '@/graphs/code-types';
-import { CodeGraphManager } from '@/graphs/code';
 import type { KnowledgeGraph } from '@/graphs/knowledge-types';
-// KnowledgeGraphManager removed — using StoreManager
 import type { FileIndexGraph } from '@/graphs/file-index-types';
-import { FileIndexGraphManager } from '@/graphs/file-index';
 import type { TaskGraph } from '@/graphs/task-types';
-// TaskGraphManager removed — using StoreManager
 import type { SkillGraph } from '@/graphs/skill-types';
-// SkillGraphManager removed — using StoreManager
-import { type ExternalGraphs } from '@/graphs/manager-types';
 import type { StoreManager } from '@/lib/store-manager';
+import type { ProjectScopedStore } from '@/store/types';
 import * as listTopics from '@/api/tools/docs/list-topics';
 import * as getToc from '@/api/tools/docs/get-toc';
 import * as search from '@/api/tools/docs/search';
@@ -166,33 +160,31 @@ function buildInstructions(ctx: McpSessionContext): string {
 }
 
 /**
- * Creates the McpServer with all tools wired to the given graphs.
- * Pass docGraph to enable the 9 doc tools (5 base + 4 code-block) + 1 cross_references (needs codeGraph too);
- * pass codeGraph to enable the 5 code tools;
- * pass fileIndexGraph to enable the 3 file index tools.
- * cross_references requires both docGraph and codeGraph.
- * Knowledge tools (12) are always registered.
- * Task tools (13) + Epic tools (8) are always registered when taskGraph is provided.
+ * Creates the McpServer with all tools wired to the given stores/graphs.
+ *
+ * Indexed graphs (docs, code, files): tools use `scopedStore` (SQLite) directly.
+ * User-managed graphs (knowledge, tasks, skills, epics): tools use `storeManager`.
+ *
  * @param embedFn  Single EmbedFn (all graphs share it) or per-graph EmbedFnMap.
- *                 Tests typically pass a single function; CLI passes a map for per-graph models.
  * @param mutationQueue  Optional PromiseQueue to serialize mutation tool handlers.
  */
 export function createMcpServer(
-  docGraph?: DocGraph,
-  codeGraph?: CodeGraph,
-  knowledgeGraph?: KnowledgeGraph,
-  fileIndexGraph?: FileIndexGraph,
-  taskGraph?: TaskGraph,
+  _docGraph?: DocGraph,
+  _codeGraph?: CodeGraph,
+  _knowledgeGraph?: KnowledgeGraph,
+  _fileIndexGraph?: FileIndexGraph,
+  _taskGraph?: TaskGraph,
   embedFn?: EmbedFn | Partial<EmbedFnMap>,
   mutationQueue?: PromiseQueue,
   _projectDir?: string,
-  skillGraph?: SkillGraph,
+  _skillGraph?: SkillGraph,
   sessionContext?: McpSessionContext,
   readonlyGraphs?: Set<string>,
   userAccess?: Map<string, AccessLevel>,
   getSessionId?: () => string | undefined,
   _users?: Record<string, UserConfig>,
   storeManager?: StoreManager,
+  scopedStore?: ProjectScopedStore,
 ): McpServer {
   // Backward-compat: single EmbedFn → use for both document and query
   const defaultPair: EmbedFns = { document: (q) => embed(q, ''), query: (q) => embed(q, '') };
@@ -250,44 +242,41 @@ export function createMcpServer(
   // Context tool (always registered)
   getContext.register(server, sessionContext);
 
-  const ext: ExternalGraphs = { docGraph, codeGraph, knowledgeGraph, fileIndexGraph, taskGraph, skillGraph };
+  // Docs tools — use scopedStore.docs (SQLite)
+  if (scopedStore && canAccess('docs')) {
+    const docsDeps = { docs: scopedStore.docs, embedQuery: fns.docs.query };
+    listTopics.register(server, docsDeps);
+    getToc.register(server, docsDeps);
+    search.register(server, docsDeps);
+    getNode.register(server, docsDeps);
+    searchDocFiles.register(server, docsDeps);
+    findExamples.register(server, docsDeps);
+    searchSnippets.register(server, docsDeps);
+    listSnippets.register(server, docsDeps);
+    explainSymbol.register(server, docsDeps);
 
-  // Docs tools (only when docGraph is provided and user has access)
-  if (docGraph && canAccess('docs')) {
-    const docMgr = new DocGraphManager(docGraph, fns.docs, ext);
-    listTopics.register(server, docMgr);
-    getToc.register(server, docMgr);
-    search.register(server, docMgr);
-    getNode.register(server, docMgr);
-    searchDocFiles.register(server, docMgr);
-    findExamples.register(server, docMgr);
-    searchSnippets.register(server, docMgr);
-    listSnippets.register(server, docMgr);
-    explainSymbol.register(server, docMgr);
-
-    // Cross-graph tools (require both docGraph and codeGraph)
-    if (codeGraph && canAccess('code')) {
-      const codeMgrForCross = new CodeGraphManager(codeGraph, fns.code, ext);
-      crossReferences.register(server, docMgr, codeMgrForCross);
+    // Cross-graph tools (require both docs and code)
+    if (canAccess('code')) {
+      crossReferences.register(server, { docs: scopedStore.docs, code: scopedStore.code });
     }
   }
 
-  // Code tools (only when codeGraph is provided and user has access)
-  if (codeGraph && canAccess('code')) {
-    const codeMgr = new CodeGraphManager(codeGraph, fns.code, ext);
-    listFiles.register(server, codeMgr);
-    getFileSymbols.register(server, codeMgr);
-    searchCode.register(server, codeMgr);
-    getSymbol.register(server, codeMgr);
-    searchCodeFiles.register(server, codeMgr);
+  // Code tools — use scopedStore.code (SQLite)
+  if (scopedStore && canAccess('code')) {
+    const codeDeps = { code: scopedStore.code, embedQuery: fns.code.query };
+    listFiles.register(server, codeDeps);
+    getFileSymbols.register(server, codeDeps);
+    searchCode.register(server, codeDeps);
+    getSymbol.register(server, codeDeps);
+    searchCodeFiles.register(server, codeDeps);
   }
 
-  // File index tools (when fileIndexGraph is provided and user has access)
-  if (fileIndexGraph && canAccess('files')) {
-    const fileIndexMgr = new FileIndexGraphManager(fileIndexGraph, fns.files, ext);
-    listAllFiles.register(server, fileIndexMgr);
-    searchAllFiles.register(server, fileIndexMgr);
-    getFileInfo.register(server, fileIndexMgr);
+  // File index tools — use scopedStore.files (SQLite)
+  if (scopedStore && canAccess('files')) {
+    const filesDeps = { files: scopedStore.files, embedQuery: fns.files.query };
+    listAllFiles.register(server, filesDeps);
+    searchAllFiles.register(server, filesDeps);
+    getFileInfo.register(server, filesDeps);
   }
 
   // Knowledge tools — uses StoreManager (read gated by canAccess, mutation by canMutate)
@@ -678,6 +667,7 @@ export async function startMultiProjectHttpServer(
       () => transport.sessionId,
       users,
       project.storeManager,
+      project.scopedStore,
     );
     await mcpServer.connect(transport);
     await transport.handleRequest(req, res, body);

@@ -1,12 +1,11 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import type { DocGraph, NodeAttributes } from '@/graphs/docs';
-import type { DocGraphManager } from '@/graphs/docs';
+import type { DocsStore, DocNode } from '@/store/types';
 import { MAX_SEARCH_QUERY_LEN, LIST_LIMIT_SMALL } from '@/lib/defaults';
 
-export function register(server: McpServer, mgr: DocGraphManager): void {
-  const graph = mgr.graph;
+interface DocsToolDeps { docs: DocsStore; }
 
+export function register(server: McpServer, { docs }: DocsToolDeps): void {
   server.registerTool(
     'docs_find_examples',
     {
@@ -21,52 +20,42 @@ export function register(server: McpServer, mgr: DocGraphManager): void {
       },
     },
     async ({ symbol, limit = LIST_LIMIT_SMALL }) => {
-      const symbolLower = symbol.toLowerCase();
-      const results: Array<{
-        id: string;
-        fileId: string;
-        language: string | undefined;
-        symbols: string[];
-        content: string;
-        parentId: string | undefined;
-        parentTitle: string | undefined;
-      }> = [];
+      const matches = docs.findBySymbol(symbol);
 
-      graph.forEachNode((id, attrs: NodeAttributes) => {
-        if (results.length >= limit) return;
-        if (attrs.symbols.length === 0) return;
-        if (!attrs.symbols.some(s => s === symbol || s.toLowerCase() === symbolLower)) return;
+      // Filter to code blocks (have a language) and limit
+      const codeBlocks = matches.filter(n => n.language !== undefined).slice(0, limit);
 
-        // Find parent text section (previous node with lower level and no language)
-        const parentId = findParentSection(graph, id, attrs);
-
-        results.push({
-          id,
-          fileId: attrs.fileId,
-          language: attrs.language,
-          symbols: attrs.symbols,
-          content: attrs.content,
-          parentId,
-          parentTitle: parentId ? graph.getNodeAttribute(parentId, 'title') : undefined,
-        });
-      });
-
-      if (results.length === 0) {
+      if (codeBlocks.length === 0) {
         return { content: [{ type: 'text', text: `No code examples found containing symbol: ${symbol}` }] };
       }
+
+      const results = codeBlocks.map(block => {
+        const parent = findParentSection(docs, block);
+        return {
+          id: block.id,
+          fileId: block.fileId,
+          language: block.language,
+          symbols: block.symbols,
+          content: block.content,
+          parentId: parent?.id,
+          parentTitle: parent?.title,
+        };
+      });
 
       return { content: [{ type: 'text', text: JSON.stringify(results, null, 2) }] };
     },
   );
 }
 
-function findParentSection(graph: DocGraph, nodeId: string, attrs: NodeAttributes): string | undefined {
-  // Walk inNeighbors (sibling edges point forward, so the parent is an inNeighbor)
-  for (const neighbor of graph.inNeighbors(nodeId)) {
-    const nAttrs = graph.getNodeAttributes(neighbor);
-    if (nAttrs.fileId === attrs.fileId && nAttrs.language === undefined && nAttrs.level < attrs.level) {
-      return neighbor;
+function findParentSection(docs: DocsStore, block: DocNode): { id: number; title: string } | undefined {
+  const chunks = docs.getFileChunks(block.fileId);
+  // Walk backwards from the block to find the closest parent: same fileId, lower level, no language, id < block.id
+  let best: DocNode | undefined;
+  for (const c of chunks) {
+    if (c.id >= block.id) break;
+    if (c.language === undefined && c.level < block.level) {
+      best = c;
     }
   }
-  return undefined;
+  return best ? { id: best.id, title: best.title } : undefined;
 }

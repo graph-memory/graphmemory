@@ -5,13 +5,15 @@ import type { RelationFrontmatter } from './file-mirror';
 import type { TaskStatus, TaskPriority } from '../graphs/task-types';
 import type { SkillSource } from '../graphs/skill-types';
 import type { AttachmentMeta } from '../graphs/attachment-types';
+import type { EpicStatus } from '../store/types/epics';
 import { scanAttachments } from '../graphs/attachment-types';
-import { readEvents, replayNoteEvents, replayTaskEvents, replaySkillEvents } from './events-log';
+import { readEvents, replayNoteEvents, replayTaskEvents, replaySkillEvents, replayEpicEvents } from './events-log';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('file-import');
 
 const VALID_STATUSES: TaskStatus[] = ['backlog', 'todo', 'in_progress', 'review', 'done', 'cancelled'];
+const VALID_EPIC_STATUSES: EpicStatus[] = ['open', 'in_progress', 'done', 'cancelled'];
 const VALID_PRIORITIES: TaskPriority[] = ['critical', 'high', 'medium', 'low'];
 const VALID_SOURCES: SkillSource[] = ['user', 'learned'];
 
@@ -338,6 +340,85 @@ export function parseSkillDir(dirPath: string): ParsedSkillFile | null {
     return null;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Epic types & parsers
+// ---------------------------------------------------------------------------
+
+export interface ParsedEpicFile {
+  id: string;
+  title: string;
+  description: string;
+  status: EpicStatus;
+  priority: TaskPriority;
+  tags: string[];
+  createdAt: number | null;
+  updatedAt: number | null;
+  version: number | null;
+  createdBy: string | null;
+  updatedBy: string | null;
+  relations: RelationFrontmatter[];
+  attachments: AttachmentMeta[];
+}
+
+/** Parse an epic from its entity directory (events.jsonl + description.md). */
+export function parseEpicDir(dirPath: string): ParsedEpicFile | null {
+  try {
+    const eventsPath = path.join(dirPath, 'events.jsonl');
+    if (!fs.existsSync(eventsPath)) return null;
+    const events = readEvents(eventsPath);
+    const descPath = path.join(dirPath, 'description.md');
+    const description = fs.existsSync(descPath) ? fs.readFileSync(descPath, 'utf-8') : '';
+    const parsed = replayEpicEvents(events, description);
+    if (!parsed) return null;
+    parsed.attachments = scanAttachments(dirPath);
+    return parsed;
+  } catch (err) {
+    log.error({ err, dirPath }, 'failed to parse epic dir');
+    return null;
+  }
+}
+
+export function parseEpicFile(filePath: string): ParsedEpicFile | null {
+  try {
+    const raw = fs.readFileSync(filePath, 'utf-8');
+    const { frontmatter: fm, body } = parseMarkdown(raw);
+    const { title, content: description } = extractTitleAndContent(body);
+
+    const id = extractId(filePath);
+    if (!title && !id) return null;
+
+    const status = VALID_EPIC_STATUSES.includes(fm.status as EpicStatus)
+      ? (fm.status as EpicStatus) : 'open';
+    const priority = VALID_PRIORITIES.includes(fm.priority as TaskPriority)
+      ? (fm.priority as TaskPriority) : 'medium';
+
+    const attachments = scanAttachments(path.dirname(filePath));
+
+    return {
+      id,
+      title: title || id,
+      description,
+      status,
+      priority,
+      tags: parseTags(fm.tags),
+      createdAt: isoToMs(fm.createdAt),
+      updatedAt: isoToMs(fm.updatedAt),
+      version: typeof fm.version === 'number' ? fm.version : null,
+      createdBy: parseAuthorString(fm.createdBy),
+      updatedBy: parseAuthorString(fm.updatedBy),
+      relations: parseRelations(fm.relations),
+      attachments,
+    };
+  } catch (err) {
+    log.error({ err, filePath }, 'failed to parse epic');
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Relation diffing
+// ---------------------------------------------------------------------------
 
 export interface RelationDiff {
   toAdd: RelationFrontmatter[];

@@ -7,9 +7,9 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
-import { parseNoteDir, parseTaskDir, parseSkillDir } from '../../../lib/file-import';
+import { parseNoteDir, parseTaskDir, parseSkillDir, parseEpicDir } from '../../../lib/file-import';
 import type { RelationFrontmatter } from '../../../lib/file-mirror';
-import type { ProjectScopedStore, GraphName, NoteRecord, TaskRecord, SkillRecord } from '../../types';
+import type { ProjectScopedStore, GraphName, NoteRecord, TaskRecord, SkillRecord, EpicRecord } from '../../types';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('mirror-import');
@@ -31,6 +31,7 @@ export interface MirrorImportResult {
   notes: number;
   tasks: number;
   skills: number;
+  epics: number;
   deferredEdges: DeferredEdge[];
 }
 
@@ -57,6 +58,7 @@ export function importMirrorDirs(
   let notes = 0;
   let tasks = 0;
   let skills = 0;
+  let epics = 0;
 
   // --- Notes ---
   const notesDir = path.join(projectDir, '.notes');
@@ -146,11 +148,38 @@ export function importMirrorDirs(
     }
   }
 
-  if (notes > 0 || tasks > 0 || skills > 0) {
-    log.info({ notes, tasks, skills, deferredEdges: deferredEdges.length }, 'Mirror import complete');
+  // --- Epics ---
+  const epicsDir = path.join(projectDir, '.epics');
+  if (fs.existsSync(epicsDir)) {
+    const entries = readEntityDirs(epicsDir);
+    for (const entityDir of entries) {
+      const parsed = parseEpicDir(entityDir);
+      if (!parsed) continue;
+
+      const embedding = embedFn(`${parsed.title} ${parsed.description}`);
+      const record = scoped.epics.importRecord({
+        slug: parsed.id,
+        title: parsed.title,
+        description: parsed.description,
+        status: parsed.status,
+        priority: parsed.priority,
+        tags: parsed.tags,
+        createdAt: parsed.createdAt ?? Date.now(),
+        updatedAt: parsed.updatedAt ?? Date.now(),
+        version: parsed.version ?? 1,
+      }, embedding);
+
+      collectDeferredEdges(deferredEdges, 'epics', record, parsed.relations);
+      importAttachments(scoped, 'epics', record.id, parsed.attachments, entityDir);
+      epics++;
+    }
   }
 
-  return { notes, tasks, skills, deferredEdges };
+  if (notes > 0 || tasks > 0 || skills > 0 || epics > 0) {
+    log.info({ notes, tasks, skills, epics, deferredEdges: deferredEdges.length }, 'Mirror import complete');
+  }
+
+  return { notes, tasks, skills, epics, deferredEdges };
 }
 
 // ---------------------------------------------------------------------------
@@ -180,6 +209,8 @@ export function resolveDeferredEdges(
       toId = scoped.tasks.getBySlug(edge.toSlug)?.id ?? null;
     } else if (edge.toGraph === 'skills') {
       toId = scoped.skills.getBySlug(edge.toSlug)?.id ?? null;
+    } else if (edge.toGraph === 'epics') {
+      toId = scoped.epics.getBySlug(edge.toSlug)?.id ?? null;
     } else if (resolveSlug) {
       toId = resolveSlug(edge.toGraph, edge.toSlug);
     }
@@ -230,7 +261,7 @@ function readEntityDirs(baseDir: string): string[] {
 function collectDeferredEdges(
   deferred: DeferredEdge[],
   fromGraph: GraphName,
-  record: NoteRecord | TaskRecord | SkillRecord,
+  record: NoteRecord | TaskRecord | SkillRecord | EpicRecord,
   relations: RelationFrontmatter[],
 ): void {
   for (const rel of relations) {

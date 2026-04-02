@@ -27,6 +27,20 @@ export interface EpicPatch {
   tags?: string[];
 }
 
+/** Data for importing an epic from file mirror (events.jsonl replay). */
+export interface EpicImport {
+  slug: string;
+  title: string;
+  description: string;
+  status?: EpicStatus;
+  priority?: TaskPriority;
+  order?: number;
+  tags?: string[];
+  createdAt: number;
+  updatedAt: number;
+  version: number;
+}
+
 export interface EpicRecord {
   id: number;
   slug: string;
@@ -70,4 +84,8 @@ export interface EpicsStore extends MetaMixin {
 
   // --- Timestamps ---
   getUpdatedAt(epicId: number): number | null;
+
+  // --- Import (from file mirror) ---
+  /** Upsert an epic from file mirror data. If slug exists → update, else → insert. */
+  importRecord(data: EpicImport, embedding: number[]): EpicRecord;
 }

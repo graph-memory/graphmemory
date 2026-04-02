@@ -75,10 +75,10 @@ export interface MirrorWatcherConfig {
 // ---------------------------------------------------------------------------
 
 type ClassifiedFile =
-  | { type: 'note-events' | 'task-events' | 'skill-events'; id: string; entityDir: string }
-  | { type: 'note-content' | 'task-content' | 'skill-content'; id: string; entityDir: string }
-  | { type: 'note-snapshot' | 'task-snapshot' | 'skill-snapshot'; id: string; entityDir: string }
-  | { type: 'note-attachment' | 'task-attachment' | 'skill-attachment'; id: string; entityDir: string }
+  | { type: 'note-events' | 'task-events' | 'skill-events' | 'epic-events'; id: string; entityDir: string }
+  | { type: 'note-content' | 'task-content' | 'skill-content' | 'epic-content'; id: string; entityDir: string }
+  | { type: 'note-snapshot' | 'task-snapshot' | 'skill-snapshot' | 'epic-snapshot'; id: string; entityDir: string }
+  | { type: 'note-attachment' | 'task-attachment' | 'skill-attachment' | 'epic-attachment'; id: string; entityDir: string }
   | null;
 
 function classifyFile(projectDir: string, filePath: string): ClassifiedFile {
@@ -92,16 +92,19 @@ function classifyFile(projectDir: string, filePath: string): ClassifiedFile {
     if (dir === '.notes' && file === 'note.md')  return { type: 'note-snapshot',  id, entityDir: path.join(projectDir, dir, id) };
     if (dir === '.tasks' && file === 'task.md')  return { type: 'task-snapshot',  id, entityDir: path.join(projectDir, dir, id) };
     if (dir === '.skills' && file === 'skill.md') return { type: 'skill-snapshot', id, entityDir: path.join(projectDir, dir, id) };
+    if (dir === '.epics' && file === 'epic.md')  return { type: 'epic-snapshot',  id, entityDir: path.join(projectDir, dir, id) };
 
     // Event log (source of truth)
     if (dir === '.notes' && file === 'events.jsonl')  return { type: 'note-events',  id, entityDir: path.join(projectDir, dir, id) };
     if (dir === '.tasks' && file === 'events.jsonl')  return { type: 'task-events',  id, entityDir: path.join(projectDir, dir, id) };
     if (dir === '.skills' && file === 'events.jsonl') return { type: 'skill-events', id, entityDir: path.join(projectDir, dir, id) };
+    if (dir === '.epics' && file === 'events.jsonl')  return { type: 'epic-events',  id, entityDir: path.join(projectDir, dir, id) };
 
     // Content files (git-tracked human-editable)
     if (dir === '.notes' && file === 'content.md')      return { type: 'note-content',  id, entityDir: path.join(projectDir, dir, id) };
     if (dir === '.tasks' && file === 'description.md')  return { type: 'task-content',  id, entityDir: path.join(projectDir, dir, id) };
     if (dir === '.skills' && file === 'description.md') return { type: 'skill-content', id, entityDir: path.join(projectDir, dir, id) };
+    if (dir === '.epics' && file === 'description.md')  return { type: 'epic-content',  id, entityDir: path.join(projectDir, dir, id) };
   }
 
   if (parts.length === 4) {
@@ -111,6 +114,7 @@ function classifyFile(projectDir: string, filePath: string): ClassifiedFile {
       if (dir === '.notes')  return { type: 'note-attachment',  id, entityDir: path.join(projectDir, dir, id) };
       if (dir === '.tasks')  return { type: 'task-attachment',  id, entityDir: path.join(projectDir, dir, id) };
       if (dir === '.skills') return { type: 'skill-attachment', id, entityDir: path.join(projectDir, dir, id) };
+      if (dir === '.epics')  return { type: 'epic-attachment',  id, entityDir: path.join(projectDir, dir, id) };
     }
   }
 

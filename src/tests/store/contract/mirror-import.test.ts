@@ -162,6 +162,25 @@ describe('importMirrorDirs', () => {
     expect(result.deferredEdges[0].toSlug).toBe('README.md');
   });
 
+  it('imports epics from .epics/ directory', () => {
+    const epicsDir = path.join(projectDir, '.epics');
+    writeEntityDir(epicsDir, 'epic-uuid-1',
+      JSON.stringify({ ts: '2026-01-01T00:00:00Z', op: 'created', id: 'epic-uuid-1', title: 'Release v2', status: 'open', priority: 'high', tags: ['release'], createdAt: 1000000 }) + '\n',
+      'description.md', 'Major release',
+    );
+
+    const result = importMirrorDirs(scoped, projectDir, embedStub);
+
+    expect(result.epics).toBe(1);
+
+    const epic = scoped.epics.getBySlug('epic-uuid-1');
+    expect(epic).not.toBeNull();
+    expect(epic!.title).toBe('Release v2');
+    expect(epic!.status).toBe('open');
+    expect(epic!.priority).toBe('high');
+    expect(epic!.description).toBe('Major release');
+  });
+
   it('handles empty project directory gracefully', () => {
     const result = importMirrorDirs(scoped, projectDir, embedStub);
     expect(result.notes).toBe(0);

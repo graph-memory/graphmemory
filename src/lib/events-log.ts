@@ -3,8 +3,9 @@ import * as path from 'path';
 import type { TaskStatus, TaskPriority } from '../graphs/task-types';
 import type { SkillSource } from '../graphs/skill-types';
 import type { AttachmentMeta } from '../graphs/attachment-types';
+import type { EpicStatus } from '../store/types/epics';
 import type { RelationFrontmatter } from './file-mirror';
-import type { ParsedNoteFile, ParsedTaskFile, ParsedSkillFile } from './file-import';
+import type { ParsedNoteFile, ParsedTaskFile, ParsedSkillFile, ParsedEpicFile } from './file-import';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('events-log');
@@ -56,6 +57,18 @@ export interface CreatedSkillEvent {
   createdBy?: string;
 }
 
+export interface CreatedEpicEvent {
+  ts: string;
+  op: 'created';
+  id: string;
+  title: string;
+  status: EpicStatus;
+  priority: TaskPriority;
+  tags: string[];
+  createdAt: number;
+  createdBy?: string;
+}
+
 export interface UpdateEvent {
   ts: string;
   op: 'update';
@@ -83,6 +96,7 @@ export type AnyEvent =
   | CreatedNoteEvent
   | CreatedTaskEvent
   | CreatedSkillEvent
+  | CreatedEpicEvent
   | UpdateEvent
   | RelationEvent
   | AttachmentEvent;
@@ -365,6 +379,78 @@ export function replaySkillEvents(events: AnyEvent[], description: string): Pars
     confidence,
     usageCount,
     lastUsedAt,
+    createdAt: created.createdAt,
+    updatedAt: updatedAt ?? created.createdAt,
+    version,
+    createdBy: created.createdBy ?? null,
+    updatedBy,
+    relations,
+    attachments,
+  };
+}
+
+/**
+ * Replay epic events + description to reconstruct a ParsedEpicFile.
+ * Returns null if no 'created' event is found.
+ */
+export function replayEpicEvents(events: AnyEvent[], description: string): ParsedEpicFile | null {
+  const sorted = sortByTs(events);
+  const created = sorted.find(e => e.op === 'created') as CreatedEpicEvent | undefined;
+  if (!created) return null;
+
+  let title = created.title;
+  let status = created.status;
+  let priority = created.priority;
+  let tags = created.tags ?? [];
+  let updatedBy: string | null = null;
+  const relations: RelationFrontmatter[] = [];
+  const attachments: AttachmentMeta[] = [];
+
+  for (const ev of sorted) {
+    if (ev.op === 'update') {
+      const u = ev as UpdateEvent;
+      if (typeof u.title === 'string') title = u.title;
+      if (typeof u.status === 'string') status = u.status as EpicStatus;
+      if (typeof u.priority === 'string') priority = u.priority as TaskPriority;
+      if (Array.isArray(u.tags)) tags = u.tags as string[];
+      if (typeof u.by === 'string') updatedBy = u.by;
+    } else if (ev.op === 'relation') {
+      const r = ev as RelationEvent;
+      const key = `${r.to}:${r.kind}:${r.graph ?? ''}`;
+      if (r.action === 'add') {
+        if (!relations.some(x => `${x.to}:${x.kind}:${x.graph ?? ''}` === key)) {
+          const entry: RelationFrontmatter = { to: r.to, kind: r.kind };
+          if (r.graph) entry.graph = r.graph;
+          relations.push(entry);
+        }
+      } else {
+        const idx = relations.findIndex(x => `${x.to}:${x.kind}:${x.graph ?? ''}` === key);
+        if (idx !== -1) relations.splice(idx, 1);
+      }
+    } else if (ev.op === 'attachment') {
+      const a = ev as AttachmentEvent;
+      if (a.action === 'add') {
+        if (!attachments.some(x => x.filename === a.file)) {
+          attachments.push({ filename: a.file, mimeType: 'application/octet-stream', size: 0, addedAt: 0 });
+        }
+      } else {
+        const idx = attachments.findIndex(x => x.filename === a.file);
+        if (idx !== -1) attachments.splice(idx, 1);
+      }
+    }
+  }
+
+  const version = sorted.length;
+  const lastEvent = sorted[sorted.length - 1];
+  const updatedAt = isoToMs(lastEvent?.ts);
+
+  return {
+    id: created.id,
+    title,
+    description,
+    status,
+    priority,
+    tags,
     createdAt: created.createdAt,
     updatedAt: updatedAt ?? created.createdAt,
     version,

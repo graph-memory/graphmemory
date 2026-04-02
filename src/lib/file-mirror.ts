@@ -12,7 +12,9 @@ import {
   type CreatedNoteEvent,
   type CreatedTaskEvent,
   type CreatedSkillEvent,
+  type CreatedEpicEvent,
 } from './events-log';
+import type { EpicStatus } from '../store/types/epics';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('file-mirror');
@@ -411,6 +413,156 @@ function _regenerateSkillSnapshot(
   const entityDir = path.join(skillsDir, safeId);
   fs.mkdirSync(entityDir, { recursive: true });
   atomicWriteFileSync(path.join(entityDir, 'skill.md'), serializeMarkdown(fm, body));
+}
+
+// ---------------------------------------------------------------------------
+// Epic mirror functions
+// ---------------------------------------------------------------------------
+
+type EpicAttrs = {
+  title: string;
+  description: string;
+  status: EpicStatus;
+  priority: string;
+  tags: string[];
+  order?: number;
+  createdAt: number;
+  updatedAt: number;
+  version: number;
+  createdBy?: string | null;
+  updatedBy?: string | null;
+};
+
+/** Append a 'created' event + write description.md + regenerate epic.md snapshot. */
+export function mirrorEpicCreate(
+  epicsDir: string,
+  epicId: string,
+  attrs: EpicAttrs,
+  relations: RelationLike[],
+): void {
+  try {
+    const safeId = sanitizeEntityId(epicId);
+    if (!safeId) {
+      log.warn('rejected invalid entity ID');
+      return;
+    }
+    const entityDir = path.join(epicsDir, safeId);
+    fs.mkdirSync(entityDir, { recursive: true });
+
+    const eventsPath = path.join(entityDir, 'events.jsonl');
+    if (!fs.existsSync(eventsPath)) {
+      const event: Omit<CreatedEpicEvent, 'ts'> = {
+        op: 'created',
+        id: epicId,
+        title: attrs.title,
+        status: attrs.status,
+        priority: attrs.priority as CreatedEpicEvent['priority'],
+        tags: attrs.tags,
+        createdAt: attrs.createdAt,
+      };
+      if (attrs.createdBy) event.createdBy = attrs.createdBy;
+      appendEvent(eventsPath, event);
+    }
+
+    atomicWriteFileSync(path.join(entityDir, 'description.md'), attrs.description, 'utf-8');
+    _regenerateEpicSnapshot(epicsDir, epicId, attrs, relations);
+    ensureGitignore(epicsDir, '*/epic.md');
+    ensureGitattributes(epicsDir);
+  } catch (err) {
+    log.error({ err, epicId: sanitizeForLog(epicId) }, 'failed to mirror epic create');
+  }
+}
+
+/** Append an 'update' event + (if description changed) write description.md + regenerate epic.md. */
+export function mirrorEpicUpdate(
+  epicsDir: string,
+  epicId: string,
+  patch: Partial<EpicAttrs & { by?: string }>,
+  attrs: EpicAttrs,
+  relations: RelationLike[],
+): void {
+  try {
+    const safeId = sanitizeEntityId(epicId);
+    if (!safeId) {
+      log.warn('rejected invalid entity ID');
+      return;
+    }
+    const entityDir = path.join(epicsDir, safeId);
+    fs.mkdirSync(entityDir, { recursive: true });
+
+    const eventsPath = path.join(entityDir, 'events.jsonl');
+    const delta: Record<string, unknown> = { op: 'update' };
+    if (patch.title !== undefined) delta.title = patch.title;
+    if (patch.status !== undefined) delta.status = patch.status;
+    if (patch.priority !== undefined) delta.priority = patch.priority;
+    if (patch.tags !== undefined) delta.tags = patch.tags;
+    if (patch.by !== undefined) delta.by = patch.by;
+    else if (attrs.updatedBy) delta.by = attrs.updatedBy;
+
+    if (Object.keys(delta).length > 1) appendEvent(eventsPath, delta as Parameters<typeof appendEvent>[1]);
+
+    if (patch.description !== undefined) {
+      atomicWriteFileSync(path.join(entityDir, 'description.md'), patch.description, 'utf-8');
+    }
+    _regenerateEpicSnapshot(epicsDir, epicId, attrs, relations);
+  } catch (err) {
+    log.error({ err, epicId: sanitizeForLog(epicId) }, 'failed to mirror epic update');
+  }
+}
+
+function _regenerateEpicSnapshot(
+  epicsDir: string,
+  epicId: string,
+  attrs: EpicAttrs,
+  relations: RelationLike[],
+): void {
+  const outgoing = buildOutgoingRelations(epicId, relations);
+  const fm: Record<string, unknown> = {
+    id: epicId,
+    status: attrs.status,
+    priority: attrs.priority,
+    order: attrs.order ?? 0,
+    tags: attrs.tags,
+    createdAt: tsToIso(attrs.createdAt),
+    updatedAt: tsToIso(attrs.updatedAt),
+    version: attrs.version,
+  };
+  if (attrs.createdBy) fm.createdBy = attrs.createdBy;
+  if (attrs.updatedBy) fm.updatedBy = attrs.updatedBy;
+  if (outgoing.length > 0) fm.relations = outgoing;
+
+  const safeId = sanitizeEntityId(epicId);
+  if (!safeId) return;
+  const body = `# ${attrs.title}\n\n${attrs.description}`;
+  const entityDir = path.join(epicsDir, safeId);
+  fs.mkdirSync(entityDir, { recursive: true });
+  atomicWriteFileSync(path.join(entityDir, 'epic.md'), serializeMarkdown(fm, body));
+}
+
+export function mirrorEpicRelation(
+  epicsDir: string,
+  epicId: string,
+  action: 'add' | 'remove',
+  kind: string,
+  to: string,
+  attrs: EpicAttrs,
+  relations: RelationLike[],
+  graph?: string,
+  by?: string,
+): void {
+  try {
+    const safeId = sanitizeEntityId(epicId);
+    if (!safeId) return;
+    const entityDir = path.join(epicsDir, safeId);
+    const eventsPath = path.join(entityDir, 'events.jsonl');
+    const event: Record<string, unknown> = { op: 'relation', action, kind, to };
+    if (graph) event.graph = graph;
+    if (by) event.by = by;
+    appendEvent(eventsPath, event as Parameters<typeof appendEvent>[1]);
+    _regenerateEpicSnapshot(epicsDir, epicId, attrs, relations);
+  } catch (err) {
+    log.error({ err, epicId: sanitizeForLog(epicId) }, 'failed to mirror epic relation');
+  }
 }
 
 // ---------------------------------------------------------------------------

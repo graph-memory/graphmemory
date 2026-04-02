@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import type {
   EpicsStore,
   EpicCreate,
+  EpicImport,
   EpicPatch,
   EpicRecord,
   EpicDetail,
@@ -262,6 +263,49 @@ export class SqliteEpicsStore implements EpicsStore {
   // =========================================================================
   // Meta
   // =========================================================================
+
+  importRecord(data: EpicImport, embedding: number[]): EpicRecord {
+    assertEmbeddingDim(embedding, this.embeddingDim);
+
+    const existing = this.db.prepare('SELECT * FROM epics WHERE slug = ? AND project_id = ?').get(data.slug, this.projectId) as Record<string, unknown> | undefined;
+
+    if (existing) {
+      const id = num(existing.id as bigint);
+      this.db.prepare(`
+        UPDATE epics SET title = ?, description = ?, status = ?, priority = ?,
+        "order" = ?, version = ?, updated_at = ?
+        WHERE id = ? AND project_id = ?
+      `).run(
+        data.title, data.description, data.status ?? 'open', data.priority ?? 'medium',
+        data.order ?? num(existing.order as bigint | number),
+        data.version, data.updatedAt, id, this.projectId,
+      );
+
+      this.db.prepare('DELETE FROM epics_vec WHERE rowid = ?').run(BigInt(id));
+      this.db.prepare('INSERT INTO epics_vec (rowid, embedding) VALUES (?, ?)').run(BigInt(id), Buffer.from(new Float32Array(embedding).buffer));
+
+      if (data.tags) this.helpers.setTags(GRAPH, id, data.tags);
+
+      return this.toRecord(this.db.prepare('SELECT * FROM epics WHERE id = ? AND project_id = ?').get(id, this.projectId) as Record<string, unknown>);
+    }
+
+    const order = data.order ?? this.nextOrder();
+    const result = this.db.prepare(`
+      INSERT INTO epics (project_id, slug, title, description, status, priority, "order", version, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      this.projectId, data.slug, data.title, data.description,
+      data.status ?? 'open', data.priority ?? 'medium', order,
+      data.version, data.createdAt, data.updatedAt,
+    );
+    const id = num(result.lastInsertRowid);
+
+    this.db.prepare('INSERT INTO epics_vec (rowid, embedding) VALUES (?, ?)').run(BigInt(id), Buffer.from(new Float32Array(embedding).buffer));
+
+    if (data.tags && data.tags.length > 0) this.helpers.setTags(GRAPH, id, data.tags);
+
+    return this.toRecord(this.db.prepare('SELECT * FROM epics WHERE id = ? AND project_id = ?').get(id, this.projectId) as Record<string, unknown>);
+  }
 
   getMeta(key: string): string | null { return this.meta.getMeta(key); }
   setMeta(key: string, value: string): void { this.meta.setMeta(key, value); }

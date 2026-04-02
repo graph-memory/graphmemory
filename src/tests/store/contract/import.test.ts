@@ -213,4 +213,58 @@ describe('importRecord', () => {
       expect(second.confidence).toBe(0.5);
     });
   });
+
+  // =========================================================================
+  // Epics importRecord
+  // =========================================================================
+
+  describe('epics', () => {
+    it('inserts a new epic by slug', () => {
+      const record = scoped.epics.importRecord({
+        slug: 'epic-slug-1',
+        title: 'Imported Epic',
+        description: 'From mirror',
+        status: 'in_progress',
+        priority: 'high',
+        tags: ['release'],
+        createdAt: 1000000,
+        updatedAt: 2000000,
+        version: 2,
+      }, seedEmbedding(1));
+
+      expect(record.slug).toBe('epic-slug-1');
+      expect(record.status).toBe('in_progress');
+      expect(record.priority).toBe('high');
+      expect(record.tags).toEqual(['release']);
+      expect(record.version).toBe(2);
+    });
+
+    it('updates existing epic on duplicate slug', () => {
+      const first = scoped.epics.importRecord({
+        slug: 'dup-epic',
+        title: 'V1',
+        description: '',
+        status: 'open',
+        priority: 'low',
+        createdAt: 1000000,
+        updatedAt: 1000000,
+        version: 1,
+      }, seedEmbedding(1));
+
+      const second = scoped.epics.importRecord({
+        slug: 'dup-epic',
+        title: 'V2',
+        description: 'Updated',
+        status: 'done',
+        priority: 'high',
+        createdAt: 1000000,
+        updatedAt: 3000000,
+        version: 3,
+      }, seedEmbedding(2));
+
+      expect(second.id).toBe(first.id);
+      expect(second.title).toBe('V2');
+      expect(second.status).toBe('done');
+    });
+  });
 });

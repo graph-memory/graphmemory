@@ -4,11 +4,12 @@ import type {
   FilesStore,
   FileNode,
   FileListOptions,
+  FileUpdateOptions,
   SearchQuery,
   SearchResult,
 } from '../../types';
 import { MetaHelper } from '../lib/meta';
-import { num, likeEscape } from '../lib/bigint';
+import { num, likeEscape, assertEmbeddingDim } from '../lib/bigint';
 
 const GRAPH = 'files';
 
@@ -68,11 +69,14 @@ export class SqliteFilesStore implements FilesStore {
   // updateFile
   // =========================================================================
 
-  updateFile(filePath: string, size: number, mtime: number, embedding: number[]): void {
+  updateFile(filePath: string, size: number, mtime: number, embedding: number[], opts?: FileUpdateOptions): void {
+    assertEmbeddingDim(embedding);
     const run = this.db.transaction(() => {
       const fileName = path.basename(filePath);
       const directory = path.dirname(filePath);
       const extension = path.extname(filePath);
+      const language = opts?.language ?? null;
+      const mimeType = opts?.mimeType ?? null;
 
       // Ensure parent directory exists
       if (directory && directory !== '.') {
@@ -90,9 +94,9 @@ export class SqliteFilesStore implements FilesStore {
         fileId = num(existing.id);
         // Update existing
         this.db.prepare(`
-          UPDATE files SET file_name = ?, directory = ?, extension = ?, size = ?, mtime = ?
+          UPDATE files SET file_name = ?, directory = ?, extension = ?, language = ?, mime_type = ?, size = ?, mtime = ?
           WHERE id = ? AND project_id = ?
-        `).run(fileName, directory, extension, size, mtime, fileId, this.projectId);
+        `).run(fileName, directory, extension, language, mimeType, size, mtime, fileId, this.projectId);
 
         // Update vec0 (DELETE + INSERT pattern)
         this.db.prepare('DELETE FROM files_vec WHERE rowid = ?').run(BigInt(fileId));
@@ -101,9 +105,9 @@ export class SqliteFilesStore implements FilesStore {
       } else {
         // Insert new file
         const result = this.db.prepare(`
-          INSERT INTO files (project_id, kind, file_path, file_name, directory, extension, size, mtime)
-          VALUES (?, 'file', ?, ?, ?, ?, ?, ?)
-        `).run(this.projectId, filePath, fileName, directory, extension, size, mtime);
+          INSERT INTO files (project_id, kind, file_path, file_name, directory, extension, language, mime_type, size, mtime)
+          VALUES (?, 'file', ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(this.projectId, filePath, fileName, directory, extension, language, mimeType, size, mtime);
         fileId = num(result.lastInsertRowid as bigint);
 
         // Insert vec0

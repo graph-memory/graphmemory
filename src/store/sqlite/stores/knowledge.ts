@@ -6,15 +6,15 @@ import type {
   NotePatch,
   NoteRecord,
   NoteDetail,
+  NoteListOptions,
   AttachmentMeta,
-  PaginationOptions,
   SearchQuery,
   SearchResult,
 } from '../../types';
 import { VersionConflictError } from '../../types';
 import { MetaHelper } from '../lib/meta';
 import { EntityHelpers } from '../lib/entity-helpers';
-import { num, now, likeEscape } from '../lib/bigint';
+import { num, now, likeEscape, assertEmbeddingDim } from '../lib/bigint';
 import { hybridSearch, SearchConfig } from '../lib/search';
 
 const GRAPH = 'knowledge';
@@ -75,6 +75,7 @@ export class SqliteKnowledgeStore implements KnowledgeStore {
   }
 
   create(data: NoteCreate, embedding: number[]): NoteRecord {
+    assertEmbeddingDim(embedding);
     const slug = randomUUID();
     const ts = now();
     const authorId = data.authorId ?? null;
@@ -109,6 +110,7 @@ export class SqliteKnowledgeStore implements KnowledgeStore {
     `).run(title, content, authorId ?? null, now(), noteId, this.projectId);
 
     if (embedding) {
+      assertEmbeddingDim(embedding);
       this.stmts.deleteVec.run(BigInt(noteId));
       this.stmts.insertVec.run(BigInt(noteId), Buffer.from(new Float32Array(embedding).buffer));
     }
@@ -134,25 +136,25 @@ export class SqliteKnowledgeStore implements KnowledgeStore {
     return row ? this.toDetail(row) : null;
   }
 
-  list(filter?: string, tag?: string, pagination?: PaginationOptions): { results: NoteRecord[]; total: number } {
-    const limit = pagination?.limit ?? 50;
-    const offset = pagination?.offset ?? 0;
+  list(opts?: NoteListOptions): { results: NoteRecord[]; total: number } {
+    const limit = opts?.limit ?? 50;
+    const offset = opts?.offset ?? 0;
     const conditions: string[] = ['k.project_id = ?'];
     const params: unknown[] = [this.projectId];
 
-    if (filter) {
+    if (opts?.filter) {
       conditions.push("(k.title LIKE ? ESCAPE '\\' OR k.content LIKE ? ESCAPE '\\')");
-      const like = `%${likeEscape(filter)}%`;
+      const like = `%${likeEscape(opts.filter)}%`;
       params.push(like, like);
     }
 
-    if (tag) {
+    if (opts?.tag) {
       conditions.push(`EXISTS (
         SELECT 1 FROM edges e JOIN tags t ON t.id = e.from_id AND t.project_id = e.project_id
         WHERE e.project_id = k.project_id AND e.to_graph = 'knowledge' AND e.to_id = k.id
         AND e.from_graph = 'tags' AND e.kind = 'tagged' AND t.name = ?
       )`);
-      params.push(tag);
+      params.push(opts.tag);
     }
 
     const where = conditions.join(' AND ');

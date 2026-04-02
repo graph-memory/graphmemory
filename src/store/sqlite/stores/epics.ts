@@ -16,7 +16,7 @@ import type {
 import { VersionConflictError } from '../../types';
 import { MetaHelper } from '../lib/meta';
 import { EntityHelpers } from '../lib/entity-helpers';
-import { num, now, likeEscape } from '../lib/bigint';
+import { num, now, likeEscape, chunk, assertEmbeddingDim } from '../lib/bigint';
 import { hybridSearch, SearchConfig } from '../lib/search';
 
 const GRAPH = 'epics';
@@ -81,20 +81,22 @@ export class SqliteEpicsStore implements EpicsStore {
     if (epicIds.length === 0) return result;
     for (const id of epicIds) result.set(id, { total: 0, done: 0 });
 
-    const ph = epicIds.map(() => '?').join(',');
-    const rows = this.db.prepare(`
-      SELECT e.from_id AS epic_id,
-        COALESCE(SUM(CASE WHEN t.status != 'cancelled' THEN 1 ELSE 0 END), 0) AS total,
-        COALESCE(SUM(CASE WHEN t.status = 'done' THEN 1 ELSE 0 END), 0) AS done
-      FROM edges e
-      JOIN tasks t ON t.id = e.to_id AND t.project_id = e.project_id
-      WHERE e.project_id = ? AND e.from_graph = 'epics' AND e.to_graph = 'tasks' AND e.kind = 'belongs_to'
-      AND e.from_id IN (${ph})
-      GROUP BY e.from_id
-    `).all(this.projectId, ...epicIds) as Array<{ epic_id: bigint; total: bigint; done: bigint }>;
+    for (const batch of chunk(epicIds)) {
+      const ph = batch.map(() => '?').join(',');
+      const rows = this.db.prepare(`
+        SELECT e.from_id AS epic_id,
+          COALESCE(SUM(CASE WHEN t.status != 'cancelled' THEN 1 ELSE 0 END), 0) AS total,
+          COALESCE(SUM(CASE WHEN t.status = 'done' THEN 1 ELSE 0 END), 0) AS done
+        FROM edges e
+        JOIN tasks t ON t.id = e.to_id AND t.project_id = e.project_id
+        WHERE e.project_id = ? AND e.from_graph = 'epics' AND e.to_graph = 'tasks' AND e.kind = 'belongs_to'
+        AND e.from_id IN (${ph})
+        GROUP BY e.from_id
+      `).all(this.projectId, ...batch) as Array<{ epic_id: bigint; total: bigint; done: bigint }>;
 
-    for (const r of rows) {
-      result.set(num(r.epic_id), { total: num(r.total), done: num(r.done) });
+      for (const r of rows) {
+        result.set(num(r.epic_id), { total: num(r.total), done: num(r.done) });
+      }
     }
     return result;
   }
@@ -104,14 +106,16 @@ export class SqliteEpicsStore implements EpicsStore {
   // =========================================================================
 
   create(data: EpicCreate, embedding: number[]): EpicRecord {
+    assertEmbeddingDim(embedding);
     const slug = randomUUID();
     const ts = now();
     const authorId = data.authorId ?? null;
 
+    const order = data.order ?? this.nextOrder();
     const result = this.db.prepare(`
       INSERT INTO epics (project_id, slug, title, description, status, priority, "order", version, created_by_id, updated_by_id, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)
-    `).run(this.projectId, slug, data.title, data.description ?? '', data.status ?? 'open', data.priority ?? 'medium', this.nextOrder(), authorId, authorId, ts, ts);
+    `).run(this.projectId, slug, data.title, data.description ?? '', data.status ?? 'open', data.priority ?? 'medium', order, authorId, authorId, ts, ts);
     const id = result.lastInsertRowid;
 
     this.db.prepare('INSERT INTO epics_vec (rowid, embedding) VALUES (?, ?)').run(BigInt(id as number | bigint), Buffer.from(new Float32Array(embedding).buffer));
@@ -138,6 +142,7 @@ export class SqliteEpicsStore implements EpicsStore {
     if (patch.description !== undefined) set('description', patch.description);
     if (patch.status !== undefined) set('status', patch.status);
     if (patch.priority !== undefined) set('priority', patch.priority);
+    if (patch.order !== undefined) set('"order"', patch.order);
 
     set('version', num(row.version as bigint) + 1);
     set('updated_by_id', authorId ?? null);
@@ -147,6 +152,7 @@ export class SqliteEpicsStore implements EpicsStore {
     this.db.prepare(`UPDATE epics SET ${fields.join(', ')} WHERE id = ? AND project_id = ?`).run(...params);
 
     if (embedding) {
+      assertEmbeddingDim(embedding);
       this.db.prepare('DELETE FROM epics_vec WHERE rowid = ?').run(BigInt(epicId));
       this.db.prepare('INSERT INTO epics_vec (rowid, embedding) VALUES (?, ?)').run(BigInt(epicId), Buffer.from(new Float32Array(embedding).buffer));
     }
@@ -213,6 +219,10 @@ export class SqliteEpicsStore implements EpicsStore {
   private nextOrder(): number {
     const row = this.db.prepare(`SELECT MAX("order") AS m FROM epics WHERE project_id = ?`).get(this.projectId) as { m: bigint | null };
     return row.m ? num(row.m) + ORDER_GAP : ORDER_GAP;
+  }
+
+  reorder(epicId: number, order: number, authorId?: number): EpicRecord {
+    return this.update(epicId, { order }, null, authorId);
   }
 
   // =========================================================================

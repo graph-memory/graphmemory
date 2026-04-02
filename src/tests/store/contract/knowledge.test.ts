@@ -134,7 +134,7 @@ describe('KnowledgeStore contract', () => {
     knowledge.create({ title: 'B', content: '' }, seedEmbedding(2));
     knowledge.create({ title: 'C', content: '' }, seedEmbedding(3));
 
-    const page = knowledge.list(undefined, undefined, { limit: 2 });
+    const page = knowledge.list({ limit: 2 });
     expect(page.results.length).toBe(2);
     expect(page.total).toBe(3);
   });
@@ -143,7 +143,7 @@ describe('KnowledgeStore contract', () => {
     knowledge.create({ title: 'SQLite Guide', content: 'About databases' }, seedEmbedding(1));
     knowledge.create({ title: 'React Guide', content: 'About components' }, seedEmbedding(2));
 
-    const result = knowledge.list('SQLite');
+    const result = knowledge.list({ filter: 'SQLite' });
     expect(result.results.length).toBe(1);
     expect(result.results[0].title).toBe('SQLite Guide');
   });
@@ -152,7 +152,7 @@ describe('KnowledgeStore contract', () => {
     knowledge.create({ title: 'Tagged', content: '', tags: ['important'] }, seedEmbedding(1));
     knowledge.create({ title: 'Untagged', content: '' }, seedEmbedding(2));
 
-    const result = knowledge.list(undefined, 'important');
+    const result = knowledge.list({ tag: 'important' });
     expect(result.results.length).toBe(1);
     expect(result.results[0].title).toBe('Tagged');
   });
@@ -161,7 +161,7 @@ describe('KnowledgeStore contract', () => {
 
   it('list with offset beyond total returns empty', () => {
     knowledge.create({ title: 'Only', content: '' }, seedEmbedding(1));
-    const result = knowledge.list(undefined, undefined, { offset: 100 });
+    const result = knowledge.list({ offset: 100 });
     expect(result.results).toEqual([]);
     expect(result.total).toBe(1);
   });

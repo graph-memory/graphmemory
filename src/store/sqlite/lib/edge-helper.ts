@@ -36,7 +36,7 @@ export class EdgeHelper {
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
     const rows = this.db.prepare(
-      `SELECT from_graph, from_id, to_graph, to_id, kind FROM edges ${where}`
+      `SELECT from_graph, from_id, to_graph, to_id, kind FROM edges ${where} LIMIT 10000`
     ).all(...params) as Array<Record<string, unknown>>;
 
     return rows.map(r => ({

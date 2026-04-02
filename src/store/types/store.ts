@@ -59,6 +59,9 @@ export interface Store {
   /** Get a project-scoped view on all sub-stores */
   project(projectId: number): ProjectScopedStore;
 
+  /** Evict a project from the scoped store cache (call after project deletion) */
+  evictProject(projectId: number): void;
+
   // --- Edges (across all projects) ---
   createEdge(projectId: number, edge: Edge): void;
   deleteEdge(projectId: number, edge: Edge): void;

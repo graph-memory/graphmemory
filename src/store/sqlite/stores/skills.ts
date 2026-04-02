@@ -14,7 +14,7 @@ import type {
 import { VersionConflictError } from '../../types';
 import { MetaHelper } from '../lib/meta';
 import { EntityHelpers } from '../lib/entity-helpers';
-import { num, now, safeJson, likeEscape } from '../lib/bigint';
+import { num, now, safeJson, likeEscape, assertEmbeddingDim } from '../lib/bigint';
 import { hybridSearch, SearchConfig } from '../lib/search';
 
 const GRAPH = 'skills';
@@ -67,6 +67,7 @@ export class SqliteSkillsStore implements SkillsStore {
   }
 
   create(data: SkillCreate, embedding: number[]): SkillRecord {
+    assertEmbeddingDim(embedding);
     const slug = randomUUID();
     const ts = now();
     const authorId = data.authorId ?? null;
@@ -122,6 +123,7 @@ export class SqliteSkillsStore implements SkillsStore {
     this.db.prepare(`UPDATE skills SET ${fields.join(', ')} WHERE id = ? AND project_id = ?`).run(...params);
 
     if (embedding) {
+      assertEmbeddingDim(embedding);
       this.db.prepare('DELETE FROM skills_vec WHERE rowid = ?').run(BigInt(skillId));
       this.db.prepare('INSERT INTO skills_vec (rowid, embedding) VALUES (?, ?)').run(BigInt(skillId), Buffer.from(new Float32Array(embedding).buffer));
     }
@@ -184,10 +186,11 @@ export class SqliteSkillsStore implements SkillsStore {
   }
 
   bumpUsage(skillId: number): void {
+    const ts = now();
     this.db.prepare(`
-      UPDATE skills SET usage_count = usage_count + 1, last_used_at = ?, updated_at = ?
+      UPDATE skills SET usage_count = usage_count + 1, version = version + 1, last_used_at = ?, updated_at = ?
       WHERE id = ? AND project_id = ?
-    `).run(now(), now(), skillId, this.projectId);
+    `).run(ts, ts, skillId, this.projectId);
   }
 
   getUpdatedAt(skillId: number): number | null {

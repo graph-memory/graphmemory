@@ -6,7 +6,6 @@ export * from './knowledge';
 export * from './tasks';
 export * from './epics';
 export * from './skills';
-export * from './tags';
 export * from './attachments';
 export * from './projects';
 export * from './team';

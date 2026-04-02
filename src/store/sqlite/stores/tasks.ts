@@ -16,7 +16,7 @@ import type {
 import { VersionConflictError } from '../../types';
 import { MetaHelper } from '../lib/meta';
 import { EntityHelpers } from '../lib/entity-helpers';
-import { num, now, likeEscape } from '../lib/bigint';
+import { num, now, likeEscape, chunk, assertEmbeddingDim } from '../lib/bigint';
 import { hybridSearch, SearchConfig } from '../lib/search';
 
 const GRAPH_TASKS = 'tasks';
@@ -71,6 +71,7 @@ export class SqliteTasksStore implements TasksStore {
   }
 
   create(data: TaskCreate, embedding: number[]): TaskRecord {
+    assertEmbeddingDim(embedding);
     const slug = randomUUID();
     const ts = now();
     const status = data.status ?? 'backlog';
@@ -126,6 +127,7 @@ export class SqliteTasksStore implements TasksStore {
     this.db.prepare(`UPDATE tasks SET ${fields.join(', ')} WHERE id = ? AND project_id = ?`).run(...params);
 
     if (embedding) {
+      assertEmbeddingDim(embedding);
       this.db.prepare('DELETE FROM tasks_vec WHERE rowid = ?').run(BigInt(taskId));
       this.db.prepare('INSERT INTO tasks_vec (rowid, embedding) VALUES (?, ?)').run(BigInt(taskId), Buffer.from(new Float32Array(embedding).buffer));
     }
@@ -225,31 +227,45 @@ export class SqliteTasksStore implements TasksStore {
 
   bulkDelete(taskIds: number[]): number {
     if (taskIds.length === 0) return 0;
-    const ph = taskIds.map(() => '?').join(',');
+    let total = 0;
     // Cleanup triggers handle edges, attachments, vec0
-    const result = this.db.prepare(`DELETE FROM tasks WHERE id IN (${ph}) AND project_id = ?`).run(...taskIds, this.projectId);
-    return num(result.changes);
+    for (const batch of chunk(taskIds)) {
+      const ph = batch.map(() => '?').join(',');
+      const result = this.db.prepare(`DELETE FROM tasks WHERE id IN (${ph}) AND project_id = ?`).run(...batch, this.projectId);
+      total += num(result.changes);
+    }
+    return total;
   }
 
   bulkMove(taskIds: number[], status: TaskStatus, authorId?: number): number {
     if (taskIds.length === 0) return 0;
-    const ph = taskIds.map(() => '?').join(',');
-    const completedAt = TERMINAL_STATUSES.has(status) ? now() : null;
-    const result = this.db.prepare(`
-      UPDATE tasks SET status = ?, completed_at = ?, version = version + 1, updated_by_id = ?, updated_at = ?
-      WHERE id IN (${ph}) AND project_id = ?
-    `).run(status, completedAt, authorId ?? null, now(), ...taskIds, this.projectId);
-    return num(result.changes);
+    const ts = now();
+    const completedAt = TERMINAL_STATUSES.has(status) ? ts : null;
+    let total = 0;
+    for (const batch of chunk(taskIds)) {
+      const ph = batch.map(() => '?').join(',');
+      const result = this.db.prepare(`
+        UPDATE tasks SET status = ?, completed_at = ?, version = version + 1, updated_by_id = ?, updated_at = ?
+        WHERE id IN (${ph}) AND project_id = ?
+      `).run(status, completedAt, authorId ?? null, ts, ...batch, this.projectId);
+      total += num(result.changes);
+    }
+    return total;
   }
 
   bulkPriority(taskIds: number[], priority: TaskPriority, authorId?: number): number {
     if (taskIds.length === 0) return 0;
-    const ph = taskIds.map(() => '?').join(',');
-    const result = this.db.prepare(`
-      UPDATE tasks SET priority = ?, version = version + 1, updated_by_id = ?, updated_at = ?
-      WHERE id IN (${ph}) AND project_id = ?
-    `).run(priority, authorId ?? null, now(), ...taskIds, this.projectId);
-    return num(result.changes);
+    const ts = now();
+    let total = 0;
+    for (const batch of chunk(taskIds)) {
+      const ph = batch.map(() => '?').join(',');
+      const result = this.db.prepare(`
+        UPDATE tasks SET priority = ?, version = version + 1, updated_by_id = ?, updated_at = ?
+        WHERE id IN (${ph}) AND project_id = ?
+      `).run(priority, authorId ?? null, ts, ...batch, this.projectId);
+      total += num(result.changes);
+    }
+    return total;
   }
 
   // =========================================================================

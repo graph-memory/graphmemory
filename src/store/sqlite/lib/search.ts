@@ -80,16 +80,18 @@ export function hybridSearch(
   // FTS5 keyword search
   if (mode !== 'vector' && query.text) {
     const escaped = ftsEscape(query.text);
-    if (!escaped) return [];
-    const rows = db.prepare(`
-      SELECT p.${config.parentIdColumn} AS id, ROW_NUMBER() OVER (ORDER BY rank) AS rn
-      FROM ${config.ftsTable} fts
-      JOIN ${config.parentTable} p ON p.${config.parentIdColumn} = fts.rowid AND p.project_id = ? ${extraJoin}
-      WHERE ${config.ftsTable} MATCH ?
-      LIMIT ?
-    `).all(projectId, escaped, topK) as Array<{ id: bigint; rn: bigint }>;
+    if (!escaped && mode === 'keyword') return [];
+    if (escaped) {
+      const rows = db.prepare(`
+        SELECT p.${config.parentIdColumn} AS id, ROW_NUMBER() OVER (ORDER BY rank) AS rn
+        FROM ${config.ftsTable} fts
+        JOIN ${config.parentTable} p ON p.${config.parentIdColumn} = fts.rowid AND p.project_id = ? ${extraJoin}
+        WHERE ${config.ftsTable} MATCH ?
+        LIMIT ?
+      `).all(projectId, escaped, topK) as Array<{ id: bigint; rn: bigint }>;
 
-    ftsRanked = rows.map(r => ({ id: num(r.id), rn: num(r.rn) }));
+      ftsRanked = rows.map(r => ({ id: num(r.id), rn: num(r.rn) }));
+    }
   }
 
   // vec0 vector search
@@ -99,11 +101,11 @@ export function hybridSearch(
     const vecK = topK * 3;
 
     const rows = db.prepare(`
-      SELECT v.rowid AS id, v.distance, ROW_NUMBER() OVER (ORDER BY v.distance) AS rn
+      SELECT v.rowid AS id, v.distance
       FROM ${config.vecTable} v
       JOIN ${config.parentTable} p ON p.${config.parentIdColumn} = v.rowid AND p.project_id = ? ${extraJoin}
       WHERE v.embedding MATCH ? AND v.k = ?
-    `).all(projectId, embeddingBuf, vecK) as Array<{ id: bigint; distance: number; rn: bigint }>;
+    `).all(projectId, embeddingBuf, vecK) as Array<{ id: bigint; distance: number }>;
 
     vecRanked = rows.slice(0, topK).map((r, i) => ({ id: num(r.id), rn: i + 1 }));
   }

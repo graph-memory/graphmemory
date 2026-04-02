@@ -13,6 +13,7 @@ export interface EpicCreate {
   description: string;
   status?: EpicStatus;
   priority?: TaskPriority;
+  order?: number;
   tags?: string[];
   authorId?: number;
 }
@@ -22,6 +23,7 @@ export interface EpicPatch {
   description?: string;
   status?: EpicStatus;
   priority?: TaskPriority;
+  order?: number;
   tags?: string[];
 }
 
@@ -62,6 +64,7 @@ export interface EpicsStore extends MetaMixin {
   getBySlug(slug: string): EpicDetail | null;
   list(opts?: EpicListOptions): { results: EpicRecord[]; total: number };
   search(query: SearchQuery): SearchResult[];
+  reorder(epicId: number, order: number, authorId?: number): EpicRecord;
   linkTask(epicId: number, taskId: number): void;
   unlinkTask(epicId: number, taskId: number): void;
 

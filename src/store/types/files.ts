@@ -28,9 +28,14 @@ export interface FileListOptions extends PaginationOptions {
   filter?: string;
 }
 
+export interface FileUpdateOptions {
+  language?: string | null;
+  mimeType?: string | null;
+}
+
 export interface FilesStore extends MetaMixin {
   /** Add or update a file entry */
-  updateFile(filePath: string, size: number, mtime: number, embedding: number[]): void;
+  updateFile(filePath: string, size: number, mtime: number, embedding: number[], opts?: FileUpdateOptions): void;
 
   /** Remove a file entry (auto-cleans empty parent dirs) */
   removeFile(filePath: string): void;

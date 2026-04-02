@@ -36,6 +36,11 @@ export interface NoteDetail extends NoteRecord {
   edges: Edge[];
 }
 
+export interface NoteListOptions extends PaginationOptions {
+  filter?: string;
+  tag?: string;
+}
+
 export interface KnowledgeStore extends MetaMixin {
   // --- CRUD ---
   create(data: NoteCreate, embedding: number[]): NoteRecord;
@@ -43,7 +48,7 @@ export interface KnowledgeStore extends MetaMixin {
   delete(noteId: number): void;
   get(noteId: number): NoteDetail | null;
   getBySlug(slug: string): NoteDetail | null;
-  list(filter?: string, tag?: string, pagination?: PaginationOptions): { results: NoteRecord[]; total: number };
+  list(opts?: NoteListOptions): { results: NoteRecord[]; total: number };
 
   // --- Search ---
   search(query: SearchQuery): SearchResult[];

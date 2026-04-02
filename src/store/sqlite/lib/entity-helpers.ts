@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 import type { AttachmentMeta, Edge, GraphName } from '../../types';
-import { num } from './bigint';
+import { num, chunk } from './bigint';
 
 /**
  * Shared helpers for user-managed stores (knowledge, tasks, skills).
@@ -32,13 +32,15 @@ export class EntityHelpers {
       `).run(this.projectId, ...ids);
     }
 
-    // Insert new tags
+    // Insert new tags — use INSERT OR IGNORE + SELECT per tag
+    const insertTag = this.db.prepare('INSERT OR IGNORE INTO tags (project_id, name) VALUES (?, ?)');
+    const selectTag = this.db.prepare('SELECT id FROM tags WHERE project_id = ? AND name = ?');
+    const insertEdge = this.db.prepare(`INSERT INTO edges (project_id, from_graph, from_id, to_graph, to_id, kind) VALUES (?, 'tags', ?, ?, ?, 'tagged')`);
     for (const tag of tags) {
-      this.db.prepare('INSERT OR IGNORE INTO tags (project_id, name) VALUES (?, ?)').run(this.projectId, tag);
-      const row = this.db.prepare('SELECT id FROM tags WHERE project_id = ? AND name = ?').get(this.projectId, tag) as { id: bigint } | undefined;
+      insertTag.run(this.projectId, tag);
+      const row = selectTag.get(this.projectId, tag) as { id: bigint } | undefined;
       if (!row) throw new Error(`Failed to resolve tag: ${tag}`);
-      this.db.prepare(`INSERT INTO edges (project_id, from_graph, from_id, to_graph, to_id, kind) VALUES (?, 'tags', ?, ?, ?, 'tagged')`)
-        .run(this.projectId, num(row.id), graph, entityId);
+      insertEdge.run(this.projectId, num(row.id), graph, entityId);
     }
   }
 
@@ -58,20 +60,22 @@ export class EntityHelpers {
     if (entityIds.length === 0) return result;
     for (const id of entityIds) result.set(id, []);
 
-    const ph = entityIds.map(() => '?').join(',');
-    const rows = this.db.prepare(`
-      SELECT e.to_id AS entity_id, t.name
-      FROM edges e
-      JOIN tags t ON t.id = e.from_id AND t.project_id = e.project_id
-      WHERE e.project_id = ? AND e.from_graph = 'tags' AND e.to_graph = ? AND e.kind = 'tagged'
-      AND e.to_id IN (${ph})
-      ORDER BY t.name
-    `).all(this.projectId, graph, ...entityIds) as Array<{ entity_id: bigint; name: string }>;
+    for (const batch of chunk(entityIds)) {
+      const ph = batch.map(() => '?').join(',');
+      const rows = this.db.prepare(`
+        SELECT e.to_id AS entity_id, t.name
+        FROM edges e
+        JOIN tags t ON t.id = e.from_id AND t.project_id = e.project_id
+        WHERE e.project_id = ? AND e.from_graph = 'tags' AND e.to_graph = ? AND e.kind = 'tagged'
+        AND e.to_id IN (${ph})
+        ORDER BY t.name
+      `).all(this.projectId, graph, ...batch) as Array<{ entity_id: bigint; name: string }>;
 
-    for (const r of rows) {
-      const id = num(r.entity_id);
-      const arr = result.get(id);
-      if (arr) arr.push(r.name);
+      for (const r of rows) {
+        const id = num(r.entity_id);
+        const arr = result.get(id);
+        if (arr) arr.push(r.name);
+      }
     }
     return result;
   }
@@ -92,17 +96,19 @@ export class EntityHelpers {
     if (entityIds.length === 0) return result;
     for (const id of entityIds) result.set(id, []);
 
-    const ph = entityIds.map(() => '?').join(',');
-    const rows = this.db.prepare(`
-      SELECT entity_id, filename, mime_type, size, url, added_at FROM attachments
-      WHERE project_id = ? AND graph = ? AND entity_id IN (${ph})
-      ORDER BY added_at
-    `).all(this.projectId, graph, ...entityIds) as Array<Record<string, unknown>>;
+    for (const batch of chunk(entityIds)) {
+      const ph = batch.map(() => '?').join(',');
+      const rows = this.db.prepare(`
+        SELECT entity_id, filename, mime_type, size, url, added_at FROM attachments
+        WHERE project_id = ? AND graph = ? AND entity_id IN (${ph})
+        ORDER BY added_at
+      `).all(this.projectId, graph, ...batch) as Array<Record<string, unknown>>;
 
-    for (const r of rows) {
-      const id = num(r.entity_id as bigint);
-      const arr = result.get(id);
-      if (arr) arr.push(this.toAttachmentMeta(r));
+      for (const r of rows) {
+        const id = num(r.entity_id as bigint);
+        const arr = result.get(id);
+        if (arr) arr.push(this.toAttachmentMeta(r));
+      }
     }
     return result;
   }

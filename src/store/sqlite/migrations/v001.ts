@@ -1,6 +1,6 @@
 import type { Migration } from '../lib/migrate';
 
-const EMBEDDING_DIM = 384;
+export const EMBEDDING_DIM = 384;
 
 export const v001: Migration = {
   version: 1,

@@ -14,11 +14,12 @@ import { runMigrations } from './lib/migrate';
 import { MetaHelper } from './lib/meta';
 import { EdgeHelper } from './lib/edge-helper';
 import { v001 } from './migrations/v001';
+import { v002 } from './migrations/v002';
 import { SqliteTeamStore } from './stores/team';
 import { SqliteProjectsStore } from './stores/projects';
 import { SqliteProjectScopedStore } from './stores/project-scoped';
 
-const ALL_MIGRATIONS = [v001];
+const ALL_MIGRATIONS = [v001, v002];
 
 export class SqliteStore implements Store {
   private db: Database.Database | null = null;
@@ -74,6 +75,11 @@ export class SqliteStore implements Store {
       this.scopedCache.set(projectId, scoped);
     }
     return scoped;
+  }
+
+  /** Evict a project from the scoped store cache (call after project deletion) */
+  evictProject(projectId: number): void {
+    this.scopedCache.delete(projectId);
   }
 
   // --- Edges ---

@@ -15,10 +15,10 @@ describe('SQLite migrations', () => {
     cleanup();
   });
 
-  it('applies v001 migration on first open', () => {
+  it('applies all migrations on first open', () => {
     const db = store.getDb();
     const version = getSchemaVersion(db);
-    expect(version).toBe(1);
+    expect(version).toBe(2);
   });
 
   it('creates all expected tables', () => {

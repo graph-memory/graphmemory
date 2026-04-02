@@ -5,8 +5,3 @@
 // No separate TagsStore — tags flow through Create/Patch/Record interfaces
 // and are stored in the `tags` table + `edges` table (kind='tagged').
 // ---------------------------------------------------------------------------
-
-export interface TagRecord {
-  id: number;
-  name: string;
-}

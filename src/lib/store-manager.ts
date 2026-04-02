@@ -53,6 +53,7 @@ import {
   deleteMirrorDir,
 } from './file-mirror';
 import { createLogger } from './logger';
+import mime from 'mime';
 
 const log = createLogger('store-manager');
 
@@ -218,7 +219,19 @@ export class StoreManager {
   }
 
   reorderTask(taskId: number, order: number, status?: TaskStatus, authorId?: number): TaskRecord {
-    return this.scoped.tasks.reorder(taskId, order, status, authorId);
+    const record = this.scoped.tasks.reorder(taskId, order, status, authorId);
+    const patch: TaskPatch = { order };
+    if (status) patch.status = status;
+    mirrorTaskUpdate(`${this.projectDir}/.tasks`, record.slug, patch, {
+      title: record.title, description: record.description,
+      status: record.status, priority: record.priority,
+      tags: record.tags, order: record.order, assignee: null,
+      dueDate: record.dueDate, estimate: record.estimate,
+      completedAt: record.completedAt,
+      createdAt: record.createdAt, updatedAt: record.updatedAt, version: record.version,
+    }, []);
+    this.emit('task:updated', { projectId: this.projectId, taskId });
+    return record;
   }
 
   getTask(taskId: number): TaskDetail | null {
@@ -241,15 +254,57 @@ export class StoreManager {
   }
 
   bulkDeleteTasks(taskIds: number[]): number {
-    return this.scoped.tasks.bulkDelete(taskIds);
+    // Fetch slugs before deletion for mirror cleanup
+    const slugs = taskIds
+      .map(id => this.scoped.tasks.get(id))
+      .filter((t): t is TaskDetail => t !== null)
+      .map(t => t.slug);
+
+    const count = this.scoped.tasks.bulkDelete(taskIds);
+
+    for (const slug of slugs) {
+      deleteMirrorDir(`${this.projectDir}/.tasks`, slug);
+    }
+    this.emit('task:bulk_deleted', { projectId: this.projectId, taskIds, count });
+    return count;
   }
 
   bulkMoveTasks(taskIds: number[], status: TaskStatus, authorId?: number): number {
-    return this.scoped.tasks.bulkMove(taskIds, status, authorId);
+    const count = this.scoped.tasks.bulkMove(taskIds, status, authorId);
+
+    for (const id of taskIds) {
+      const record = this.scoped.tasks.get(id);
+      if (!record) continue;
+      mirrorTaskUpdate(`${this.projectDir}/.tasks`, record.slug, { status }, {
+        title: record.title, description: record.description,
+        status: record.status, priority: record.priority,
+        tags: record.tags, order: record.order, assignee: null,
+        dueDate: record.dueDate, estimate: record.estimate,
+        completedAt: record.completedAt,
+        createdAt: record.createdAt, updatedAt: record.updatedAt, version: record.version,
+      }, []);
+    }
+    this.emit('task:bulk_moved', { projectId: this.projectId, taskIds, status, count });
+    return count;
   }
 
   bulkPriorityTasks(taskIds: number[], priority: TaskPriority, authorId?: number): number {
-    return this.scoped.tasks.bulkPriority(taskIds, priority, authorId);
+    const count = this.scoped.tasks.bulkPriority(taskIds, priority, authorId);
+
+    for (const id of taskIds) {
+      const record = this.scoped.tasks.get(id);
+      if (!record) continue;
+      mirrorTaskUpdate(`${this.projectDir}/.tasks`, record.slug, { priority }, {
+        title: record.title, description: record.description,
+        status: record.status, priority: record.priority,
+        tags: record.tags, order: record.order, assignee: null,
+        dueDate: record.dueDate, estimate: record.estimate,
+        completedAt: record.completedAt,
+        createdAt: record.createdAt, updatedAt: record.updatedAt, version: record.version,
+      }, []);
+    }
+    this.emit('task:bulk_priority', { projectId: this.projectId, taskIds, priority, count });
+    return count;
   }
 
   // =========================================================================
@@ -429,7 +484,7 @@ export class StoreManager {
 
     const meta: AttachmentMeta = {
       filename,
-      mimeType: guessMimeType(filename),
+      mimeType: mime.getType(filename) ?? 'application/octet-stream',
       size: data.length,
       addedAt: Date.now(),
     };
@@ -476,17 +531,3 @@ export class StoreManager {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Utilities
-// ---------------------------------------------------------------------------
-
-function guessMimeType(filename: string): string {
-  const ext = filename.split('.').pop()?.toLowerCase();
-  const map: Record<string, string> = {
-    png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif',
-    svg: 'image/svg+xml', pdf: 'application/pdf', json: 'application/json',
-    txt: 'text/plain', md: 'text/markdown', csv: 'text/csv',
-    html: 'text/html', xml: 'application/xml', zip: 'application/zip',
-  };
-  return map[ext ?? ''] ?? 'application/octet-stream';
-}

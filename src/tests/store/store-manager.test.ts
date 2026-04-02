@@ -119,12 +119,65 @@ describe('StoreManager', () => {
       expect(moved.completedAt).not.toBeNull();
     });
 
-    it('bulk deletes tasks', async () => {
+    it('reorders a task with mirror update', async () => {
+      const record = await manager.createTask({
+        title: 'Reorder me', description: '', status: 'todo', priority: 'medium',
+      });
+      const events: unknown[] = [];
+      emitter.on('task:updated', (d) => events.push(d));
+
+      const reordered = manager.reorderTask(record.id, 5000);
+
+      expect(reordered.order).toBe(5000);
+      expect(events.length).toBe(1);
+    });
+
+    it('bulk deletes tasks and removes mirror dirs', async () => {
       const t1 = await manager.createTask({ title: 'A', description: '' });
       const t2 = await manager.createTask({ title: 'B', description: '' });
 
+      expect(existsSync(join(projectDir, '.tasks', t1.slug))).toBe(true);
+      expect(existsSync(join(projectDir, '.tasks', t2.slug))).toBe(true);
+
+      const events: unknown[] = [];
+      emitter.on('task:bulk_deleted', (d) => events.push(d));
+
       const count = manager.bulkDeleteTasks([t1.id, t2.id]);
       expect(count).toBe(2);
+      expect(existsSync(join(projectDir, '.tasks', t1.slug))).toBe(false);
+      expect(existsSync(join(projectDir, '.tasks', t2.slug))).toBe(false);
+      expect(events.length).toBe(1);
+    });
+
+    it('bulk moves tasks with mirror updates', async () => {
+      const t1 = await manager.createTask({ title: 'A', description: '', status: 'todo' });
+      const t2 = await manager.createTask({ title: 'B', description: '', status: 'todo' });
+
+      const events: unknown[] = [];
+      emitter.on('task:bulk_moved', (d) => events.push(d));
+
+      const count = manager.bulkMoveTasks([t1.id, t2.id], 'done');
+      expect(count).toBe(2);
+      expect(events.length).toBe(1);
+
+      // Verify tasks actually moved
+      expect(manager.getTask(t1.id)!.status).toBe('done');
+      expect(manager.getTask(t2.id)!.status).toBe('done');
+    });
+
+    it('bulk updates priority with mirror updates', async () => {
+      const t1 = await manager.createTask({ title: 'A', description: '', priority: 'low' });
+      const t2 = await manager.createTask({ title: 'B', description: '', priority: 'low' });
+
+      const events: unknown[] = [];
+      emitter.on('task:bulk_priority', (d) => events.push(d));
+
+      const count = manager.bulkPriorityTasks([t1.id, t2.id], 'critical');
+      expect(count).toBe(2);
+      expect(events.length).toBe(1);
+
+      expect(manager.getTask(t1.id)!.priority).toBe('critical');
+      expect(manager.getTask(t2.id)!.priority).toBe('critical');
     });
   });
 

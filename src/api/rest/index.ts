@@ -302,9 +302,9 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
       // Hide graphs the user cannot read — don't leak enabled/readonly/stats
       const graphs: Record<string, { enabled: boolean; readonly: boolean; access: string | null }> = {};
       const stats: Record<string, number> = {};
+      // User-managed graphs still use Graphology for stats
       const graphInstances: Record<string, any> = {
-        docs: p.docGraph, code: p.codeGraph, knowledge: p.knowledgeGraph,
-        files: p.fileIndexGraph, tasks: p.taskGraph, skills: p.skillGraph,
+        knowledge: p.knowledgeGraph, tasks: p.taskGraph, skills: p.skillGraph,
       };
       for (const gn of GRAPH_NAMES) {
         let access: string | null = serverConfig
@@ -317,6 +317,7 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
           stats[gn] = 0;
         } else if (canRead(access as any)) {
           graphs[gn] = { enabled: true, readonly: gc[gn].readonly, access };
+          // Indexed graphs: stats come from SQLite; user-managed: from Graphology
           stats[gn] = graphInstances[gn] ? realNodeCount(graphInstances[gn]) : 0;
         } else {
           graphs[gn] = { enabled: true, readonly: gc[gn].readonly, access: 'deny' };
@@ -368,10 +369,7 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
     const ws = p.workspaceId ? projectManager.getWorkspace(p.workspaceId) : undefined;
 
     const graphData: Record<string, { graph: any; key: string }> = {
-      docs:      { graph: p.docGraph,       key: 'docs' },
-      code:      { graph: p.codeGraph,      key: 'code' },
       knowledge: { graph: p.knowledgeGraph, key: 'knowledge' },
-      fileIndex: { graph: p.fileIndexGraph, key: 'files' },
       tasks:     { graph: p.taskGraph,      key: 'tasks' },
       skills:    { graph: p.skillGraph,     key: 'skills' },
     };

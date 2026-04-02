@@ -120,15 +120,13 @@ program
       for (const id of ids) {
         await manager.finalizeIndexing(id);
         const instance = manager.getProject(id)!;
-        if (instance.docGraph) {
-          log.info({ projectId: id, graph: 'docs', nodes: instance.docGraph.order, edges: instance.docGraph.size }, 'Indexed docs');
-        }
-        if (instance.codeGraph) {
-          log.info({ projectId: id, graph: 'code', nodes: instance.codeGraph.order, edges: instance.codeGraph.size }, 'Indexed code');
-        }
-        if (instance.fileIndexGraph) {
-          log.info({ projectId: id, graph: 'files', nodes: instance.fileIndexGraph.order, edges: instance.fileIndexGraph.size }, 'Indexed files');
-        }
+        // Indexed graphs stats from SQLite Store
+        const docs = instance.scopedStore.docs.listFiles();
+        const code = instance.scopedStore.code.listFiles();
+        const files = instance.scopedStore.files.listFiles();
+        if (docs.total > 0) log.info({ projectId: id, graph: 'docs', files: docs.total }, 'Indexed docs');
+        if (code.total > 0) log.info({ projectId: id, graph: 'code', files: code.total }, 'Indexed code');
+        if (files.total > 0) log.info({ projectId: id, graph: 'files', files: files.total }, 'Indexed files');
       }
 
       // Save workspaces

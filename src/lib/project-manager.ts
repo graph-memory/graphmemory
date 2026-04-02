@@ -1,9 +1,6 @@
 import { EventEmitter } from 'events';
 import { loadModel, embed, embedQuery, type EmbeddingCacheFactory } from '@/lib/embedder';
-import { loadGraph, saveGraph, type DocGraph, DocGraphManager } from '@/graphs/docs';
-import { loadCodeGraph, saveCodeGraph, type CodeGraph, CodeGraphManager } from '@/graphs/code';
 import { loadKnowledgeGraph, saveKnowledgeGraph, KnowledgeGraphManager } from '@/graphs/knowledge';
-import { loadFileIndexGraph, saveFileIndexGraph, FileIndexGraphManager } from '@/graphs/file-index';
 import { loadTaskGraph, saveTaskGraph, TaskGraphManager } from '@/graphs/task';
 import { loadSkillGraph, saveSkillGraph, SkillGraphManager } from '@/graphs/skill';
 import { createProjectIndexer, type ProjectIndexer, type IndexPhase } from '@/cli/indexer';
@@ -13,7 +10,6 @@ import { PromiseQueue } from '@/lib/promise-queue';
 import type { ProjectConfig, ServerConfig, WorkspaceConfig, GraphName } from '@/lib/multi-config';
 import { GRAPH_NAMES, formatAuthor, embeddingFingerprint } from '@/lib/multi-config';
 import type { KnowledgeGraph } from '@/graphs/knowledge-types';
-import type { FileIndexGraph } from '@/graphs/file-index-types';
 import type { TaskGraph } from '@/graphs/task-types';
 import type { SkillGraph } from '@/graphs/skill-types';
 import type { EmbedFnMap } from '@/api/index';
@@ -42,16 +38,11 @@ export interface ProjectInstance {
   scopedStore: ProjectScopedStore;
   /** Numeric project ID in SQLite Store */
   dbProjectId: number;
-  docGraph?: DocGraph;
-  codeGraph?: CodeGraph;
+  // User-managed graphs (still Graphology — will be removed in Phase 4)
   knowledgeGraph?: KnowledgeGraph;
-  fileIndexGraph?: FileIndexGraph;
   taskGraph?: TaskGraph;
   skillGraph?: SkillGraph;
-  docManager?: DocGraphManager;
-  codeManager?: CodeGraphManager;
   knowledgeManager?: KnowledgeGraphManager;
-  fileIndexManager?: FileIndexGraphManager;
   taskManager?: TaskGraphManager;
   skillManager?: SkillGraphManager;
   storeManager?: StoreManager;
@@ -269,11 +260,6 @@ export class ProjectManager extends EventEmitter {
     }
     const scopedStore = store.project(dbProject.id);
 
-    // Load per-project graphs (gated by enabled flag)
-    const docGraph  = gc.docs.enabled ? loadGraph(config.graphMemory, reindex, embeddingFingerprint(gc.docs.model)) : undefined;
-    const codeGraph = gc.code.enabled ? loadCodeGraph(config.graphMemory, reindex, embeddingFingerprint(gc.code.model)) : undefined;
-    const fileIndexGraph = gc.files.enabled ? loadFileIndexGraph(config.graphMemory, reindex, embeddingFingerprint(gc.files.model)) : undefined;
-
     // Knowledge/tasks/skills: shared from workspace or per-project (gated by enabled)
     const knowledgeGraph = ws ? ws.knowledgeGraph
       : gc.knowledge.enabled ? loadKnowledgeGraph(config.graphMemory, reindex, embeddingFingerprint(gc.knowledge.model)) : undefined;
@@ -298,10 +284,7 @@ export class ProjectManager extends EventEmitter {
       config,
       scopedStore,
       dbProjectId: dbProject.id,
-      docGraph,
-      codeGraph,
       knowledgeGraph,
-      fileIndexGraph,
       taskGraph,
       skillGraph,
       storeManager,
@@ -327,19 +310,7 @@ export class ProjectManager extends EventEmitter {
       author: formatAuthor(config.author),
     };
 
-    const ext: ExternalGraphs = { docGraph, codeGraph, knowledgeGraph, fileIndexGraph, taskGraph, skillGraph };
-
-    // In workspace mode, register this project's graphs for cross-graph resolution
-    if (ws) {
-      const wsExt = ws.knowledgeManager.externalGraphs;
-      if (wsExt?.projectGraphs) {
-        wsExt.projectGraphs.set(id, { docGraph, codeGraph, fileIndexGraph });
-      }
-    }
-
-    instance.docManager = docGraph ? new DocGraphManager(docGraph, embedFns.docs, ext) : undefined;
-    instance.codeManager = codeGraph ? new CodeGraphManager(codeGraph, embedFns.code, ext) : undefined;
-    instance.fileIndexManager = fileIndexGraph ? new FileIndexGraphManager(fileIndexGraph, embedFns.files, ext) : undefined;
+    const ext: ExternalGraphs = { knowledgeGraph, taskGraph, skillGraph };
 
     if (ws) {
       // Use workspace-level shared managers
@@ -644,12 +615,10 @@ export class ProjectManager extends EventEmitter {
   // ---------------------------------------------------------------------------
 
   private saveProject(instance: ProjectInstance): void {
-    const gc = instance.config.graphConfigs;
-    if (instance.docGraph) saveGraph(instance.docGraph, instance.config.graphMemory, embeddingFingerprint(gc.docs.model));
-    if (instance.codeGraph) saveCodeGraph(instance.codeGraph, instance.config.graphMemory, embeddingFingerprint(gc.code.model));
-    if (instance.fileIndexGraph) saveFileIndexGraph(instance.fileIndexGraph, instance.config.graphMemory, embeddingFingerprint(gc.files.model));
-    // Skip knowledge/tasks/skills for workspace projects (saved by workspace)
+    // Indexed graphs (docs/code/files) are in SQLite — no separate save needed.
+    // Knowledge/tasks/skills still use Graphology JSON persistence.
     if (!instance.workspaceId) {
+      const gc = instance.config.graphConfigs;
       if (instance.knowledgeGraph) saveKnowledgeGraph(instance.knowledgeGraph, instance.config.graphMemory, embeddingFingerprint(gc.knowledge.model));
       if (instance.taskGraph) saveTaskGraph(instance.taskGraph, instance.config.graphMemory, embeddingFingerprint(gc.tasks.model));
       if (instance.skillGraph) saveSkillGraph(instance.skillGraph, instance.config.graphMemory, embeddingFingerprint(gc.skills.model));

@@ -652,10 +652,10 @@ export async function startMultiProjectHttpServer(
     };
 
     const mcpServer = createMcpServer(
-      project.docGraph,
-      project.codeGraph,
+      undefined, // docGraph (removed — indexed graphs use Store)
+      undefined, // codeGraph
       project.knowledgeGraph,
-      project.fileIndexGraph,
+      undefined, // fileIndexGraph
       project.taskGraph,
       project.embedFns,
       project.mutationQueue,

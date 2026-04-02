@@ -202,7 +202,7 @@ describe('REST API', () => {
       expect(res.status).toBe(200);
       expect(res.body.knowledge).toBeDefined();
       expect(res.body.tasks).toBeDefined();
-      expect(res.body.fileIndex).toBeDefined();
+      expect(res.body.skills).toBeDefined();
     });
 
     it('returns 404 for unknown project', async () => {
@@ -1302,14 +1302,11 @@ describe('REST API — ACL filtering', () => {
 
       const res = await request(app).get('/api/projects/test/stats').set('Authorization', 'Bearer key-alice');
       expect(res.status).toBe(200);
-      // Knowledge is allowed — should have stats object (may be null if no Graphology graph)
+      // Knowledge is allowed — should have stats object
       expect(res.body.knowledge).toBeDefined();
-      // Tasks/docs/code/skills/fileIndex are denied — should be null
+      // Tasks/skills are denied — should be null
       expect(res.body.tasks).toBeNull();
-      expect(res.body.docs).toBeNull();
-      expect(res.body.code).toBeNull();
       expect(res.body.skills).toBeNull();
-      expect(res.body.fileIndex).toBeNull();
     });
 
     it('returns all stats when user has full access', async () => {

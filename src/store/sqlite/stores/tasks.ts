@@ -32,7 +32,7 @@ export class SqliteTasksStore implements TasksStore {
   private meta: MetaHelper;
   private helpers: EntityHelpers;
 
-  constructor(private db: Database.Database, private projectId: number) {
+  constructor(private db: Database.Database, private projectId: number, private embeddingDim: number = 384) {
     this.meta = new MetaHelper(db, `${projectId}:${GRAPH_TASKS}`);
     this.helpers = new EntityHelpers(db, projectId);
   }
@@ -71,7 +71,7 @@ export class SqliteTasksStore implements TasksStore {
   }
 
   create(data: TaskCreate, embedding: number[]): TaskRecord {
-    assertEmbeddingDim(embedding);
+    assertEmbeddingDim(embedding, this.embeddingDim);
     const slug = randomUUID();
     const ts = now();
     const status = data.status ?? 'backlog';
@@ -127,7 +127,7 @@ export class SqliteTasksStore implements TasksStore {
     this.db.prepare(`UPDATE tasks SET ${fields.join(', ')} WHERE id = ? AND project_id = ?`).run(...params);
 
     if (embedding) {
-      assertEmbeddingDim(embedding);
+      assertEmbeddingDim(embedding, this.embeddingDim);
       this.db.prepare('DELETE FROM tasks_vec WHERE rowid = ?').run(BigInt(taskId));
       this.db.prepare('INSERT INTO tasks_vec (rowid, embedding) VALUES (?, ?)').run(BigInt(taskId), Buffer.from(new Float32Array(embedding).buffer));
     }
@@ -196,7 +196,7 @@ export class SqliteTasksStore implements TasksStore {
   // =========================================================================
 
   move(taskId: number, status: TaskStatus, targetOrder?: number, authorId?: number, expectedVersion?: number): TaskRecord {
-    const completedAt = TERMINAL_STATUSES.has(status) ? Number(now()) : null;
+    const completedAt = TERMINAL_STATUSES.has(status) ? num(now()) : null;
     const order = targetOrder ?? this.nextOrderForStatus(status);
     return this.update(taskId, { status, order, completedAt }, null, authorId, expectedVersion);
   }

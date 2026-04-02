@@ -8,18 +8,16 @@ import type {
   Edge,
   EdgeFilter,
   GraphName,
+  EmbeddingDims,
 } from '../types';
 import { openDatabase } from './lib/db';
 import { runMigrations } from './lib/migrate';
 import { MetaHelper } from './lib/meta';
 import { EdgeHelper } from './lib/edge-helper';
 import { v001 } from './migrations/v001';
-import { v002 } from './migrations/v002';
 import { SqliteTeamStore } from './stores/team';
 import { SqliteProjectsStore } from './stores/projects';
 import { SqliteProjectScopedStore } from './stores/project-scoped';
-
-const ALL_MIGRATIONS = [v001, v002];
 
 export class SqliteStore implements Store {
   private db: Database.Database | null = null;
@@ -28,6 +26,7 @@ export class SqliteStore implements Store {
   private scopedCache = new Map<number, ProjectScopedStore>();
   private _projects: SqliteProjectsStore | null = null;
   private _team: SqliteTeamStore | null = null;
+  private embeddingDims: EmbeddingDims = {};
 
   // --- Sub-stores (workspace-level) ---
 
@@ -45,8 +44,9 @@ export class SqliteStore implements Store {
 
   open(opts: StoreOptions): void {
     if (this.db) throw new Error('Store already open');
+    this.embeddingDims = opts.embeddingDims ?? {};
     this.db = openDatabase(opts.dbPath);
-    runMigrations(this.db, ALL_MIGRATIONS);
+    runMigrations(this.db, [v001(this.embeddingDims)]);
     this.metaHelper = new MetaHelper(this.db, '');
     this.edgeHelper = new EdgeHelper(this.db);
     this._projects = new SqliteProjectsStore(this.db);
@@ -71,7 +71,7 @@ export class SqliteStore implements Store {
     this.requireDb();
     let scoped = this.scopedCache.get(projectId);
     if (!scoped) {
-      scoped = new SqliteProjectScopedStore(this.db!, projectId);
+      scoped = new SqliteProjectScopedStore(this.db!, projectId, this.embeddingDims);
       this.scopedCache.set(projectId, scoped);
     }
     return scoped;

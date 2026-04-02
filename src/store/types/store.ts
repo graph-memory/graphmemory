@@ -1,4 +1,4 @@
-import type { Edge, EdgeFilter, GraphName } from './common';
+import type { Edge, EdgeFilter, GraphName, EmbeddingDims } from './common';
 import type { CodeStore } from './code';
 import type { DocsStore } from './docs';
 import type { FilesStore } from './files';
@@ -43,6 +43,8 @@ export interface ProjectScopedStore {
 export interface StoreOptions {
   /** Path to SQLite database file */
   dbPath: string;
+  /** Per-graph embedding dimensions. Defaults to 384 for any unspecified graph. */
+  embeddingDims?: EmbeddingDims;
 }
 
 export interface Store {

@@ -30,7 +30,7 @@ export class SqliteEpicsStore implements EpicsStore {
   private meta: MetaHelper;
   private helpers: EntityHelpers;
 
-  constructor(private db: Database.Database, private projectId: number) {
+  constructor(private db: Database.Database, private projectId: number, private embeddingDim: number = 384) {
     this.meta = new MetaHelper(db, `${projectId}:${GRAPH}`);
     this.helpers = new EntityHelpers(db, projectId);
   }
@@ -106,7 +106,7 @@ export class SqliteEpicsStore implements EpicsStore {
   // =========================================================================
 
   create(data: EpicCreate, embedding: number[]): EpicRecord {
-    assertEmbeddingDim(embedding);
+    assertEmbeddingDim(embedding, this.embeddingDim);
     const slug = randomUUID();
     const ts = now();
     const authorId = data.authorId ?? null;
@@ -152,7 +152,7 @@ export class SqliteEpicsStore implements EpicsStore {
     this.db.prepare(`UPDATE epics SET ${fields.join(', ')} WHERE id = ? AND project_id = ?`).run(...params);
 
     if (embedding) {
-      assertEmbeddingDim(embedding);
+      assertEmbeddingDim(embedding, this.embeddingDim);
       this.db.prepare('DELETE FROM epics_vec WHERE rowid = ?').run(BigInt(epicId));
       this.db.prepare('INSERT INTO epics_vec (rowid, embedding) VALUES (?, ?)').run(BigInt(epicId), Buffer.from(new Float32Array(embedding).buffer));
     }

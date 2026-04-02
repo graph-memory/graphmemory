@@ -18,7 +18,7 @@ describe('SQLite migrations', () => {
   it('applies all migrations on first open', () => {
     const db = store.getDb();
     const version = getSchemaVersion(db);
-    expect(version).toBe(2);
+    expect(version).toBe(1);
   });
 
   it('creates all expected tables', () => {
@@ -82,7 +82,7 @@ describe('SQLite migrations', () => {
 
     const { runMigrations } = require('@/store/sqlite/lib/migrate');
     const { v001 } = require('@/store/sqlite/migrations/v001');
-    const applied = runMigrations(db, [v001]);
+    const applied = runMigrations(db, [v001()]);
 
     expect(applied).toBe(0);
     expect(getSchemaVersion(db)).toBe(v1);

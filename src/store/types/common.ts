@@ -68,6 +68,22 @@ export interface EdgeFilter {
 }
 
 // ---------------------------------------------------------------------------
+// Embedding dimensions (per-graph)
+// ---------------------------------------------------------------------------
+
+/** Graphs that have vector (vec0) tables */
+export type VecGraph = 'code' | 'docs' | 'files' | 'knowledge' | 'tasks' | 'skills' | 'epics';
+
+/** Per-graph embedding dimensions. Defaults to 384 for any unspecified graph. */
+export type EmbeddingDims = Partial<Record<VecGraph, number>>;
+
+export const DEFAULT_EMBEDDING_DIM = 384;
+
+export function getEmbeddingDim(dims: EmbeddingDims | undefined, graph: VecGraph): number {
+  return dims?.[graph] ?? DEFAULT_EMBEDDING_DIM;
+}
+
+// ---------------------------------------------------------------------------
 // Version conflict
 // ---------------------------------------------------------------------------
 

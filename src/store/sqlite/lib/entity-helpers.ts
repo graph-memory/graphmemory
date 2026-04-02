@@ -32,11 +32,12 @@ export class EntityHelpers {
       `).run(this.projectId, ...ids);
     }
 
-    // Insert new tags — use INSERT OR IGNORE + SELECT per tag
+    // Insert new tags — deduplicate, INSERT OR IGNORE + SELECT per tag
+    const uniqueTags = [...new Set(tags)];
     const insertTag = this.db.prepare('INSERT OR IGNORE INTO tags (project_id, name) VALUES (?, ?)');
     const selectTag = this.db.prepare('SELECT id FROM tags WHERE project_id = ? AND name = ?');
-    const insertEdge = this.db.prepare(`INSERT INTO edges (project_id, from_graph, from_id, to_graph, to_id, kind) VALUES (?, 'tags', ?, ?, ?, 'tagged')`);
-    for (const tag of tags) {
+    const insertEdge = this.db.prepare(`INSERT OR IGNORE INTO edges (project_id, from_graph, from_id, to_graph, to_id, kind) VALUES (?, 'tags', ?, ?, ?, 'tagged')`);
+    for (const tag of uniqueTags) {
       insertTag.run(this.projectId, tag);
       const row = selectTag.get(this.projectId, tag) as { id: bigint } | undefined;
       if (!row) throw new Error(`Failed to resolve tag: ${tag}`);

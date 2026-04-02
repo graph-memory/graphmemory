@@ -1,10 +1,13 @@
 import type { Migration } from '../lib/migrate';
+import type { EmbeddingDims } from '../../types/common';
+import { getEmbeddingDim } from '../../types/common';
 
-export const EMBEDDING_DIM = 384;
+export function v001(dims?: EmbeddingDims): Migration {
+  const d = (graph: Parameters<typeof getEmbeddingDim>[1]) => getEmbeddingDim(dims, graph);
 
-export const v001: Migration = {
-  version: 1,
-  sql: `
+  return {
+    version: 1,
+    sql: `
 -- =============================================
 -- Workspace-level tables
 -- =============================================
@@ -54,6 +57,7 @@ CREATE TABLE attachments (
   UNIQUE(project_id, graph, entity_id, filename)
 );
 CREATE INDEX idx_attachments_project ON attachments(project_id);
+CREATE INDEX idx_attachments_entity ON attachments(project_id, graph, entity_id);
 
 -- =============================================
 -- Unified edges (same-graph + cross-graph)
@@ -105,7 +109,7 @@ CREATE TRIGGER knowledge_au AFTER UPDATE ON knowledge BEGIN
   INSERT INTO knowledge_fts(rowid, title, content) VALUES (new.id, new.title, new.content);
 END;
 
-CREATE VIRTUAL TABLE knowledge_vec USING vec0(embedding float[${EMBEDDING_DIM}]);
+CREATE VIRTUAL TABLE knowledge_vec USING vec0(embedding float[${d('knowledge')}]);
 
 CREATE TRIGGER knowledge_cleanup AFTER DELETE ON knowledge BEGIN
   DELETE FROM edges WHERE
@@ -158,7 +162,7 @@ CREATE TRIGGER tasks_au AFTER UPDATE ON tasks BEGIN
   INSERT INTO tasks_fts(rowid, title, description) VALUES (new.id, new.title, new.description);
 END;
 
-CREATE VIRTUAL TABLE tasks_vec USING vec0(embedding float[${EMBEDDING_DIM}]);
+CREATE VIRTUAL TABLE tasks_vec USING vec0(embedding float[${d('tasks')}]);
 
 CREATE TRIGGER tasks_cleanup AFTER DELETE ON tasks BEGIN
   DELETE FROM edges WHERE
@@ -205,7 +209,7 @@ CREATE TRIGGER epics_au AFTER UPDATE ON epics BEGIN
   INSERT INTO epics_fts(rowid, title, description) VALUES (new.id, new.title, new.description);
 END;
 
-CREATE VIRTUAL TABLE epics_vec USING vec0(embedding float[${EMBEDDING_DIM}]);
+CREATE VIRTUAL TABLE epics_vec USING vec0(embedding float[${d('epics')}]);
 
 CREATE TRIGGER epics_cleanup AFTER DELETE ON epics BEGIN
   DELETE FROM edges WHERE
@@ -257,7 +261,7 @@ CREATE TRIGGER skills_au AFTER UPDATE ON skills BEGIN
   INSERT INTO skills_fts(rowid, title, description) VALUES (new.id, new.title, new.description);
 END;
 
-CREATE VIRTUAL TABLE skills_vec USING vec0(embedding float[${EMBEDDING_DIM}]);
+CREATE VIRTUAL TABLE skills_vec USING vec0(embedding float[${d('skills')}]);
 
 CREATE TRIGGER skills_cleanup AFTER DELETE ON skills BEGIN
   DELETE FROM edges WHERE
@@ -309,7 +313,7 @@ CREATE TRIGGER code_au AFTER UPDATE ON code BEGIN
     VALUES (new.id, new.name, new.signature, new.doc_comment);
 END;
 
-CREATE VIRTUAL TABLE code_vec USING vec0(embedding float[${EMBEDDING_DIM}]);
+CREATE VIRTUAL TABLE code_vec USING vec0(embedding float[${d('code')}]);
 
 CREATE TRIGGER code_cleanup AFTER DELETE ON code BEGIN
   DELETE FROM edges WHERE
@@ -353,7 +357,7 @@ CREATE TRIGGER docs_au AFTER UPDATE ON docs BEGIN
   INSERT INTO docs_fts(rowid, title, content) VALUES (new.id, new.title, new.content);
 END;
 
-CREATE VIRTUAL TABLE docs_vec USING vec0(embedding float[${EMBEDDING_DIM}]);
+CREATE VIRTUAL TABLE docs_vec USING vec0(embedding float[${d('docs')}]);
 
 CREATE TRIGGER docs_cleanup AFTER DELETE ON docs BEGIN
   DELETE FROM edges WHERE
@@ -385,7 +389,7 @@ CREATE INDEX idx_files_project ON files(project_id);
 CREATE INDEX idx_files_dir ON files(project_id, directory);
 CREATE INDEX idx_files_kind ON files(project_id, kind);
 
-CREATE VIRTUAL TABLE files_vec USING vec0(embedding float[${EMBEDDING_DIM}]);
+CREATE VIRTUAL TABLE files_vec USING vec0(embedding float[${d('files')}]);
 
 CREATE TRIGGER files_cleanup AFTER DELETE ON files BEGIN
   DELETE FROM edges WHERE
@@ -402,4 +406,5 @@ CREATE TRIGGER tags_cleanup AFTER DELETE ON tags BEGIN
     (to_graph = 'tags' AND to_id = old.id AND project_id = old.project_id);
 END;
 `,
-};
+  };
+}

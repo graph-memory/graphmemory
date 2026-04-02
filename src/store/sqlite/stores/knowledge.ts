@@ -31,7 +31,7 @@ export class SqliteKnowledgeStore implements KnowledgeStore {
   private helpers: EntityHelpers;
   private stmts: ReturnType<SqliteKnowledgeStore['prepareStatements']>;
 
-  constructor(private db: Database.Database, private projectId: number) {
+  constructor(private db: Database.Database, private projectId: number, private embeddingDim: number = 384) {
     this.meta = new MetaHelper(db, `${projectId}:${GRAPH}`);
     this.helpers = new EntityHelpers(db, projectId);
     this.stmts = this.prepareStatements();
@@ -75,7 +75,7 @@ export class SqliteKnowledgeStore implements KnowledgeStore {
   }
 
   create(data: NoteCreate, embedding: number[]): NoteRecord {
-    assertEmbeddingDim(embedding);
+    assertEmbeddingDim(embedding, this.embeddingDim);
     const slug = randomUUID();
     const ts = now();
     const authorId = data.authorId ?? null;
@@ -101,16 +101,22 @@ export class SqliteKnowledgeStore implements KnowledgeStore {
       if (current !== expectedVersion) throw new VersionConflictError(current, expectedVersion);
     }
 
-    const title = patch.title ?? row.title as string;
-    const content = patch.content ?? row.content as string;
+    const fields: string[] = [];
+    const params: unknown[] = [];
+    const set = (col: string, val: unknown) => { fields.push(`${col} = ?`); params.push(val); };
 
-    this.db.prepare(`
-      UPDATE knowledge SET title = ?, content = ?, version = version + 1, updated_by_id = ?, updated_at = ?
-      WHERE id = ? AND project_id = ?
-    `).run(title, content, authorId ?? null, now(), noteId, this.projectId);
+    if (patch.title !== undefined) set('title', patch.title);
+    if (patch.content !== undefined) set('content', patch.content);
+
+    set('version', num(row.version as bigint) + 1);
+    set('updated_by_id', authorId ?? null);
+    set('updated_at', now());
+
+    params.push(noteId, this.projectId);
+    this.db.prepare(`UPDATE knowledge SET ${fields.join(', ')} WHERE id = ? AND project_id = ?`).run(...params);
 
     if (embedding) {
-      assertEmbeddingDim(embedding);
+      assertEmbeddingDim(embedding, this.embeddingDim);
       this.stmts.deleteVec.run(BigInt(noteId));
       this.stmts.insertVec.run(BigInt(noteId), Buffer.from(new Float32Array(embedding).buffer));
     }

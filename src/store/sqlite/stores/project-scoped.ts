@@ -12,7 +12,9 @@ import type {
   Edge,
   EdgeFilter,
   GraphName,
+  EmbeddingDims,
 } from '../../types';
+import { getEmbeddingDim } from '../../types/common';
 import { EdgeHelper } from '../lib/edge-helper';
 import { SqliteCodeStore } from './code';
 import { SqliteDocsStore } from './docs';
@@ -34,14 +36,14 @@ export class SqliteProjectScopedStore implements ProjectScopedStore {
   readonly attachments: AttachmentsStore;
   private edgeHelper: EdgeHelper;
 
-  constructor(db: Database.Database, readonly projectId: number) {
-    this.code = new SqliteCodeStore(db, projectId);
-    this.docs = new SqliteDocsStore(db, projectId);
-    this.files = new SqliteFilesStore(db, projectId);
-    this.knowledge = new SqliteKnowledgeStore(db, projectId);
-    this.tasks = new SqliteTasksStore(db, projectId);
-    this.epics = new SqliteEpicsStore(db, projectId);
-    this.skills = new SqliteSkillsStore(db, projectId);
+  constructor(db: Database.Database, readonly projectId: number, dims?: EmbeddingDims) {
+    this.code = new SqliteCodeStore(db, projectId, getEmbeddingDim(dims, 'code'));
+    this.docs = new SqliteDocsStore(db, projectId, getEmbeddingDim(dims, 'docs'));
+    this.files = new SqliteFilesStore(db, projectId, getEmbeddingDim(dims, 'files'));
+    this.knowledge = new SqliteKnowledgeStore(db, projectId, getEmbeddingDim(dims, 'knowledge'));
+    this.tasks = new SqliteTasksStore(db, projectId, getEmbeddingDim(dims, 'tasks'));
+    this.epics = new SqliteEpicsStore(db, projectId, getEmbeddingDim(dims, 'epics'));
+    this.skills = new SqliteSkillsStore(db, projectId, getEmbeddingDim(dims, 'skills'));
     this.attachments = new SqliteAttachmentsStore(db, projectId);
     this.edgeHelper = new EdgeHelper(db);
   }

@@ -13,12 +13,10 @@ export function likeEscape(text: string): string {
   return text.replace(/\\/g, '\\\\').replace(/[%_]/g, '\\$&');
 }
 
-import { EMBEDDING_DIM } from '../migrations/v001';
-
 /** Assert that an embedding has the expected dimensionality */
-export function assertEmbeddingDim(embedding: number[]): void {
-  if (embedding.length !== EMBEDDING_DIM) {
-    throw new Error(`Embedding dimension mismatch: expected ${EMBEDDING_DIM}, got ${embedding.length}`);
+export function assertEmbeddingDim(embedding: number[], expectedDim: number): void {
+  if (embedding.length !== expectedDim) {
+    throw new Error(`Embedding dimension mismatch: expected ${expectedDim}, got ${embedding.length}`);
   }
 }
 

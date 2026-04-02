@@ -3,7 +3,6 @@ import { randomUUID } from 'crypto';
 import type {
   KnowledgeStore,
   NoteCreate,
-  NoteImport,
   NotePatch,
   NoteRecord,
   NoteDetail,
@@ -42,7 +41,7 @@ export class SqliteKnowledgeStore implements KnowledgeStore {
     return {
       insert: this.db.prepare(`
         INSERT INTO knowledge (project_id, slug, title, content, version, created_by_id, updated_by_id, created_at, updated_at)
-        VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `),
       insertVec: this.db.prepare('INSERT INTO knowledge_vec (rowid, embedding) VALUES (?, ?)'),
       deleteVec: this.db.prepare('DELETE FROM knowledge_vec WHERE rowid = ?'),
@@ -77,11 +76,30 @@ export class SqliteKnowledgeStore implements KnowledgeStore {
 
   create(data: NoteCreate, embedding: number[]): NoteRecord {
     assertEmbeddingDim(embedding, this.embeddingDim);
-    const slug = randomUUID();
+    const slug = data.slug ?? randomUUID();
     const ts = now();
     const authorId = data.authorId ?? null;
+    const version = data.version ?? 1;
+    const createdAt = data.createdAt ?? ts;
+    const updatedAt = data.updatedAt ?? ts;
 
-    const result = this.stmts.insert.run(this.projectId, slug, data.title, data.content, authorId, authorId, ts, ts);
+    // Upsert when slug is provided and already exists
+    if (data.slug) {
+      const existing = this.stmts.getBySlug.get(slug, this.projectId) as Record<string, unknown> | undefined;
+      if (existing) {
+        const id = num(existing.id as bigint);
+        this.db.prepare(`
+          UPDATE knowledge SET title = ?, content = ?, version = ?, updated_at = ?
+          WHERE id = ? AND project_id = ?
+        `).run(data.title, data.content, version, updatedAt, id, this.projectId);
+        this.stmts.deleteVec.run(BigInt(id));
+        this.stmts.insertVec.run(BigInt(id), Buffer.from(new Float32Array(embedding).buffer));
+        if (data.tags) this.helpers.setTags(GRAPH, id, data.tags);
+        return this.toRecord(this.stmts.getById.get(id, this.projectId) as Record<string, unknown>);
+      }
+    }
+
+    const result = this.stmts.insert.run(this.projectId, slug, data.title, data.content, version, authorId, authorId, createdAt, updatedAt);
     const id = result.lastInsertRowid;
 
     this.stmts.insertVec.run(BigInt(id as number | bigint), Buffer.from(new Float32Array(embedding).buffer));
@@ -189,39 +207,6 @@ export class SqliteKnowledgeStore implements KnowledgeStore {
   getUpdatedAt(noteId: number): number | null {
     const row = this.stmts.getUpdatedAt.get(noteId, this.projectId) as { updated_at: bigint } | undefined;
     return row ? num(row.updated_at) : null;
-  }
-
-  importRecord(data: NoteImport, embedding: number[]): NoteRecord {
-    assertEmbeddingDim(embedding, this.embeddingDim);
-
-    const existing = this.stmts.getBySlug.get(data.slug, this.projectId) as Record<string, unknown> | undefined;
-
-    if (existing) {
-      const id = num(existing.id as bigint);
-      this.db.prepare(`
-        UPDATE knowledge SET title = ?, content = ?, version = ?, updated_at = ?
-        WHERE id = ? AND project_id = ?
-      `).run(data.title, data.content, data.version, data.updatedAt, id, this.projectId);
-
-      this.stmts.deleteVec.run(BigInt(id));
-      this.stmts.insertVec.run(BigInt(id), Buffer.from(new Float32Array(embedding).buffer));
-
-      if (data.tags) this.helpers.setTags(GRAPH, id, data.tags);
-
-      return this.toRecord(this.stmts.getById.get(id, this.projectId) as Record<string, unknown>);
-    }
-
-    const result = this.db.prepare(`
-      INSERT INTO knowledge (project_id, slug, title, content, version, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(this.projectId, data.slug, data.title, data.content, data.version, data.createdAt, data.updatedAt);
-    const id = num(result.lastInsertRowid);
-
-    this.stmts.insertVec.run(BigInt(id), Buffer.from(new Float32Array(embedding).buffer));
-
-    if (data.tags && data.tags.length > 0) this.helpers.setTags(GRAPH, id, data.tags);
-
-    return this.toRecord(this.stmts.getById.get(id, this.projectId) as Record<string, unknown>);
   }
 
   getMeta(key: string): string | null { return this.meta.getMeta(key); }

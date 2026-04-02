@@ -3,7 +3,6 @@ import { randomUUID } from 'crypto';
 import type {
   TasksStore,
   TaskCreate,
-  TaskImport,
   TaskPatch,
   TaskRecord,
   TaskDetail,
@@ -73,19 +72,44 @@ export class SqliteTasksStore implements TasksStore {
 
   create(data: TaskCreate, embedding: number[]): TaskRecord {
     assertEmbeddingDim(embedding, this.embeddingDim);
-    const slug = randomUUID();
+    const slug = data.slug ?? randomUUID();
     const ts = now();
     const status = data.status ?? 'backlog';
     const order = data.order ?? this.nextOrderForStatus(status);
     const authorId = data.authorId ?? null;
+    const version = data.version ?? 1;
+    const createdAt = data.createdAt ?? ts;
+    const updatedAt = data.updatedAt ?? ts;
+
+    // Upsert when slug is provided and already exists
+    if (data.slug) {
+      const existing = this.db.prepare('SELECT * FROM tasks WHERE slug = ? AND project_id = ?').get(slug, this.projectId) as Record<string, unknown> | undefined;
+      if (existing) {
+        const id = num(existing.id as bigint);
+        this.db.prepare(`
+          UPDATE tasks SET title = ?, description = ?, status = ?, priority = ?,
+          due_date = ?, estimate = ?, completed_at = ?, "order" = ?,
+          version = ?, updated_at = ?
+          WHERE id = ? AND project_id = ?
+        `).run(
+          data.title, data.description ?? '', status, data.priority ?? 'medium',
+          data.dueDate ?? null, data.estimate ?? null, data.completedAt ?? null, order,
+          version, updatedAt, id, this.projectId,
+        );
+        this.db.prepare('DELETE FROM tasks_vec WHERE rowid = ?').run(BigInt(id));
+        this.db.prepare('INSERT INTO tasks_vec (rowid, embedding) VALUES (?, ?)').run(BigInt(id), Buffer.from(new Float32Array(embedding).buffer));
+        if (data.tags) this.helpers.setTags(GRAPH_TASKS, id, data.tags);
+        return this.toTaskRecord(this.db.prepare('SELECT * FROM tasks WHERE id = ? AND project_id = ?').get(id, this.projectId) as Record<string, unknown>);
+      }
+    }
 
     const result = this.db.prepare(`
-      INSERT INTO tasks (project_id, slug, title, description, status, priority, "order", due_date, estimate, assignee_id, version, created_by_id, updated_by_id, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)
+      INSERT INTO tasks (project_id, slug, title, description, status, priority, "order", due_date, estimate, completed_at, assignee_id, version, created_by_id, updated_by_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       this.projectId, slug, data.title, data.description ?? '', status, data.priority ?? 'medium',
-      order, data.dueDate ?? null, data.estimate ?? null, data.assigneeId ?? null,
-      authorId, authorId, ts, ts,
+      order, data.dueDate ?? null, data.estimate ?? null, data.completedAt ?? null, data.assigneeId ?? null,
+      version, authorId, authorId, createdAt, updatedAt,
     );
     const id = result.lastInsertRowid;
 
@@ -272,51 +296,6 @@ export class SqliteTasksStore implements TasksStore {
   // =========================================================================
   // Meta
   // =========================================================================
-
-  importRecord(data: TaskImport, embedding: number[]): TaskRecord {
-    assertEmbeddingDim(embedding, this.embeddingDim);
-
-    const existing = this.db.prepare('SELECT * FROM tasks WHERE slug = ? AND project_id = ?').get(data.slug, this.projectId) as Record<string, unknown> | undefined;
-
-    if (existing) {
-      const id = num(existing.id as bigint);
-      this.db.prepare(`
-        UPDATE tasks SET title = ?, description = ?, status = ?, priority = ?,
-        due_date = ?, estimate = ?, completed_at = ?, "order" = ?,
-        version = ?, updated_at = ?
-        WHERE id = ? AND project_id = ?
-      `).run(
-        data.title, data.description, data.status, data.priority,
-        data.dueDate ?? null, data.estimate ?? null, data.completedAt ?? null,
-        data.order ?? num(existing.order as bigint | number),
-        data.version, data.updatedAt, id, this.projectId,
-      );
-
-      this.db.prepare('DELETE FROM tasks_vec WHERE rowid = ?').run(BigInt(id));
-      this.db.prepare('INSERT INTO tasks_vec (rowid, embedding) VALUES (?, ?)').run(BigInt(id), Buffer.from(new Float32Array(embedding).buffer));
-
-      if (data.tags) this.helpers.setTags(GRAPH_TASKS, id, data.tags);
-
-      return this.toTaskRecord(this.db.prepare('SELECT * FROM tasks WHERE id = ? AND project_id = ?').get(id, this.projectId) as Record<string, unknown>);
-    }
-
-    const order = data.order ?? this.nextOrderForStatus(data.status);
-    const result = this.db.prepare(`
-      INSERT INTO tasks (project_id, slug, title, description, status, priority, "order", due_date, estimate, completed_at, version, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      this.projectId, data.slug, data.title, data.description, data.status, data.priority,
-      order, data.dueDate ?? null, data.estimate ?? null, data.completedAt ?? null,
-      data.version, data.createdAt, data.updatedAt,
-    );
-    const id = num(result.lastInsertRowid);
-
-    this.db.prepare('INSERT INTO tasks_vec (rowid, embedding) VALUES (?, ?)').run(BigInt(id), Buffer.from(new Float32Array(embedding).buffer));
-
-    if (data.tags && data.tags.length > 0) this.helpers.setTags(GRAPH_TASKS, id, data.tags);
-
-    return this.toTaskRecord(this.db.prepare('SELECT * FROM tasks WHERE id = ? AND project_id = ?').get(id, this.projectId) as Record<string, unknown>);
-  }
 
   getMeta(key: string): string | null { return this.meta.getMeta(key); }
   setMeta(key: string, value: string): void { this.meta.setMeta(key, value); }

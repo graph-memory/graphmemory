@@ -3,7 +3,6 @@ import { randomUUID } from 'crypto';
 import type {
   SkillsStore,
   SkillCreate,
-  SkillImport,
   SkillPatch,
   SkillRecord,
   SkillDetail,
@@ -69,13 +68,42 @@ export class SqliteSkillsStore implements SkillsStore {
 
   create(data: SkillCreate, embedding: number[]): SkillRecord {
     assertEmbeddingDim(embedding, this.embeddingDim);
-    const slug = randomUUID();
+    const slug = data.slug ?? randomUUID();
     const ts = now();
     const authorId = data.authorId ?? null;
+    const version = data.version ?? 1;
+    const createdAt = data.createdAt ?? ts;
+    const updatedAt = data.updatedAt ?? ts;
+
+    // Upsert when slug is provided and already exists
+    if (data.slug) {
+      const existing = this.db.prepare('SELECT * FROM skills WHERE slug = ? AND project_id = ?').get(slug, this.projectId) as Record<string, unknown> | undefined;
+      if (existing) {
+        const id = num(existing.id as bigint);
+        this.db.prepare(`
+          UPDATE skills SET title = ?, description = ?,
+          steps_json = ?, triggers_json = ?, input_hints_json = ?, file_patterns_json = ?,
+          source = ?, confidence = ?, usage_count = ?, last_used_at = ?,
+          version = ?, updated_at = ?
+          WHERE id = ? AND project_id = ?
+        `).run(
+          data.title, data.description ?? '',
+          JSON.stringify(data.steps ?? []), JSON.stringify(data.triggers ?? []),
+          JSON.stringify(data.inputHints ?? []), JSON.stringify(data.filePatterns ?? []),
+          data.source ?? 'user', data.confidence ?? 1.0,
+          data.usageCount ?? 0, data.lastUsedAt ?? null,
+          version, updatedAt, id, this.projectId,
+        );
+        this.db.prepare('DELETE FROM skills_vec WHERE rowid = ?').run(BigInt(id));
+        this.db.prepare('INSERT INTO skills_vec (rowid, embedding) VALUES (?, ?)').run(BigInt(id), Buffer.from(new Float32Array(embedding).buffer));
+        if (data.tags) this.helpers.setTags(GRAPH, id, data.tags);
+        return this.toRecord(this.db.prepare('SELECT * FROM skills WHERE id = ? AND project_id = ?').get(id, this.projectId) as Record<string, unknown>);
+      }
+    }
 
     const result = this.db.prepare(`
-      INSERT INTO skills (project_id, slug, title, description, steps_json, triggers_json, input_hints_json, file_patterns_json, source, confidence, version, created_by_id, updated_by_id, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)
+      INSERT INTO skills (project_id, slug, title, description, steps_json, triggers_json, input_hints_json, file_patterns_json, source, confidence, usage_count, last_used_at, version, created_by_id, updated_by_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       this.projectId, slug, data.title, data.description ?? '',
       JSON.stringify(data.steps ?? []),
@@ -83,7 +111,8 @@ export class SqliteSkillsStore implements SkillsStore {
       JSON.stringify(data.inputHints ?? []),
       JSON.stringify(data.filePatterns ?? []),
       data.source ?? 'user', data.confidence ?? 1.0,
-      authorId, authorId, ts, ts,
+      data.usageCount ?? 0, data.lastUsedAt ?? null,
+      version, authorId, authorId, createdAt, updatedAt,
     );
     const id = result.lastInsertRowid;
 
@@ -197,56 +226,6 @@ export class SqliteSkillsStore implements SkillsStore {
   getUpdatedAt(skillId: number): number | null {
     const row = this.db.prepare('SELECT updated_at FROM skills WHERE id = ? AND project_id = ?').get(skillId, this.projectId) as { updated_at: bigint } | undefined;
     return row ? num(row.updated_at) : null;
-  }
-
-  importRecord(data: SkillImport, embedding: number[]): SkillRecord {
-    assertEmbeddingDim(embedding, this.embeddingDim);
-
-    const existing = this.db.prepare('SELECT * FROM skills WHERE slug = ? AND project_id = ?').get(data.slug, this.projectId) as Record<string, unknown> | undefined;
-
-    if (existing) {
-      const id = num(existing.id as bigint);
-      this.db.prepare(`
-        UPDATE skills SET title = ?, description = ?,
-        steps_json = ?, triggers_json = ?, input_hints_json = ?, file_patterns_json = ?,
-        source = ?, confidence = ?, usage_count = ?, last_used_at = ?,
-        version = ?, updated_at = ?
-        WHERE id = ? AND project_id = ?
-      `).run(
-        data.title, data.description,
-        JSON.stringify(data.steps ?? []), JSON.stringify(data.triggers ?? []),
-        JSON.stringify(data.inputHints ?? []), JSON.stringify(data.filePatterns ?? []),
-        data.source ?? 'user', data.confidence ?? 1.0,
-        data.usageCount ?? 0, data.lastUsedAt ?? null,
-        data.version, data.updatedAt, id, this.projectId,
-      );
-
-      this.db.prepare('DELETE FROM skills_vec WHERE rowid = ?').run(BigInt(id));
-      this.db.prepare('INSERT INTO skills_vec (rowid, embedding) VALUES (?, ?)').run(BigInt(id), Buffer.from(new Float32Array(embedding).buffer));
-
-      if (data.tags) this.helpers.setTags(GRAPH, id, data.tags);
-
-      return this.toRecord(this.db.prepare('SELECT * FROM skills WHERE id = ? AND project_id = ?').get(id, this.projectId) as Record<string, unknown>);
-    }
-
-    const result = this.db.prepare(`
-      INSERT INTO skills (project_id, slug, title, description, steps_json, triggers_json, input_hints_json, file_patterns_json, source, confidence, usage_count, last_used_at, version, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      this.projectId, data.slug, data.title, data.description,
-      JSON.stringify(data.steps ?? []), JSON.stringify(data.triggers ?? []),
-      JSON.stringify(data.inputHints ?? []), JSON.stringify(data.filePatterns ?? []),
-      data.source ?? 'user', data.confidence ?? 1.0,
-      data.usageCount ?? 0, data.lastUsedAt ?? null,
-      data.version, data.createdAt, data.updatedAt,
-    );
-    const id = num(result.lastInsertRowid);
-
-    this.db.prepare('INSERT INTO skills_vec (rowid, embedding) VALUES (?, ?)').run(BigInt(id), Buffer.from(new Float32Array(embedding).buffer));
-
-    if (data.tags && data.tags.length > 0) this.helpers.setTags(GRAPH, id, data.tags);
-
-    return this.toRecord(this.db.prepare('SELECT * FROM skills WHERE id = ? AND project_id = ?').get(id, this.projectId) as Record<string, unknown>);
   }
 
   getMeta(key: string): string | null { return this.meta.getMeta(key); }

@@ -2,7 +2,7 @@ import { createSqliteStoreFactory, seedEmbedding } from '../helpers';
 import type { SqliteStore } from '@/store';
 import type { ProjectScopedStore } from '@/store';
 
-describe('importRecord', () => {
+describe('create', () => {
   const factory = createSqliteStoreFactory();
   let store: SqliteStore;
   let cleanup: () => void;
@@ -17,12 +17,12 @@ describe('importRecord', () => {
   afterEach(() => cleanup());
 
   // =========================================================================
-  // Knowledge importRecord
+  // Knowledge create
   // =========================================================================
 
   describe('knowledge', () => {
     it('inserts a new note by slug', () => {
-      const record = scoped.knowledge.importRecord({
+      const record = scoped.knowledge.create({
         slug: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
         title: 'Imported Note',
         content: 'Content from mirror',
@@ -42,7 +42,7 @@ describe('importRecord', () => {
     });
 
     it('updates existing note on duplicate slug', () => {
-      const first = scoped.knowledge.importRecord({
+      const first = scoped.knowledge.create({
         slug: 'same-slug',
         title: 'V1',
         content: 'First',
@@ -51,7 +51,7 @@ describe('importRecord', () => {
         version: 1,
       }, seedEmbedding(1));
 
-      const second = scoped.knowledge.importRecord({
+      const second = scoped.knowledge.create({
         slug: 'same-slug',
         title: 'V2',
         content: 'Updated',
@@ -70,7 +70,7 @@ describe('importRecord', () => {
     });
 
     it('is retrievable by slug after import', () => {
-      scoped.knowledge.importRecord({
+      scoped.knowledge.create({
         slug: 'lookup-slug',
         title: 'Findable',
         content: '',
@@ -85,7 +85,7 @@ describe('importRecord', () => {
     });
 
     it('is searchable after import', () => {
-      scoped.knowledge.importRecord({
+      scoped.knowledge.create({
         slug: 'search-slug',
         title: 'Searchable Note',
         content: 'This note should be found by FTS',
@@ -100,12 +100,12 @@ describe('importRecord', () => {
   });
 
   // =========================================================================
-  // Tasks importRecord
+  // Tasks create
   // =========================================================================
 
   describe('tasks', () => {
     it('inserts a new task by slug', () => {
-      const record = scoped.tasks.importRecord({
+      const record = scoped.tasks.create({
         slug: 'task-slug-1',
         title: 'Imported Task',
         description: 'From mirror',
@@ -128,7 +128,7 @@ describe('importRecord', () => {
     });
 
     it('updates existing task on duplicate slug', () => {
-      const first = scoped.tasks.importRecord({
+      const first = scoped.tasks.create({
         slug: 'dup-task',
         title: 'V1',
         description: '',
@@ -139,7 +139,7 @@ describe('importRecord', () => {
         version: 1,
       }, seedEmbedding(1));
 
-      const second = scoped.tasks.importRecord({
+      const second = scoped.tasks.create({
         slug: 'dup-task',
         title: 'V2',
         description: 'Updated',
@@ -159,12 +159,12 @@ describe('importRecord', () => {
   });
 
   // =========================================================================
-  // Skills importRecord
+  // Skills create
   // =========================================================================
 
   describe('skills', () => {
     it('inserts a new skill by slug', () => {
-      const record = scoped.skills.importRecord({
+      const record = scoped.skills.create({
         slug: 'skill-slug-1',
         title: 'Imported Skill',
         description: 'From mirror',
@@ -187,7 +187,7 @@ describe('importRecord', () => {
     });
 
     it('updates existing skill on duplicate slug', () => {
-      const first = scoped.skills.importRecord({
+      const first = scoped.skills.create({
         slug: 'dup-skill',
         title: 'V1',
         description: '',
@@ -196,7 +196,7 @@ describe('importRecord', () => {
         version: 1,
       }, seedEmbedding(1));
 
-      const second = scoped.skills.importRecord({
+      const second = scoped.skills.create({
         slug: 'dup-skill',
         title: 'V2',
         description: 'Updated',
@@ -215,12 +215,12 @@ describe('importRecord', () => {
   });
 
   // =========================================================================
-  // Epics importRecord
+  // Epics create
   // =========================================================================
 
   describe('epics', () => {
     it('inserts a new epic by slug', () => {
-      const record = scoped.epics.importRecord({
+      const record = scoped.epics.create({
         slug: 'epic-slug-1',
         title: 'Imported Epic',
         description: 'From mirror',
@@ -240,7 +240,7 @@ describe('importRecord', () => {
     });
 
     it('updates existing epic on duplicate slug', () => {
-      const first = scoped.epics.importRecord({
+      const first = scoped.epics.create({
         slug: 'dup-epic',
         title: 'V1',
         description: '',
@@ -251,7 +251,7 @@ describe('importRecord', () => {
         version: 1,
       }, seedEmbedding(1));
 
-      const second = scoped.epics.importRecord({
+      const second = scoped.epics.create({
         slug: 'dup-epic',
         title: 'V2',
         description: 'Updated',

@@ -69,7 +69,7 @@ export function importMirrorDirs(
       if (!parsed) continue;
 
       const embedding = embedFn(`${parsed.title} ${parsed.content}`);
-      const record = scoped.knowledge.importRecord({
+      const record = scoped.knowledge.create({
         slug: parsed.id,
         title: parsed.title,
         content: parsed.content,
@@ -94,7 +94,7 @@ export function importMirrorDirs(
       if (!parsed) continue;
 
       const embedding = embedFn(`${parsed.title} ${parsed.description}`);
-      const record = scoped.tasks.importRecord({
+      const record = scoped.tasks.create({
         slug: parsed.id,
         title: parsed.title,
         description: parsed.description,
@@ -124,7 +124,7 @@ export function importMirrorDirs(
       if (!parsed) continue;
 
       const embedding = embedFn(`${parsed.title} ${parsed.description}`);
-      const record = scoped.skills.importRecord({
+      const record = scoped.skills.create({
         slug: parsed.id,
         title: parsed.title,
         description: parsed.description,
@@ -157,7 +157,7 @@ export function importMirrorDirs(
       if (!parsed) continue;
 
       const embedding = embedFn(`${parsed.title} ${parsed.description}`);
-      const record = scoped.epics.importRecord({
+      const record = scoped.epics.create({
         slug: parsed.id,
         title: parsed.title,
         description: parsed.description,

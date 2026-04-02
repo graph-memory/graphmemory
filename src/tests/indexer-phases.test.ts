@@ -1,5 +1,5 @@
 /**
- * Tests for three-phase indexing:
+ * Tests for three-phase indexing (SQLite Store version):
  * - scan(phase) dispatches only to the matching queue
  * - drain(phase) waits only for the matching queue (no finalize)
  * - drain() without phase does full finalize
@@ -9,8 +9,8 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { createProjectIndexer, type IndexPhase } from '@/cli/indexer';
-import { createGraph, type DocGraph } from '@/graphs/docs';
-import { createFileIndexGraph, type FileIndexGraph } from '@/graphs/file-index-types';
+import { createTestStoreManager, type TestStoreContext } from '@/tests/helpers';
+import type { ProjectScopedStore } from '@/store/types';
 
 // Stub embed/embedBatch so indexing doesn't need a real model
 jest.mock('@/lib/embedder', () => ({
@@ -28,50 +28,61 @@ function makeTmpProject(): string {
   return dir;
 }
 
-function makeIndexer(projectDir: string, docGraph: DocGraph, fileIndexGraph: FileIndexGraph) {
-  return createProjectIndexer(docGraph, undefined, {
+function makeIndexer(projectDir: string, scopedStore: ProjectScopedStore) {
+  return createProjectIndexer(scopedStore, {
     projectDir,
     docsInclude: '**/*.md',
     docsExclude: [],
     codeExclude: [],
     filesExclude: [],
     chunkDepth: 4,
-  }, undefined, fileIndexGraph);
+  }, { docs: true, files: true });
 }
 
 describe('three-phase scan/drain', () => {
   let projectDir: string;
-  let docGraph: DocGraph;
-  let fileIndexGraph: FileIndexGraph;
+  let storeCtx: TestStoreContext;
+  let scopedStore: ProjectScopedStore;
 
   beforeEach(() => {
     projectDir = makeTmpProject();
-    docGraph = createGraph();
-    fileIndexGraph = createFileIndexGraph();
+    storeCtx = createTestStoreManager(
+      () => Promise.resolve(new Array(32).fill(0)),
+      { projectDir },
+    );
+    scopedStore = storeCtx.store.project(storeCtx.projectId);
   });
 
-  afterEach(() => { fs.rmSync(projectDir, { recursive: true, force: true }); });
+  afterEach(() => {
+    storeCtx.cleanup();
+    fs.rmSync(projectDir, { recursive: true, force: true });
+  });
 
   it('scan("docs") only indexes markdown files', async () => {
-    const indexer = makeIndexer(projectDir, docGraph, fileIndexGraph);
+    const indexer = makeIndexer(projectDir, scopedStore);
     indexer.scan('docs');
     await indexer.drain('docs');
 
-    expect(docGraph.order).toBeGreaterThan(0);
-    expect(fileIndexGraph.order).toBe(0);
+    // Docs should be indexed
+    expect(scopedStore.docs.getFileMtime('readme.md')).not.toBeNull();
+    // Files should NOT be indexed
+    expect(scopedStore.files.getFileMtime('data.json')).toBeNull();
   });
 
   it('scan("files") only indexes file entries', async () => {
-    const indexer = makeIndexer(projectDir, docGraph, fileIndexGraph);
+    const indexer = makeIndexer(projectDir, scopedStore);
     indexer.scan('files');
     await indexer.drain('files');
 
-    expect(docGraph.order).toBe(0);
-    expect(fileIndexGraph.order).toBeGreaterThan(0);
+    // Docs should NOT be indexed
+    expect(scopedStore.docs.getFileMtime('readme.md')).toBeNull();
+    // Files should be indexed (readme.md appears in files too)
+    const { results } = scopedStore.files.listFiles();
+    expect(results.length).toBeGreaterThan(0);
   });
 
-  it('sequential phases docs → files index everything', async () => {
-    const indexer = makeIndexer(projectDir, docGraph, fileIndexGraph);
+  it('sequential phases docs -> files index everything', async () => {
+    const indexer = makeIndexer(projectDir, scopedStore);
 
     for (const phase of ['docs', 'files'] as IndexPhase[]) {
       indexer.scan(phase);
@@ -80,17 +91,19 @@ describe('three-phase scan/drain', () => {
     // Finalize
     await indexer.drain();
 
-    expect(docGraph.order).toBeGreaterThan(0);
-    expect(fileIndexGraph.order).toBeGreaterThan(0);
+    expect(scopedStore.docs.getFileMtime('readme.md')).not.toBeNull();
+    const { results } = scopedStore.files.listFiles();
+    expect(results.length).toBeGreaterThan(0);
   });
 
   it('scan() without phase dispatches to all queues (backward compat)', async () => {
-    const indexer = makeIndexer(projectDir, docGraph, fileIndexGraph);
+    const indexer = makeIndexer(projectDir, scopedStore);
     indexer.scan();
     await indexer.drain();
 
-    expect(docGraph.order).toBeGreaterThan(0);
-    expect(fileIndexGraph.order).toBeGreaterThan(0);
+    expect(scopedStore.docs.getFileMtime('readme.md')).not.toBeNull();
+    const { results } = scopedStore.files.listFiles();
+    expect(results.length).toBeGreaterThan(0);
   });
 
   it('drain("docs") does not perform finalize', async () => {
@@ -98,13 +111,13 @@ describe('three-phase scan/drain', () => {
     fs.writeFileSync(path.join(projectDir, 'a.md'), '# A\nSee [[b]]\n');
     fs.writeFileSync(path.join(projectDir, 'b.md'), '# B\nContent\n');
 
-    const indexer = makeIndexer(projectDir, docGraph, fileIndexGraph);
+    const indexer = makeIndexer(projectDir, scopedStore);
     indexer.scan('docs');
     await indexer.drain('docs');
 
-    // Nodes should exist but cross-file edges may not be resolved yet
-    expect(docGraph.hasNode('a.md')).toBe(true);
-    expect(docGraph.hasNode('b.md')).toBe(true);
+    // Nodes should exist
+    expect(scopedStore.docs.getFileMtime('a.md')).not.toBeNull();
+    expect(scopedStore.docs.getFileMtime('b.md')).not.toBeNull();
 
     // Full drain with finalize resolves deferred edges
     await indexer.drain();

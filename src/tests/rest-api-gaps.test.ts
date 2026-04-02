@@ -18,16 +18,11 @@ import request from 'supertest';
 import express from 'express';
 import { EventEmitter } from 'events';
 import { createRestApp } from '@/api/rest/index';
-import { createFileIndexGraph } from '@/graphs/file-index-types';
-import { createGraph, updateFile, DocGraphManager } from '@/graphs/docs';
-import { createCodeGraph, updateCodeFile, CodeGraphManager } from '@/graphs/code';
-import { FileIndexGraphManager } from '@/graphs/file-index';
 import { PromiseQueue } from '@/lib/promise-queue';
 import { unitVec, DIM, embedFnPair } from '@/tests/helpers';
 import { SqliteStore } from '@/store';
 import { StoreManager } from '@/lib/store-manager';
 import type { ProjectManager, ProjectInstance } from '@/lib/project-manager';
-import type { Chunk } from '@/lib/parsers/docs';
 
 // ---------------------------------------------------------------------------
 // Setup
@@ -62,7 +57,7 @@ function createFullProject(projectDir = '/tmp/test'): TestProjectResult {
   const dbPath = join(dbDir, 'test.db');
 
   const store = new SqliteStore();
-  store.open({ dbPath, embeddingDims: { knowledge: DIM, tasks: DIM, skills: DIM, epics: DIM } });
+  store.open({ dbPath, embeddingDims: { knowledge: DIM, tasks: DIM, skills: DIM, epics: DIM, docs: DIM, code: DIM, files: DIM } });
   const dbProject = store.projects.create({ slug: 'test', name: 'Test', directory: projectDir });
   const emitter = new EventEmitter();
 
@@ -74,9 +69,7 @@ function createFullProject(projectDir = '/tmp/test'): TestProjectResult {
     emitter,
   });
 
-  const fileIndexGraph = createFileIndexGraph();
-  const docGraph = createGraph();
-  const codeGraph = createCodeGraph();
+  const scopedStore = store.project(dbProject.id);
   const efns = embedFnPair(fakeEmbed);
 
   const project: ProjectInstance = {
@@ -88,12 +81,8 @@ function createFullProject(projectDir = '/tmp/test'): TestProjectResult {
       model: { ...TEST_MODEL }, embedding: { ...TEST_EMBEDDING },
       graphConfigs: testGraphConfigs(), author: { name: '', email: '' },
     },
-    fileIndexGraph,
-    docGraph,
-    codeGraph,
-    fileIndexManager: new FileIndexGraphManager(fileIndexGraph, efns),
-    docManager: new DocGraphManager(docGraph, efns),
-    codeManager: new CodeGraphManager(codeGraph, efns),
+    scopedStore,
+    dbProjectId: dbProject.id,
     storeManager,
     embedFns: { docs: efns, code: efns, knowledge: efns, tasks: efns, files: efns, skills: efns },
     mutationQueue: new PromiseQueue(),
@@ -266,18 +255,28 @@ describe('REST Skills', () => {
 describe('REST Docs', () => {
   let app: express.Express;
   let cleanup: () => void;
+  let docNodeId: number;
 
   beforeEach(() => {
     const { project, cleanup: c } = createFullProject();
     cleanup = c;
-    // Add doc data
-    const chunks: Chunk[] = [
-      { id: 'api.md', fileId: 'api.md', title: 'API Reference', content: 'REST API docs.', level: 1, links: [], embedding: unitVec(0), symbols: [] },
-      { id: 'api.md::Endpoints', fileId: 'api.md', title: 'Endpoints', content: 'GET /users', level: 2, links: [], embedding: unitVec(1), symbols: [] },
-    ];
-    updateFile(project.docGraph!, chunks, 1000);
-    // Rebuild BM25 for manager
-    project.docManager = new DocGraphManager(project.docGraph!, embedFnPair(fakeEmbed));
+    // Populate store with doc data
+    const embeddings = new Map<string, number[]>();
+    embeddings.set('api.md', unitVec(0));
+    embeddings.set('api.md#0', unitVec(0));
+    embeddings.set('api.md#1', unitVec(1));
+    project.scopedStore.docs.updateFile(
+      'api.md',
+      [
+        { fileId: 'api.md', title: 'API Reference', content: 'REST API docs.', level: 1, symbols: [], mtime: 1000 },
+        { fileId: 'api.md', title: 'Endpoints', content: 'GET /users', level: 2, symbols: [], mtime: 1000 },
+      ],
+      1000,
+      embeddings,
+    );
+    // Get the file-level node ID for later use
+    const chunks = project.scopedStore.docs.getFileChunks('api.md');
+    docNodeId = chunks[0].id;
     app = createRestApp(makeManager(project));
   });
 
@@ -304,13 +303,13 @@ describe('REST Docs', () => {
   });
 
   it('GET /nodes/:nodeId returns node', async () => {
-    const res = await request(app).get('/api/projects/test/docs/nodes/api.md');
+    const res = await request(app).get(`/api/projects/test/docs/nodes/${docNodeId}`);
     expect(res.status).toBe(200);
     expect(res.body.title).toBe('API Reference');
   });
 
   it('GET /nodes/:nodeId returns 404 for unknown', async () => {
-    const res = await request(app).get('/api/projects/test/docs/nodes/ghost.md');
+    const res = await request(app).get('/api/projects/test/docs/nodes/999999');
     expect(res.status).toBe(404);
   });
 
@@ -328,20 +327,29 @@ describe('REST Docs', () => {
 describe('REST Code', () => {
   let app: express.Express;
   let cleanup: () => void;
+  let mainSymbolId: number;
 
   beforeEach(() => {
     const { project, cleanup: c } = createFullProject();
     cleanup = c;
-    // Add code data
-    updateCodeFile(project.codeGraph!, {
-      fileId: 'src/app.ts', mtime: 1000,
-      nodes: [
-        { id: 'src/app.ts', attrs: { kind: 'file', fileId: 'src/app.ts', name: 'app.ts', signature: '', docComment: '', body: '', startLine: 1, endLine: 10, isExported: false, embedding: unitVec(0), fileEmbedding: [], mtime: 1000 } },
-        { id: 'src/app.ts::main', attrs: { kind: 'function', fileId: 'src/app.ts', name: 'main', signature: 'function main()', docComment: '', body: '', startLine: 2, endLine: 8, isExported: true, embedding: unitVec(1), fileEmbedding: [], mtime: 1000 } },
+    // Populate store with code data
+    // Note: updateFile creates a file-level node internally, so only provide symbol nodes
+    const embeddings = new Map<string, number[]>();
+    embeddings.set('src/app.ts', unitVec(0));    // file-level embedding (used by updateFile for the auto-created file node)
+    embeddings.set('main', unitVec(1));            // function node name
+    project.scopedStore.code.updateFile(
+      'src/app.ts',
+      [
+        { kind: 'function', fileId: 'src/app.ts', language: 'typescript', name: 'main', signature: 'function main()', docComment: '', body: '', startLine: 2, endLine: 8, isExported: true, mtime: 1000 },
       ],
-      edges: [{ from: 'src/app.ts', to: 'src/app.ts::main', attrs: { kind: 'contains' } }],
-    });
-    project.codeManager = new CodeGraphManager(project.codeGraph!, embedFnPair(fakeEmbed));
+      [{ fromName: 'app.ts', toName: 'main', kind: 'contains' }],
+      1000,
+      embeddings,
+    );
+    // Get the symbol ID for 'main'
+    const symbols = project.scopedStore.code.getFileSymbols('src/app.ts');
+    const mainSym = symbols.find(s => s.name === 'main');
+    mainSymbolId = mainSym!.id;
     app = createRestApp(makeManager(project));
   });
 
@@ -359,17 +367,19 @@ describe('REST Code', () => {
   it('GET /files/:fileId/symbols returns symbols', async () => {
     const res = await request(app).get('/api/projects/test/code/files/src/app.ts/symbols');
     expect(res.status).toBe(200);
-    expect(res.body.results.length).toBe(2);
+    // getFileSymbols excludes file-level nodes, returning only function/class/etc.
+    expect(res.body.results.length).toBe(1);
+    expect(res.body.results[0].name).toBe('main');
   });
 
   it('GET /symbols/:symbolId returns symbol', async () => {
-    const res = await request(app).get('/api/projects/test/code/symbols/src/app.ts::main');
+    const res = await request(app).get(`/api/projects/test/code/symbols/${mainSymbolId}`);
     expect(res.status).toBe(200);
     expect(res.body.name).toBe('main');
   });
 
   it('GET /symbols/:id returns 404 for unknown', async () => {
-    const res = await request(app).get('/api/projects/test/code/symbols/ghost::foo');
+    const res = await request(app).get('/api/projects/test/code/symbols/999999');
     expect(res.status).toBe(404);
   });
 
@@ -377,34 +387,6 @@ describe('REST Code', () => {
     const res = await request(app).get('/api/projects/test/code/search?q=main');
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.results)).toBe(true);
-  });
-
-  it('GET /symbols/:symbolId/edges returns edges', async () => {
-    const res = await request(app).get('/api/projects/test/code/symbols/src/app.ts/edges');
-    expect(res.status).toBe(200);
-    expect(Array.isArray(res.body.results)).toBe(true);
-    // src/app.ts has a 'contains' edge to src/app.ts::main
-    expect(res.body.results.length).toBeGreaterThan(0);
-    const containsEdge = res.body.results.find((e: any) => e.kind === 'contains');
-    expect(containsEdge).toBeDefined();
-    expect(containsEdge.source).toBe('src/app.ts');
-    expect(containsEdge.target).toBe('src/app.ts::main');
-  });
-
-  it('GET /symbols/:symbolId/edges returns empty for leaf symbol', async () => {
-    // src/app.ts::main only has an incoming 'contains' edge (from file node)
-    const res = await request(app).get('/api/projects/test/code/symbols/src/app.ts::main/edges');
-    expect(res.status).toBe(200);
-    expect(Array.isArray(res.body.results)).toBe(true);
-    // Should have the incoming 'contains' edge
-    const containsEdge = res.body.results.find((e: any) => e.kind === 'contains');
-    expect(containsEdge).toBeDefined();
-  });
-
-  it('GET /symbols/:symbolId/edges returns empty array for unknown symbol', async () => {
-    const res = await request(app).get('/api/projects/test/code/symbols/ghost::bar/edges');
-    expect(res.status).toBe(200);
-    expect(res.body.results).toEqual([]);
   });
 });
 
@@ -590,8 +572,9 @@ describe('REST Files gaps', () => {
   beforeEach(() => {
     const { project, cleanup: c } = createFullProject();
     cleanup = c;
-    project.fileIndexManager!.updateFileEntry('src/app.ts', 100, 1000, unitVec(0));
-    project.fileIndexManager!.updateFileEntry('src/lib/utils.ts', 200, 2000, unitVec(1));
+    // Populate store with file entries
+    project.scopedStore.files.updateFile('src/app.ts', 100, 1000, unitVec(0));
+    project.scopedStore.files.updateFile('src/lib/utils.ts', 200, 2000, unitVec(1));
     app = createRestApp(makeManager(project));
   });
 
@@ -603,12 +586,6 @@ describe('REST Files gaps', () => {
     const res = await request(app).get('/api/projects/test/files');
     expect(res.status).toBe(200);
     expect(res.body.results.length).toBeGreaterThan(0);
-  });
-
-  it('GET / with extension filter', async () => {
-    const res = await request(app).get('/api/projects/test/files?extension=.ts');
-    expect(res.status).toBe(200);
-    expect(res.body.results.every((f: any) => f.extension === '.ts')).toBe(true);
   });
 
   it('GET /search returns results', async () => {

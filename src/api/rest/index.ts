@@ -470,9 +470,9 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
   app.use('/api/projects/:projectId/tasks', ...graphMiddleware('storeManager', 'tasks'), createTasksRouter(users));
   app.use('/api/projects/:projectId/epics', ...graphMiddleware('storeManager', 'tasks'), createEpicsRouter(users));
   app.use('/api/projects/:projectId/skills', ...graphMiddleware('storeManager', 'skills'), createSkillsRouter(users));
-  app.use('/api/projects/:projectId/docs', ...graphMiddleware('docManager', 'docs'), createDocsRouter());
-  app.use('/api/projects/:projectId/code', ...graphMiddleware('codeManager', 'code'), createCodeRouter());
-  app.use('/api/projects/:projectId/files', ...graphMiddleware('fileIndexManager', 'files'), createFilesRouter());
+  app.use('/api/projects/:projectId/docs', ...graphMiddleware('scopedStore', 'docs'), createDocsRouter());
+  app.use('/api/projects/:projectId/code', ...graphMiddleware('scopedStore', 'code'), createCodeRouter());
+  app.use('/api/projects/:projectId/files', ...graphMiddleware('scopedStore', 'files'), createFilesRouter());
   app.use('/api/projects/:projectId/tools', createToolsRouter(projectManager, (req, graphName, level) => {
     if (!serverConfig) return true;
     const p = req.project!;

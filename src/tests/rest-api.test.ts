@@ -8,8 +8,6 @@ import request from 'supertest';
 import express from 'express';
 import { EventEmitter } from 'events';
 import { createRestApp } from '@/api/rest/index';
-import { createFileIndexGraph } from '@/graphs/file-index-types';
-import { FileIndexGraphManager } from '@/graphs/file-index';
 import { PromiseQueue } from '@/lib/promise-queue';
 import { unitVec, DIM, embedFnPair } from '@/tests/helpers';
 import { SqliteStore } from '@/store';
@@ -51,7 +49,7 @@ function createTestProject(projectDir = '/tmp/test'): TestProjectResult {
   const dbPath = join(dbDir, 'test.db');
 
   const store = new SqliteStore();
-  store.open({ dbPath, embeddingDims: { knowledge: DIM, tasks: DIM, skills: DIM, epics: DIM } });
+  store.open({ dbPath, embeddingDims: { knowledge: DIM, tasks: DIM, skills: DIM, epics: DIM, docs: DIM, code: DIM, files: DIM } });
   const dbProject = store.projects.create({ slug: 'test', name: 'Test', directory: projectDir });
   const emitter = new EventEmitter();
 
@@ -63,7 +61,7 @@ function createTestProject(projectDir = '/tmp/test'): TestProjectResult {
     emitter,
   });
 
-  const fileIndexGraph = createFileIndexGraph();
+  const scopedStore = store.project(dbProject.id);
 
   const project: ProjectInstance = {
     id: 'test',
@@ -78,8 +76,8 @@ function createTestProject(projectDir = '/tmp/test'): TestProjectResult {
       graphConfigs: testGraphConfigs(),
       author: { name: '', email: '' },
     },
-    fileIndexGraph,
-    fileIndexManager: new FileIndexGraphManager(fileIndexGraph, embedFnPair(fakeEmbed)),
+    scopedStore,
+    dbProjectId: dbProject.id,
     storeManager,
     embedFns: {
       docs: embedFnPair(fakeEmbed),
@@ -106,7 +104,7 @@ function createProjectWithDir(dir: string): TestProjectResult {
   const dbPath = join(dbDir, 'test.db');
 
   const store = new SqliteStore();
-  store.open({ dbPath, embeddingDims: { knowledge: DIM, tasks: DIM, skills: DIM, epics: DIM } });
+  store.open({ dbPath, embeddingDims: { knowledge: DIM, tasks: DIM, skills: DIM, epics: DIM, docs: DIM, code: DIM, files: DIM } });
   const dbProject = store.projects.create({ slug: 'test', name: 'Test', directory: dir });
   const emitter = new EventEmitter();
 
@@ -118,7 +116,7 @@ function createProjectWithDir(dir: string): TestProjectResult {
     emitter,
   });
 
-  const fileIndexGraph = createFileIndexGraph();
+  const scopedStore = store.project(dbProject.id);
 
   const project: ProjectInstance = {
     id: 'test',
@@ -133,8 +131,8 @@ function createProjectWithDir(dir: string): TestProjectResult {
       graphConfigs: testGraphConfigs(),
       author: { name: '', email: '' },
     },
-    fileIndexGraph,
-    fileIndexManager: new FileIndexGraphManager(fileIndexGraph, embedFnPair(fakeEmbed)),
+    scopedStore,
+    dbProjectId: dbProject.id,
     storeManager,
     embedFns: {
       docs: embedFnPair(fakeEmbed),

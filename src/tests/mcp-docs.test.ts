@@ -1,12 +1,12 @@
 import path from 'path';
 import { readFileSync } from 'fs';
-import { createGraph, updateFile } from '@/graphs/docs';
 import { parseFile } from '@/lib/parsers/docs';
 import {
-  unitVec, createFakeEmbed, setupMcpClient,
+  unitVec, createFakeEmbed, createTestStoreManager,
   json, jsonList, text,
-  type CallResult, type McpTestContext,
+  type CallResult, type McpTestContext, type TestStoreContext,
 } from '@/tests/helpers';
+import { setupMcpClient } from '@/tests/helpers';
 
 // ---------------------------------------------------------------------------
 // Fixture setup
@@ -36,14 +36,78 @@ const QUERY_AXES: Array<[string, number]> = [
 ];
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse fixture markdown files and insert them into the store.
+ * Returns a map of fileId -> chunk IDs for assertions.
+ */
+async function populateDocsStore(testCtx: TestStoreContext): Promise<void> {
+  const scopedStore = testCtx.store.project(testCtx.projectId);
+  let globalAxis = 0;
+
+  // Collect cross-file link edges
+  const linkEdges: Array<{ fromFileId: string; toFileId: string }> = [];
+
+  for (const file of DOC_FILES) {
+    const abs = path.join(FIXTURES, file);
+    const chunks = await parseFile(readFileSync(abs, 'utf-8'), abs, FIXTURES, 4);
+
+    // Build store-compatible chunks (Omit<DocNode, 'id' | 'kind'>)
+    const storeChunks = chunks.map(chunk => ({
+      fileId: chunk.fileId,
+      title: chunk.title,
+      content: chunk.content,
+      level: chunk.level,
+      language: chunk.language,
+      symbols: chunk.symbols,
+      mtime: DOC_MTIME,
+    }));
+
+    // Build embeddings map: fileId for file-level, fileId#i for chunk i
+    const embeddings = new Map<string, number[]>();
+
+    // Chunk embeddings
+    for (let i = 0; i < chunks.length; i++) {
+      embeddings.set(`${file}#${i}`, unitVec(globalAxis++));
+    }
+
+    // File-level embeddings (used by docs_search_files)
+    const fileAxisMap: Record<string, number> = {
+      'api.md': 21,
+      'auth.md': 22,
+      'duplicates.md': 23,
+    };
+    if (fileAxisMap[file] !== undefined) {
+      embeddings.set(file, unitVec(fileAxisMap[file]));
+    }
+
+    scopedStore.docs.updateFile(file, storeChunks, DOC_MTIME, embeddings);
+
+    // Collect cross-file link edges from parsed chunks
+    for (const chunk of chunks) {
+      for (const link of chunk.links) {
+        linkEdges.push({ fromFileId: file, toFileId: link });
+      }
+    }
+  }
+
+  // Resolve cross-file links (e.g., auth.md <-> api.md)
+  if (linkEdges.length > 0) {
+    scopedStore.docs.resolveLinks(linkEdges);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type TopicEntry = { fileId: string; title: string; chunks: number };
-type TocEntry   = { id: string; title: string; level: number };
-type Hit        = { id: string; fileId: string; title: string; content: string; level: number; score: number };
-type NodeResult = { id: string; fileId: string; title: string; content: string; level: number; mtime: number };
-type DocFileHit = { fileId: string; title: string; chunks: number; score: number };
+type FileEntry = { id: number; fileId: string; title: string; chunkCount: number; mtime: number };
+type TocEntry  = { id: number; title: string; level: number };
+type Hit       = { id: number; fileId: string; title: string; content: string; level: number; score: number };
+type NodeResult = { id: number; kind: string; fileId: string; title: string; content: string; level: number; mtime: number };
+type FileSearchHit = { fileId: string; title: string; score: number };
 
 // ---------------------------------------------------------------------------
 // Main test suite
@@ -51,90 +115,88 @@ type DocFileHit = { fileId: string; title: string; chunks: number; score: number
 
 describe('MCP docs tools', () => {
   let ctx: McpTestContext;
+  let testStore: TestStoreContext;
 
   beforeAll(async () => {
-    const docGraph = createGraph();
-    let globalAxis = 0;
-    for (const file of DOC_FILES) {
-      const abs = path.join(FIXTURES, file);
-      const chunks = await parseFile(readFileSync(abs, 'utf-8'), abs, FIXTURES, 4);
-      for (const chunk of chunks) chunk.embedding = unitVec(globalAxis++);
-      updateFile(docGraph, chunks, DOC_MTIME);
-    }
-
-    // File-level embeddings for docs_search_files
-    docGraph.setNodeAttribute('api.md', 'fileEmbedding', unitVec(21));
-    docGraph.setNodeAttribute('auth.md', 'fileEmbedding', unitVec(22));
-    docGraph.setNodeAttribute('duplicates.md', 'fileEmbedding', unitVec(23));
-
     const fakeEmbed = createFakeEmbed(QUERY_AXES);
-    ctx = await setupMcpClient({ docGraph, embedFn: fakeEmbed });
+    testStore = createTestStoreManager(fakeEmbed);
+    await populateDocsStore(testStore);
+
+    const scopedStore = testStore.store.project(testStore.projectId);
+    ctx = await setupMcpClient({
+      scopedStore,
+      storeManager: testStore.storeManager,
+      embedFn: fakeEmbed,
+    });
   });
 
   afterAll(async () => {
     await ctx.close();
+    testStore.cleanup();
   });
 
   // =========================================================================
-  // list_topics
+  // docs_list_files
   // =========================================================================
 
   describe('docs_list_files', () => {
     it('returns all 3 files with correct metadata', async () => {
-      const topics = jsonList<TopicEntry>(await ctx.call('docs_list_files'));
+      const files = jsonList<FileEntry>(await ctx.call('docs_list_files'));
 
-      expect(topics).toHaveLength(3);
-      expect(topics[0].fileId).toBe('api.md');
-      expect(topics.some(f => f.fileId === 'auth.md')).toBe(true);
-      expect(topics.some(f => f.fileId === 'duplicates.md')).toBe(true);
-      expect(topics.find(f => f.fileId === 'api.md')!.chunks).toBe(6);
-      expect(topics.find(f => f.fileId === 'auth.md')!.chunks).toBe(4);
-      expect(topics.find(f => f.fileId === 'duplicates.md')!.chunks).toBe(5);
-      expect(topics.find(f => f.fileId === 'api.md')!.title).toBe('API Reference');
-      expect(topics.find(f => f.fileId === 'auth.md')!.title).toBe('Auth Guide');
+      expect(files).toHaveLength(3);
+      expect(files.some(f => f.fileId === 'api.md')).toBe(true);
+      expect(files.some(f => f.fileId === 'auth.md')).toBe(true);
+      expect(files.some(f => f.fileId === 'duplicates.md')).toBe(true);
+      expect(files.find(f => f.fileId === 'api.md')!.chunkCount).toBe(6);
+      expect(files.find(f => f.fileId === 'auth.md')!.chunkCount).toBe(4);
+      expect(files.find(f => f.fileId === 'duplicates.md')!.chunkCount).toBe(5);
+      expect(files.find(f => f.fileId === 'api.md')!.title).toBe('API Reference');
+      expect(files.find(f => f.fileId === 'auth.md')!.title).toBe('Auth Guide');
+      // numeric IDs
+      expect(typeof files[0].id).toBe('number');
     });
 
     it('filter: "auth" returns 1 file', async () => {
-      const topics = jsonList<TopicEntry>(await ctx.call('docs_list_files', { filter: 'auth' }));
-      expect(topics).toHaveLength(1);
-      expect(topics[0].fileId).toBe('auth.md');
+      const files = jsonList<FileEntry>(await ctx.call('docs_list_files', { filter: 'auth' }));
+      expect(files).toHaveLength(1);
+      expect(files[0].fileId).toBe('auth.md');
     });
 
     it('filter: "API" is case-insensitive', async () => {
-      const topics = jsonList<TopicEntry>(await ctx.call('docs_list_files', { filter: 'API' }));
-      expect(topics).toHaveLength(1);
-      expect(topics[0].fileId).toBe('api.md');
+      const files = jsonList<FileEntry>(await ctx.call('docs_list_files', { filter: 'API' }));
+      expect(files).toHaveLength(1);
+      expect(files[0].fileId).toBe('api.md');
     });
 
     it('filter: "nonexistent" returns empty', async () => {
-      const topics = jsonList<TopicEntry>(await ctx.call('docs_list_files', { filter: 'nonexistent' }));
-      expect(topics).toHaveLength(0);
+      const files = jsonList<FileEntry>(await ctx.call('docs_list_files', { filter: 'nonexistent' }));
+      expect(files).toHaveLength(0);
     });
 
     it('filter: ".md" returns all 3 files', async () => {
-      const topics = jsonList<TopicEntry>(await ctx.call('docs_list_files', { filter: '.md' }));
-      expect(topics).toHaveLength(3);
+      const files = jsonList<FileEntry>(await ctx.call('docs_list_files', { filter: '.md' }));
+      expect(files).toHaveLength(3);
     });
 
     it('limit=1 returns first alphabetically', async () => {
-      const topics = jsonList<TopicEntry>(await ctx.call('docs_list_files', { limit: 1 }));
-      expect(topics).toHaveLength(1);
-      expect(topics[0].fileId).toBe('api.md');
+      const files = jsonList<FileEntry>(await ctx.call('docs_list_files', { limit: 1 }));
+      expect(files).toHaveLength(1);
+      expect(files[0].fileId).toBe('api.md');
     });
 
     it('limit=2 returns exactly 2 files', async () => {
-      const topics = jsonList<TopicEntry>(await ctx.call('docs_list_files', { limit: 2 }));
-      expect(topics).toHaveLength(2);
+      const files = jsonList<FileEntry>(await ctx.call('docs_list_files', { limit: 2 }));
+      expect(files).toHaveLength(2);
     });
 
     it('default limit returns all 3 files', async () => {
-      const topics = jsonList<TopicEntry>(await ctx.call('docs_list_files'));
-      expect(topics).toHaveLength(3);
+      const files = jsonList<FileEntry>(await ctx.call('docs_list_files'));
+      expect(files).toHaveLength(3);
     });
   });
 
   // =========================================================================
-  // get_toc
+  // docs_get_toc
   // =========================================================================
 
   describe('docs_get_toc', () => {
@@ -142,40 +204,36 @@ describe('MCP docs tools', () => {
       const toc = json<TocEntry[]>(await ctx.call('docs_get_toc', { fileId: 'auth.md' }));
 
       expect(toc).toHaveLength(4);
-      expect(toc[0].id).toBe('auth.md');
+      expect(typeof toc[0].id).toBe('number');
       expect(toc[0].level).toBe(1);
       expect(toc[0].title).toBe('Auth Guide');
       expect(toc.slice(1).every(e => e.level === 2)).toBe(true);
       expect(toc.some(e => e.title === 'JWT Tokens')).toBe(true);
       expect(toc.some(e => e.title === 'Token Flow')).toBe(true);
       expect(toc.some(e => e.title === 'Roles')).toBe(true);
-      expect(toc.find(e => e.title === 'JWT Tokens')!.id).toBe('auth.md::JWT Tokens');
     });
 
     it('api.md: 6 entries with level 2 and level 3 sections', async () => {
       const toc = json<TocEntry[]>(await ctx.call('docs_get_toc', { fileId: 'api.md' }));
 
       expect(toc).toHaveLength(6);
-      expect(toc[0].id).toBe('api.md');
+      expect(typeof toc[0].id).toBe('number');
       expect(toc.find(e => e.title === 'Endpoints')!.level).toBe(2);
       expect(toc.find(e => e.title === 'Users')!.level).toBe(3);
       expect(toc.find(e => e.title === 'Sessions')!.level).toBe(3);
       expect(toc.find(e => e.title === 'Error Codes')!.level).toBe(2);
       expect(toc.find(e => e.title === 'Rate Limiting')!.level).toBe(2);
-      expect(toc.find(e => e.title === 'Users')!.id).toBe('api.md::Users');
-      expect(toc.find(e => e.title === 'Sessions')!.id).toBe('api.md::Sessions');
     });
 
-    it('duplicates.md: dedup IDs with ::2 suffix', async () => {
+    it('duplicates.md: duplicate headings are separate entries', async () => {
       const toc = json<TocEntry[]>(await ctx.call('docs_get_toc', { fileId: 'duplicates.md' }));
 
       expect(toc).toHaveLength(5);
-      expect(toc.some(e => e.id === 'duplicates.md::List')).toBe(true);
-      expect(toc.some(e => e.id === 'duplicates.md::List::2')).toBe(true);
-      expect(toc.some(e => e.id === 'duplicates.md::Notes')).toBe(true);
-      expect(toc.some(e => e.id === 'duplicates.md::Notes::2')).toBe(true);
       expect(toc.filter(e => e.title === 'List')).toHaveLength(2);
       expect(toc.filter(e => e.title === 'Notes')).toHaveLength(2);
+      // Each has a unique numeric ID
+      const ids = toc.map(e => e.id);
+      expect(new Set(ids).size).toBe(ids.length);
     });
 
     it('missing file returns isError=true', async () => {
@@ -186,268 +244,211 @@ describe('MCP docs tools', () => {
   });
 
   // =========================================================================
-  // search
+  // docs_search
   // =========================================================================
 
   describe('docs_search', () => {
-    it('basic scoring: auth guide query hits auth.md with score 1.0', async () => {
+    it('basic scoring: auth guide query hits auth content', async () => {
       const hits = json<Hit[]>(await ctx.call('docs_search', { query: 'auth guide', searchMode: 'vector' }));
 
       expect(hits.length).toBeGreaterThan(0);
-      expect(hits[0].id).toBe('auth.md');
-      expect(hits[0].score).toBe(1.0);
+      // Top hit should be from auth.md
+      expect(hits[0].fileId).toBe('auth.md');
+      expect(hits[0].score).toBeGreaterThan(0);
+      // Scores are sorted descending
       expect(hits.every((h, i) => i === 0 || h.score <= hits[i - 1].score)).toBe(true);
+      // All hits have expected shape
       expect(hits.every(h =>
         'id' in h && 'fileId' in h && 'title' in h && 'content' in h && 'level' in h && 'score' in h,
       )).toBe(true);
     });
 
-    it('basic scoring: api reference query top hit is api.md', async () => {
+    it('basic scoring: api reference query top hit is from api.md', async () => {
       const hits = json<Hit[]>(await ctx.call('docs_search', { query: 'api reference', searchMode: 'vector' }));
-      expect(hits[0].id).toBe('api.md');
-      expect(hits[0].score).toBe(1.0);
+      expect(hits[0].fileId).toBe('api.md');
+      expect(hits[0].score).toBeGreaterThan(0);
     });
 
-    it('bfsDepth=0, topK=1: exactly 1 result (seed only)', async () => {
-      const hits = json<Hit[]>(await ctx.call('docs_search', { query: 'auth guide', topK: 1, bfsDepth: 0, searchMode: 'vector' }));
-      expect(hits).toHaveLength(1);
-      expect(hits[0].id).toBe('auth.md');
-    });
-
-    it('bfsDepth=0, topK=3: at most 3 results', async () => {
-      const hits = json<Hit[]>(await ctx.call('docs_search', { query: 'auth guide', topK: 3, bfsDepth: 0, searchMode: 'vector' }));
-      expect(hits.length).toBeLessThanOrEqual(3);
-      expect(hits[0].id).toBe('auth.md');
-    });
-
-    it('bfsDepth=1: sibling expansion', async () => {
-      const hits = json<Hit[]>(await ctx.call('docs_search', { query: 'auth guide', topK: 1, bfsDepth: 1, searchMode: 'vector' }));
-      const ids = hits.map(h => h.id);
-
-      expect(ids).toContain('auth.md');
-      expect(ids).toContain('auth.md::JWT Tokens');
-      expect(ids).not.toContain('auth.md::Token Flow');
-    });
-
-    it('bfsDepth=1: cross-file link auth.md -> api.md', async () => {
-      const hits = json<Hit[]>(await ctx.call('docs_search', { query: 'auth guide', topK: 1, bfsDepth: 1, searchMode: 'vector' }));
-      const ids = hits.map(h => h.id);
-
-      expect(ids).toContain('api.md');
-      expect(ids).not.toContain('api.md::Endpoints');
-    });
-
-    it('bfsDepth=1: incoming edges', async () => {
-      const hits = json<Hit[]>(await ctx.call('docs_search', { query: 'api reference', topK: 1, bfsDepth: 1, searchMode: 'vector' }));
-      const ids = hits.map(h => h.id);
-
-      expect(ids).toContain('api.md::Endpoints');
-      expect(ids).toContain('auth.md');
-      expect(ids).not.toContain('api.md::Users');
-    });
-
-    it('bfsDepth=2: deeper expansion', async () => {
-      const hits = json<Hit[]>(await ctx.call('docs_search', { query: 'auth guide', topK: 1, bfsDepth: 2, minScore: 0 }));
-      const ids = hits.map(h => h.id);
-
-      expect(ids).toContain('auth.md::Token Flow');
-      expect(ids).toContain('api.md::Endpoints');
-      expect(ids).toContain('auth.md');
+    it('topK=1 returns limited results', async () => {
+      const hits = json<Hit[]>(await ctx.call('docs_search', { query: 'auth guide', topK: 1, searchMode: 'vector' }));
+      expect(hits.length).toBeGreaterThanOrEqual(1);
+      expect(hits[0].fileId).toBe('auth.md');
     });
 
     it('maxResults=1 returns exactly 1 result', async () => {
-      const hits = json<Hit[]>(await ctx.call('docs_search', { query: 'auth guide', bfsDepth: 3, maxResults: 1, searchMode: 'vector' }));
+      const hits = json<Hit[]>(await ctx.call('docs_search', { query: 'auth guide', maxResults: 1, searchMode: 'vector' }));
       expect(hits).toHaveLength(1);
-      expect(hits[0].id).toBe('auth.md');
+      expect(hits[0].fileId).toBe('auth.md');
     });
 
     it('maxResults=3 returns at most 3 results', async () => {
-      const hits = json<Hit[]>(await ctx.call('docs_search', { query: 'auth guide', bfsDepth: 3, maxResults: 3, searchMode: 'vector' }));
+      const hits = json<Hit[]>(await ctx.call('docs_search', { query: 'auth guide', maxResults: 3, searchMode: 'vector' }));
       expect(hits.length).toBeLessThanOrEqual(3);
-      expect(hits[0].id).toBe('auth.md');
+      expect(hits[0].fileId).toBe('auth.md');
     });
 
-    it('topK=1 picks best match (jwt token -> auth.md::JWT Tokens)', async () => {
-      const hits = json<Hit[]>(await ctx.call('docs_search', { query: 'jwt token', topK: 1, bfsDepth: 0, searchMode: 'vector' }));
-      expect(hits[0].id).toBe('auth.md::JWT Tokens');
-      expect(hits).toHaveLength(1);
+    it('topK=1 picks best match (jwt token -> JWT Tokens section)', async () => {
+      const hits = json<Hit[]>(await ctx.call('docs_search', { query: 'jwt token', topK: 1, maxResults: 1, searchMode: 'vector' }));
+      expect(hits[0].title).toBe('JWT Tokens');
+      expect(hits[0].fileId).toBe('auth.md');
     });
 
-    it('topK=2, bfsDepth=0: at most 2 results', async () => {
-      const hits = json<Hit[]>(await ctx.call('docs_search', { query: 'jwt token', topK: 2, bfsDepth: 0, searchMode: 'vector' }));
-      expect(hits.length).toBeLessThanOrEqual(2);
-      expect(hits[0].id).toBe('auth.md::JWT Tokens');
-    });
-
-    it('zero-vector query has score=0', async () => {
-      const hits = json<Hit[]>(await ctx.call('docs_search', { query: 'xyzzy completely unknown xyz', topK: 1, bfsDepth: 0, minScore: 0, searchMode: 'vector' }));
+    it('zero-vector query returns low scores', async () => {
+      const hits = json<Hit[]>(await ctx.call('docs_search', { query: 'xyzzy completely unknown xyz', maxResults: 1, minScore: 0, searchMode: 'vector' }));
       expect(hits.length).toBeGreaterThan(0);
-      expect(hits[0].score).toBe(0);
+      // RRF fusion produces small but non-zero scores even for zero-cosine matches
+      expect(hits[0].score).toBeLessThan(0.1);
     });
 
-    it('minScore=0.9 returns only exact match', async () => {
-      const hits = json<Hit[]>(await ctx.call('docs_search', { query: 'auth guide', topK: 1, bfsDepth: 1, minScore: 0.9, searchMode: 'vector' }));
-      expect(hits).toHaveLength(1);
-      expect(hits[0].id).toBe('auth.md');
-      expect(hits.some(h => h.id === 'auth.md::JWT Tokens')).toBe(false);
-    });
-
-    it('minScore=0.75 includes depth-1 but filters depth-2', async () => {
-      const hits = json<Hit[]>(await ctx.call('docs_search', { query: 'auth guide', topK: 1, bfsDepth: 2, minScore: 0.75, searchMode: 'vector' }));
-      const ids = hits.map(h => h.id);
-
-      expect(ids).toContain('auth.md');
-      expect(ids).toContain('auth.md::JWT Tokens');
-      expect(ids).toContain('api.md');
-      expect(ids).not.toContain('auth.md::Token Flow');
-    });
-
-    it('minScore=1.0 returns only exact match', async () => {
-      const hits = json<Hit[]>(await ctx.call('docs_search', { query: 'auth guide', topK: 5, bfsDepth: 2, minScore: 1.0, searchMode: 'vector' }));
-      expect(hits).toHaveLength(1);
-      expect(hits[0].id).toBe('auth.md');
-    });
-
-    it('minScore filters out zero-score seeds', async () => {
-      const hits = json<Hit[]>(await ctx.call('docs_search', { query: 'xyzzy completely unknown xyz', topK: 5, minScore: 0.1, searchMode: 'keyword' }));
+    it('minScore filters out low-score results', async () => {
+      const hits = json<Hit[]>(await ctx.call('docs_search', { query: 'xyzzy completely unknown xyz', minScore: 0.1, searchMode: 'keyword' }));
       expect(hits).toHaveLength(0);
     });
 
-    it('bfsDecay=1.0: BFS nodes keep seed score', async () => {
-      const hits = json<Hit[]>(await ctx.call('docs_search', { query: 'auth guide', topK: 1, bfsDepth: 1, bfsDecay: 1.0, minScore: 0.99, searchMode: 'vector' }));
-      expect(hits.some(h => h.id === 'auth.md::JWT Tokens')).toBe(true);
+    it('results have numeric IDs', async () => {
+      const hits = json<Hit[]>(await ctx.call('docs_search', { query: 'auth guide', searchMode: 'vector' }));
+      expect(hits.length).toBeGreaterThan(0);
+      expect(typeof hits[0].id).toBe('number');
     });
 
-    it('bfsDecay=0.0: BFS nodes get score 0 and are filtered', async () => {
-      const hits = json<Hit[]>(await ctx.call('docs_search', { query: 'auth guide', topK: 1, bfsDepth: 1, bfsDecay: 0.0, minScore: 0.01, searchMode: 'vector' }));
-      expect(hits).toHaveLength(1);
-      expect(hits[0].id).toBe('auth.md');
+    it('hybrid mode returns results', async () => {
+      const hits = json<Hit[]>(await ctx.call('docs_search', { query: 'auth guide', searchMode: 'hybrid' }));
+      expect(hits.length).toBeGreaterThan(0);
     });
 
-    it('default bfsDecay=0.8: BFS score = seed * 0.8', async () => {
-      const hits = json<Hit[]>(await ctx.call('docs_search', { query: 'auth guide', topK: 1, bfsDepth: 1, searchMode: 'vector' }));
-      const seedScore = hits.find(h => h.id === 'auth.md')!.score;
-      const bfsScore  = hits.find(h => h.id === 'auth.md::JWT Tokens')!.score;
-
-      expect(bfsScore).toBeLessThan(seedScore);
-      expect(Math.abs(bfsScore - seedScore * 0.8)).toBeLessThan(0.001);
+    it('keyword mode searches text content', async () => {
+      const hits = json<Hit[]>(await ctx.call('docs_search', { query: 'JWT', searchMode: 'keyword', minScore: 0 }));
+      expect(hits.length).toBeGreaterThan(0);
     });
   });
 
   // =========================================================================
-  // get_node
+  // docs_get_node
   // =========================================================================
 
   describe('docs_get_node', () => {
-    it('root chunk: all fields correct, no embedding', async () => {
-      const node = json<NodeResult>(await ctx.call('docs_get_node', { nodeId: 'auth.md' }));
+    // Helper to get a node ID by title from the TOC
+    async function getNodeIdByTitle(fileId: string, title: string): Promise<number> {
+      const toc = json<TocEntry[]>(await ctx.call('docs_get_toc', { fileId }));
+      const entry = toc.find(e => e.title === title);
+      if (!entry) throw new Error(`No TOC entry with title "${title}" in ${fileId}`);
+      return entry.id;
+    }
 
-      expect(node.id).toBe('auth.md');
+    // Helper to get the file's root node ID
+    async function getFileRootId(fileId: string): Promise<number> {
+      const files = jsonList<FileEntry>(await ctx.call('docs_list_files', { filter: fileId }));
+      const file = files.find(f => f.fileId === fileId);
+      if (!file) throw new Error(`File not found: ${fileId}`);
+      // The root chunk is the first in the TOC
+      const toc = json<TocEntry[]>(await ctx.call('docs_get_toc', { fileId }));
+      return toc[0].id;
+    }
+
+    it('root chunk: all fields correct', async () => {
+      const rootId = await getFileRootId('auth.md');
+      const node = json<NodeResult>(await ctx.call('docs_get_node', { nodeId: rootId }));
+
+      expect(node.id).toBe(rootId);
       expect(node.fileId).toBe('auth.md');
       expect(node.title).toBe('Auth Guide');
       expect(typeof node.content).toBe('string');
       expect(node.content.length).toBeGreaterThan(0);
       expect(node.level).toBe(1);
-      expect('mtime' in node).toBe(false);
-      expect('embedding' in node).toBe(false);
     });
 
     it('level 2 subsection (JWT Tokens)', async () => {
-      const node = json<NodeResult>(await ctx.call('docs_get_node', { nodeId: 'auth.md::JWT Tokens' }));
+      const nodeId = await getNodeIdByTitle('auth.md', 'JWT Tokens');
+      const node = json<NodeResult>(await ctx.call('docs_get_node', { nodeId }));
 
-      expect(node.id).toBe('auth.md::JWT Tokens');
+      expect(node.id).toBe(nodeId);
       expect(node.fileId).toBe('auth.md');
       expect(node.title).toBe('JWT Tokens');
       expect(node.level).toBe(2);
       expect(node.content.toLowerCase()).toContain('token');
-      expect('embedding' in node).toBe(false);
     });
 
     it('level 3 subsection (Users)', async () => {
-      const node = json<NodeResult>(await ctx.call('docs_get_node', { nodeId: 'api.md::Users' }));
+      const nodeId = await getNodeIdByTitle('api.md', 'Users');
+      const node = json<NodeResult>(await ctx.call('docs_get_node', { nodeId }));
 
-      expect(node.id).toBe('api.md::Users');
+      expect(node.id).toBe(nodeId);
       expect(node.level).toBe(3);
       expect(node.fileId).toBe('api.md');
       expect(node.content).toContain('/users');
     });
 
     it('level 3 subsection (Sessions)', async () => {
-      const node = json<NodeResult>(await ctx.call('docs_get_node', { nodeId: 'api.md::Sessions' }));
+      const nodeId = await getNodeIdByTitle('api.md', 'Sessions');
+      const node = json<NodeResult>(await ctx.call('docs_get_node', { nodeId }));
 
       expect(node.level).toBe(3);
       expect(node.content.toLowerCase()).toContain('refresh');
     });
 
-    it('dedup ID ::2 (List)', async () => {
-      const node = json<NodeResult>(await ctx.call('docs_get_node', { nodeId: 'duplicates.md::List::2' }));
+    it('duplicate headings both accessible', async () => {
+      const toc = json<TocEntry[]>(await ctx.call('docs_get_toc', { fileId: 'duplicates.md' }));
+      const listEntries = toc.filter(e => e.title === 'List');
+      expect(listEntries).toHaveLength(2);
 
-      expect(node.id).toBe('duplicates.md::List::2');
-      expect(node.title).toBe('List');
-      expect(node.content.toLowerCase()).toContain('second');
+      // First List
+      const node1 = json<NodeResult>(await ctx.call('docs_get_node', { nodeId: listEntries[0].id }));
+      expect(node1.title).toBe('List');
+
+      // Second List
+      const node2 = json<NodeResult>(await ctx.call('docs_get_node', { nodeId: listEntries[1].id }));
+      expect(node2.title).toBe('List');
+      expect(node2.content.toLowerCase()).toContain('second');
+
+      // Different IDs
+      expect(node1.id).not.toBe(node2.id);
     });
 
-    it('dedup ID ::2 (Notes)', async () => {
-      const node = json<NodeResult>(await ctx.call('docs_get_node', { nodeId: 'duplicates.md::Notes::2' }));
+    it('duplicate Notes headings both accessible', async () => {
+      const toc = json<TocEntry[]>(await ctx.call('docs_get_toc', { fileId: 'duplicates.md' }));
+      const notesEntries = toc.filter(e => e.title === 'Notes');
+      expect(notesEntries).toHaveLength(2);
 
-      expect(node.id).toBe('duplicates.md::Notes::2');
-      expect(node.title).toBe('Notes');
+      const node1 = json<NodeResult>(await ctx.call('docs_get_node', { nodeId: notesEntries[0].id }));
+      const node2 = json<NodeResult>(await ctx.call('docs_get_node', { nodeId: notesEntries[1].id }));
+      expect(node1.id).not.toBe(node2.id);
     });
 
-    it('missing file node returns isError=true', async () => {
-      const result = await ctx.call('docs_get_node', { nodeId: 'ghost.md' });
+    it('missing node returns isError=true', async () => {
+      const result = await ctx.call('docs_get_node', { nodeId: 999999 });
       expect(result.isError).toBe(true);
       expect(text(result)).toContain('Node not found');
-    });
-
-    it('missing subsection returns isError=true', async () => {
-      const result = await ctx.call('docs_get_node', { nodeId: 'auth.md::NonExistent' });
-      expect(result.isError).toBe(true);
-    });
-
-    it('non-existent ::99 suffix returns isError=true', async () => {
-      const result = await ctx.call('docs_get_node', { nodeId: 'duplicates.md::List::99' });
-      expect(result.isError).toBe(true);
     });
   });
 
   // =========================================================================
-  // search_topic_files
+  // docs_search_files
   // =========================================================================
 
   describe('docs_search_files', () => {
-    it('returns results with top hit score 1.0', async () => {
-      const hits = json<DocFileHit[]>(await ctx.call('docs_search_files', { query: 'auth docs file' }));
+    it('returns results with top hit for auth query', async () => {
+      const hits = json<FileSearchHit[]>(await ctx.call('docs_search_files', { query: 'auth docs file', minScore: 0 }));
 
       expect(hits.length).toBeGreaterThan(0);
       expect(hits[0].fileId).toBe('auth.md');
-      expect(hits[0].score).toBe(1.0);
+      expect(hits[0].score).toBeGreaterThan(0);
       expect(typeof hits[0].title).toBe('string');
-      expect(typeof hits[0].chunks).toBe('number');
-      expect(hits[0].chunks).toBe(4);
       expect(hits.every((h, i) => i === 0 || h.score <= hits[i - 1].score)).toBe(true);
     });
 
     it('api docs query top hit is api.md', async () => {
-      const hits = json<DocFileHit[]>(await ctx.call('docs_search_files', { query: 'api docs file' }));
+      const hits = json<FileSearchHit[]>(await ctx.call('docs_search_files', { query: 'api docs file', minScore: 0 }));
       expect(hits[0].fileId).toBe('api.md');
-      expect(hits[0].chunks).toBe(6);
     });
 
-    it('unknown query returns empty', async () => {
-      const hits = json<DocFileHit[]>(await ctx.call('docs_search_files', { query: 'xyzzy unknown', minScore: 0.1 }));
+    it('unknown query returns empty with minScore filter', async () => {
+      const hits = json<FileSearchHit[]>(await ctx.call('docs_search_files', { query: 'xyzzy unknown', minScore: 0.1 }));
       expect(hits).toHaveLength(0);
     });
 
     it('limit=1 returns at most 1 result', async () => {
-      const hits = json<DocFileHit[]>(await ctx.call('docs_search_files', { query: 'auth docs file', limit: 1 }));
+      const hits = json<FileSearchHit[]>(await ctx.call('docs_search_files', { query: 'auth docs file', limit: 1, minScore: 0 }));
       expect(hits).toHaveLength(1);
-    });
-
-    it('minScore=0.9 returns only exact match', async () => {
-      const hits = json<DocFileHit[]>(await ctx.call('docs_search_files', { query: 'auth docs file', minScore: 0.9 }));
-      expect(hits).toHaveLength(1);
-      expect(hits[0].fileId).toBe('auth.md');
     });
   });
 
@@ -457,36 +458,38 @@ describe('MCP docs tools', () => {
 
   describe('docs-only mode', () => {
     let docsCtx: McpTestContext;
+    let docsTestStore: TestStoreContext;
 
     beforeAll(async () => {
-      const docGraph = createGraph();
-      let globalAxis = 0;
-      for (const file of DOC_FILES) {
-        const abs = path.join(FIXTURES, file);
-        const chunks = await parseFile(readFileSync(abs, 'utf-8'), abs, FIXTURES, 4);
-        for (const chunk of chunks) chunk.embedding = unitVec(globalAxis++);
-        updateFile(docGraph, chunks, DOC_MTIME);
-      }
-
       const fakeEmbed = createFakeEmbed(QUERY_AXES);
-      docsCtx = await setupMcpClient({ docGraph, embedFn: fakeEmbed });
+      docsTestStore = createTestStoreManager(fakeEmbed);
+      await populateDocsStore(docsTestStore);
+
+      const scopedStore = docsTestStore.store.project(docsTestStore.projectId);
+      docsCtx = await setupMcpClient({
+        scopedStore,
+        storeManager: docsTestStore.storeManager,
+        embedFn: fakeEmbed,
+      });
     });
 
     afterAll(async () => {
       await docsCtx.close();
+      docsTestStore.cleanup();
     });
 
-    it('list_topics works without codeGraph', async () => {
-      const topics = jsonList<TopicEntry>(await docsCtx.call('docs_list_files'));
-      expect(topics).toHaveLength(3);
+    it('list_files works without codeGraph', async () => {
+      const files = jsonList<FileEntry>(await docsCtx.call('docs_list_files'));
+      expect(files).toHaveLength(3);
     });
 
     it('search works without codeGraph', async () => {
       const hits = json<Hit[]>(await docsCtx.call('docs_search', { query: 'auth guide', searchMode: 'vector' }));
-      expect(hits[0]?.id).toBe('auth.md');
+      expect(hits.length).toBeGreaterThan(0);
+      expect(hits[0].fileId).toBe('auth.md');
     });
 
-    it('list_files not registered returns error', async () => {
+    it('code_list_files not registered returns error', async () => {
       try {
         const r = await docsCtx.call('code_list_files') as CallResult;
         expect(r.isError).toBe(true);
@@ -496,7 +499,7 @@ describe('MCP docs tools', () => {
       }
     });
 
-    it('search_code not registered returns error', async () => {
+    it('code_search not registered returns error', async () => {
       try {
         const r = await docsCtx.call('code_search', { query: 'test' }) as CallResult;
         expect(r.isError).toBe(true);

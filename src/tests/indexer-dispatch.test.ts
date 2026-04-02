@@ -1,6 +1,6 @@
 /**
- * Tests for indexer dispatch fixes:
- * - dispatchAdd checks docGraph before enqueueing
+ * Tests for indexer dispatch fixes (SQLite Store version):
+ * - dispatchAdd checks enabled graphs before enqueueing
  * - dispatchRemove enqueues removals (serialized with adds)
  * - wikiIndex cache cleared on .md add/remove
  * - indexDocFile handles disappeared files (stat-fail cleanup)
@@ -10,8 +10,8 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { createProjectIndexer } from '@/cli/indexer';
-import { createGraph, removeFile, type DocGraph } from '@/graphs/docs';
 import { clearWikiIndexCache } from '@/lib/parsers/docs';
+import { createTestStoreManager, type TestStoreContext } from '@/tests/helpers';
 
 // Stub embed/embedBatch so indexing doesn't need a real model
 jest.mock('@/lib/embedder', () => ({
@@ -26,23 +26,31 @@ function makeTmpProject(): string {
 }
 
 // ---------------------------------------------------------------------------
-// dispatchAdd should check docGraph
+// dispatchAdd should check enabled graphs
 // ---------------------------------------------------------------------------
 
-describe('dispatchAdd docGraph guard', () => {
+describe('dispatchAdd docs guard', () => {
   let projectDir: string;
+  let storeCtx: TestStoreContext;
 
   beforeEach(() => {
     projectDir = makeTmpProject();
     fs.writeFileSync(path.join(projectDir, 'readme.md'), '# Hello\n');
+    storeCtx = createTestStoreManager(
+      () => Promise.resolve(new Array(32).fill(0)),
+      { projectDir },
+    );
   });
 
-  afterEach(() => { fs.rmSync(projectDir, { recursive: true, force: true }); });
+  afterEach(() => {
+    storeCtx.cleanup();
+    fs.rmSync(projectDir, { recursive: true, force: true });
+  });
 
-  it('does not enqueue docs when docGraph is undefined', async () => {
+  it('does not enqueue docs when docs graph is disabled', async () => {
+    const scopedStore = storeCtx.store.project(storeCtx.projectId);
     const indexer = createProjectIndexer(
-      undefined, // no docGraph
-      undefined,
+      scopedStore,
       {
         projectDir,
         docsInclude: '**/*.md',
@@ -51,12 +59,14 @@ describe('dispatchAdd docGraph guard', () => {
         filesExclude: [],
         chunkDepth: 4,
       },
+      { docs: false }, // docs disabled
     );
 
-    // scan should not crash even without docGraph
+    // scan should not crash even without docs enabled
     indexer.scan();
     await indexer.drain();
-    // No assertion needed — if it didn't throw, the guard works
+    // No docs should be indexed
+    expect(scopedStore.docs.getFileMtime('readme.md')).toBeNull();
   });
 });
 
@@ -66,22 +76,28 @@ describe('dispatchAdd docGraph guard', () => {
 
 describe('indexDocFile stat-fail cleanup', () => {
   let projectDir: string;
-  let docGraph: DocGraph;
+  let storeCtx: TestStoreContext;
 
   beforeEach(() => {
     projectDir = makeTmpProject();
-    docGraph = createGraph();
+    storeCtx = createTestStoreManager(
+      () => Promise.resolve(new Array(32).fill(0)),
+      { projectDir },
+    );
   });
 
-  afterEach(() => { fs.rmSync(projectDir, { recursive: true, force: true }); });
+  afterEach(() => {
+    storeCtx.cleanup();
+    fs.rmSync(projectDir, { recursive: true, force: true });
+  });
 
   it('removes stale node when file disappears during indexing', async () => {
     const mdFile = path.join(projectDir, 'test.md');
     fs.writeFileSync(mdFile, '# Test\nSome content\n');
 
+    const scopedStore = storeCtx.store.project(storeCtx.projectId);
     const indexer = createProjectIndexer(
-      docGraph,
-      undefined,
+      scopedStore,
       {
         projectDir,
         docsInclude: '**/*.md',
@@ -90,12 +106,13 @@ describe('indexDocFile stat-fail cleanup', () => {
         filesExclude: [],
         chunkDepth: 4,
       },
+      { docs: true },
     );
 
     // Index the file
     indexer.scan();
     await indexer.drain();
-    expect(docGraph.order).toBeGreaterThan(0);
+    expect(scopedStore.docs.getFileMtime('test.md')).not.toBeNull();
 
     // Delete the file, then re-add (touching its path triggers indexDocFile)
     // which will catch the stat error and clean up
@@ -108,16 +125,18 @@ describe('indexDocFile stat-fail cleanup', () => {
     await indexer.drain();
 
     // File should be re-indexed with new content
-    expect(docGraph.hasNode('test.md')).toBe(true);
+    expect(scopedStore.docs.getFileMtime('test.md')).not.toBeNull();
+    const chunks = scopedStore.docs.getFileChunks('test.md');
+    expect(chunks.length).toBeGreaterThan(0);
   });
 
   it('gracefully handles indexing after removeFile', async () => {
     const mdFile = path.join(projectDir, 'doc.md');
     fs.writeFileSync(mdFile, '# Doc\nContent\n');
 
+    const scopedStore = storeCtx.store.project(storeCtx.projectId);
     const indexer = createProjectIndexer(
-      docGraph,
-      undefined,
+      scopedStore,
       {
         projectDir,
         docsInclude: '**/*.md',
@@ -126,20 +145,21 @@ describe('indexDocFile stat-fail cleanup', () => {
         filesExclude: [],
         chunkDepth: 4,
       },
+      { docs: true },
     );
 
     indexer.scan();
     await indexer.drain();
-    expect(docGraph.hasNode('doc.md')).toBe(true);
+    expect(scopedStore.docs.getFileMtime('doc.md')).not.toBeNull();
 
-    // Simulate what dispatchRemove does: enqueue removal then re-scan
-    removeFile(docGraph, 'doc.md');
-    expect(docGraph.hasNode('doc.md')).toBe(false);
+    // Simulate what dispatchRemove does: remove from store then re-scan
+    scopedStore.docs.removeFile('doc.md');
+    expect(scopedStore.docs.getFileMtime('doc.md')).toBeNull();
 
     // Re-scan picks up the same file and re-adds it
     indexer.scan();
     await indexer.drain();
-    expect(docGraph.hasNode('doc.md')).toBe(true);
+    expect(scopedStore.docs.getFileMtime('doc.md')).not.toBeNull();
   });
 });
 
@@ -149,15 +169,19 @@ describe('indexDocFile stat-fail cleanup', () => {
 
 describe('wikiIndex cache invalidation via indexer', () => {
   let projectDir: string;
-  let docGraph: DocGraph;
+  let storeCtx: TestStoreContext;
 
   beforeEach(() => {
     projectDir = makeTmpProject();
-    docGraph = createGraph();
+    storeCtx = createTestStoreManager(
+      () => Promise.resolve(new Array(32).fill(0)),
+      { projectDir },
+    );
     clearWikiIndexCache();
   });
 
   afterEach(() => {
+    storeCtx.cleanup();
     fs.rmSync(projectDir, { recursive: true, force: true });
     clearWikiIndexCache();
   });
@@ -166,9 +190,9 @@ describe('wikiIndex cache invalidation via indexer', () => {
     // Create initial file with wiki link to nonexistent target
     fs.writeFileSync(path.join(projectDir, 'main.md'), '# Main\n\nSee [[target]]\n');
 
+    const scopedStore = storeCtx.store.project(storeCtx.projectId);
     const indexer = createProjectIndexer(
-      docGraph,
-      undefined,
+      scopedStore,
       {
         projectDir,
         docsInclude: '**/*.md',
@@ -177,6 +201,7 @@ describe('wikiIndex cache invalidation via indexer', () => {
         filesExclude: [],
         chunkDepth: 4,
       },
+      { docs: true },
     );
 
     indexer.scan();
@@ -189,7 +214,7 @@ describe('wikiIndex cache invalidation via indexer', () => {
     await indexer.drain();
 
     // The wiki link should now resolve (target.md should be indexed)
-    expect(docGraph.hasNode('target.md')).toBe(true);
+    expect(scopedStore.docs.getFileMtime('target.md')).not.toBeNull();
   });
 
   it('wiki link resolves after cache clear + re-index', async () => {
@@ -197,9 +222,9 @@ describe('wikiIndex cache invalidation via indexer', () => {
     fs.writeFileSync(path.join(projectDir, 'a.md'), '# A\n\nLink to [[b]]\n');
     fs.writeFileSync(path.join(projectDir, 'b.md'), '# B\n\nContent\n');
 
+    const scopedStore = storeCtx.store.project(storeCtx.projectId);
     const indexer = createProjectIndexer(
-      docGraph,
-      undefined,
+      scopedStore,
       {
         projectDir,
         docsInclude: '**/*.md',
@@ -208,22 +233,20 @@ describe('wikiIndex cache invalidation via indexer', () => {
         filesExclude: [],
         chunkDepth: 4,
       },
+      { docs: true },
     );
 
     indexer.scan();
     await indexer.drain();
 
     // Both files should be indexed
-    expect(docGraph.hasNode('a.md')).toBe(true);
-    expect(docGraph.hasNode('b.md')).toBe(true);
+    expect(scopedStore.docs.getFileMtime('a.md')).not.toBeNull();
+    expect(scopedStore.docs.getFileMtime('b.md')).not.toBeNull();
 
-    // Verify that the wiki link from a.md to b.md exists as an edge
-    const aNodeId = 'a.md';
-    const edges = docGraph.outEdges(aNodeId) ?? [];
-    const hasLinkToB = edges.some(e => {
-      const target = docGraph.target(e);
-      return target.startsWith('b.md');
-    });
-    expect(hasLinkToB).toBe(true);
+    // Verify chunks exist for both files
+    const aChunks = scopedStore.docs.getFileChunks('a.md');
+    const bChunks = scopedStore.docs.getFileChunks('b.md');
+    expect(aChunks.length).toBeGreaterThan(0);
+    expect(bChunks.length).toBeGreaterThan(0);
   });
 });

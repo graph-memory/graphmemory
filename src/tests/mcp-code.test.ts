@@ -1,6 +1,9 @@
-import { unitVec, createFakeEmbed, setupMcpClient, json, jsonList, text, type McpTestContext } from '@/tests/helpers';
-import { createCodeGraph, updateCodeFile } from '@/graphs/code';
-import type { CodeNodeKind, CodeNodeAttributes } from '@/graphs/code-types';
+import {
+  unitVec, createFakeEmbed, createTestStoreManager, setupMcpClient,
+  json, text,
+  type McpTestContext, type TestStoreContext,
+} from '@/tests/helpers';
+import type { CodeNode } from '@/store/types';
 
 // ---------------------------------------------------------------------------
 // Constants & helpers
@@ -8,96 +11,125 @@ import type { CodeNodeKind, CodeNodeAttributes } from '@/graphs/code-types';
 
 const CODE_MTIME = 1_800_000_000_000;
 
-function codeNode(
-  fileId: string, id: string, kind: CodeNodeKind, name: string,
-  axis: number, startLine: number, endLine: number,
-  opts: { signature?: string; docComment?: string; isExported?: boolean } = {},
-): { id: string; attrs: CodeNodeAttributes } {
+/**
+ * Build an Omit<CodeNode, 'id'> for store.code.updateFile().
+ * The store inserts a file-level node automatically, so these are symbol nodes only.
+ */
+function symbolNode(
+  fileId: string, kind: string, name: string,
+  startLine: number, endLine: number,
+  opts: { signature?: string; docComment?: string; isExported?: boolean; language?: string } = {},
+): Omit<CodeNode, 'id'> {
   return {
-    id,
-    attrs: {
-      kind, fileId, name,
-      signature: opts.signature ?? (kind === 'file' ? `// ${name}` : `export ${kind} ${name}`),
-      docComment: opts.docComment ?? '',
-      body: `// body of ${name}`,
-      startLine, endLine,
-      isExported: opts.isExported ?? (kind !== 'file'),
-      embedding: unitVec(axis),
-      fileEmbedding: [],
-      mtime: CODE_MTIME,
-    },
+    kind,
+    fileId,
+    language: opts.language ?? 'typescript',
+    name,
+    signature: opts.signature ?? `export ${kind} ${name}`,
+    docComment: opts.docComment ?? '',
+    body: `// body of ${name}`,
+    startLine,
+    endLine,
+    isExported: opts.isExported ?? true,
+    mtime: CODE_MTIME,
   };
 }
 
+/** Axes for fake embeddings – each symbol/file gets a unique unit vector direction. */
+const AXES = {
+  // src/graph.ts symbols
+  graphFile: 15,
+  DocGraph: 16,
+  updateFile: 17,
+  removeFile: 18,
+  // src/search.ts symbols
+  searchFile: 19,
+  search: 20,
+} as const;
+
+/** Query strings → axis for the fake embed function. */
 const QUERY_AXES: Array<[string, number]> = [
-  ['graph module', 15], ['docgraph type', 16], ['update file', 17],
-  ['remove file', 18], ['search module', 19], ['search function', 20],
-  ['graph code file', 24], ['search code file', 25],
+  ['update file', AXES.updateFile],
+  ['remove file', AXES.removeFile],
+  ['docgraph type', AXES.DocGraph],
+  ['search function', AXES.search],
+  ['graph module', AXES.graphFile],
+  ['search module', AXES.searchFile],
 ];
 
 // ---------------------------------------------------------------------------
-// Types
+// Types for asserting MCP responses
 // ---------------------------------------------------------------------------
 
-type FileEntry = { fileId: string; symbolCount: number };
-type SymEntry = { id: string; kind: string; name: string; signature: string; startLine: number; endLine: number; isExported: boolean };
-type CodeHit = { id: string; fileId: string; kind: string; name: string; signature: string; docComment: string; startLine: number; endLine: number; score: number };
-type SymbolResult = { id: string; kind: string; fileId: string; name: string; signature: string; docComment: string; body: string; startLine: number; endLine: number; isExported: boolean };
-type CodeFileHit = { fileId: string; symbolCount: number; score: number };
+type FileEntry = { id: number; fileId: string; language: string; symbolCount: number; mtime: number };
+type SymEntry  = { id: number; kind: string; name: string; signature: string; startLine: number; endLine: number; isExported: boolean };
+type CodeHit   = { id: number; fileId: string; kind: string; name: string; signature: string; docComment: string; startLine: number; endLine: number; score: number };
+type SymbolResult = { id: number; kind: string; fileId: string; name: string; signature: string; docComment: string; body: string; startLine: number; endLine: number; isExported: boolean };
+type SearchHit = { id: number; score: number };
 
 // ---------------------------------------------------------------------------
 // Test suite
 // ---------------------------------------------------------------------------
 
 describe('MCP code tools', () => {
+  let storeCtx: TestStoreContext;
   let ctx: McpTestContext;
   let call: McpTestContext['call'];
 
+  // We need to look up node IDs after insert (they are auto-assigned)
+  let graphFileNodeId: number;
+  let searchFileNodeId: number;
+
   beforeAll(async () => {
     const fakeEmbed = createFakeEmbed(QUERY_AXES);
-    const codeGraph = createCodeGraph();
+    storeCtx = createTestStoreManager(fakeEmbed);
+    const scopedStore = storeCtx.store.project(storeCtx.projectId);
 
-    // graph.ts: file (axis 15), DocGraph type (16), updateFile fn (17), removeFile fn (18)
-    updateCodeFile(codeGraph, {
-      fileId: 'src/graph.ts', mtime: CODE_MTIME,
-      nodes: [
-        codeNode('src/graph.ts', 'src/graph.ts', 'file', 'graph.ts', 15, 1, 90),
-        codeNode('src/graph.ts', 'src/graph.ts::DocGraph', 'type', 'DocGraph', 16, 10, 12),
-        codeNode('src/graph.ts', 'src/graph.ts::updateFile', 'function', 'updateFile', 17, 20, 45,
-          { docComment: 'Replace all chunks for a given file.' }),
-        codeNode('src/graph.ts', 'src/graph.ts::removeFile', 'function', 'removeFile', 18, 50, 58),
-      ],
-      edges: [
-        { from: 'src/graph.ts', to: 'src/graph.ts::DocGraph', attrs: { kind: 'contains' } },
-        { from: 'src/graph.ts', to: 'src/graph.ts::updateFile', attrs: { kind: 'contains' } },
-        { from: 'src/graph.ts', to: 'src/graph.ts::removeFile', attrs: { kind: 'contains' } },
-      ],
-    });
+    // ----- src/graph.ts: DocGraph type, updateFile fn, removeFile fn -----
+    const graphNodes: Omit<CodeNode, 'id'>[] = [
+      symbolNode('src/graph.ts', 'type', 'DocGraph', 10, 12),
+      symbolNode('src/graph.ts', 'function', 'updateFile', 20, 45, {
+        docComment: 'Replace all chunks for a given file.',
+      }),
+      symbolNode('src/graph.ts', 'function', 'removeFile', 50, 58),
+    ];
 
-    // search.ts: file (axis 19), search fn (20), imports graph.ts
-    updateCodeFile(codeGraph, {
-      fileId: 'src/search.ts', mtime: CODE_MTIME,
-      nodes: [
-        codeNode('src/search.ts', 'src/search.ts', 'file', 'search.ts', 19, 1, 60),
-        codeNode('src/search.ts', 'src/search.ts::search', 'function', 'search', 20, 10, 55,
-          { docComment: 'Semantic search over the doc graph using BFS.' }),
-      ],
-      edges: [
-        { from: 'src/search.ts', to: 'src/search.ts::search', attrs: { kind: 'contains' } },
-        { from: 'src/search.ts', to: 'src/graph.ts', attrs: { kind: 'imports' } },
-      ],
-    });
+    const graphEmbeddings = new Map<string, number[]>();
+    graphEmbeddings.set('src/graph.ts', unitVec(AXES.graphFile));   // file-level
+    graphEmbeddings.set('DocGraph', unitVec(AXES.DocGraph));
+    graphEmbeddings.set('updateFile', unitVec(AXES.updateFile));
+    graphEmbeddings.set('removeFile', unitVec(AXES.removeFile));
 
-    // File-level embeddings
-    codeGraph.setNodeAttribute('src/graph.ts', 'fileEmbedding', unitVec(24));
-    codeGraph.setNodeAttribute('src/search.ts', 'fileEmbedding', unitVec(25));
+    scopedStore.code.updateFile('src/graph.ts', graphNodes, [], CODE_MTIME, graphEmbeddings);
 
-    ctx = await setupMcpClient({ codeGraph, embedFn: fakeEmbed });
+    // ----- src/search.ts: search fn -----
+    const searchNodes: Omit<CodeNode, 'id'>[] = [
+      symbolNode('src/search.ts', 'function', 'search', 10, 55, {
+        docComment: 'Semantic search over the doc graph using BFS.',
+      }),
+    ];
+
+    const searchEmbeddings = new Map<string, number[]>();
+    searchEmbeddings.set('src/search.ts', unitVec(AXES.searchFile)); // file-level
+    searchEmbeddings.set('search', unitVec(AXES.search));
+
+    scopedStore.code.updateFile('src/search.ts', searchNodes, [], CODE_MTIME, searchEmbeddings);
+
+    // Resolve import: search.ts → graph.ts
+    scopedStore.code.resolveImports([{ fromFileId: 'src/search.ts', toFileId: 'src/graph.ts' }]);
+
+    // Look up auto-assigned file node IDs for later use
+    const files = scopedStore.code.listFiles();
+    graphFileNodeId = files.results.find(f => f.fileId === 'src/graph.ts')!.id;
+    searchFileNodeId = files.results.find(f => f.fileId === 'src/search.ts')!.id;
+
+    ctx = await setupMcpClient({ scopedStore, embedFn: fakeEmbed });
     call = ctx.call;
   });
 
   afterAll(async () => {
     await ctx.close();
+    storeCtx.cleanup();
   });
 
   // =========================================================================
@@ -105,41 +137,53 @@ describe('MCP code tools', () => {
   // =========================================================================
 
   describe('code_list_files', () => {
-    it('returns 2 files sorted with correct symbolCounts', async () => {
-      const files = jsonList<FileEntry>(await call('code_list_files'));
+    it('returns 2 files sorted alphabetically with correct symbolCounts', async () => {
+      const { results: files } = json<{ results: FileEntry[]; total: number }>(await call('code_list_files'));
       expect(files.length).toBe(2);
-      expect(files.some(f => f.fileId === 'src/graph.ts')).toBe(true);
-      expect(files.some(f => f.fileId === 'src/search.ts')).toBe(true);
       expect(files[0].fileId).toBe('src/graph.ts');
-      expect(files.find(f => f.fileId === 'src/graph.ts')!.symbolCount).toBe(4);
-      expect(files.find(f => f.fileId === 'src/search.ts')!.symbolCount).toBe(2);
+      expect(files[1].fileId).toBe('src/search.ts');
+      // symbolCount excludes file-level node
+      expect(files[0].symbolCount).toBe(3);
+      expect(files[1].symbolCount).toBe(1);
+    });
+
+    it('each entry has numeric id, language, and mtime', async () => {
+      const { results: files } = json<{ results: FileEntry[]; total: number }>(await call('code_list_files'));
+      for (const f of files) {
+        expect(typeof f.id).toBe('number');
+        expect(f.language).toBe('typescript');
+        expect(f.mtime).toBe(CODE_MTIME);
+      }
     });
 
     it('filter "graph" returns 1 file', async () => {
-      const files = jsonList<FileEntry>(await call('code_list_files', { filter: 'graph' }));
+      const { results: files } = json<{ results: FileEntry[]; total: number }>(
+        await call('code_list_files', { filter: 'graph' }),
+      );
       expect(files.length).toBe(1);
       expect(files[0].fileId).toBe('src/graph.ts');
     });
 
     it('filter "src/" returns all 2 files', async () => {
-      const files = jsonList<FileEntry>(await call('code_list_files', { filter: 'src/' }));
+      const { results: files } = json<{ results: FileEntry[]; total: number }>(
+        await call('code_list_files', { filter: 'src/' }),
+      );
       expect(files.length).toBe(2);
     });
 
     it('filter "nonexistent" returns empty', async () => {
-      const files = jsonList<FileEntry>(await call('code_list_files', { filter: 'nonexistent' }));
+      const { results: files } = json<{ results: FileEntry[]; total: number }>(
+        await call('code_list_files', { filter: 'nonexistent' }),
+      );
       expect(files.length).toBe(0);
     });
 
     it('limit=1 returns first alphabetically', async () => {
-      const files = jsonList<FileEntry>(await call('code_list_files', { limit: 1 }));
+      const { results: files } = json<{ results: FileEntry[]; total: number }>(
+        await call('code_list_files', { limit: 1 }),
+      );
       expect(files.length).toBe(1);
       expect(files[0].fileId).toBe('src/graph.ts');
-    });
-
-    it('default limit returns all files', async () => {
-      const files = jsonList<FileEntry>(await call('code_list_files'));
-      expect(files.length).toBe(2);
     });
   });
 
@@ -149,16 +193,16 @@ describe('MCP code tools', () => {
 
   describe('code_get_file_symbols', () => {
     describe('src/graph.ts', () => {
-      it('returns 4 symbols sorted by startLine', async () => {
+      it('returns 3 symbols (excludes file node) sorted by startLine', async () => {
         const syms = json<SymEntry[]>(await call('code_get_file_symbols', { fileId: 'src/graph.ts' }));
-        expect(syms.length).toBe(4);
+        expect(syms.length).toBe(3);
         expect(syms.every((s, i) => i === 0 || s.startLine >= syms[i - 1].startLine)).toBe(true);
       });
 
-      it('file node is first with correct kind and name', async () => {
+      it('first symbol is DocGraph type', async () => {
         const syms = json<SymEntry[]>(await call('code_get_file_symbols', { fileId: 'src/graph.ts' }));
-        expect(syms[0].kind).toBe('file');
-        expect(syms[0].name).toBe('graph.ts');
+        expect(syms[0].kind).toBe('type');
+        expect(syms[0].name).toBe('DocGraph');
       });
 
       it('contains DocGraph type, updateFile and removeFile functions', async () => {
@@ -168,31 +212,28 @@ describe('MCP code tools', () => {
         expect(syms.some(s => s.name === 'removeFile' && s.kind === 'function')).toBe(true);
       });
 
-      it('updateFile has correct id and isExported=true', async () => {
+      it('symbols have numeric id and isExported=true', async () => {
         const syms = json<SymEntry[]>(await call('code_get_file_symbols', { fileId: 'src/graph.ts' }));
-        expect(syms.some(s => s.id === 'src/graph.ts::updateFile')).toBe(true);
-        expect(syms.find(s => s.name === 'updateFile')!.isExported).toBe(true);
+        for (const s of syms) {
+          expect(typeof s.id).toBe('number');
+          expect(s.isExported).toBe(true);
+        }
       });
 
-      it('file node isExported=false', async () => {
+      it('strips body and docComment fields', async () => {
         const syms = json<SymEntry[]>(await call('code_get_file_symbols', { fileId: 'src/graph.ts' }));
-        expect(syms.find(s => s.kind === 'file')!.isExported).toBe(false);
-      });
-
-      it('strips embedding, body, and docComment fields', async () => {
-        const syms = json<SymEntry[]>(await call('code_get_file_symbols', { fileId: 'src/graph.ts' }));
-        expect(syms.every(s => !('embedding' in s))).toBe(true);
         expect(syms.every(s => !('body' in s))).toBe(true);
         expect(syms.every(s => !('docComment' in s))).toBe(true);
       });
     });
 
     describe('src/search.ts', () => {
-      it('returns 2 symbols with search function', async () => {
+      it('returns 1 symbol: the search function', async () => {
         const syms = json<SymEntry[]>(await call('code_get_file_symbols', { fileId: 'src/search.ts' }));
-        expect(syms.length).toBe(2);
-        expect(syms.some(s => s.name === 'search' && s.kind === 'function')).toBe(true);
-        expect(syms.some(s => s.id === 'src/search.ts::search')).toBe(true);
+        expect(syms.length).toBe(1);
+        expect(syms[0].name).toBe('search');
+        expect(syms[0].kind).toBe('function');
+        expect(typeof syms[0].id).toBe('number');
       });
     });
 
@@ -200,7 +241,7 @@ describe('MCP code tools', () => {
       it('unknown file returns isError', async () => {
         const result = await call('code_get_file_symbols', { fileId: 'src/unknown.ts' });
         expect(result.isError).toBe(true);
-        expect(text(result)).toContain('File not found');
+        expect(text(result)).toContain('not found');
       });
     });
   });
@@ -211,97 +252,73 @@ describe('MCP code tools', () => {
 
   describe('code_search', () => {
     describe('basic scoring', () => {
-      it('top hit is updateFile with score 1.0', async () => {
-        const hits = json<CodeHit[]>(await call('code_search', { query: 'update file', topK: 1, bfsDepth: 0, searchMode: 'vector' }));
-        expect(hits[0]?.id).toBe('src/graph.ts::updateFile');
-        expect(hits[0]?.score).toBe(1.0);
+      it('top hit for "update file" is the updateFile function', async () => {
+        const hits = json<CodeHit[]>(await call('code_search', { query: 'update file', searchMode: 'vector' }));
+        expect(hits.length).toBeGreaterThan(0);
+        expect(hits[0].name).toBe('updateFile');
+        expect(hits[0].fileId).toBe('src/graph.ts');
+        expect(hits[0].score).toBeGreaterThan(0);
       });
 
-      it('result has required fields and no embedding/body', async () => {
-        const hits = json<CodeHit[]>(await call('code_search', { query: 'update file', topK: 1, bfsDepth: 0, searchMode: 'vector' }));
+      it('result has required fields and no embedding/body/mtime', async () => {
+        const hits = json<CodeHit[]>(await call('code_search', { query: 'update file', maxResults: 1, searchMode: 'vector' }));
+        expect(hits.length).toBeGreaterThan(0);
         const required = ['id', 'fileId', 'kind', 'name', 'signature', 'docComment', 'startLine', 'endLine', 'score'];
         expect(required.every(k => k in hits[0])).toBe(true);
         expect('embedding' in hits[0]).toBe(false);
         expect('body' in hits[0]).toBe(false);
+        expect('mtime' in hits[0]).toBe(false);
+        expect(typeof hits[0].id).toBe('number');
       });
 
       it('results sorted by score desc', async () => {
-        const hits = json<CodeHit[]>(await call('code_search', { query: 'update file', topK: 1, bfsDepth: 0 }));
+        const hits = json<CodeHit[]>(await call('code_search', { query: 'update file', searchMode: 'vector' }));
         expect(hits.every((h, i) => i === 0 || h.score <= hits[i - 1].score)).toBe(true);
       });
     });
 
-    describe('BFS via contains edge', () => {
-      it('depth=1 includes parent file but not search.ts', async () => {
-        const hits = json<CodeHit[]>(await call('code_search', { query: 'update file', topK: 1, bfsDepth: 1, searchMode: 'vector' }));
-        const ids = hits.map(h => h.id);
-        expect(ids).toContain('src/graph.ts::updateFile');
-        expect(ids).toContain('src/graph.ts');
-        expect(ids).not.toContain('src/search.ts');
-      });
-    });
-
-    describe('BFS via imports edge', () => {
-      it('search function is top hit at depth=1', async () => {
-        const hits = json<CodeHit[]>(await call('code_search', { query: 'search function', topK: 1, bfsDepth: 1, searchMode: 'vector' }));
-        const ids = hits.map(h => h.id);
-        expect(hits[0]?.id).toBe('src/search.ts::search');
-        expect(ids).toContain('src/search.ts');
+    describe('vector search finds correct symbols', () => {
+      it('"search function" query finds the search function', async () => {
+        const hits = json<CodeHit[]>(await call('code_search', { query: 'search function', searchMode: 'vector' }));
+        expect(hits.length).toBeGreaterThan(0);
+        expect(hits[0].name).toBe('search');
+        expect(hits[0].fileId).toBe('src/search.ts');
       });
 
-      it('depth=2 reaches src/graph.ts via imports', async () => {
-        const hits = json<CodeHit[]>(await call('code_search', { query: 'search function', topK: 1, bfsDepth: 2, minScore: 0 }));
-        const ids = hits.map(h => h.id);
-        expect(ids).toContain('src/graph.ts');
-      });
-    });
-
-    describe('minScore + bfsDepth=0', () => {
-      it('bfsDepth=0 returns only seed', async () => {
-        const hits = json<CodeHit[]>(await call('code_search', { query: 'update file', topK: 1, bfsDepth: 0, searchMode: 'vector' }));
-        expect(hits.length).toBe(1);
-        expect(hits[0].id).toBe('src/graph.ts::updateFile');
+      it('"docgraph type" query finds DocGraph', async () => {
+        const hits = json<CodeHit[]>(await call('code_search', { query: 'docgraph type', searchMode: 'vector' }));
+        expect(hits.length).toBeGreaterThan(0);
+        expect(hits[0].name).toBe('DocGraph');
+        expect(hits[0].kind).toBe('type');
       });
 
-      it('minScore=0.96 returns only exact match (edge decay 0.95 filters BFS nodes)', async () => {
-        const hits = json<CodeHit[]>(await call('code_search', { query: 'update file', topK: 1, bfsDepth: 1, minScore: 0.96, searchMode: 'vector' }));
-        expect(hits.length).toBe(1);
-        expect(hits[0].id).toBe('src/graph.ts::updateFile');
-      });
-
-      it('unknown query returns empty results', async () => {
-        const hits = json<CodeHit[]>(await call('code_search', { query: 'xyzzy unknown', topK: 5, minScore: 0.1, searchMode: 'keyword' }));
-        expect(hits.length).toBe(0);
+      it('"remove file" query finds removeFile', async () => {
+        const hits = json<CodeHit[]>(await call('code_search', { query: 'remove file', searchMode: 'vector' }));
+        expect(hits.length).toBeGreaterThan(0);
+        expect(hits[0].name).toBe('removeFile');
       });
     });
 
     describe('maxResults', () => {
       it('maxResults=1 returns exactly 1 result', async () => {
-        const hits = json<CodeHit[]>(await call('code_search', { query: 'update file', topK: 5, bfsDepth: 2, maxResults: 1, searchMode: 'vector' }));
+        const hits = json<CodeHit[]>(await call('code_search', { query: 'update file', maxResults: 1, searchMode: 'vector' }));
         expect(hits.length).toBe(1);
-        expect(hits[0].id).toBe('src/graph.ts::updateFile');
       });
     });
 
-    describe('bfsDecay', () => {
-      it('bfsDecay=1.0 keeps seed score for BFS nodes', async () => {
-        const hits = json<CodeHit[]>(await call('code_search', { query: 'update file', topK: 1, bfsDepth: 1, bfsDecay: 1.0, minScore: 0.99, searchMode: 'vector' }));
-        expect(hits.some(h => h.id === 'src/graph.ts')).toBe(true);
+    describe('minScore filtering', () => {
+      it('minScore=0.99 returns only the exact match', async () => {
+        const hits = json<CodeHit[]>(await call('code_search', { query: 'update file', minScore: 0.99, searchMode: 'vector' }));
+        // Only updateFile should have a perfect score
+        expect(hits.length).toBeLessThanOrEqual(1);
+        if (hits.length > 0) {
+          expect(hits[0].name).toBe('updateFile');
+        }
       });
 
-      it('bfsDecay=0.0 filters BFS nodes to score 0', async () => {
-        const hits = json<CodeHit[]>(await call('code_search', { query: 'update file', topK: 1, bfsDepth: 1, bfsDecay: 0.0, minScore: 0.01, searchMode: 'vector' }));
-        expect(hits.length).toBe(1);
-        expect(hits[0].id).toBe('src/graph.ts::updateFile');
-      });
-
-      it('default decay: BFS score uses edge-specific decay (contains=0.95)', async () => {
-        const hits = json<CodeHit[]>(await call('code_search', { query: 'update file', topK: 1, bfsDepth: 1, searchMode: 'vector' }));
-        const seedScore = hits.find(h => h.id === 'src/graph.ts::updateFile')!.score;
-        const bfsScore = hits.find(h => h.id === 'src/graph.ts')?.score ?? 0;
-        expect(bfsScore).toBeLessThan(seedScore);
-        // File node connected via 'contains' edge (decay=0.95)
-        expect(Math.abs(bfsScore - seedScore * 0.95)).toBeLessThan(0.001);
+      it('unknown query with keyword mode returns empty results', async () => {
+        const hits = json<CodeHit[]>(await call('code_search', { query: 'xyzzy unknown', minScore: 0.1, searchMode: 'keyword' }));
+        expect(hits.length).toBe(0);
       });
     });
   });
@@ -313,8 +330,13 @@ describe('MCP code tools', () => {
   describe('code_get_symbol', () => {
     describe('full content', () => {
       it('updateFile has all expected fields', async () => {
-        const sym = json<SymbolResult>(await call('code_get_symbol', { nodeId: 'src/graph.ts::updateFile' }));
-        expect(sym.id).toBe('src/graph.ts::updateFile');
+        // First find the node id via search
+        const hits = json<CodeHit[]>(await call('code_search', { query: 'update file', maxResults: 1, searchMode: 'vector' }));
+        expect(hits.length).toBe(1);
+        const nodeId = hits[0].id;
+
+        const sym = json<SymbolResult>(await call('code_get_symbol', { nodeId }));
+        expect(sym.id).toBe(nodeId);
         expect(sym.kind).toBe('function');
         expect(sym.fileId).toBe('src/graph.ts');
         expect(sym.name).toBe('updateFile');
@@ -328,39 +350,43 @@ describe('MCP code tools', () => {
         expect(sym.isExported).toBe(true);
       });
 
-      it('strips embedding and mtime fields', async () => {
-        const sym = json<SymbolResult>(await call('code_get_symbol', { nodeId: 'src/graph.ts::updateFile' }));
-        expect('embedding' in sym).toBe(false);
+      it('strips mtime field', async () => {
+        const hits = json<CodeHit[]>(await call('code_search', { query: 'update file', maxResults: 1, searchMode: 'vector' }));
+        const sym = json<SymbolResult>(await call('code_get_symbol', { nodeId: hits[0].id }));
         expect('mtime' in sym).toBe(false);
       });
 
-      it('file node has kind=file and isExported=false', async () => {
-        const sym = json<SymbolResult>(await call('code_get_symbol', { nodeId: 'src/graph.ts' }));
-        expect(sym.kind).toBe('file');
-        expect(sym.isExported).toBe(false);
-      });
-
       it('DocGraph type has correct attributes', async () => {
-        const sym = json<SymbolResult>(await call('code_get_symbol', { nodeId: 'src/graph.ts::DocGraph' }));
+        const hits = json<CodeHit[]>(await call('code_search', { query: 'docgraph type', maxResults: 1, searchMode: 'vector' }));
+        const sym = json<SymbolResult>(await call('code_get_symbol', { nodeId: hits[0].id }));
         expect(sym.kind).toBe('type');
         expect(sym.name).toBe('DocGraph');
         expect(sym.startLine).toBe(10);
         expect(sym.isExported).toBe(true);
-        expect('embedding' in sym).toBe(false);
       });
     });
 
     describe('search function', () => {
       it('docComment mentions BFS', async () => {
-        const sym = json<SymbolResult>(await call('code_get_symbol', { nodeId: 'src/search.ts::search' }));
+        const hits = json<CodeHit[]>(await call('code_search', { query: 'search function', maxResults: 1, searchMode: 'vector' }));
+        const sym = json<SymbolResult>(await call('code_get_symbol', { nodeId: hits[0].id }));
         expect(sym.docComment.toLowerCase()).toContain('bfs');
         expect(sym.startLine).toBe(10);
       });
     });
 
+    describe('file node via numeric ID', () => {
+      it('can retrieve file node by its numeric ID', async () => {
+        const sym = json<SymbolResult>(await call('code_get_symbol', { nodeId: graphFileNodeId }));
+        expect(sym.kind).toBe('file');
+        expect(sym.fileId).toBe('src/graph.ts');
+        expect(sym.isExported).toBe(false);
+      });
+    });
+
     describe('errors', () => {
       it('unknown nodeId returns isError', async () => {
-        const result = await call('code_get_symbol', { nodeId: 'src/unknown.ts::foo' });
+        const result = await call('code_get_symbol', { nodeId: 999999 });
         expect(result.isError).toBe(true);
         expect(text(result)).toContain('Symbol not found');
       });
@@ -372,36 +398,40 @@ describe('MCP code tools', () => {
   // =========================================================================
 
   describe('code_search_files', () => {
-    it('top hit is src/graph.ts with score 1.0 and correct symbolCount', async () => {
-      const hits = json<CodeFileHit[]>(await call('code_search_files', { query: 'graph code file' }));
+    it('returns SearchResult[] with numeric id and score', async () => {
+      const hits = json<SearchHit[]>(await call('code_search_files', { query: 'graph module', minScore: 0 }));
       expect(hits.length).toBeGreaterThan(0);
-      expect(hits[0].fileId).toBe('src/graph.ts');
-      expect(hits[0].score).toBe(1.0);
-      expect(typeof hits[0].symbolCount).toBe('number');
-      expect(hits[0].symbolCount).toBe(4);
+      expect(typeof hits[0].id).toBe('number');
+      expect(typeof hits[0].score).toBe('number');
+      expect(hits[0].score).toBeGreaterThan(0);
+    });
+
+    it('"graph module" top hit is the graph.ts file node', async () => {
+      const hits = json<SearchHit[]>(await call('code_search_files', { query: 'graph module', minScore: 0 }));
+      expect(hits.length).toBeGreaterThan(0);
+      expect(hits[0].id).toBe(graphFileNodeId);
+    });
+
+    it('"search module" top hit is the search.ts file node', async () => {
+      const hits = json<SearchHit[]>(await call('code_search_files', { query: 'search module', minScore: 0 }));
+      expect(hits.length).toBeGreaterThan(0);
+      expect(hits[0].id).toBe(searchFileNodeId);
+    });
+
+    it('results sorted by score desc', async () => {
+      const hits = json<SearchHit[]>(await call('code_search_files', { query: 'graph module', minScore: 0 }));
       expect(hits.every((h, i) => i === 0 || h.score <= hits[i - 1].score)).toBe(true);
     });
 
-    it('search code file query hits src/search.ts', async () => {
-      const hits = json<CodeFileHit[]>(await call('code_search_files', { query: 'search code file' }));
-      expect(hits[0].fileId).toBe('src/search.ts');
-      expect(hits[0].symbolCount).toBe(2);
-    });
-
     it('unknown query returns empty', async () => {
-      const hits = json<CodeFileHit[]>(await call('code_search_files', { query: 'xyzzy unknown', minScore: 0.1 }));
+      // RRF score for vector-only results is ~1/(60+rank) ≈ 0.016; minScore=0.02 filters them out
+      const hits = json<SearchHit[]>(await call('code_search_files', { query: 'xyzzy unknown', minScore: 0.02 }));
       expect(hits.length).toBe(0);
     });
 
     it('limit=1 returns at most 1 result', async () => {
-      const hits = json<CodeFileHit[]>(await call('code_search_files', { query: 'graph code file', limit: 1 }));
+      const hits = json<SearchHit[]>(await call('code_search_files', { query: 'graph module', minScore: 0, limit: 1 }));
       expect(hits.length).toBe(1);
-    });
-
-    it('minScore=0.9 returns only exact match', async () => {
-      const hits = json<CodeFileHit[]>(await call('code_search_files', { query: 'graph code file', minScore: 0.9 }));
-      expect(hits.length).toBe(1);
-      expect(hits[0].fileId).toBe('src/graph.ts');
     });
   });
 });

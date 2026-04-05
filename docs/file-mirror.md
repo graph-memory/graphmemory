@@ -4,15 +4,18 @@
 
 ## Overview
 
-Notes, tasks, and skills are mirrored as markdown files with YAML frontmatter:
+Notes, tasks, epics, and skills are mirrored as markdown files with YAML frontmatter:
 
-| Graph | Mirror path | File name |
+| Store | Mirror path | File name |
 |-------|------------|-----------|
-| KnowledgeGraph | `{projectDir}/.notes/{id}/` | `note.md` |
-| TaskGraph | `{projectDir}/.tasks/{id}/` | `task.md` |
-| SkillGraph | `{projectDir}/.skills/{id}/` | `skill.md` |
+| KnowledgeStore | `{projectDir}/.notes/{id}/` | `note.md` |
+| TasksStore | `{projectDir}/.tasks/{id}/` | `task.md` |
+| EpicsStore | `{projectDir}/.tasks/{id}/` | `task.md` |
+| SkillsStore | `{projectDir}/.skills/{id}/` | `skill.md` |
 
-The graph is the **primary data store**. Mirror files are a secondary representation for:
+> **Note**: Epics share the `.tasks/` mirror directory alongside tasks. Both use `task.md` as the file name.
+
+The SQLite store is the **primary data store**. Mirror files are a secondary representation for:
 - Git tracking and version control
 - IDE editing (with reverse sync)
 - Portability

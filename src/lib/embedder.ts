@@ -420,10 +420,3 @@ export async function resetEmbedder(): Promise<void> {
   _pipeCache.clear();
 }
 
-// Vectors are L2-normalized → dot product = cosine similarity
-export function cosineSimilarity(a: number[], b: number[]): number {
-  if (a.length !== b.length) return 0;
-  let dot = 0;
-  for (let i = 0; i < a.length; i++) dot += a[i] * b[i];
-  return dot;
-}

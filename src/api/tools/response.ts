@@ -28,17 +28,3 @@ export const stripNulls: Replacer = (_k, v) => (v === null ? undefined : v);
 export const stripUndefinedAndEmpty: Replacer = (_k, v) =>
   (v === undefined || (Array.isArray(v) && v.length === 0) ? undefined : v);
 
-/** Return a JSON text response for an MCP tool */
-export function toolJson(data: unknown, replacer?: Replacer) {
-  return { content: [{ type: 'text' as const, text: JSON.stringify(data, replacer, 2) }] };
-}
-
-/** Return a plain-text response for an MCP tool */
-export function toolText(text: string) {
-  return { content: [{ type: 'text' as const, text }] };
-}
-
-/** Return an error response for an MCP tool */
-export function toolError(message: string) {
-  return { content: [{ type: 'text' as const, text: message }], isError: true as const };
-}

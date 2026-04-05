@@ -4,33 +4,17 @@
  */
 
 // ---------------------------------------------------------------------------
-// Search — BM25, RRF, BFS
+// Search — RRF, scoring
 // ---------------------------------------------------------------------------
 
-export const BM25_K1  = 1.2;
-export const BM25_B   = 0.75;
-export const BM25_IDF_OFFSET = 0.5;
 export const RRF_K    = 60;
 
 export const SEARCH_TOP_K       = 5;
-export const SEARCH_BFS_DEPTH   = 1;
-export const SEARCH_MAX_RESULTS = 5;
-export const SEARCH_BFS_DECAY   = 0.8;
-
-/** Edge-specific BFS decay for code graph — stronger edges propagate more score. */
-export const CODE_EDGE_DECAY: Record<string, number> = {
-  contains:   0.95,   // file→declaration, class→method — nearly the same entity
-  extends:    0.85,   // class inheritance — strong semantic link
-  implements: 0.85,   // interface implementation — strong semantic link
-  imports:    0.70,   // cross-file import — weaker dependency
-};
 export const SEARCH_MIN_SCORE   = 0.5;
 export const SEARCH_MIN_SCORE_CODE  = 0.3;
 export const SEARCH_MIN_SCORE_FILES = 0.3;
 
 export const FILE_SEARCH_TOP_K  = 10;
-
-export const BM25_BODY_MAX_CHARS = 2000;
 
 // ---------------------------------------------------------------------------
 // Limits — sizes, counts, truncation
@@ -41,10 +25,7 @@ export const MAX_UPLOAD_SIZE    = 50 * 1024 * 1024;   // 50 MB (multer)
 export const SIGNATURE_MAX_LEN  = 300;
 
 export const LIST_LIMIT_SMALL   = 10;
-export const LIST_PAGE_SIZE     = 25;
-export const LIST_PAGE_SIZE_TABLE = 50;
 
-export const CONTENT_PREVIEW_LEN = 500;
 export const INDEXER_PREVIEW_LEN = 200;
 
 // ---------------------------------------------------------------------------
@@ -105,9 +86,3 @@ export const DEFAULT_EMBEDDING_CACHE_SIZE = 10_000;
 
 export const WIKI_MAX_DEPTH = 10;
 
-// ---------------------------------------------------------------------------
-// Graph data version — bump when changing what gets embedded, stored format,
-// or any schema change that requires re-indexing
-// ---------------------------------------------------------------------------
-
-export const GRAPH_DATA_VERSION = 2;  // v2: body in code embeddings, path normalization, hybrid file search

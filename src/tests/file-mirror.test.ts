@@ -4,7 +4,7 @@ import os from 'os';
 import { serializeMarkdown, parseMarkdown } from '@/lib/frontmatter';
 import {
   mirrorNoteCreate, mirrorTaskCreate, deleteMirrorDir,
-  sanitizeFilename, writeAttachment, deleteAttachment, getAttachmentPath,
+  sanitizeEntityId, sanitizeFilename, writeAttachment, deleteAttachment, getAttachmentPath,
 } from '@/lib/file-mirror';
 import { scanAttachments } from '@/lib/attachment-types';
 import type { RelationLike } from '@/lib/file-mirror';
@@ -211,6 +211,42 @@ describe('Attachment helpers', () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
+  describe('sanitizeEntityId', () => {
+    it('strips path traversal via basename', () => {
+      expect(sanitizeEntityId('../../etc/passwd')).toBe('passwd');
+    });
+
+    it('extracts basename from forward slashes', () => {
+      expect(sanitizeEntityId('path/to/entity')).toBe('entity');
+    });
+
+    it('extracts basename from backslashes', () => {
+      expect(sanitizeEntityId('path\\to\\entity')).toBe('entity');
+    });
+
+    it('strips null bytes', () => {
+      expect(sanitizeEntityId('entity\0id')).toBe('entityid');
+    });
+
+    it('returns empty for dot traversal names', () => {
+      expect(sanitizeEntityId('.')).toBe('');
+      expect(sanitizeEntityId('..')).toBe('');
+    });
+
+    it('preserves normal IDs', () => {
+      expect(sanitizeEntityId('my-note-123')).toBe('my-note-123');
+      expect(sanitizeEntityId('42')).toBe('42');
+    });
+
+    it('trims whitespace', () => {
+      expect(sanitizeEntityId('  entity-1  ')).toBe('entity-1');
+    });
+
+    it('handles combined malicious input', () => {
+      expect(sanitizeEntityId('../../../\0secret/entity')).toBe('entity');
+    });
+  });
+
   describe('sanitizeFilename', () => {
     it('strips path traversal via basename', () => {
       expect(sanitizeFilename('../../etc/passwd')).toBe('passwd');
@@ -265,6 +301,21 @@ describe('Attachment helpers', () => {
       // Should not write outside entity dir
       expect(fs.existsSync(path.join(tmpDir, 'evil.txt'))).toBe(false);
       expect(fs.existsSync(path.join(tmpDir, 'ent', 'attachments', 'evil.txt'))).toBe(true);
+    });
+
+    it('sanitizes entity ID on write — path traversal blocked', () => {
+      writeAttachment(tmpDir, '../../etc', 'payload.txt', Buffer.from('pwned'));
+      // Should NOT write to ../../etc — entityId is sanitized to "etc"
+      expect(fs.existsSync(path.join(tmpDir, 'etc', 'attachments', 'payload.txt'))).toBe(true);
+      expect(fs.existsSync(path.join(tmpDir, '..', '..', 'etc', 'attachments', 'payload.txt'))).toBe(false);
+    });
+
+    it('throws on empty entity ID after sanitization', () => {
+      expect(() => writeAttachment(tmpDir, '..', 'file.txt', Buffer.from('data'))).toThrow('Entity ID is empty');
+    });
+
+    it('throws on empty filename after sanitization', () => {
+      expect(() => writeAttachment(tmpDir, 'ent', '..', Buffer.from('data'))).toThrow('Attachment filename is empty');
     });
 
     it('deleteAttachment removes file and returns true', () => {

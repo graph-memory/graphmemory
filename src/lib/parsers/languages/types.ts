@@ -1,4 +1,4 @@
-import type { CodeNodeKind, CodeEdgeKind } from '@/graphs/code-types';
+import type { CodeNodeKind, CodeEdgeKind } from '@/lib/parsers/code-types';
 
 /** A symbol extracted from a source file by a language mapper. */
 export interface ExtractedSymbol {

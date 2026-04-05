@@ -7,7 +7,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createMcpServer, type McpSessionContext } from '@/api/index';
 import { SqliteStore } from '@/store';
 import { StoreManager } from '@/lib/store-manager';
-import type { EmbedFn, EmbedFns } from '@/graphs/manager-types';
+import type { EmbedFn, EmbedFns } from '@/lib/embed-types';
 import type { ProjectScopedStore } from '@/store/types';
 
 // ---------------------------------------------------------------------------

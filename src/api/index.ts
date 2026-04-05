@@ -85,7 +85,7 @@ import * as recallSkills from '@/api/tools/skills/recall-skills';
 import * as bumpSkillUsage from '@/api/tools/skills/bump-usage';
 import * as getContext from '@/api/tools/context/get-context';
 
-import type { EmbedFn, EmbedFns } from '@/graphs/manager-types';
+import type { EmbedFn, EmbedFns } from '@/lib/embed-types';
 
 export type { EmbedFn, EmbedFns };
 

@@ -4,9 +4,9 @@ import { parseMarkdown } from './frontmatter';
 import type { RelationFrontmatter } from './file-mirror';
 import type { TaskStatus, TaskPriority } from '../store/types/tasks';
 import type { SkillSource } from '../store/types/skills';
-import type { AttachmentMeta } from '../graphs/attachment-types';
+import type { AttachmentMeta } from './attachment-types';
 import type { EpicStatus } from '../store/types/epics';
-import { scanAttachments } from '../graphs/attachment-types';
+import { scanAttachments } from './attachment-types';
 import { readEvents, replayNoteEvents, replayTaskEvents, replaySkillEvents, replayEpicEvents } from './events-log';
 import { createLogger } from '@/lib/logger';
 

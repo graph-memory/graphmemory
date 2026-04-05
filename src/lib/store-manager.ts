@@ -57,7 +57,7 @@ import {
   deleteMirrorDir,
   getAttachmentPath as getAttPath,
 } from './file-mirror';
-import { scanAttachments } from '../graphs/attachment-types';
+import { scanAttachments } from './attachment-types';
 import type { MirrorWriteTracker } from './mirror-watcher';
 import { createLogger } from './logger';
 import mime from 'mime';

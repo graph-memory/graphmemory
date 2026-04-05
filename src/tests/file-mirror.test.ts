@@ -6,7 +6,7 @@ import {
   mirrorNoteCreate, mirrorTaskCreate, deleteMirrorDir,
   sanitizeFilename, writeAttachment, deleteAttachment, getAttachmentPath,
 } from '@/lib/file-mirror';
-import { scanAttachments } from '@/graphs/attachment-types';
+import { scanAttachments } from '@/lib/attachment-types';
 import type { RelationLike } from '@/lib/file-mirror';
 
 // ---------------------------------------------------------------------------

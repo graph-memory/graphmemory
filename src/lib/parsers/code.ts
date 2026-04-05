@@ -1,8 +1,8 @@
 import fs from 'fs';
 import path from 'path';
-import type { CodeNodeAttributes, CodeEdgeAttributes } from '@/graphs/code-types';
+import type { CodeNodeAttributes, CodeEdgeAttributes } from '@/lib/parsers/code-types';
 import { parseSource, getMapper, isLanguageSupported } from '@/lib/parsers/languages';
-import { getLanguage } from '@/graphs/file-lang';
+import { getLanguage } from '@/lib/file-lang';
 
 // Strip line and block comments from JSONC, preserving string contents.
 function stripJsoncComments(text: string): string {

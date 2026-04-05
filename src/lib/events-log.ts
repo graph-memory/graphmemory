@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { TaskStatus, TaskPriority } from '../store/types/tasks';
 import type { SkillSource } from '../store/types/skills';
-import type { AttachmentMeta } from '../graphs/attachment-types';
+import type { AttachmentMeta } from './attachment-types';
 import type { EpicStatus } from '../store/types/epics';
 import type { RelationFrontmatter } from './file-mirror';
 import type { ParsedNoteFile, ParsedTaskFile, ParsedSkillFile, ParsedEpicFile } from './file-import';

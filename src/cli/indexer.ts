@@ -7,7 +7,7 @@ import { parseCodeFile } from '@/lib/parsers/code';
 import { startWatcher, ALWAYS_IGNORED, type WatcherHandle } from '@/lib/watcher';
 import { INDEXER_PREVIEW_LEN } from '@/lib/defaults';
 import { normalizePathForEmbed } from '@/lib/path-utils';
-import { getLanguage, getMimeType } from '@/graphs/file-lang';
+import { getLanguage, getMimeType } from '@/lib/file-lang';
 import type { ProjectScopedStore, DocsStore, CodeStore, FilesStore, CodeNode } from '@/store/types';
 import { createLogger } from '@/lib/logger';
 

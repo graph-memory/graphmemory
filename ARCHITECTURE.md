@@ -35,21 +35,17 @@
                         │
                         ▼
      ┌──────────────────────────────────────────┐
-     │           Graphs (Graphology)            │
+     │      SQLite Store (better-sqlite3)       │
      │                                          │
-     │   DocGraph ────── markdown chunks        │
-     │   CodeGraph ───── AST symbols            │
-     │   KnowledgeGraph  user notes + facts     │
-     │   FileIndexGraph  all project files      │
-     │   TaskGraph ───── tasks + kanban          │
-     │   SkillGraph ──── reusable recipes       │
-     └──────────────────┬───────────────────────┘
-                        │
-     ┌──────────────────┴───────────────────────┐
-     │        Graph Managers (unified API)       │
+     │   DocsStore ────── markdown chunks       │
+     │   CodeStore ────── AST symbols           │
+     │   FilesStore ───── all project files     │
+     │   KnowledgeStore   user notes + facts    │
+     │   TasksStore ───── tasks + kanban        │
+     │   EpicsStore ───── epic grouping         │
+     │   SkillsStore ──── reusable recipes      │
      │                                          │
-     │   embed + CRUD + dirty + events          │
-     │   + cross-graph cleanup                  │
+     │   sqlite-vec (vector) + FTS5 (keyword)   │
      └──────────────────┬───────────────────────┘
                         │
          ┌──────────────┼──────────────┐
@@ -57,7 +53,7 @@
      ┌────────┐   ┌──────────┐   ┌──────────┐
      │  MCP   │   │ REST API │   │    UI    │
      │ Tools  │   │ Express  │   │  React   │
-     │ (58)   │   │ + WS     │   │  + Vite  │
+     │ (70)   │   │ + WS     │   │  + Vite  │
      └────────┘   └──────────┘   └──────────┘
 ```
 

@@ -26,27 +26,19 @@ graph TD
 
     Indexer --> Embed
 
-    subgraph Graphs
-        DocG["DocGraph"]
-        CodeG["CodeGraph"]
-        KG["KnowledgeGraph"]
-        TG["TaskGraph"]
-        SG["SkillGraph"]
-        FIG["FileIndexGraph"]
+    subgraph Store["SQLite Store (better-sqlite3)"]
+        DS["DocsStore"]
+        CS["CodeStore"]
+        FS["FilesStore"]
+        KS["KnowledgeStore"]
+        TS["TasksStore"]
+        ES["EpicsStore"]
+        SS["SkillsStore"]
+        VEC["sqlite-vec (vector)"]
+        FTS["FTS5 (keyword)"]
     end
 
-    Embed --> Graphs
-
-    subgraph Managers["Graph Managers"]
-        DM["DocGraphManager"]
-        CM["CodeGraphManager"]
-        KM["KnowledgeGraphManager"]
-        TM["TaskGraphManager"]
-        SM["SkillGraphManager"]
-        FM["FileIndexGraphManager"]
-    end
-
-    Graphs --> Managers
+    Embed --> Store
 
     subgraph API["API Layer"]
         MCP["MCP Tools (70)"]
@@ -55,7 +47,7 @@ graph TD
         UI["Web UI"]
     end
 
-    Managers --> API
+    Store --> API
 ```
 
 ## Layers
@@ -80,9 +72,9 @@ Entry point: `src/cli/index.ts` (Commander.js). Three main commands (`index`, `m
 
 `src/lib/embedder.ts` — named model registry with lazy loading and deduplication. Models are registered at startup but the ONNX pipeline is only created on first use, reducing peak memory. ONNX sessions use memory-optimized options (`enableCpuMemArena: false`, `enableMemPattern: false`, sequential execution). Supports local ONNX models via `@huggingface/transformers` and remote HTTP proxies. See [Embeddings](embeddings.md).
 
-### 6. Graph Layer
+### 6. Storage Layer
 
-`src/graphs/` — graph types built on Graphology (in-memory directed graph). Each graph has a Manager class providing a unified API for CRUD, search, embedding, event emission, and cross-graph cleanup. See [Graphs Overview](graphs-overview.md).
+`src/store/` — SQLite-based storage (better-sqlite3 + sqlite-vec + FTS5). One database per workspace with project-scoped stores for each graph type. See [Graphs Overview](graphs-overview.md).
 
 ### 7. API Layer
 
@@ -100,21 +92,13 @@ Three interfaces to the graph layer:
 
 ```
 src/
-  graphs/                    # Graph data layer — CRUD, persistence, manager classes
-    manager-types.ts         # GraphManagerContext, ExternalGraphs, noopContext()
-    docs.ts                  # DocGraph + DocGraphManager
-    code.ts                  # CodeGraph + CodeGraphManager
-    code-types.ts            # CodeGraph type definitions
-    knowledge.ts             # KnowledgeGraph + KnowledgeGraphManager
-    knowledge-types.ts       # KnowledgeGraph type definitions
-    file-index.ts            # FileIndexGraph + FileIndexGraphManager
-    file-index-types.ts      # FileIndexGraph type definitions
-    file-lang.ts             # Extension → language lookup + MIME via `mime` library
-    attachment-types.ts      # AttachmentMeta interface + scanAttachments() helper
-    task.ts                  # TaskGraph + TaskGraphManager
-    task-types.ts            # TaskGraph type definitions
-    skill.ts                 # SkillGraph + SkillGraphManager
-    skill-types.ts           # SkillGraph type definitions
+  store/                     # SQLite storage layer
+    types/                   # Store interfaces (Store, ProjectScopedStore, per-graph stores)
+    sqlite/                  # SQLite implementation (better-sqlite3)
+      store.ts               # SqliteStore — main implementation
+      stores/                # Per-graph stores (docs, code, files, knowledge, tasks, epics, skills, attachments)
+      lib/                   # Helpers (db, migrate, search, edge-helper, entity-helpers)
+      migrations/            # Schema migrations (PRAGMA user_version)
   cli/
     index.ts                 # Commander CLI (3 commands + users)
     indexer.ts               # ProjectIndexer (3 queues, scan, watch, drain)
@@ -135,15 +119,7 @@ src/
       docs.ts                # Markdown → Chunk[]
       code.ts                # TS/JS → ParsedFile (tree-sitter AST)
       codeblock.ts           # Symbol extraction from code blocks
-    search/
-      bm25.ts                # BM25Index class, tokenizer, RRF fusion
-      docs.ts                # Hybrid search over DocGraph
-      code.ts                # Hybrid search over CodeGraph
-      knowledge.ts           # Hybrid search over KnowledgeGraph
-      tasks.ts               # Hybrid search over TaskGraph
-      skills.ts              # Hybrid search over SkillGraph
-      files.ts               # File-level cosine search (docs/code)
-      file-index.ts          # Cosine search over FileIndexGraph
+    store-manager.ts         # StoreManager (lifecycle, project-scoped access)
   api/
     index.ts                 # createMcpServer() + HTTP transport
     rest/
@@ -162,13 +138,13 @@ src/
       docs/                  # 10 MCP doc tools
       code/                  # 5 MCP code tools
       knowledge/             # 12 MCP knowledge tools
-      tasks/                 # 14 MCP task tools
+      tasks/                 # 17 MCP task tools
       epics/                 # 8 MCP epic tools
       skills/                # 14 MCP skill tools
       file-index/            # 3 MCP file index tools
       context/               # 1 MCP context tool
   tests/
-    *.test.ts                # Jest test suites (45 suites, 1809 tests)
+    *.test.ts                # Jest test suites
     helpers.ts               # Test utilities (fakeEmbed, setupMcpClient)
     __mocks__/               # Jest mocks for ESM-only packages
     fixtures/                # Test fixtures (markdown, TypeScript)
@@ -187,9 +163,7 @@ File on disk
   → micromatch checks patterns (docs/code/exclude)
   → parser extracts structure (markdown chunks / AST symbols / file stats)
   → embedBatch() computes embeddings via transformers.js
-  → graph updated in memory (Graphology)
-  → marked dirty
-  → auto-save persists to JSON on disk (every 30s)
+  → store upsert (SQLite + FTS5 + sqlite-vec)
   → WebSocket broadcasts event to UI
 ```
 
@@ -198,9 +172,9 @@ File on disk
 ```
 Client request (MCP tool call or REST API)
   → tool handler / REST route (thin adapter)
-  → graph manager method (e.g. mgr.searchNotes(query, opts))
-  → manager computes query embedding
-  → search module: BM25 + cosine similarity + BFS expansion
+  → store method (e.g. scoped.knowledge.search(query))
+  → query embedding computed
+  → hybrid search: FTS5 keyword + sqlite-vec cosine + RRF fusion
   → results ranked by score, filtered by minScore
   → response sent back
 ```
@@ -222,11 +196,11 @@ When target file is removed from docs graph:
 ### File mirror flow
 
 ```
-Manager mutation (create/update/delete/move)
-  → graph updated (CRUD)
-  → markDirty() + emit()
+Store mutation (create/update/delete/move)
+  → SQLite write (entity + FTS5 + vec0 + edges)
+  → emit event (→ WebSocket → UI)
   → mirrorNote/mirrorTask/mirrorSkill
-      → read attrs + relations from graph
+      → read attrs + edges from store
       → serialize to markdown with YAML frontmatter
       → writeFileSync to .notes//.tasks//.skills/
   → deleteMirrorDir() on delete (removes directory + attachments)
@@ -242,7 +216,7 @@ Used in two contexts:
 - **Per-project MutationQueue** — serializes create/update/delete tool calls across parallel MCP sessions
 - **Indexer queues** — serializes per-queue indexing (docs, code, files are three independent queues)
 
-Read-only tools (list, get, search) run without queueing — Graphology's in-memory operations are synchronous reads.
+Read-only tools (list, get, search) run without queueing — SQLite WAL mode supports concurrent reads.
 
 ## Dependencies
 
@@ -252,7 +226,8 @@ Read-only tools (list, get, search) run without queueing — Graphology's in-mem
 |---------|---------|
 | `@modelcontextprotocol/sdk` | MCP server + StreamableHTTP transport |
 | `@huggingface/transformers` | Embedding models (ONNX runtime) |
-| `graphology` | In-memory directed graph |
+| `better-sqlite3` | SQLite database |
+| `sqlite-vec` | Vector similarity search extension |
 | `chokidar` | File system watching |
 | `commander` | CLI argument parsing |
 | `express` + `cors` | REST API |

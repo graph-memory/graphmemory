@@ -38,7 +38,7 @@ export function register(server: McpServer, { docs }: DocsToolDeps): void {
         preview: n.content.length > 200 ? n.content.slice(0, 200) + '\u2026' : n.content,
       }));
 
-      const clean = (_k: string, v: any) => (Array.isArray(v) && v.length === 0 ? undefined : v);
+      const clean = (_k: string, v: unknown) => (Array.isArray(v) && v.length === 0 ? undefined : v);
       return { content: [{ type: 'text', text: JSON.stringify({ results, total }, clean, 2) }] };
     },
   );

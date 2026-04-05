@@ -1,4 +1,4 @@
-import type { ExtractedSymbol, ExtractedEdge, ExtractedImport, LanguageMapper } from './types';
+import type { ExtractedSymbol, ExtractedEdge, ExtractedImport, LanguageMapper, SyntaxNode } from './types';
 import { registerLanguage } from './registry';
 import { SIGNATURE_MAX_LEN } from '@/lib/defaults';
 
@@ -6,7 +6,7 @@ import { SIGNATURE_MAX_LEN } from '@/lib/defaults';
 // Helpers
 // ---------------------------------------------------------------------------
 
-type TSNode = any; // tree-sitter Node
+type TSNode = SyntaxNode;
 
 /** Get the previous named sibling that is a JSDoc comment. */
 function getDocComment(node: TSNode): string {
@@ -139,7 +139,7 @@ function extractTypeName(node: TSNode): string | null {
 // ---------------------------------------------------------------------------
 
 /** Extract class members: methods, fields, getters/setters. */
-function extractClassMembers(body: TSNode): ExtractedSymbol[] {
+function extractClassMembers(body: TSNode | null): ExtractedSymbol[] {
   const children: ExtractedSymbol[] = [];
   if (!body) return children;
 
@@ -206,7 +206,7 @@ function extractClassSymbol(node: TSNode): ExtractedSymbol {
 }
 
 /** Extract nested named function declarations from a function body (1 level deep). */
-function extractNestedFunctions(body: TSNode): ExtractedSymbol[] {
+function extractNestedFunctions(body: TSNode | null): ExtractedSymbol[] {
   const nested: ExtractedSymbol[] = [];
   if (!body || body.type !== 'statement_block') return nested;
 

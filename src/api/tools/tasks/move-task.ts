@@ -23,7 +23,7 @@ export function register(server: McpServer, mgr: StoreManager): void {
     async ({ taskId, status, order, expectedVersion }) => {
       try {
         const task = mgr.moveTask(taskId, status, order, undefined, expectedVersion);
-        const clean = (_k: string, v: any) => (v === null ? undefined : v);
+        const clean = (_k: string, v: unknown) => (v === null ? undefined : v);
         return { content: [{ type: 'text', text: JSON.stringify({
           taskId: task.id,
           status: task.status,

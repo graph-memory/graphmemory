@@ -9,7 +9,7 @@ export type SearchMode = 'hybrid' | 'vector' | 'keyword';
 
 export interface HybridOptions {
   queryText?: string;
-  bm25Index?: BM25Index<any>;
+  bm25Index?: BM25Index<unknown>;
   searchMode?: SearchMode;
   rrfK?: number;
 }

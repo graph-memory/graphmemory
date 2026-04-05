@@ -1,5 +1,9 @@
 import type { CodeNodeKind, CodeEdgeKind } from '@/lib/parsers/code-types';
 
+/** tree-sitter AST node (web-tree-sitter WASM runtime). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- web-tree-sitter Node loaded dynamically via WASM
+export type SyntaxNode = import('web-tree-sitter').Node;
+
 /** A symbol extracted from a source file by a language mapper. */
 export interface ExtractedSymbol {
   name: string;
@@ -30,9 +34,9 @@ export interface ExtractedImport {
 /** Language mapper interface — one per language. */
 export interface LanguageMapper {
   /** Extract top-level symbols (with nested children) from a tree-sitter root node. */
-  extractSymbols(rootNode: any): ExtractedSymbol[];
+  extractSymbols(rootNode: SyntaxNode): ExtractedSymbol[];
   /** Extract extends/implements edges from a tree-sitter root node. */
-  extractEdges(rootNode: any): ExtractedEdge[];
+  extractEdges(rootNode: SyntaxNode): ExtractedEdge[];
   /** Extract relative import specifiers from a tree-sitter root node. */
-  extractImports(rootNode: any): ExtractedImport[];
+  extractImports(rootNode: SyntaxNode): ExtractedImport[];
 }

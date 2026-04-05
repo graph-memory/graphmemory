@@ -21,7 +21,7 @@ export function register(server: McpServer, mgr: StoreManager): void {
     },
     async ({ source, tag, filter, limit, offset }) => {
       const { results, total } = mgr.listSkills({ source, tag, filter, limit, offset });
-      const clean = (k: string, v: any) => (k !== '' && (v === null || (Array.isArray(v) && v.length === 0)) ? undefined : v);
+      const clean = (k: string, v: unknown) => (k !== '' && (v === null || (Array.isArray(v) && v.length === 0)) ? undefined : v);
       return { content: [{ type: 'text', text: JSON.stringify({ results, total }, clean, 2) }] };
     },
   );

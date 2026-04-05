@@ -45,8 +45,8 @@ export function createEmbedRouter(apiConfig: EmbeddingApiConfig, modelNames: { d
       } else {
         res.json({ embeddings });
       }
-    } catch (err: any) {
-      if (err?.name === 'ZodError') {
+    } catch (err) {
+      if (err instanceof Error && err.name === 'ZodError') {
         return res.status(400).json({ error: 'Validation error' });
       }
       next(err);

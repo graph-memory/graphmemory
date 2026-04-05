@@ -26,7 +26,7 @@ export function base64ToFloat32(b64: string): number[] {
  * Compress embedding fields in a graphology export object (mutates in place).
  * Converts number[] → Base64 string for fields named 'embedding' or 'fileEmbedding'.
  */
-export function compressEmbeddings(exported: any): void {
+export function compressEmbeddings(exported: { nodes?: Array<{ attributes?: Record<string, unknown> }> } | null): void {
   if (!exported?.nodes) return;
   for (const node of exported.nodes) {
     const attrs = node.attributes;
@@ -43,7 +43,7 @@ export function compressEmbeddings(exported: any): void {
  * Decompress embedding fields in a graphology export object (mutates in place).
  * Converts Base64 string → number[]. Handles both old format (number[]) and new (string).
  */
-export function decompressEmbeddings(exported: any): void {
+export function decompressEmbeddings(exported: { nodes?: Array<{ attributes?: Record<string, unknown> }> } | null): void {
   if (!exported?.nodes) return;
   for (const node of exported.nodes) {
     const attrs = node.attributes;

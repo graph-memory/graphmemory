@@ -21,8 +21,7 @@ function parseNoteId(raw: string | string[]): number {
   const id = Number(raw);
   if (!Number.isFinite(id) || id < 1 || id !== Math.floor(id)) {
     const err = new Error('Invalid note ID');
-    (err as any).status = 400;
-    throw err;
+    throw Object.assign(err, { status: 400 });
   }
   return id;
 }
@@ -68,7 +67,7 @@ export function createKnowledgeRouter(_users?: Record<string, UserConfig>): Rout
       const noteId = parseNoteId(req.params.noteId);
       const note = mgr.getNote(noteId);
       if (!note) return res.status(404).json({ error: 'Note not found' });
-      const { embedding: _, ...rest } = note as any;
+      const { embedding: _, ...rest } = note as unknown as Record<string, unknown>;
       res.json(rest);
     } catch (err) { next(err); }
   });

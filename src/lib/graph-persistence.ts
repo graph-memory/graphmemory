@@ -7,7 +7,7 @@ const log = createLogger('graph');
  * Try to read and parse a JSON file, falling back to .tmp if main file
  * is missing or corrupted (recovery from interrupted save).
  */
-export function readJsonWithTmpFallback(file: string): any | null {
+export function readJsonWithTmpFallback(file: string): unknown {
   const tmp = file + '.tmp';
 
   // If main file missing but .tmp exists, recover it

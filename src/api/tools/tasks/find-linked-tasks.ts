@@ -34,7 +34,7 @@ export function register(server: McpServer, mgr: StoreManager): void {
         return task ? { taskId: task.id, title: task.title, kind: e.kind, status: task.status, priority: task.priority, tags: task.tags } : null;
       }).filter(Boolean);
 
-      const clean = (_k: string, v: any) => (Array.isArray(v) && v.length === 0 ? undefined : v);
+      const clean = (_k: string, v: unknown) => (Array.isArray(v) && v.length === 0 ? undefined : v);
       return { content: [{ type: 'text', text: JSON.stringify(results, clean, 2) }] };
     },
   );

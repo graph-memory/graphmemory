@@ -178,8 +178,8 @@ export function createTasksRouter(_users?: Record<string, unknown>): Router {
         return p.storeManager.reorderTask(taskId, order, status);
       });
       res.json(result);
-    } catch (err: any) {
-      if (err?.message?.includes('not found')) return res.status(404).json({ error: err.message });
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('not found')) return res.status(404).json({ error: err.message });
       next(err);
     }
   });
@@ -235,8 +235,8 @@ export function createTasksRouter(_users?: Record<string, unknown>): Router {
         p.storeManager.deleteTask(taskId);
       });
       res.status(204).end();
-    } catch (err: any) {
-      if (err.status === 404) return res.status(404).json({ error: err.message });
+    } catch (err) {
+      if (err instanceof Error && (err as Error & { status?: number }).status === 404) return res.status(404).json({ error: err.message });
       next(err);
     }
   });
@@ -315,8 +315,8 @@ export function createTasksRouter(_users?: Record<string, unknown>): Router {
         p.storeManager.removeAttachment('tasks' as GraphName, taskId, task.slug, filename);
       });
       res.status(204).end();
-    } catch (err: any) {
-      if (err.status === 404) return res.status(404).json({ error: err.message });
+    } catch (err) {
+      if (err instanceof Error && (err as Error & { status?: number }).status === 404) return res.status(404).json({ error: err.message });
       next(err);
     }
   });

@@ -1,10 +1,10 @@
 import path from 'path';
 import type { LanguageMapper } from './types';
 
-export { type LanguageMapper, type ExtractedSymbol, type ExtractedEdge, type ExtractedImport } from './types';
+export { type LanguageMapper, type ExtractedSymbol, type ExtractedEdge, type ExtractedImport, type SyntaxNode } from './types';
 
 // web-tree-sitter types (loaded lazily)
-type WTSLanguage = any;
+type WTSLanguage = import('web-tree-sitter').Language;
 
 interface LanguageEntry {
   /** WASM file name, e.g. 'tree-sitter-typescript.wasm' */
@@ -27,7 +27,7 @@ const WASM_DIR = path.join(
 let _initPromise: Promise<void> | null = null;
 
 /** web-tree-sitter module (lazy loaded) */
-let _wts: any = null;
+let _wts: typeof import('web-tree-sitter') | null = null;
 
 /** Initialize the WASM parser runtime. Must be called before parsing. */
 export async function initParser(): Promise<void> {
@@ -36,7 +36,7 @@ export async function initParser(): Promise<void> {
 
   _initPromise = (async () => {
     _wts = require('web-tree-sitter');
-    await _wts.Parser.init();
+    await _wts!.Parser.init();
   })();
 
   return _initPromise;
@@ -52,7 +52,7 @@ async function loadLanguage(entry: LanguageEntry): Promise<WTSLanguage> {
   if (entry.language) return entry.language;
   await initParser();
   const wasmPath = path.join(WASM_DIR, entry.wasmFile);
-  entry.language = await _wts.Language.load(wasmPath);
+  entry.language = await _wts!.Language.load(wasmPath);
   return entry.language;
 }
 
@@ -62,10 +62,10 @@ export function isLanguageSupported(languageName: string): boolean {
 }
 
 /** Reusable parser per language (avoids WASM memory leak from creating Parser on every call). */
-const parsers = new Map<string, any>();
+const parsers = new Map<string, import('web-tree-sitter').Parser>();
 
 /** Parse source code with the appropriate language grammar. Returns tree (caller must call tree.delete() when done) or null. */
-export async function parseSource(code: string, languageName: string): Promise<any | null> {
+export async function parseSource(code: string, languageName: string): Promise<import('web-tree-sitter').Tree | null> {
   const entry = languages.get(languageName);
   if (!entry) return null;
 
@@ -73,7 +73,7 @@ export async function parseSource(code: string, languageName: string): Promise<a
   const lang = await loadLanguage(entry);
   let parser = parsers.get(languageName);
   if (!parser) {
-    parser = new _wts.Parser();
+    parser = new _wts!.Parser();
     parser.setLanguage(lang);
     parsers.set(languageName, parser);
   }

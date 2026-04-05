@@ -21,7 +21,7 @@ export function register(server: McpServer, mgr: StoreManager): void {
     },
     async ({ query, maxResults, minScore, searchMode }) => {
       const results = await mgr.searchNotes({ text: query, searchMode, maxResults, minScore });
-      const clean = (k: string, v: any) => (k !== '' && Array.isArray(v) && v.length === 0 ? undefined : v);
+      const clean = (k: string, v: unknown) => (k !== '' && Array.isArray(v) && v.length === 0 ? undefined : v);
       return { content: [{ type: 'text', text: JSON.stringify(results, clean, 2) }] };
     },
   );

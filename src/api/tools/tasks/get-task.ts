@@ -19,7 +19,7 @@ export function register(server: McpServer, mgr: StoreManager): void {
       if (!task) {
         return { content: [{ type: 'text', text: 'Task not found' }], isError: true };
       }
-      const clean = (_k: string, v: any) => (v === null || (Array.isArray(v) && v.length === 0) ? undefined : v);
+      const clean = (_k: string, v: unknown) => (v === null || (Array.isArray(v) && v.length === 0) ? undefined : v);
       return { content: [{ type: 'text', text: JSON.stringify(task, clean, 2) }] };
     },
   );

@@ -45,7 +45,7 @@ export function register(server: McpServer, { docs }: DocsToolDeps): void {
         };
       });
 
-      const clean = (_k: string, v: any) => (v === undefined || (Array.isArray(v) && v.length === 0) ? undefined : v);
+      const clean = (_k: string, v: unknown) => (v === undefined || (Array.isArray(v) && v.length === 0) ? undefined : v);
       return { content: [{ type: 'text', text: JSON.stringify(results, clean, 2) }] };
     },
   );

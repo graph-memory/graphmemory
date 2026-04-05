@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import type { CodeNodeAttributes, CodeEdgeAttributes } from '@/lib/parsers/code-types';
-import { parseSource, getMapper, isLanguageSupported } from '@/lib/parsers/languages';
+import { parseSource, getMapper, isLanguageSupported, type SyntaxNode } from '@/lib/parsers/languages';
 import { getLanguage } from '@/lib/file-lang';
 
 // Strip line and block comments from JSONC, preserving string contents.
@@ -354,7 +354,7 @@ function makeFileAttrs(
 /**
  * Extract the file-level doc comment (first JSDoc comment before any declaration).
  */
-function extractFileDocComment(rootNode: any): string {
+function extractFileDocComment(rootNode: SyntaxNode): string {
   for (const child of rootNode.children) {
     if (child.type === 'comment' && child.text.startsWith('/**')) {
       return child.text.trim();
@@ -368,7 +368,7 @@ function extractFileDocComment(rootNode: any): string {
 /**
  * Build a summary of import statements.
  */
-function buildImportSummary(rootNode: any): string {
+function buildImportSummary(rootNode: SyntaxNode): string {
   const imports: string[] = [];
   for (const child of rootNode.children) {
     if (child.type === 'import_statement') {

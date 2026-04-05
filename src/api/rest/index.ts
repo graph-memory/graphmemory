@@ -6,7 +6,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import type { ProjectManager } from '@/lib/project-manager';
-import type { ServerConfig, UserConfig, GraphName } from '@/lib/multi-config';
+import type { ServerConfig, UserConfig, GraphName, AccessLevel } from '@/lib/multi-config';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('rest');
@@ -70,7 +70,7 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
   app.use((_req, res, next) => {
     const id = (_req.headers['x-request-id'] as string) || crypto.randomUUID();
     res.setHeader('X-Request-ID', id);
-    (_req as any).requestId = id;
+    _req.requestId = id;
     next();
   });
 
@@ -283,7 +283,7 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
 
   // List projects
   app.get('/api/projects', (_req, res) => {
-    const userId = (_req as any).userId as string | undefined;
+    const userId = _req.userId;
     const projects = projectManager.listProjects().map(id => {
       const p = projectManager.getProject(id)!;
       const gc = p.config.graphConfigs;
@@ -304,7 +304,7 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
         if (!gc[gn].enabled) {
           graphs[gn] = { enabled: false, readonly: gc[gn].readonly, access: null };
           stats[gn] = 0;
-        } else if (canRead(access as any)) {
+        } else if (canRead(access as AccessLevel)) {
           graphs[gn] = { enabled: true, readonly: gc[gn].readonly, access };
           // All graphs: stats come from SQLite Store
           const storeMap: Record<string, () => number> = {
@@ -332,7 +332,7 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
       // Hide projects where the user has no read access to any enabled graph
       return GRAPH_NAMES.some(gn => {
         const g = p.graphs[gn];
-        return g && g.access !== null && canRead(g.access as any);
+        return g && g.access !== null && canRead(g.access as AccessLevel);
       });
     });
     res.json({ results: projects });
@@ -340,7 +340,7 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
 
   // List workspaces — only return workspaces where the user has access to at least one project
   app.get('/api/workspaces', (_req, res) => {
-    const userId = (_req as any).userId as string | undefined;
+    const userId = _req.userId;
     const workspaces = projectManager.listWorkspaces().map(id => {
       const ws = projectManager.getWorkspace(id)!;
       // Filter projects within workspace by user access
@@ -509,9 +509,9 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
   });
 
   // Error handler
-  app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  app.use((err: Error & { issues?: Array<{ path?: string[]; message: string }>; type?: string; status?: number }, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     if (err.name === 'ZodError') {
-      const fields = (err.issues ?? []).map((i: any) => ({
+      const fields = (err.issues ?? []).map((i) => ({
         path: i.path?.join('.'),
         message: i.message,
       }));

@@ -38,7 +38,7 @@ function isMutationTool(toolName: string): boolean {
   return MUTATION_SUFFIXES.some(s => toolName.endsWith(s));
 }
 
-export type ToolAccessChecker = (req: any, graphName: GraphName, level: 'r' | 'rw') => boolean;
+export type ToolAccessChecker = (req: Express.Request, graphName: GraphName, level: 'r' | 'rw') => boolean;
 
 /**
  * Get or create a lazy MCP client for a project instance.

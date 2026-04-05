@@ -88,7 +88,7 @@ export function attachWebSocket(
   }
 
   // Broadcast helper — filters by user access when auth is configured
-  function broadcast(event: { projectId: string; type: string; data: any }): void {
+  function broadcast(event: { projectId: string; type: string; data: Record<string, unknown> }): void {
     const msg = JSON.stringify(event);
     for (const client of wss.clients) {
       if (client.readyState !== WebSocket.OPEN) continue;
@@ -103,6 +103,7 @@ export function attachWebSocket(
   }
 
   // Subscribe to ProjectManager events (track handlers for cleanup)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- EventEmitter listener signatures vary per event
   const listeners: Array<[string, (...args: any[]) => void]> = [];
 
   const events = [
@@ -121,7 +122,7 @@ export function attachWebSocket(
   ];
 
   for (const eventType of events) {
-    const handler = (data: any) => {
+    const handler = (data: Record<string, unknown> & { projectId: string }) => {
       broadcast({ projectId: data.projectId, type: eventType, data });
     };
     projectManager.on(eventType, handler);

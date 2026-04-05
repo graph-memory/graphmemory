@@ -114,24 +114,25 @@ function createMutationServer(server: McpServer, queue: PromiseQueue, getSession
   const proxy = Object.create(server) as McpServer;
   const origRegister = server.registerTool.bind(server);
   const toolLog = createLogger('mcp-tool');
-  (proxy as any).registerTool = function(name: any, config: any, handler: any) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- proxy intercepts registerTool which has overloaded signatures
+  (proxy as unknown as Record<string, unknown>).registerTool = function(name: string, config: unknown, handler: unknown) {
     if (typeof handler === 'function') {
-      const wrapped = (...handlerArgs: any[]) => queue.enqueue(async () => {
+      const wrapped = (...handlerArgs: unknown[]) => queue.enqueue(async () => {
         const sid = getSessionId?.() ?? '?';
         toolLog.debug({ sessionId: sid, tool: name, args: handlerArgs[0] }, 'Tool call');
         const start = Date.now();
         try {
-          const result = await handler(...handlerArgs);
+          const result = await (handler as (...args: unknown[]) => unknown)(...handlerArgs);
           toolLog.debug({ sessionId: sid, tool: name, durationMs: Date.now() - start }, 'Tool result');
           return result;
         } catch (err) {
           toolLog.debug({ sessionId: sid, tool: name, durationMs: Date.now() - start, err }, 'Tool error');
           throw err;
         }
-      }) as any;
-      return (origRegister as any)(name, config, wrapped);
+      });
+      return (origRegister as Function)(name, config, wrapped);
     }
-    return (origRegister as any)(name, config, handler);
+    return (origRegister as Function)(name, config, handler);
   };
   return proxy;
 }

@@ -33,7 +33,7 @@ export function register(server: McpServer, mgr: StoreManager): void {
         return skill ? { skillId: skill.id, title: skill.title, kind: e.kind, source: skill.source, confidence: skill.confidence, tags: skill.tags } : null;
       }).filter(Boolean);
 
-      const clean = (_k: string, v: any) => (Array.isArray(v) && v.length === 0 ? undefined : v);
+      const clean = (_k: string, v: unknown) => (Array.isArray(v) && v.length === 0 ? undefined : v);
       return { content: [{ type: 'text', text: JSON.stringify(results, clean, 2) }] };
     },
   );

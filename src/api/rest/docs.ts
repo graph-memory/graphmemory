@@ -24,7 +24,7 @@ export function createDocsRouter(): Router {
   router.get('/toc/*fileId', (req, res, next) => {
     try {
       const p = getProject(req);
-      const fileId = joinParam((req.params as any).fileId);
+      const fileId = joinParam((req.params as Record<string, unknown>).fileId);
       const chunks = p.scopedStore.docs.getFileChunks(fileId);
       if (!chunks.length) return res.status(404).json({ error: 'File not found' });
       res.json({ results: chunks });

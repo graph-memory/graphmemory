@@ -9,6 +9,7 @@ declare global {
       project?: ProjectInstance;
       accessLevel?: AccessLevel;
       requestId?: string;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Zod-validated query, type varies per-route
       validatedQuery?: any;
     }
   }

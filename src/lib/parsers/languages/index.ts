@@ -1,5 +1,5 @@
 export { registerLanguage, isLanguageSupported, parseSource, getMapper, listLanguages, initParser } from './registry';
-export type { LanguageMapper, ExtractedSymbol, ExtractedEdge, ExtractedImport } from './types';
+export type { LanguageMapper, ExtractedSymbol, ExtractedEdge, ExtractedImport, SyntaxNode } from './types';
 export { registerTypescript } from './typescript';
 
 // Auto-register built-in languages on import

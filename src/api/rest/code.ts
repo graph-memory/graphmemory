@@ -29,7 +29,7 @@ export function createCodeRouter(): Router {
   router.get('/files/*fileId/symbols', (req, res, next) => {
     try {
       const p = getProject(req);
-      const fileId = joinParam((req.params as any).fileId);
+      const fileId = joinParam((req.params as Record<string, unknown>).fileId);
       const symbols = p.scopedStore.code.getFileSymbols(fileId);
       res.json({ results: symbols });
     } catch (err) { next(err); }

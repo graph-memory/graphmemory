@@ -1,6 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { StoreManager } from '@/lib/store-manager';
+import { cleanReplacer } from '@/api/tools/response';
 
 export function register(server: McpServer, mgr: StoreManager): void {
   server.registerTool(
@@ -19,8 +20,7 @@ export function register(server: McpServer, mgr: StoreManager): void {
       if (!task) {
         return { content: [{ type: 'text', text: 'Task not found' }], isError: true };
       }
-      const clean = (_k: string, v: unknown) => (v === null || (Array.isArray(v) && v.length === 0) ? undefined : v);
-      return { content: [{ type: 'text', text: JSON.stringify(task, clean, 2) }] };
+      return { content: [{ type: 'text', text: JSON.stringify(task, cleanReplacer, 2) }] };
     },
   );
 }

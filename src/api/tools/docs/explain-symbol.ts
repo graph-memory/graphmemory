@@ -2,6 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { DocsStore, DocNode } from '@/store/types';
 import { MAX_SEARCH_QUERY_LEN, LIST_LIMIT_SMALL } from '@/lib/defaults';
+import { stripUndefinedAndEmpty } from '@/api/tools/response';
 
 interface DocsToolDeps { docs: DocsStore; }
 
@@ -45,8 +46,7 @@ export function register(server: McpServer, { docs }: DocsToolDeps): void {
         };
       });
 
-      const clean = (_k: string, v: unknown) => (v === undefined || (Array.isArray(v) && v.length === 0) ? undefined : v);
-      return { content: [{ type: 'text', text: JSON.stringify(results, clean, 2) }] };
+      return { content: [{ type: 'text', text: JSON.stringify(results, stripUndefinedAndEmpty, 2) }] };
     },
   );
 }

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { StoreManager } from '@/lib/store-manager';
 import type { GraphName } from '@/store/types';
 import { MAX_LINK_KIND_LEN } from '@/lib/defaults';
+import { stripEmptyArrays } from '@/api/tools/response';
 
 export function register(server: McpServer, mgr: StoreManager): void {
   server.registerTool(
@@ -34,8 +35,7 @@ export function register(server: McpServer, mgr: StoreManager): void {
         return task ? { taskId: task.id, title: task.title, kind: e.kind, status: task.status, priority: task.priority, tags: task.tags } : null;
       }).filter(Boolean);
 
-      const clean = (_k: string, v: unknown) => (Array.isArray(v) && v.length === 0 ? undefined : v);
-      return { content: [{ type: 'text', text: JSON.stringify(results, clean, 2) }] };
+      return { content: [{ type: 'text', text: JSON.stringify(results, stripEmptyArrays, 2) }] };
     },
   );
 }

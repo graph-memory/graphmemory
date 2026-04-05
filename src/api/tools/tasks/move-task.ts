@@ -2,6 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { StoreManager } from '@/lib/store-manager';
 import { VersionConflictError } from '@/store/types';
+import { stripNulls } from '@/api/tools/response';
 
 export function register(server: McpServer, mgr: StoreManager): void {
   server.registerTool(
@@ -23,12 +24,11 @@ export function register(server: McpServer, mgr: StoreManager): void {
     async ({ taskId, status, order, expectedVersion }) => {
       try {
         const task = mgr.moveTask(taskId, status, order, undefined, expectedVersion);
-        const clean = (_k: string, v: unknown) => (v === null ? undefined : v);
         return { content: [{ type: 'text', text: JSON.stringify({
           taskId: task.id,
           status: task.status,
           completedAt: task.completedAt,
-        }, clean, 2) }] };
+        }, stripNulls, 2) }] };
       } catch (err) {
         if (err instanceof VersionConflictError) {
           return { content: [{ type: 'text', text: JSON.stringify({ error: 'version_conflict', current: err.current, expected: err.expected }) }], isError: true };

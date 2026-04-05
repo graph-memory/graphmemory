@@ -2,6 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { DocsStore } from '@/store/types';
 import { LIST_LIMIT_SMALL } from '@/lib/defaults';
+import { stripEmptyArrays } from '@/api/tools/response';
 
 interface DocsToolDeps { docs: DocsStore; }
 
@@ -38,8 +39,7 @@ export function register(server: McpServer, { docs }: DocsToolDeps): void {
         preview: n.content.length > 200 ? n.content.slice(0, 200) + '\u2026' : n.content,
       }));
 
-      const clean = (_k: string, v: unknown) => (Array.isArray(v) && v.length === 0 ? undefined : v);
-      return { content: [{ type: 'text', text: JSON.stringify({ results, total }, clean, 2) }] };
+      return { content: [{ type: 'text', text: JSON.stringify({ results, total }, stripEmptyArrays, 2) }] };
     },
   );
 }

@@ -2,6 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { StoreManager } from '@/lib/store-manager';
 import { MAX_SEARCH_QUERY_LEN } from '@/lib/defaults';
+import { stripEmptyInList } from '@/api/tools/response';
 
 export function register(server: McpServer, mgr: StoreManager): void {
   server.registerTool(
@@ -21,8 +22,7 @@ export function register(server: McpServer, mgr: StoreManager): void {
     },
     async ({ query, maxResults, minScore, searchMode }) => {
       const results = await mgr.searchNotes({ text: query, searchMode, maxResults, minScore });
-      const clean = (k: string, v: unknown) => (k !== '' && Array.isArray(v) && v.length === 0 ? undefined : v);
-      return { content: [{ type: 'text', text: JSON.stringify(results, clean, 2) }] };
+      return { content: [{ type: 'text', text: JSON.stringify(results, stripEmptyInList, 2) }] };
     },
   );
 }

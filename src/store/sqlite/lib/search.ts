@@ -1,8 +1,7 @@
 import Database from 'better-sqlite3';
 import type { SearchQuery, SearchResult } from '../../types';
 import { num } from './bigint';
-
-const RRF_K = 60;
+import { RRF_K } from '@/lib/defaults';
 
 /** Validate SQL identifier (table/column name) — alphanumeric + underscore only */
 function assertIdentifier(name: string, label: string): void {

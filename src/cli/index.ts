@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
 import readline from 'readline';
+import YAML from 'yaml';
 import { loadMultiConfig, defaultConfig, type MultiConfig } from '@/lib/multi-config';
 import { hashPassword } from '@/lib/jwt';
 import { ProjectManager } from '@/lib/project-manager';
@@ -429,35 +430,21 @@ usersCmd
       if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { process.stderr.write('Invalid email format\n'); process.exit(1); }
       if (password.length < MIN_PASSWORD_LEN) { process.stderr.write(`Password too short (min ${MIN_PASSWORD_LEN} characters)\n`); process.exit(1); }
       if (password.length > MAX_PASSWORD_LEN) { process.stderr.write(`Password too long (max ${MAX_PASSWORD_LEN})\n`); process.exit(1); }
+      if (!/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
+        process.stderr.write('Warning: consider using uppercase letters and numbers for a stronger password\n');
+      }
 
       const pwHash = await hashPassword(password);
       const apiKey = `mgm-${crypto.randomBytes(24).toString('base64url')}`;
 
-      // Build YAML block for the new user — escape quotes to prevent YAML injection
-      const safeName = name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-      const safeEmail = email.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-      const userBlock = [
-        `  ${id}:`,
-        `    name: "${safeName}"`,
-        `    email: "${safeEmail}"`,
-        `    apiKey: "${apiKey}"`,
-        `    passwordHash: "${pwHash}"`,
-      ].join('\n');
-
-      // Insert into YAML — find existing `users:` section or add one
-      if (yamlContent.includes('\nusers:')) {
-        // Append under existing users: section
-        yamlContent = yamlContent.replace(/\nusers:\s*\n/, (match) => {
-          return match + userBlock + '\n';
-        });
-      } else if (yamlContent.startsWith('users:')) {
-        yamlContent = yamlContent.replace(/^users:\s*\n/, (match) => {
-          return match + userBlock + '\n';
-        });
-      } else {
-        // Add users section at the end
-        yamlContent = yamlContent.trimEnd() + '\n\nusers:\n' + userBlock + '\n';
+      // Insert user into YAML using yaml library (safe serialization)
+      const doc = YAML.parseDocument(yamlContent);
+      if (!doc.has('users')) doc.set('users', {});
+      const usersNode = doc.get('users', true);
+      if (YAML.isMap(usersNode)) {
+        usersNode.set(id, { name, email, apiKey, passwordHash: pwHash });
       }
+      yamlContent = doc.toString();
 
       fs.writeFileSync(configPath, yamlContent, 'utf-8');
 
@@ -475,80 +462,4 @@ usersCmd
       rl.close();
     }
   });
-
-// ---------------------------------------------------------------------------
-// Command: backup — export graph data and mirror files
-// ---------------------------------------------------------------------------
-
-program
-  .command('backup')
-  .description('Backup graph data and mirror files to a tar.gz archive')
-  .requiredOption('--config <path>', 'Path to graph-memory.yaml')
-  .requiredOption('--output <path>', 'Output path for backup archive (e.g. backup.tar.gz)')
-  .action(async (opts: { config: string; output: string }) => {
-    const configPath = path.resolve(opts.config);
-    const outputPath = path.resolve(opts.output);
-
-    if (!fs.existsSync(configPath)) {
-      log.error({ configPath }, 'Config not found');
-      process.exit(1);
-    }
-
-    const mc = loadMultiConfig(configPath);
-    const dirs: Array<{ src: string; label: string }> = [];
-
-    // Collect graph data and mirror dirs from all projects
-    for (const [id, project] of mc.projects) {
-      const graphMemory = project.graphMemory ?? path.join(project.projectDir, '.graph-memory');
-      if (fs.existsSync(graphMemory)) {
-        dirs.push({ src: graphMemory, label: `${id}/.graph-memory` });
-      }
-      for (const mirrorDir of ['.notes', '.tasks', '.skills']) {
-        const dir = path.join(project.projectDir, mirrorDir);
-        if (fs.existsSync(dir)) {
-          dirs.push({ src: dir, label: `${id}/${mirrorDir}` });
-        }
-      }
-    }
-
-    // Collect workspace mirror dirs
-    for (const [id, ws] of mc.workspaces) {
-      const mirrorDir = ws.mirrorDir;
-      if (mirrorDir) {
-        for (const sub of ['.notes', '.tasks', '.skills']) {
-          const dir = path.join(mirrorDir, sub);
-          if (fs.existsSync(dir)) {
-            dirs.push({ src: dir, label: `workspace-${id}/${sub}` });
-          }
-        }
-        const graphMemory = ws.graphMemory ?? path.join(mirrorDir, '.graph-memory');
-        if (fs.existsSync(graphMemory)) {
-          dirs.push({ src: graphMemory, label: `workspace-${id}/.graph-memory` });
-        }
-      }
-    }
-
-    if (dirs.length === 0) {
-      log.error('No data directories found to backup');
-      process.exit(1);
-    }
-
-    log.info({ count: dirs.length }, 'Backing up directories');
-    for (const d of dirs) {
-      log.info({ label: d.label, src: d.src }, 'Including directory');
-    }
-
-    // Create tar.gz using Node.js child_process (tar is available on all supported platforms)
-    const { execSync } = require('child_process');
-    const tarArgs = dirs.map(d => `-C "${path.dirname(d.src)}" "${path.basename(d.src)}"`).join(' ');
-    try {
-      execSync(`tar czf "${outputPath}" ${tarArgs}`, { stdio: 'pipe' });
-      const size = fs.statSync(outputPath).size;
-      log.info({ outputPath, sizeMb: (size / 1024 / 1024).toFixed(1) }, 'Backup complete');
-    } catch (err) {
-      log.error({ err }, 'Failed to create archive');
-      process.exit(1);
-    }
-  });
-
 program.parse();

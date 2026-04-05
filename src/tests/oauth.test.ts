@@ -25,7 +25,7 @@ const USERS: Record<string, UserConfig> = {
 const SERVER_CONFIG = {
   jwtSecret: SECRET,
   accessTokenTtl: '15m', refreshTokenTtl: '7d',
-  oauth: { enabled: true, accessTokenTtl: '1h', refreshTokenTtl: '7d', authCodeTtl: '10m' },
+  oauth: { enabled: true, accessTokenTtl: '1h', refreshTokenTtl: '7d', authCodeTtl: '10m', allowedRedirectUris: [] },
 } as any;
 
 function buildApp(users: Record<string, UserConfig>, serverConfig?: any): express.Express {

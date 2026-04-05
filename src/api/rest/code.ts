@@ -11,7 +11,7 @@ function joinParam(value: unknown): string {
 export function createCodeRouter(): Router {
   const router = Router({ mergeParams: true });
 
-  function getProject(req: any) {
+  function getProject(req: Express.Request) {
     return req.project as ProjectInstance;
   }
 

@@ -88,8 +88,8 @@ async function getClient(p: ProjectInstance, pm: ProjectManager): Promise<Client
 export function createToolsRouter(projectManager: ProjectManager, checkAccess?: ToolAccessChecker): Router {
   const router = Router({ mergeParams: true });
 
-  function getProject(req: any): ProjectInstance {
-    return req.project;
+  function getProject(req: Express.Request): ProjectInstance {
+    return req.project!;
   }
 
   // List all available tools (filtered by access)

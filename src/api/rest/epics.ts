@@ -8,7 +8,7 @@ import type { UserConfig } from '@/lib/multi-config';
 export function createEpicsRouter(_users?: Record<string, UserConfig>): Router {
   const router = Router({ mergeParams: true });
 
-  function getProject(req: any) {
+  function getProject(req: Express.Request) {
     return req.project as ProjectInstance & { storeManager: NonNullable<ProjectInstance['storeManager']> };
   }
 

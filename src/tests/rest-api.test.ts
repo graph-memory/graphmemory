@@ -1067,7 +1067,7 @@ describe('REST API — Auth & ACL', () => {
         access: { admin: 'rw' },
         accessTokenTtl: '15m', refreshTokenTtl: '7d', rateLimit: { global: 0, search: 0, auth: 0 }, maxFileSize: 1048576, exclude: [],
         redis: { enabled: false, url: 'redis://localhost:6379', prefix: 'mgm:', embeddingCacheTtl: '30d' },
-        oauth: { enabled: true, accessTokenTtl: '1h', refreshTokenTtl: '7d', authCodeTtl: '10m' },
+        oauth: { enabled: true, accessTokenTtl: '1h', refreshTokenTtl: '7d', authCodeTtl: '10m', allowedRedirectUris: [] },
       },
       users: {
         admin: { name: 'Admin', email: 'admin@test.com', apiKey: 'key-admin' },
@@ -1121,7 +1121,7 @@ describe('REST API — Auth & ACL', () => {
         access: { reader: 'r' },
         accessTokenTtl: '15m', refreshTokenTtl: '7d', rateLimit: { global: 0, search: 0, auth: 0 }, maxFileSize: 1048576, exclude: [],
         redis: { enabled: false, url: 'redis://localhost:6379', prefix: 'mgm:', embeddingCacheTtl: '30d' },
-        oauth: { enabled: true, accessTokenTtl: '1h', refreshTokenTtl: '7d', authCodeTtl: '10m' },
+        oauth: { enabled: true, accessTokenTtl: '1h', refreshTokenTtl: '7d', authCodeTtl: '10m', allowedRedirectUris: [] },
       },
       users: {
         reader: { name: 'Reader', email: 'reader@test.com', apiKey: 'key-reader' },
@@ -1169,7 +1169,7 @@ describe('REST API — ACL filtering', () => {
     accessTokenTtl: '15m', refreshTokenTtl: '7d',
     rateLimit: { global: 0, search: 0, auth: 0 }, maxFileSize: 1048576, exclude: [] as string[],
     redis: { enabled: false, url: 'redis://localhost:6379', prefix: 'mgm:', embeddingCacheTtl: '30d' },
-    oauth: { enabled: true, accessTokenTtl: '1h', refreshTokenTtl: '7d', authCodeTtl: '10m' },
+    oauth: { enabled: true, accessTokenTtl: '1h', refreshTokenTtl: '7d', authCodeTtl: '10m', allowedRedirectUris: [] },
   };
 
   const users = {
@@ -1452,7 +1452,7 @@ describe('REST API — Embedding API', () => {
         defaultAccess: 'rw',
         accessTokenTtl: '15m', refreshTokenTtl: '7d', rateLimit: { global: 0, search: 0, auth: 0 }, maxFileSize: 1048576, exclude: [],
         redis: { enabled: false, url: 'redis://localhost:6379', prefix: 'mgm:', embeddingCacheTtl: '30d' },
-        oauth: { enabled: true, accessTokenTtl: '1h', refreshTokenTtl: '7d', authCodeTtl: '10m' },
+        oauth: { enabled: true, accessTokenTtl: '1h', refreshTokenTtl: '7d', authCodeTtl: '10m', allowedRedirectUris: [] },
       },
       embeddingApiModelNames: { default: EMBED_MODEL_NAME, code: EMBED_MODEL_NAME },
     });
@@ -1525,7 +1525,7 @@ describe('REST API — Embedding API', () => {
         defaultAccess: 'rw',
         accessTokenTtl: '15m', refreshTokenTtl: '7d', rateLimit: { global: 0, search: 0, auth: 0 }, maxFileSize: 1048576, exclude: [],
         redis: { enabled: false, url: 'redis://localhost:6379', prefix: 'mgm:', embeddingCacheTtl: '30d' },
-        oauth: { enabled: true, accessTokenTtl: '1h', refreshTokenTtl: '7d', authCodeTtl: '10m' },
+        oauth: { enabled: true, accessTokenTtl: '1h', refreshTokenTtl: '7d', authCodeTtl: '10m', allowedRedirectUris: [] },
       },
     });
     const res = await request(noEmbedApp).post('/api/embed').send({ texts: ['test'] });
@@ -1573,7 +1573,7 @@ describe('REST API — JWT Cookie Auth', () => {
         jwtSecret: JWT_SECRET,
         accessTokenTtl: '15m', refreshTokenTtl: '7d', rateLimit: { global: 0, search: 0, auth: 0 }, maxFileSize: 1048576, exclude: [],
         redis: { enabled: false, url: 'redis://localhost:6379', prefix: 'mgm:', embeddingCacheTtl: '30d' },
-        oauth: { enabled: true, accessTokenTtl: '1h', refreshTokenTtl: '7d', authCodeTtl: '10m' },
+        oauth: { enabled: true, accessTokenTtl: '1h', refreshTokenTtl: '7d', authCodeTtl: '10m', allowedRedirectUris: [] },
       },
       users: {
         admin: { name: 'Admin', email: 'admin@test.com', apiKey: 'key-admin', passwordHash: adminPasswordHash },
@@ -1810,13 +1810,13 @@ describe('REST API — readonly graphs', () => {
 // ---------------------------------------------------------------------------
 
 describe('CORS credentials', () => {
-  it('includes Access-Control-Allow-Credentials in zero-config mode', async () => {
+  it('omits Access-Control-Allow-Credentials in zero-config mode', async () => {
     const { project, cleanup } = createTestProject();
     const app = createRestApp(createTestManager(project));
     const res = await request(app)
       .options('/api/projects')
       .set('Origin', 'http://localhost:3000');
-    expect(res.headers['access-control-allow-credentials']).toBe('true');
+    expect(res.headers['access-control-allow-credentials']).toBeUndefined();
     cleanup();
   });
 
@@ -1832,7 +1832,7 @@ describe('CORS credentials', () => {
         defaultAccess: 'rw',
         accessTokenTtl: '15m', refreshTokenTtl: '7d', rateLimit: { global: 0, search: 0, auth: 0 }, maxFileSize: 1048576, exclude: [],
         redis: { enabled: false, url: 'redis://localhost:6379', prefix: 'mgm:', embeddingCacheTtl: '30d' },
-        oauth: { enabled: true, accessTokenTtl: '1h', refreshTokenTtl: '7d', authCodeTtl: '10m' },
+        oauth: { enabled: true, accessTokenTtl: '1h', refreshTokenTtl: '7d', authCodeTtl: '10m', allowedRedirectUris: [] },
       },
     });
     const res = await request(app)

@@ -631,13 +631,13 @@ describe('REST Index gaps', () => {
 // ---------------------------------------------------------------------------
 
 describe('CORS credentials', () => {
-  it('includes Access-Control-Allow-Credentials in zero-config mode', async () => {
+  it('omits Access-Control-Allow-Credentials in zero-config mode', async () => {
     const { project, cleanup } = createFullProject();
     const app = createRestApp(makeManager(project));
     const res = await request(app)
       .options('/api/projects')
       .set('Origin', 'http://localhost:3000');
-    expect(res.headers['access-control-allow-credentials']).toBe('true');
+    expect(res.headers['access-control-allow-credentials']).toBeUndefined();
     cleanup();
   });
 
@@ -653,7 +653,7 @@ describe('CORS credentials', () => {
         defaultAccess: 'rw',
         accessTokenTtl: '15m', refreshTokenTtl: '7d', rateLimit: { global: 0, search: 0, auth: 0 }, maxFileSize: 1048576, exclude: [],
         redis: { enabled: false, url: 'redis://localhost:6379', prefix: 'mgm:', embeddingCacheTtl: '30d' },
-        oauth: { enabled: true, accessTokenTtl: '1h', refreshTokenTtl: '7d', authCodeTtl: '10m' },
+        oauth: { enabled: true, accessTokenTtl: '1h', refreshTokenTtl: '7d', authCodeTtl: '10m', allowedRedirectUris: [] },
       },
     });
     const res = await request(app)

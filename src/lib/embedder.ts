@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import type { ModelConfig, EmbeddingConfig } from '@/lib/multi-config';
 import { createLogger } from '@/lib/logger';
-import { DEFAULT_EMBEDDING_CACHE_SIZE, REMOTE_MAX_RETRIES, REMOTE_BASE_DELAY_MS, ERROR_BODY_LIMIT } from '@/lib/defaults';
+import { DEFAULT_EMBEDDING_CACHE_SIZE, REMOTE_MAX_RETRIES, REMOTE_BASE_DELAY_MS, REMOTE_EMBED_TIMEOUT_MS, ERROR_BODY_LIMIT } from '@/lib/defaults';
 import { float32ToBase64, base64ToFloat32 } from '@/lib/embedding-codec';
 import type { RedisClientType } from 'redis';
 
@@ -276,7 +276,13 @@ async function remoteEmbed(url: string, texts: string[], apiKey?: string, remote
   for (let attempt = 0; attempt < REMOTE_MAX_RETRIES; attempt++) {
     let resp: Response;
     try {
-      resp = await fetch(url, { method: 'POST', headers, body });
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), REMOTE_EMBED_TIMEOUT_MS);
+      try {
+        resp = await fetch(url, { method: 'POST', headers, body, signal: controller.signal });
+      } finally {
+        clearTimeout(timer);
+      }
     } catch (err) {
       // Network error — retry
       if (attempt < REMOTE_MAX_RETRIES - 1) {

@@ -100,10 +100,11 @@ const rateLimitSchema = z.object({
 });
 
 const oauthSchema = z.object({
-  enabled:         z.boolean().optional(),
-  accessTokenTtl:  z.string().optional(),
-  refreshTokenTtl: z.string().optional(),
-  authCodeTtl:     z.string().optional(),
+  enabled:             z.boolean().optional(),
+  accessTokenTtl:      z.string().optional(),
+  refreshTokenTtl:     z.string().optional(),
+  authCodeTtl:         z.string().optional(),
+  allowedRedirectUris: z.array(z.string()).optional(),
 });
 
 const redisSchema = z.object({
@@ -240,6 +241,7 @@ export interface OAuthConfig {
   accessTokenTtl: string;
   refreshTokenTtl: string;
   authCodeTtl: string;
+  allowedRedirectUris: string[];
 }
 
 export interface RateLimitConfig {
@@ -375,10 +377,11 @@ const EMBEDDING_DEFAULTS: EmbeddingConfig = {
 };
 
 const OAUTH_DEFAULTS: OAuthConfig = {
-  enabled:         false,
-  accessTokenTtl:  '1h',
-  refreshTokenTtl: '7d',
-  authCodeTtl:     '10m',
+  enabled:             false,
+  accessTokenTtl:      '1h',
+  refreshTokenTtl:     '7d',
+  authCodeTtl:         '10m',
+  allowedRedirectUris: [],
 };
 
 const RATE_LIMIT_DEFAULTS: RateLimitConfig = {
@@ -517,10 +520,11 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
       embeddingCacheTtl: srv.redis?.embeddingCacheTtl ?? REDIS_DEFAULTS.embeddingCacheTtl,
     },
     oauth: {
-      enabled:         srv.oauth?.enabled         ?? OAUTH_DEFAULTS.enabled,
-      accessTokenTtl:  srv.oauth?.accessTokenTtl  ?? OAUTH_DEFAULTS.accessTokenTtl,
-      refreshTokenTtl: srv.oauth?.refreshTokenTtl ?? OAUTH_DEFAULTS.refreshTokenTtl,
-      authCodeTtl:     srv.oauth?.authCodeTtl     ?? OAUTH_DEFAULTS.authCodeTtl,
+      enabled:             srv.oauth?.enabled             ?? OAUTH_DEFAULTS.enabled,
+      accessTokenTtl:      srv.oauth?.accessTokenTtl      ?? OAUTH_DEFAULTS.accessTokenTtl,
+      refreshTokenTtl:     srv.oauth?.refreshTokenTtl     ?? OAUTH_DEFAULTS.refreshTokenTtl,
+      authCodeTtl:         srv.oauth?.authCodeTtl         ?? OAUTH_DEFAULTS.authCodeTtl,
+      allowedRedirectUris: srv.oauth?.allowedRedirectUris ?? OAUTH_DEFAULTS.allowedRedirectUris,
     },
   };
 

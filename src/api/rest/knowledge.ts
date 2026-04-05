@@ -31,9 +31,9 @@ function parseNoteId(raw: string | string[]): number {
 export function createKnowledgeRouter(_users?: Record<string, UserConfig>): Router {
   const router = Router({ mergeParams: true });
 
-  function getProject(req: any): { storeManager: StoreManager; mutationQueue: PromiseQueue } {
+  function getProject(req: Express.Request): { storeManager: StoreManager; mutationQueue: PromiseQueue } {
     const p = req.project as ProjectInstance;
-    return { storeManager: (p as any).storeManager as StoreManager, mutationQueue: p.mutationQueue };
+    return { storeManager: p.storeManager, mutationQueue: p.mutationQueue };
   }
 
   // List notes

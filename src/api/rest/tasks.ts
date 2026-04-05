@@ -15,7 +15,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX
 export function createTasksRouter(_users?: Record<string, unknown>): Router {
   const router = Router({ mergeParams: true });
 
-  function getProject(req: any) {
+  function getProject(req: Express.Request) {
     return req.project as ProjectInstance & { storeManager: StoreManager };
   }
 

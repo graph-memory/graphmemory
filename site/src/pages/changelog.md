@@ -111,7 +111,6 @@ description: Graph Memory release history and version changes.
 - **Bulk task operations** — MCP tools for bulk move, priority change, and delete
 - **Task board** — kanban with @dnd-kit drag-and-drop, column visibility chips, inline creation, quick actions
 - **Task list view** — table with sorting, bulk selection, DnD reordering, status toggle chips
-- **Backup CLI command** — `graphmemory backup` exports graph data and mirror files to tar.gz
 - **Pagination** — offset-based pagination on all list endpoints and UI pages
 - **Quick create dialog** — two-column layout with description, "Create & New" button
 - **AI Prompt Builder** — generate optimized system prompts with 14 scenarios, 8 roles, 6 styles, per-tool priority control

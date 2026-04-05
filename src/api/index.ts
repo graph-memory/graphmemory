@@ -436,6 +436,8 @@ export async function startHttpServer(
     }
   });
 
+  httpServer.on('close', () => clearInterval(sweepInterval));
+
   return new Promise((resolve) => {
     httpServer.listen(port, host, () => {
       createLogger('server').info({ host, port }, 'MCP HTTP server listening');
@@ -528,7 +530,7 @@ export async function startMultiProjectHttpServer(
     // Existing session — route to its transport
     if (sessionId && sessions.has(sessionId)) {
       const session = sessions.get(sessionId)!;
-      if (session.projectId !== projectId) {
+      if (session.projectId !== projectId || (workspaceId && session.workspaceId !== workspaceId)) {
         res.writeHead(400).end('Session belongs to a different project');
         return;
       }
@@ -652,6 +654,8 @@ export async function startMultiProjectHttpServer(
     users: restOptions?.users,
     serverConfig: restOptions?.serverConfig,
   });
+
+  httpServer.on('close', () => clearInterval(sweepInterval));
 
   return new Promise((resolve) => {
     httpServer.listen(port, host, () => {

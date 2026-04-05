@@ -52,6 +52,7 @@ export function createOAuthRouter(
   const accessTtl = oauthCfg?.accessTokenTtl ?? '1h';
   const refreshTtl = oauthCfg?.refreshTokenTtl ?? '7d';
   const authCodeTtlS = oauthCfg?.authCodeTtl ? parseTtl(oauthCfg.authCodeTtl) : 600;
+  const allowedRedirectUris = oauthCfg?.allowedRedirectUris ?? [];
   const store = sessionStore ?? new MemorySessionStore();
 
   // RFC 8414 — OAuth Authorization Server Metadata
@@ -85,6 +86,11 @@ export function createOAuthRouter(
 
     if (response_type !== 'code' || !client_id || !redirect_uri || !code_challenge || code_challenge_method !== 'S256') {
       res.status(400).json({ error: 'invalid_request', error_description: 'Missing or invalid OAuth parameters' });
+      return;
+    }
+
+    if (allowedRedirectUris.length > 0 && !allowedRedirectUris.some(u => redirect_uri.startsWith(u))) {
+      res.status(400).json({ error: 'invalid_request', error_description: 'redirect_uri not allowed' });
       return;
     }
 

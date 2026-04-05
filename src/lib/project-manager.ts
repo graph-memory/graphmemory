@@ -197,7 +197,11 @@ export class ProjectManager extends EventEmitter {
     let dbProject = store.projects.list().results.find(p => p.slug === id);
     if (!dbProject || reindex) {
       if (dbProject && reindex) {
-        // TODO: clear indexed data on reindex
+        const scoped = store.project(dbProject.id);
+        scoped.docs.clear();
+        scoped.code.clear();
+        scoped.files.clear();
+        log.info({ project: id }, 'Cleared indexed data for reindex');
       }
       if (!dbProject) {
         dbProject = store.projects.create({ slug: id, name: id, directory: config.projectDir });

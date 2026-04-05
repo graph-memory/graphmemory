@@ -20,6 +20,10 @@ export class SqliteFilesStore implements FilesStore {
     this.meta = new MetaHelper(db, `${projectId}:${GRAPH}`);
   }
 
+  clear(): void {
+    this.db.prepare('DELETE FROM files WHERE project_id = ?').run(this.projectId);
+  }
+
   // =========================================================================
   // Helpers
   // =========================================================================

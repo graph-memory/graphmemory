@@ -28,7 +28,7 @@ import { createToolsRouter } from '@/api/rest/tools';
 import { createEmbedRouter } from '@/api/rest/embed';
 import { createOAuthRouter } from '@/api/rest/oauth';
 import { scanTeamDir } from '@/lib/team';
-import { RATE_LIMIT_WINDOW_MS } from '@/lib/defaults';
+import { RATE_LIMIT_WINDOW_MS, DEFAULT_RATE_LIMIT_AUTH } from '@/lib/defaults';
 
 export interface RestAppOptions {
   serverConfig?: ServerConfig;
@@ -62,7 +62,7 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
   const hasUsers = Object.keys(users).length > 0;
 
   const corsOrigins = serverConfig?.corsOrigins;
-  app.use(cors(corsOrigins?.length ? { origin: corsOrigins, credentials: true } : { credentials: true }));
+  app.use(cors(corsOrigins?.length ? { origin: corsOrigins, credentials: true } : {}));
   app.use(express.json({ limit: '10mb' }));
   app.use(cookieParser());
 
@@ -106,8 +106,9 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
     app.use('/api/projects/:projectId/files/search', searchLimiter);
     app.use('/api/embed', searchLimiter);
   }
-  if (rl && rl.auth > 0) {
-    const authLimiter = rateLimit({ windowMs: RATE_LIMIT_WINDOW_MS, max: rl.auth, standardHeaders: true, legacyHeaders: false, message: rateLimitMsg });
+  const authRateMax = rl?.auth ?? (hasUsers ? DEFAULT_RATE_LIMIT_AUTH : 0);
+  if (authRateMax > 0) {
+    const authLimiter = rateLimit({ windowMs: RATE_LIMIT_WINDOW_MS, max: authRateMax, standardHeaders: true, legacyHeaders: false, message: rateLimitMsg });
     app.use('/api/auth/login', authLimiter);
     app.use('/api/oauth/token', authLimiter);
   }

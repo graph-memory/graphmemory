@@ -6,7 +6,7 @@ import type { SearchQuery } from '@/store/types';
 export function createDocsRouter(): Router {
   const router = Router({ mergeParams: true });
 
-  function getProject(req: any) {
+  function getProject(req: Express.Request) {
     return req.project as ProjectInstance;
   }
 

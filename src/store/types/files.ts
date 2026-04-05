@@ -34,6 +34,9 @@ export interface FileUpdateOptions {
 }
 
 export interface FilesStore extends MetaMixin {
+  /** Remove all indexed data for this project */
+  clear(): void;
+
   /** Add or update a file entry */
   updateFile(filePath: string, size: number, mtime: number, embedding: number[], opts?: FileUpdateOptions): void;
 

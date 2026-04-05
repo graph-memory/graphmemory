@@ -25,6 +25,10 @@ export class SqliteCodeStore implements CodeStore {
     this.meta = new MetaHelper(db, `${projectId}:${GRAPH}`);
   }
 
+  clear(): void {
+    this.db.prepare('DELETE FROM code WHERE project_id = ?').run(this.projectId);
+  }
+
   // =========================================================================
   // Helpers
   // =========================================================================

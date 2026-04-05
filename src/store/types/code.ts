@@ -31,6 +31,9 @@ export interface CodeFileEntry {
 }
 
 export interface CodeStore extends MetaMixin {
+  /** Remove all indexed data for this project */
+  clear(): void;
+
   /**
    * Replace all nodes for a file (called by indexer).
    * Inserts file node + symbol nodes + edges (contains, intra-file).

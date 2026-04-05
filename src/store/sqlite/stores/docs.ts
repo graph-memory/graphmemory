@@ -24,6 +24,10 @@ export class SqliteDocsStore implements DocsStore {
     this.meta = new MetaHelper(db, `${projectId}:${GRAPH}`);
   }
 
+  clear(): void {
+    this.db.prepare('DELETE FROM docs WHERE project_id = ?').run(this.projectId);
+  }
+
   // =========================================================================
   // Helpers
   // =========================================================================

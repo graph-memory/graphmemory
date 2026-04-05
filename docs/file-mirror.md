@@ -15,7 +15,7 @@ Notes, tasks, and skills are mirrored as markdown files with YAML frontmatter:
 The graph is the **primary data store**. Mirror files are a secondary representation for:
 - Git tracking and version control
 - IDE editing (with reverse sync)
-- Portability and backup
+- Portability
 
 ## Write direction: Graph → Files
 

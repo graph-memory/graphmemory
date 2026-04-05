@@ -27,6 +27,9 @@ export interface DocFileEntry {
 }
 
 export interface DocsStore extends MetaMixin {
+  /** Remove all indexed data for this project */
+  clear(): void;
+
   /** Replace all nodes for a doc file (file node + chunk nodes + edges). embeddings: ref → vector */
   updateFile(fileId: string, chunks: Omit<DocNode, 'id' | 'kind'>[], mtime: number, embeddings: Map<string, number[]>): void;
 

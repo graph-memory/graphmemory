@@ -2,18 +2,14 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { MirrorWriteTracker, scanMirrorDirs } from '@/lib/mirror-watcher';
-import { KnowledgeGraphManager, createKnowledgeGraph } from '@/graphs/knowledge';
-import { TaskGraphManager, createTaskGraph } from '@/graphs/task';
 import { PromiseQueue } from '@/lib/promise-queue';
-import { unitVec, DIM } from '@/tests/helpers';
+import { createTestStoreManager, DIM, unitVec } from '@/tests/helpers';
 
 function tmpDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'gm-mirror-'));
 }
 
 const fakeEmbed = async () => unitVec(0, DIM);
-const embedFns = { document: fakeEmbed, query: fakeEmbed };
-const noopCtx = () => ({ markDirty: () => {}, emit: () => {}, projectId: 'test' } as any);
 
 describe('MirrorWriteTracker', () => {
   it('detects own writes', () => {
@@ -65,13 +61,15 @@ describe('scanMirrorDirs', () => {
       '{"ts":"2026-01-01T00:00:00Z","op":"created","id":"n1","title":"Note","tags":[],"createdAt":1000}\n');
     fs.writeFileSync(path.join(nd, 'content.md'), 'Content');
 
-    const kg = createKnowledgeGraph();
-    const km = new KnowledgeGraphManager(kg, embedFns, noopCtx());
-    const tm = new TaskGraphManager(createTaskGraph(), embedFns, noopCtx());
-    await scanMirrorDirs({ projectDir: dir, knowledgeManager: km, taskManager: tm, mutationQueue: new PromiseQueue(), tracker: new MirrorWriteTracker() });
-
-    expect(kg.hasNode('n1')).toBe(true);
-    expect(kg.getNodeAttribute('n1', 'title')).toBe('Note');
+    const { storeManager, cleanup } = createTestStoreManager(fakeEmbed, { projectDir: dir });
+    try {
+      await scanMirrorDirs({ projectDir: dir, storeManager, skillsEnabled: false, mutationQueue: new PromiseQueue(), tracker: new MirrorWriteTracker() });
+      const note = storeManager.getNoteBySlug('n1');
+      expect(note).not.toBeNull();
+      expect(note!.title).toBe('Note');
+    } finally {
+      cleanup();
+    }
   });
 
   it('imports tasks from .tasks/', async () => {
@@ -81,19 +79,24 @@ describe('scanMirrorDirs', () => {
     fs.writeFileSync(path.join(td, 'events.jsonl'),
       '{"ts":"2026-01-01T00:00:00Z","op":"created","id":"t1","title":"Task","status":"todo","priority":"high","tags":[],"dueDate":null,"estimate":null,"completedAt":null,"createdAt":2000}\n');
 
-    const tg = createTaskGraph();
-    const km = new KnowledgeGraphManager(createKnowledgeGraph(), embedFns, noopCtx());
-    const tm = new TaskGraphManager(tg, embedFns, noopCtx());
-    await scanMirrorDirs({ projectDir: dir, knowledgeManager: km, taskManager: tm, mutationQueue: new PromiseQueue(), tracker: new MirrorWriteTracker() });
-
-    expect(tg.hasNode('t1')).toBe(true);
+    const { storeManager, cleanup } = createTestStoreManager(fakeEmbed, { projectDir: dir });
+    try {
+      await scanMirrorDirs({ projectDir: dir, storeManager, skillsEnabled: false, mutationQueue: new PromiseQueue(), tracker: new MirrorWriteTracker() });
+      const task = storeManager.getTaskBySlug('t1');
+      expect(task).not.toBeNull();
+    } finally {
+      cleanup();
+    }
   });
 
   it('handles empty project dir', async () => {
     const dir = tmpDir();
-    const km = new KnowledgeGraphManager(createKnowledgeGraph(), embedFns, noopCtx());
-    const tm = new TaskGraphManager(createTaskGraph(), embedFns, noopCtx());
-    await scanMirrorDirs({ projectDir: dir, knowledgeManager: km, taskManager: tm, mutationQueue: new PromiseQueue(), tracker: new MirrorWriteTracker() });
+    const { storeManager, cleanup } = createTestStoreManager(fakeEmbed, { projectDir: dir });
+    try {
+      await scanMirrorDirs({ projectDir: dir, storeManager, skillsEnabled: false, mutationQueue: new PromiseQueue(), tracker: new MirrorWriteTracker() });
+    } finally {
+      cleanup();
+    }
   });
 
   it('skips dirs without events.jsonl', async () => {
@@ -101,12 +104,13 @@ describe('scanMirrorDirs', () => {
     fs.mkdirSync(path.join(dir, '.notes', 'empty'), { recursive: true });
     fs.writeFileSync(path.join(dir, '.notes', 'empty', 'content.md'), 'no events');
 
-    const kg = createKnowledgeGraph();
-    const km = new KnowledgeGraphManager(kg, embedFns, noopCtx());
-    const tm = new TaskGraphManager(createTaskGraph(), embedFns, noopCtx());
-    await scanMirrorDirs({ projectDir: dir, knowledgeManager: km, taskManager: tm, mutationQueue: new PromiseQueue(), tracker: new MirrorWriteTracker() });
-
-    expect(kg.order).toBe(0);
+    const { storeManager, cleanup } = createTestStoreManager(fakeEmbed, { projectDir: dir });
+    try {
+      await scanMirrorDirs({ projectDir: dir, storeManager, skillsEnabled: false, mutationQueue: new PromiseQueue(), tracker: new MirrorWriteTracker() });
+      expect(storeManager.listNotes().total).toBe(0);
+    } finally {
+      cleanup();
+    }
   });
 
   it('skips non-directory entries in .notes/', async () => {
@@ -114,8 +118,11 @@ describe('scanMirrorDirs', () => {
     fs.mkdirSync(path.join(dir, '.notes'), { recursive: true });
     fs.writeFileSync(path.join(dir, '.notes', '.gitignore'), 'note.md\n');
 
-    const km = new KnowledgeGraphManager(createKnowledgeGraph(), embedFns, noopCtx());
-    const tm = new TaskGraphManager(createTaskGraph(), embedFns, noopCtx());
-    await scanMirrorDirs({ projectDir: dir, knowledgeManager: km, taskManager: tm, mutationQueue: new PromiseQueue(), tracker: new MirrorWriteTracker() });
+    const { storeManager, cleanup } = createTestStoreManager(fakeEmbed, { projectDir: dir });
+    try {
+      await scanMirrorDirs({ projectDir: dir, storeManager, skillsEnabled: false, mutationQueue: new PromiseQueue(), tracker: new MirrorWriteTracker() });
+    } finally {
+      cleanup();
+    }
   });
 });

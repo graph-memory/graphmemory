@@ -54,7 +54,6 @@ describe('MCP note attachment tools', () => {
     ctx = await setupMcpClient({
       storeManager: storeCtx.storeManager,
       embedFn,
-      projectDir,
     });
 
     // Create a note via tool call
@@ -143,7 +142,6 @@ describe('MCP task attachment tools', () => {
     ctx = await setupMcpClient({
       storeManager: storeCtx.storeManager,
       embedFn,
-      projectDir,
     });
 
     const res = json<{ taskId: number }>(await ctx.call('tasks_create', {
@@ -219,7 +217,6 @@ describe('MCP skill attachment tools', () => {
     ctx = await setupMcpClient({
       storeManager: storeCtx.storeManager,
       embedFn,
-      projectDir,
     });
 
     const res = json<{ skillId: number }>(await ctx.call('skills_create', {
@@ -296,7 +293,6 @@ describe('attachment filename validation', () => {
     ctx = await setupMcpClient({
       storeManager: storeCtx.storeManager,
       embedFn,
-      projectDir,
     });
     noteId = json<{ noteId: number }>(await ctx.call('notes_create', {
       title: 'Val Note', content: '',

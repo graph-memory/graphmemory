@@ -29,16 +29,6 @@ import { createEmbedRouter } from '@/api/rest/embed';
 import { createOAuthRouter } from '@/api/rest/oauth';
 import { scanTeamDir } from '@/lib/team';
 import { RATE_LIMIT_WINDOW_MS } from '@/lib/defaults';
-import type { DirectedGraph } from 'graphology';
-
-/** Count real (non-proxy) nodes in a graph. */
-function realNodeCount(graph: DirectedGraph): number {
-  let count = 0;
-  graph.forEachNode((_id, attrs) => {
-    if (!(attrs as any).proxyFor) count++;
-  });
-  return count;
-}
 
 export interface RestAppOptions {
   serverConfig?: ServerConfig;
@@ -302,10 +292,8 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
       // Hide graphs the user cannot read — don't leak enabled/readonly/stats
       const graphs: Record<string, { enabled: boolean; readonly: boolean; access: string | null }> = {};
       const stats: Record<string, number> = {};
-      // User-managed graphs still use Graphology for stats
-      const graphInstances: Record<string, any> = {
-        knowledge: p.knowledgeGraph, tasks: p.taskGraph, skills: p.skillGraph,
-      };
+      // User-managed graphs use StoreManager for stats
+      const scoped = p.storeManager.scoped;
       for (const gn of GRAPH_NAMES) {
         let access: string | null = serverConfig
           ? resolveAccess(userId, gn, p.config, serverConfig, ws?.config)
@@ -317,8 +305,16 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
           stats[gn] = 0;
         } else if (canRead(access as any)) {
           graphs[gn] = { enabled: true, readonly: gc[gn].readonly, access };
-          // Indexed graphs: stats come from SQLite; user-managed: from Graphology
-          stats[gn] = graphInstances[gn] ? realNodeCount(graphInstances[gn]) : 0;
+          // All graphs: stats come from SQLite Store
+          const storeMap: Record<string, () => number> = {
+            docs: () => scoped.docs.listFiles(undefined, { limit: 0 }).total,
+            code: () => scoped.code.listFiles(undefined, { limit: 0 }).total,
+            files: () => scoped.files.listFiles({ limit: 0 }).total,
+            knowledge: () => scoped.knowledge.list({ limit: 0 }).total,
+            tasks: () => scoped.tasks.list({ limit: 0 }).total,
+            skills: () => scoped.skills.list({ limit: 0 }).total,
+          };
+          stats[gn] = storeMap[gn] ? storeMap[gn]() : 0;
         } else {
           graphs[gn] = { enabled: true, readonly: gc[gn].readonly, access: 'deny' };
           stats[gn] = 0;
@@ -368,21 +364,23 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
     const userId = req.userId;
     const ws = p.workspaceId ? projectManager.getWorkspace(p.workspaceId) : undefined;
 
-    const graphData: Record<string, { graph: any; key: string }> = {
-      knowledge: { graph: p.knowledgeGraph, key: 'knowledge' },
-      tasks:     { graph: p.taskGraph,      key: 'tasks' },
-      skills:    { graph: p.skillGraph,     key: 'skills' },
+    const scoped = p.storeManager.scoped;
+    const graphNames = ['knowledge', 'tasks', 'skills'] as const;
+    const countFns: Record<string, () => number> = {
+      knowledge: () => scoped.knowledge.list({ limit: 0 }).total,
+      tasks: () => scoped.tasks.list({ limit: 0 }).total,
+      skills: () => scoped.skills.list({ limit: 0 }).total,
     };
 
     const result: Record<string, { nodes: number; edges: number } | null> = {};
-    for (const [outKey, { graph, key: graphName }] of Object.entries(graphData)) {
+    for (const graphName of graphNames) {
       const access = serverConfig
-        ? resolveAccess(userId, graphName as any, p.config, serverConfig, ws?.config)
+        ? resolveAccess(userId, graphName, p.config, serverConfig, ws?.config)
         : 'rw';
       if (!canRead(access)) {
-        result[outKey] = null;
+        result[graphName] = null;
       } else {
-        result[outKey] = graph ? { nodes: realNodeCount(graph), edges: graph.size } : null;
+        result[graphName] = { nodes: countFns[graphName](), edges: 0 };
       }
     }
 

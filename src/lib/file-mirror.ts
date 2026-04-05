@@ -2,9 +2,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import crypto from 'crypto';
 import { serializeMarkdown } from './frontmatter';
-import type { KnowledgeNodeAttributes } from '../graphs/knowledge-types';
-import type { TaskNodeAttributes } from '../graphs/task-types';
-import type { SkillNodeAttributes } from '../graphs/skill-types';
+import type { TaskStatus, TaskPriority } from '../store/types/tasks';
+import type { SkillSource } from '../store/types/skills';
 import {
   appendEvent,
   ensureGitignore,
@@ -63,7 +62,11 @@ function buildOutgoingRelations(entityId: string, relations: RelationLike[]): Re
 // Note mirror functions
 // ---------------------------------------------------------------------------
 
-type NoteAttrs = Pick<KnowledgeNodeAttributes, 'title' | 'content' | 'tags' | 'createdAt' | 'updatedAt' | 'version' | 'createdBy' | 'updatedBy'>;
+interface NoteAttrs {
+  title: string; content: string; tags: string[];
+  createdAt: number; updatedAt: number; version: number;
+  createdBy?: string; updatedBy?: string;
+}
 
 /** Append a 'created' event + write content.md + regenerate note.md snapshot. */
 export function mirrorNoteCreate(
@@ -168,7 +171,13 @@ function _regenerateNoteSnapshot(
 // Task mirror functions
 // ---------------------------------------------------------------------------
 
-type TaskAttrs = Pick<TaskNodeAttributes, 'title' | 'description' | 'status' | 'priority' | 'tags' | 'order' | 'assignee' | 'dueDate' | 'estimate' | 'completedAt' | 'createdAt' | 'updatedAt' | 'version' | 'createdBy' | 'updatedBy'>;
+interface TaskAttrs {
+  title: string; description: string; status: TaskStatus; priority: TaskPriority;
+  tags: string[]; order: number; assignee: string | null;
+  dueDate: number | null; estimate: number | null; completedAt: number | null;
+  createdAt: number; updatedAt: number; version: number;
+  createdBy?: string; updatedBy?: string;
+}
 
 /** Append a 'created' event + write description.md + regenerate task.md snapshot. */
 export function mirrorTaskCreate(
@@ -290,7 +299,13 @@ function _regenerateTaskSnapshot(
 // Skill mirror functions
 // ---------------------------------------------------------------------------
 
-type SkillAttrs = Pick<SkillNodeAttributes, 'title' | 'description' | 'steps' | 'triggers' | 'inputHints' | 'filePatterns' | 'tags' | 'source' | 'confidence' | 'usageCount' | 'lastUsedAt' | 'createdAt' | 'updatedAt' | 'version' | 'createdBy' | 'updatedBy'>;
+interface SkillAttrs {
+  title: string; description: string; steps: string[]; triggers: string[];
+  inputHints: string[]; filePatterns: string[]; tags: string[];
+  source: SkillSource; confidence: number; usageCount: number; lastUsedAt: number | null;
+  createdAt: number; updatedAt: number; version: number;
+  createdBy?: string; updatedBy?: string;
+}
 
 /** Append a 'created' event + write description.md + regenerate skill.md snapshot. */
 export function mirrorSkillCreate(

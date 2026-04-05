@@ -11,10 +11,7 @@ import { createRestApp } from '@/api/rest/index';
 import { attachWebSocket } from '@/api/rest/websocket';
 import { resolveUserFromBearer, resolveAccess, canWrite, canRead } from '@/lib/access';
 import { MAX_BODY_SIZE, SESSION_SWEEP_INTERVAL_MS } from '@/lib/defaults';
-import { GRAPH_NAMES, type GraphName, type AccessLevel, type UserConfig } from '@/lib/multi-config';
-import type { KnowledgeGraph } from '@/graphs/knowledge-types';
-import type { TaskGraph } from '@/graphs/task-types';
-import type { SkillGraph } from '@/graphs/skill-types';
+import { GRAPH_NAMES, type GraphName, type AccessLevel } from '@/lib/multi-config';
 import type { StoreManager } from '@/lib/store-manager';
 import type { ProjectScopedStore } from '@/store/types';
 import * as listTopics from '@/api/tools/docs/list-topics';
@@ -166,20 +163,12 @@ function buildInstructions(ctx: McpSessionContext): string {
  * @param mutationQueue  Optional PromiseQueue to serialize mutation tool handlers.
  */
 export function createMcpServer(
-  _docGraph?: unknown,
-  _codeGraph?: unknown,
-  _knowledgeGraph?: KnowledgeGraph,
-  _fileIndexGraph?: unknown,
-  _taskGraph?: TaskGraph,
   embedFn?: EmbedFn | Partial<EmbedFnMap>,
   mutationQueue?: PromiseQueue,
-  _projectDir?: string,
-  _skillGraph?: SkillGraph,
   sessionContext?: McpSessionContext,
   readonlyGraphs?: Set<string>,
   userAccess?: Map<string, AccessLevel>,
   getSessionId?: () => string | undefined,
-  _users?: Record<string, UserConfig>,
   storeManager?: StoreManager,
   scopedStore?: ProjectScopedStore,
 ): McpServer {
@@ -213,7 +202,6 @@ export function createMcpServer(
   );
   // Mutation tools are registered through mutServer to serialize concurrent writes
   const mutServer = mutationQueue ? createMutationServer(server, mutationQueue, getSessionId) : server;
-  void _users; // reserved for future author resolution wiring
 
   // Check if mutation tools should be registered for a graph:
   // - graph must not be readonly (global setting — tools hidden for all)
@@ -378,14 +366,7 @@ export async function startHttpServer(
   host: string,
   port: number,
   sessionTimeoutMs: number,
-  _docGraph?: unknown,
-  _codeGraph?: unknown,
-  knowledgeGraph?: KnowledgeGraph,
-  _fileIndexGraph?: unknown,
-  taskGraph?: TaskGraph,
   embedFn?: EmbedFn | Partial<EmbedFnMap>,
-  projectDir?: string,
-  skillGraph?: SkillGraph,
   sessionContext?: McpSessionContext,
   readonlyGraphs?: Set<string>,
 ): Promise<http.Server> {
@@ -447,7 +428,7 @@ export async function startHttpServer(
         const sid = transport.sessionId;
         if (sid) sessions.delete(sid);
       };
-      const mcpServer = createMcpServer(undefined, undefined, knowledgeGraph, undefined, taskGraph, embedFn, undefined, projectDir, skillGraph, sessionContext, readonlyGraphs, undefined, () => transport.sessionId);
+      const mcpServer = createMcpServer(embedFn, undefined, sessionContext, readonlyGraphs, undefined, () => transport.sessionId);
       await mcpServer.connect(transport);
       await transport.handleRequest(req, res, body);
     } catch (err) {
@@ -649,20 +630,12 @@ export async function startMultiProjectHttpServer(
     };
 
     const mcpServer = createMcpServer(
-      undefined, // docGraph (removed — indexed graphs use Store)
-      undefined, // codeGraph
-      project.knowledgeGraph,
-      undefined, // fileIndexGraph
-      project.taskGraph,
       project.embedFns,
       project.mutationQueue,
-      project.config.projectDir,
-      project.skillGraph,
       sessionCtx,
       mcpReadonlyGraphs,
       mcpUserAccess,
       () => transport.sessionId,
-      users,
       project.storeManager,
       project.scopedStore,
     );

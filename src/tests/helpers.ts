@@ -7,9 +7,6 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createMcpServer, type McpSessionContext } from '@/api/index';
 import { SqliteStore } from '@/store';
 import { StoreManager } from '@/lib/store-manager';
-import type { KnowledgeGraph } from '@/graphs/knowledge-types';
-import type { TaskGraph } from '@/graphs/task-types';
-import type { SkillGraph } from '@/graphs/skill-types';
 import type { EmbedFn, EmbedFns } from '@/graphs/manager-types';
 import type { ProjectScopedStore } from '@/store/types';
 
@@ -124,12 +121,8 @@ export interface McpTestContext {
 }
 
 export async function setupMcpClient(opts: {
-  knowledgeGraph?: KnowledgeGraph;
-  taskGraph?: TaskGraph;
-  skillGraph?: SkillGraph;
   embedFn?: (query: string) => Promise<number[]>;
   sessionContext?: McpSessionContext;
-  projectDir?: string;
   storeManager?: StoreManager;
   readonlyGraphs?: Set<string>;
   userAccess?: Map<string, string>;
@@ -137,19 +130,11 @@ export async function setupMcpClient(opts: {
 }): Promise<McpTestContext> {
   const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
   const server = createMcpServer(
-    undefined, // docGraph (removed)
-    undefined, // codeGraph (removed)
-    opts.knowledgeGraph,
-    undefined, // fileIndexGraph (removed)
-    opts.taskGraph,
     opts.embedFn,
     undefined,
-    opts.projectDir,
-    opts.skillGraph,
     opts.sessionContext,
     opts.readonlyGraphs,
     opts.userAccess as any,
-    undefined,
     undefined,
     opts.storeManager,
     opts.scopedStore,

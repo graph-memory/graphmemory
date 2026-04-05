@@ -1,17 +1,15 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import chokidar from 'chokidar';
-import type { KnowledgeGraphManager } from '../graphs/knowledge';
-import type { TaskGraphManager } from '../graphs/task';
-import type { SkillGraphManager } from '../graphs/skill';
+import type { StoreManager } from './store-manager';
 import type { PromiseQueue } from './promise-queue';
 import { parseNoteDir, parseTaskDir, parseSkillDir } from './file-import';
 import { appendEvent } from './events-log';
 import { parseMarkdown } from './frontmatter';
 import type { WatcherHandle } from './watcher';
 import { MIRROR_STALE_MS, MIRROR_MAX_ENTRIES, MIRROR_MTIME_TOLERANCE_MS } from '@/lib/defaults';
-import type { TaskStatus, TaskPriority } from '../graphs/task-types';
-import type { SkillSource } from '../graphs/skill-types';
+import type { TaskStatus, TaskPriority } from '../store/types/tasks';
+import type { SkillSource } from '../store/types/skills';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('mirror-watcher');
@@ -63,9 +61,8 @@ export class MirrorWriteTracker {
 
 export interface MirrorWatcherConfig {
   projectDir: string;
-  knowledgeManager: KnowledgeGraphManager;
-  taskManager: TaskGraphManager;
-  skillManager?: SkillGraphManager;
+  storeManager: StoreManager;
+  skillsEnabled: boolean;
   mutationQueue: PromiseQueue;
   tracker: MirrorWriteTracker;
 }
@@ -226,7 +223,7 @@ function parseSkillSnapshot(filePath: string): {
  *
  * File types watched:
  * - events.jsonl changes → replay all events → importFromFile (e.g., after git pull)
- * - description.md / content.md changes → update description in graph (no new event)
+ * - description.md / content.md changes → update description in store (no new event)
  * - task.md / note.md / skill.md user edits → detect delta → append update events → importFromFile
  * - attachments/* → syncAttachments
  * - directory removal → deleteFromFile
@@ -234,6 +231,7 @@ function parseSkillSnapshot(filePath: string): {
  * Returns a handle to close the watcher.
  */
 export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
+  const { storeManager: mgr } = config;
   const notesDir = path.join(config.projectDir, '.notes');
   const tasksDir = path.join(config.projectDir, '.tasks');
   const skillsDir = path.join(config.projectDir, '.skills');
@@ -242,7 +240,7 @@ export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
   const whenReady = new Promise<void>(resolve => { resolveReady = resolve; });
 
   const watchPaths = [notesDir, tasksDir];
-  if (config.skillManager) watchPaths.push(skillsDir);
+  if (config.skillsEnabled) watchPaths.push(skillsDir);
 
   const watcher = chokidar.watch(watchPaths, {
     ignoreInitial: true,
@@ -262,22 +260,21 @@ export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
     if (type === 'note-events') {
       config.mutationQueue.enqueue(async () => {
         const parsed = parseNoteDir(entityDir);
-        if (parsed) await config.knowledgeManager.importFromFile(parsed);
+        if (parsed) await mgr.importNoteFromFile(parsed);
       }).catch(err => log.error({ err }, 'note events import error'));
       return;
     }
     if (type === 'task-events') {
       config.mutationQueue.enqueue(async () => {
         const parsed = parseTaskDir(entityDir);
-        if (parsed) await config.taskManager.importFromFile(parsed);
+        if (parsed) await mgr.importTaskFromFile(parsed);
       }).catch(err => log.error({ err }, 'task events import error'));
       return;
     }
-    if (type === 'skill-events' && config.skillManager) {
-      const mgr = config.skillManager;
+    if (type === 'skill-events' && config.skillsEnabled) {
       config.mutationQueue.enqueue(async () => {
         const parsed = parseSkillDir(entityDir);
-        if (parsed) await mgr.importFromFile(parsed);
+        if (parsed) await mgr.importSkillFromFile(parsed);
       }).catch(err => log.error({ err }, 'skill events import error'));
       return;
     }
@@ -285,33 +282,31 @@ export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
     // --- content.md / description.md changed (human-edited in IDE) ---
     if (type === 'note-content') {
       config.mutationQueue.enqueue(async () => {
-        // Re-parse from directory to pick up new content + existing events
         const parsed = parseNoteDir(entityDir);
-        if (parsed) await config.knowledgeManager.importFromFile(parsed);
+        if (parsed) await mgr.importNoteFromFile(parsed);
       }).catch(err => log.error({ err }, 'note content import error'));
       return;
     }
     if (type === 'task-content') {
       config.mutationQueue.enqueue(async () => {
         const parsed = parseTaskDir(entityDir);
-        if (parsed) await config.taskManager.importFromFile(parsed);
+        if (parsed) await mgr.importTaskFromFile(parsed);
       }).catch(err => log.error({ err }, 'task content import error'));
       return;
     }
-    if (type === 'skill-content' && config.skillManager) {
-      const mgr = config.skillManager;
+    if (type === 'skill-content' && config.skillsEnabled) {
       config.mutationQueue.enqueue(async () => {
         const parsed = parseSkillDir(entityDir);
-        if (parsed) await mgr.importFromFile(parsed);
+        if (parsed) await mgr.importSkillFromFile(parsed);
       }).catch(err => log.error({ err }, 'skill content import error'));
       return;
     }
 
     // --- snapshot (task.md / note.md / skill.md) edited by user ---
-    // Detect delta vs current graph state, append update events, then re-import from dir
+    // Detect delta vs current store state, append update events, then re-import from dir
     if (type === 'task-snapshot') {
       config.mutationQueue.enqueue(async () => {
-        const current = config.taskManager.getTask(id);
+        const current = mgr.getTaskBySlug(id);
         const snapshot = parseTaskSnapshot(filePath);
         if (!current || !snapshot) return;
 
@@ -337,14 +332,14 @@ export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
         }
 
         const parsed = parseTaskDir(entityDir);
-        if (parsed) await config.taskManager.importFromFile(parsed);
+        if (parsed) await mgr.importTaskFromFile(parsed);
       }).catch(err => log.error({ err }, 'task snapshot edit error'));
       return;
     }
 
     if (type === 'note-snapshot') {
       config.mutationQueue.enqueue(async () => {
-        const current = config.knowledgeManager.getNote(id);
+        const current = mgr.getNoteBySlug(id);
         const snapshot = parseNoteSnapshot(filePath);
         if (!current || !snapshot) return;
 
@@ -366,15 +361,14 @@ export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
         }
 
         const parsed = parseNoteDir(entityDir);
-        if (parsed) await config.knowledgeManager.importFromFile(parsed);
+        if (parsed) await mgr.importNoteFromFile(parsed);
       }).catch(err => log.error({ err }, 'note snapshot edit error'));
       return;
     }
 
-    if (type === 'skill-snapshot' && config.skillManager) {
-      const mgr = config.skillManager;
+    if (type === 'skill-snapshot' && config.skillsEnabled) {
       config.mutationQueue.enqueue(async () => {
-        const current = mgr.getSkill(id);
+        const current = mgr.getSkillBySlug(id);
         const snapshot = parseSkillSnapshot(filePath);
         if (!current || !snapshot) return;
 
@@ -399,7 +393,7 @@ export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
         }
 
         const parsed = parseSkillDir(entityDir);
-        if (parsed) await mgr.importFromFile(parsed);
+        if (parsed) await mgr.importSkillFromFile(parsed);
       }).catch(err => log.error({ err }, 'skill snapshot edit error'));
       return;
     }
@@ -407,20 +401,19 @@ export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
     // --- attachment file added ---
     if (type === 'note-attachment') {
       config.mutationQueue.enqueue(async () => {
-        config.knowledgeManager.syncAttachments(id);
+        mgr.syncNoteAttachments(id);
       }).catch(err => log.error({ err }, 'note attachment sync error'));
       return;
     }
     if (type === 'task-attachment') {
       config.mutationQueue.enqueue(async () => {
-        config.taskManager.syncAttachments(id);
+        mgr.syncTaskAttachments(id);
       }).catch(err => log.error({ err }, 'task attachment sync error'));
       return;
     }
-    if (type === 'skill-attachment' && config.skillManager) {
-      const mgr = config.skillManager;
+    if (type === 'skill-attachment' && config.skillsEnabled) {
       config.mutationQueue.enqueue(async () => {
-        mgr.syncAttachments(id);
+        mgr.syncSkillAttachments(id);
       }).catch(err => log.error({ err }, 'skill attachment sync error'));
       return;
     }
@@ -432,23 +425,22 @@ export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
 
     const { type, id, entityDir } = classified;
 
-    // events.jsonl deleted → delete entity from graph
+    // events.jsonl deleted → delete entity from store
     if (type === 'note-events') {
       config.mutationQueue.enqueue(async () => {
-        config.knowledgeManager.deleteFromFile(id);
+        mgr.deleteNoteBySlug(id);
       }).catch(err => log.error({ err }, 'note delete error'));
       return;
     }
     if (type === 'task-events') {
       config.mutationQueue.enqueue(async () => {
-        config.taskManager.deleteFromFile(id);
+        mgr.deleteTaskBySlug(id);
       }).catch(err => log.error({ err }, 'task delete error'));
       return;
     }
-    if (type === 'skill-events' && config.skillManager) {
-      const mgr = config.skillManager;
+    if (type === 'skill-events' && config.skillsEnabled) {
       config.mutationQueue.enqueue(async () => {
-        mgr.deleteFromFile(id);
+        mgr.deleteSkillBySlug(id);
       }).catch(err => log.error({ err }, 'skill delete error'));
       return;
     }
@@ -462,22 +454,21 @@ export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
     if (type === 'note-content') {
       config.mutationQueue.enqueue(async () => {
         const parsed = parseNoteDir(entityDir);
-        if (parsed) await config.knowledgeManager.importFromFile(parsed);
+        if (parsed) await mgr.importNoteFromFile(parsed);
       }).catch(err => log.error({ err }, 'note content delete sync error'));
       return;
     }
     if (type === 'task-content') {
       config.mutationQueue.enqueue(async () => {
         const parsed = parseTaskDir(entityDir);
-        if (parsed) await config.taskManager.importFromFile(parsed);
+        if (parsed) await mgr.importTaskFromFile(parsed);
       }).catch(err => log.error({ err }, 'task content delete sync error'));
       return;
     }
-    if (type === 'skill-content' && config.skillManager) {
-      const mgr = config.skillManager;
+    if (type === 'skill-content' && config.skillsEnabled) {
       config.mutationQueue.enqueue(async () => {
         const parsed = parseSkillDir(entityDir);
-        if (parsed) await mgr.importFromFile(parsed);
+        if (parsed) await mgr.importSkillFromFile(parsed);
       }).catch(err => log.error({ err }, 'skill content delete sync error'));
       return;
     }
@@ -485,20 +476,19 @@ export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
     // Attachment deleted → sync attachments metadata
     if (type === 'note-attachment') {
       config.mutationQueue.enqueue(async () => {
-        config.knowledgeManager.syncAttachments(id);
+        mgr.syncNoteAttachments(id);
       }).catch(err => log.error({ err }, 'note attachment sync error'));
       return;
     }
     if (type === 'task-attachment') {
       config.mutationQueue.enqueue(async () => {
-        config.taskManager.syncAttachments(id);
+        mgr.syncTaskAttachments(id);
       }).catch(err => log.error({ err }, 'task attachment sync error'));
       return;
     }
-    if (type === 'skill-attachment' && config.skillManager) {
-      const mgr = config.skillManager;
+    if (type === 'skill-attachment' && config.skillsEnabled) {
       config.mutationQueue.enqueue(async () => {
-        mgr.syncAttachments(id);
+        mgr.syncSkillAttachments(id);
       }).catch(err => log.error({ err }, 'skill attachment sync error'));
       return;
     }
@@ -509,7 +499,7 @@ export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
   watcher.on('unlink', handleUnlink);
   watcher.once('ready', () => {
     const watched = ['.notes/', '.tasks/'];
-    if (config.skillManager) watched.push('.skills/');
+    if (config.skillsEnabled) watched.push('.skills/');
     log.info({ dirs: watched, projectDir: config.projectDir }, 'Watching mirror directories');
     resolveReady();
   });
@@ -522,9 +512,10 @@ export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
 
 /**
  * Scan .notes/, .tasks/, and .skills/ directories once on startup.
- * Imports any entity dirs where events.jsonl is newer than the graph's updatedAt.
+ * Imports any entity dirs where events.jsonl is newer than the store's updatedAt.
  */
 export async function scanMirrorDirs(config: MirrorWatcherConfig): Promise<void> {
+  const { storeManager: mgr } = config;
   const notesDir = path.join(config.projectDir, '.notes');
   const tasksDir = path.join(config.projectDir, '.tasks');
   const skillsDir = path.join(config.projectDir, '.skills');
@@ -545,7 +536,7 @@ export async function scanMirrorDirs(config: MirrorWatcherConfig): Promise<void>
       const parsed = parseNoteDir(entityDir);
       if (!parsed) continue;
 
-      const existingUpdatedAt = config.knowledgeManager.getNodeUpdatedAt(parsed.id);
+      const existingUpdatedAt = mgr.getNoteUpdatedAt(parsed.id);
       const evMtime = fs.statSync(eventsPath).mtimeMs;
       const contentPath = path.join(entityDir, 'content.md');
       const contentMtime = fs.existsSync(contentPath) ? fs.statSync(contentPath).mtimeMs : 0;
@@ -553,7 +544,7 @@ export async function scanMirrorDirs(config: MirrorWatcherConfig): Promise<void>
 
       if (existingUpdatedAt == null || fileMtime > existingUpdatedAt) {
         await config.mutationQueue.enqueue(async () => {
-          await config.knowledgeManager.importFromFile(parsed);
+          await mgr.importNoteFromFile(parsed);
         });
       }
     }
@@ -572,7 +563,7 @@ export async function scanMirrorDirs(config: MirrorWatcherConfig): Promise<void>
       const parsed = parseTaskDir(entityDir);
       if (!parsed) continue;
 
-      const existingUpdatedAt = config.taskManager.getNodeUpdatedAt(parsed.id);
+      const existingUpdatedAt = mgr.getTaskUpdatedAt(parsed.id);
       const evMtime = fs.statSync(eventsPath).mtimeMs;
       const descPath = path.join(entityDir, 'description.md');
       const descMtime = fs.existsSync(descPath) ? fs.statSync(descPath).mtimeMs : 0;
@@ -580,14 +571,14 @@ export async function scanMirrorDirs(config: MirrorWatcherConfig): Promise<void>
 
       if (existingUpdatedAt == null || fileMtime > existingUpdatedAt) {
         await config.mutationQueue.enqueue(async () => {
-          await config.taskManager.importFromFile(parsed);
+          await mgr.importTaskFromFile(parsed);
         });
       }
     }
   }
 
   // Scan skills (directory-based: .skills/{id}/events.jsonl)
-  if (config.skillManager && fs.existsSync(skillsDir)) {
+  if (config.skillsEnabled && fs.existsSync(skillsDir)) {
     const entries = fs.readdirSync(skillsDir, { withFileTypes: true });
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
@@ -599,16 +590,15 @@ export async function scanMirrorDirs(config: MirrorWatcherConfig): Promise<void>
       const parsed = parseSkillDir(entityDir);
       if (!parsed) continue;
 
-      const existingUpdatedAt = config.skillManager.getNodeUpdatedAt(parsed.id);
+      const existingUpdatedAt = mgr.getSkillUpdatedAt(parsed.id);
       const evMtime = fs.statSync(eventsPath).mtimeMs;
       const descPath = path.join(entityDir, 'description.md');
       const descMtime = fs.existsSync(descPath) ? fs.statSync(descPath).mtimeMs : 0;
       const fileMtime = Math.max(evMtime, descMtime);
 
       if (existingUpdatedAt == null || fileMtime > existingUpdatedAt) {
-        const mgr = config.skillManager;
         await config.mutationQueue.enqueue(async () => {
-          await mgr.importFromFile(parsed);
+          await mgr.importSkillFromFile(parsed);
         });
       }
     }

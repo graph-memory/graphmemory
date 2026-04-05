@@ -22,20 +22,12 @@ async function listToolNames(
 
   const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
   const server = createMcpServer(
-    undefined,   // docGraph
-    undefined,   // codeGraph
-    undefined,   // knowledgeGraph
-    undefined,   // fileIndexGraph
-    undefined,   // taskGraph
     fakeEmbed,   // embedFn
     undefined,   // mutationQueue
-    undefined,   // projectDir
-    undefined,   // skillGraph
     undefined,   // sessionContext
     readonlyGraphs,
     userAccess,
     undefined,   // getSessionId
-    undefined,   // users
     storeCtx.storeManager,
   );
   await server.connect(serverTransport);
@@ -189,11 +181,12 @@ describe('MCP per-user access', () => {
     const storeCtx = createTestStoreManager(fakeEmbed);
     const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
     const server = createMcpServer(
-      undefined, undefined, undefined, undefined, undefined,
       fakeEmbed,
-      undefined, undefined, undefined, undefined,
+      undefined,   // mutationQueue
+      undefined,   // sessionContext
       new Set(['knowledge']),
-      undefined, undefined, undefined,
+      undefined,   // userAccess
+      undefined,   // getSessionId
       storeCtx.storeManager,
     );
     await server.connect(serverTransport);

@@ -64,11 +64,9 @@ async function getClient(p: ProjectInstance, pm: ProjectManager): Promise<Client
 
   const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
   const server = createMcpServer(
-    undefined, undefined, p.knowledgeGraph, undefined,
-    p.taskGraph, p.embedFns, p.mutationQueue,
-    p.config.projectDir, p.skillGraph, sessionCtx,
+    p.embedFns, p.mutationQueue, sessionCtx,
     readonlyGraphs.size > 0 ? readonlyGraphs : undefined,
-    undefined, undefined, undefined,
+    undefined, undefined,
     p.storeManager,
     p.scopedStore,
   );

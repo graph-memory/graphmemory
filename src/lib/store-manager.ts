@@ -6,6 +6,7 @@
  * One StoreManager per project.
  */
 import { EventEmitter } from 'events';
+import path from 'path';
 import type {
   Store,
   ProjectScopedStore,
@@ -38,6 +39,9 @@ import type {
   SearchResult,
   AttachmentMeta,
 } from '../store/types';
+import type { ParsedNoteFile, ParsedTaskFile, ParsedSkillFile } from './file-import';
+import type { RelationFrontmatter } from './file-mirror';
+import { diffRelations } from './file-import';
 import {
   mirrorNoteCreate,
   mirrorNoteUpdate,
@@ -53,6 +57,8 @@ import {
   deleteMirrorDir,
   getAttachmentPath as getAttPath,
 } from './file-mirror';
+import { scanAttachments } from '../graphs/attachment-types';
+import type { MirrorWriteTracker } from './mirror-watcher';
 import { createLogger } from './logger';
 import mime from 'mime';
 
@@ -84,6 +90,7 @@ export class StoreManager {
   readonly projectDir: string;
   private embedFn: EmbedFn;
   private emitter: EventEmitter;
+  private mirrorTracker?: MirrorWriteTracker;
 
   constructor(config: StoreManagerConfig) {
     this.store = config.store;
@@ -92,6 +99,10 @@ export class StoreManager {
     this.embedFn = config.embedFn;
     this.emitter = config.emitter ?? new EventEmitter();
     this.scoped = config.store.project(config.projectId);
+  }
+
+  setMirrorTracker(tracker: MirrorWriteTracker): void {
+    this.mirrorTracker = tracker;
   }
 
   // =========================================================================
@@ -105,6 +116,7 @@ export class StoreManager {
       title: record.title, content: record.content, tags: record.tags,
       createdAt: record.createdAt, updatedAt: record.updatedAt, version: record.version,
     }, []);
+    this.recordNoteMirrorWrites(record.slug);
     this.emit('note:created', { projectId: this.projectId, noteId: record.id });
     return record;
   }
@@ -124,6 +136,7 @@ export class StoreManager {
       title: record.title, content: record.content, tags: record.tags,
       createdAt: record.createdAt, updatedAt: record.updatedAt, version: record.version,
     }, []);
+    this.recordNoteMirrorWrites(record.slug);
     this.emit('note:updated', { projectId: this.projectId, noteId });
     return record;
   }
@@ -170,6 +183,7 @@ export class StoreManager {
       completedAt: record.completedAt,
       createdAt: record.createdAt, updatedAt: record.updatedAt, version: record.version,
     }, []);
+    this.recordTaskMirrorWrites(record.slug);
     this.emit('task:created', { projectId: this.projectId, taskId: record.id });
     return record;
   }
@@ -193,6 +207,7 @@ export class StoreManager {
       completedAt: record.completedAt,
       createdAt: record.createdAt, updatedAt: record.updatedAt, version: record.version,
     }, []);
+    this.recordTaskMirrorWrites(record.slug);
     this.emit('task:updated', { projectId: this.projectId, taskId });
     return record;
   }
@@ -215,6 +230,7 @@ export class StoreManager {
       completedAt: record.completedAt,
       createdAt: record.createdAt, updatedAt: record.updatedAt, version: record.version,
     }, []);
+    this.recordTaskMirrorWrites(record.slug);
     this.emit('task:updated', { projectId: this.projectId, taskId });
     return record;
   }
@@ -231,6 +247,7 @@ export class StoreManager {
       completedAt: record.completedAt,
       createdAt: record.createdAt, updatedAt: record.updatedAt, version: record.version,
     }, []);
+    this.recordTaskMirrorWrites(record.slug);
     this.emit('task:updated', { projectId: this.projectId, taskId });
     return record;
   }
@@ -255,7 +272,6 @@ export class StoreManager {
   }
 
   bulkDeleteTasks(taskIds: number[]): number {
-    // Fetch slugs before deletion for mirror cleanup
     const slugs = taskIds
       .map(id => this.scoped.tasks.get(id))
       .filter((t): t is TaskDetail => t !== null)
@@ -284,6 +300,7 @@ export class StoreManager {
         completedAt: record.completedAt,
         createdAt: record.createdAt, updatedAt: record.updatedAt, version: record.version,
       }, []);
+      this.recordTaskMirrorWrites(record.slug);
     }
     this.emit('task:bulk_moved', { projectId: this.projectId, taskIds, status, count });
     return count;
@@ -303,6 +320,7 @@ export class StoreManager {
         completedAt: record.completedAt,
         createdAt: record.createdAt, updatedAt: record.updatedAt, version: record.version,
       }, []);
+      this.recordTaskMirrorWrites(record.slug);
     }
     this.emit('task:bulk_priority', { projectId: this.projectId, taskIds, priority, count });
     return count;
@@ -321,6 +339,7 @@ export class StoreManager {
       tags: record.tags, order: record.order,
       createdAt: record.createdAt, updatedAt: record.updatedAt, version: record.version,
     }, []);
+    this.recordEpicMirrorWrites(record.slug);
     this.emit('epic:created', { projectId: this.projectId, epicId: record.id });
     return record;
   }
@@ -342,6 +361,7 @@ export class StoreManager {
       tags: record.tags, order: record.order,
       createdAt: record.createdAt, updatedAt: record.updatedAt, version: record.version,
     }, []);
+    this.recordEpicMirrorWrites(record.slug);
     this.emit('epic:updated', { projectId: this.projectId, epicId });
     return record;
   }
@@ -405,6 +425,7 @@ export class StoreManager {
       usageCount: record.usageCount, lastUsedAt: record.lastUsedAt,
       createdAt: record.createdAt, updatedAt: record.updatedAt, version: record.version,
     }, []);
+    this.recordSkillMirrorWrites(record.slug);
     this.emit('skill:created', { projectId: this.projectId, skillId: record.id });
     return record;
   }
@@ -428,6 +449,7 @@ export class StoreManager {
       usageCount: record.usageCount, lastUsedAt: record.lastUsedAt,
       createdAt: record.createdAt, updatedAt: record.updatedAt, version: record.version,
     }, []);
+    this.recordSkillMirrorWrites(record.slug);
     this.emit('skill:updated', { projectId: this.projectId, skillId });
     return record;
   }
@@ -442,6 +464,10 @@ export class StoreManager {
 
   getSkill(skillId: number): SkillDetail | null {
     return this.scoped.skills.get(skillId);
+  }
+
+  getSkillBySlug(slug: string): SkillDetail | null {
+    return this.scoped.skills.getBySlug(slug);
   }
 
   listSkills(opts?: SkillListOptions) {
@@ -524,6 +550,178 @@ export class StoreManager {
   }
 
   // =========================================================================
+  // Mirror import (file → Store, used by mirror-watcher)
+  // =========================================================================
+
+  /** Upsert a note from parsed mirror file. Re-embeds, syncs edges. */
+  async importNoteFromFile(parsed: ParsedNoteFile): Promise<void> {
+    const existing = this.scoped.knowledge.getBySlug(parsed.id);
+    const embedding = await this.embedFn(`${parsed.title} ${parsed.content}`);
+
+    let record: NoteRecord;
+    if (existing) {
+      record = this.scoped.knowledge.update(existing.id, {
+        title: parsed.title,
+        content: parsed.content,
+        tags: parsed.tags,
+      }, embedding);
+    } else {
+      record = this.scoped.knowledge.create({
+        title: parsed.title,
+        content: parsed.content,
+        tags: parsed.tags,
+        slug: parsed.id,
+        createdAt: parsed.createdAt ?? undefined,
+        updatedAt: parsed.updatedAt ?? undefined,
+        version: parsed.version ?? undefined,
+      }, embedding);
+    }
+
+    this.syncEdgesFromFile('knowledge', record.id, parsed.relations);
+    this.syncAttachmentsFromParsed('knowledge', record.id, parsed.attachments);
+    this.emit(existing ? 'note:updated' : 'note:created', { projectId: this.projectId, noteId: record.id });
+  }
+
+  /** Upsert a task from parsed mirror file. Re-embeds, syncs edges. */
+  async importTaskFromFile(parsed: ParsedTaskFile): Promise<void> {
+    const existing = this.scoped.tasks.getBySlug(parsed.id);
+    const embedding = await this.embedFn(`${parsed.title} ${parsed.description}`);
+
+    let record: TaskRecord;
+    if (existing) {
+      record = this.scoped.tasks.update(existing.id, {
+        title: parsed.title,
+        description: parsed.description,
+        status: parsed.status,
+        priority: parsed.priority,
+        tags: parsed.tags,
+        dueDate: parsed.dueDate,
+        estimate: parsed.estimate,
+        completedAt: parsed.completedAt,
+      }, embedding);
+    } else {
+      record = this.scoped.tasks.create({
+        title: parsed.title,
+        description: parsed.description,
+        status: parsed.status,
+        priority: parsed.priority,
+        tags: parsed.tags,
+        dueDate: parsed.dueDate,
+        estimate: parsed.estimate,
+        completedAt: parsed.completedAt,
+        slug: parsed.id,
+        createdAt: parsed.createdAt ?? undefined,
+        updatedAt: parsed.updatedAt ?? undefined,
+        version: parsed.version ?? undefined,
+      }, embedding);
+    }
+
+    this.syncEdgesFromFile('tasks', record.id, parsed.relations);
+    this.syncAttachmentsFromParsed('tasks', record.id, parsed.attachments);
+    this.emit(existing ? 'task:updated' : 'task:created', { projectId: this.projectId, taskId: record.id });
+  }
+
+  /** Upsert a skill from parsed mirror file. Re-embeds, syncs edges. */
+  async importSkillFromFile(parsed: ParsedSkillFile): Promise<void> {
+    const existing = this.scoped.skills.getBySlug(parsed.id);
+    const embedding = await this.embedFn(`${parsed.title} ${parsed.description}`);
+
+    let record: SkillRecord;
+    if (existing) {
+      record = this.scoped.skills.update(existing.id, {
+        title: parsed.title,
+        description: parsed.description,
+        steps: parsed.steps,
+        triggers: parsed.triggers,
+        inputHints: parsed.inputHints,
+        filePatterns: parsed.filePatterns,
+        tags: parsed.tags,
+        source: parsed.source,
+        confidence: parsed.confidence,
+      }, embedding);
+    } else {
+      record = this.scoped.skills.create({
+        title: parsed.title,
+        description: parsed.description,
+        steps: parsed.steps,
+        triggers: parsed.triggers,
+        inputHints: parsed.inputHints,
+        filePatterns: parsed.filePatterns,
+        tags: parsed.tags,
+        source: parsed.source,
+        confidence: parsed.confidence,
+        usageCount: parsed.usageCount ?? undefined,
+        lastUsedAt: parsed.lastUsedAt,
+        slug: parsed.id,
+        createdAt: parsed.createdAt ?? undefined,
+        updatedAt: parsed.updatedAt ?? undefined,
+        version: parsed.version ?? undefined,
+      }, embedding);
+    }
+
+    this.syncEdgesFromFile('skills', record.id, parsed.relations);
+    this.syncAttachmentsFromParsed('skills', record.id, parsed.attachments);
+    this.emit(existing ? 'skill:updated' : 'skill:created', { projectId: this.projectId, skillId: record.id });
+  }
+
+  /** Delete an entity by its slug (mirror directory name). */
+  deleteNoteBySlug(slug: string): void {
+    const record = this.scoped.knowledge.getBySlug(slug);
+    if (!record) return;
+    this.scoped.knowledge.delete(record.id);
+    this.emit('note:deleted', { projectId: this.projectId, noteId: record.id });
+  }
+
+  deleteTaskBySlug(slug: string): void {
+    const record = this.scoped.tasks.getBySlug(slug);
+    if (!record) return;
+    this.scoped.tasks.delete(record.id);
+    this.emit('task:deleted', { projectId: this.projectId, taskId: record.id });
+  }
+
+  deleteSkillBySlug(slug: string): void {
+    const record = this.scoped.skills.getBySlug(slug);
+    if (!record) return;
+    this.scoped.skills.delete(record.id);
+    this.emit('skill:deleted', { projectId: this.projectId, skillId: record.id });
+  }
+
+  /** Get updatedAt timestamp for an entity by slug. Returns null if not found. */
+  getNoteUpdatedAt(slug: string): number | null {
+    return this.scoped.knowledge.getBySlug(slug)?.updatedAt ?? null;
+  }
+
+  getTaskUpdatedAt(slug: string): number | null {
+    return this.scoped.tasks.getBySlug(slug)?.updatedAt ?? null;
+  }
+
+  getSkillUpdatedAt(slug: string): number | null {
+    return this.scoped.skills.getBySlug(slug)?.updatedAt ?? null;
+  }
+
+  /** Sync attachment metadata from disk for an entity identified by slug. */
+  syncNoteAttachments(slug: string): void {
+    const record = this.scoped.knowledge.getBySlug(slug);
+    if (!record) return;
+    const attachments = scanAttachments(path.join(this.projectDir, '.notes', slug));
+    this.syncAttachmentsFromParsed('knowledge', record.id, attachments);
+  }
+
+  syncTaskAttachments(slug: string): void {
+    const record = this.scoped.tasks.getBySlug(slug);
+    if (!record) return;
+    const attachments = scanAttachments(path.join(this.projectDir, '.tasks', slug));
+    this.syncAttachmentsFromParsed('tasks', record.id, attachments);
+  }
+
+  syncSkillAttachments(slug: string): void {
+    const record = this.scoped.skills.getBySlug(slug);
+    if (!record) return;
+    const attachments = scanAttachments(path.join(this.projectDir, '.skills', slug));
+    this.syncAttachmentsFromParsed('skills', record.id, attachments);
+  }
+
+  // =========================================================================
   // Helpers
   // =========================================================================
 
@@ -545,6 +743,124 @@ export class StoreManager {
     const dir = map[graph];
     if (!dir) throw new Error(`No mirror directory for graph: ${graph}`);
     return `${this.projectDir}/${dir}`;
+  }
+
+  // -- Mirror write tracker helpers --
+
+  private recordNoteMirrorWrites(slug: string): void {
+    if (!this.mirrorTracker) return;
+    const dir = path.join(this.projectDir, '.notes', slug);
+    this.mirrorTracker.recordWrite(path.join(dir, 'events.jsonl'));
+    this.mirrorTracker.recordWrite(path.join(dir, 'note.md'));
+    this.mirrorTracker.recordWrite(path.join(dir, 'content.md'));
+  }
+
+  private recordTaskMirrorWrites(slug: string): void {
+    if (!this.mirrorTracker) return;
+    const dir = path.join(this.projectDir, '.tasks', slug);
+    this.mirrorTracker.recordWrite(path.join(dir, 'events.jsonl'));
+    this.mirrorTracker.recordWrite(path.join(dir, 'task.md'));
+    this.mirrorTracker.recordWrite(path.join(dir, 'description.md'));
+  }
+
+  private recordSkillMirrorWrites(slug: string): void {
+    if (!this.mirrorTracker) return;
+    const dir = path.join(this.projectDir, '.skills', slug);
+    this.mirrorTracker.recordWrite(path.join(dir, 'events.jsonl'));
+    this.mirrorTracker.recordWrite(path.join(dir, 'skill.md'));
+    this.mirrorTracker.recordWrite(path.join(dir, 'description.md'));
+  }
+
+  private recordEpicMirrorWrites(slug: string): void {
+    if (!this.mirrorTracker) return;
+    const dir = path.join(this.projectDir, '.epics', slug);
+    this.mirrorTracker.recordWrite(path.join(dir, 'events.jsonl'));
+    this.mirrorTracker.recordWrite(path.join(dir, 'epic.md'));
+    this.mirrorTracker.recordWrite(path.join(dir, 'description.md'));
+  }
+
+  // -- Edge sync from file relations --
+
+  /**
+   * Sync edges for an entity based on parsed file relations.
+   * Resolves target slugs to numeric IDs, diffs current vs desired, creates/deletes.
+   */
+  private syncEdgesFromFile(fromGraph: GraphName, fromId: number, desired: RelationFrontmatter[]): void {
+    // Build current outgoing edges as RelationFrontmatter for diffing
+    const currentEdges = this.scoped.findOutgoingEdges(fromGraph, fromId);
+    const current: RelationFrontmatter[] = [];
+    for (const edge of currentEdges) {
+      const slug = this.resolveIdToSlug(edge.toGraph, edge.toId);
+      if (!slug) continue;
+      const rel: RelationFrontmatter = { to: slug, kind: edge.kind };
+      if (edge.toGraph !== fromGraph) rel.graph = edge.toGraph;
+      current.push(rel);
+    }
+
+    const diff = diffRelations(current, desired);
+
+    for (const rel of diff.toRemove) {
+      const targetGraph = (rel.graph ?? fromGraph) as GraphName;
+      const targetId = this.resolveSlugToId(targetGraph, rel.to);
+      if (targetId == null) continue;
+      try {
+        this.scoped.deleteEdge({ fromGraph, fromId, toGraph: targetGraph, toId: targetId, kind: rel.kind });
+      } catch { /* edge may not exist */ }
+    }
+
+    for (const rel of diff.toAdd) {
+      const targetGraph = (rel.graph ?? fromGraph) as GraphName;
+      const targetId = this.resolveSlugToId(targetGraph, rel.to);
+      if (targetId == null) continue;
+      try {
+        this.scoped.createEdge({ fromGraph, fromId, toGraph: targetGraph, toId: targetId, kind: rel.kind });
+      } catch { /* edge may already exist */ }
+    }
+  }
+
+  /** Resolve a slug to a numeric ID in a given graph. */
+  private resolveSlugToId(graph: GraphName, slug: string): number | null {
+    switch (graph) {
+      case 'knowledge': return this.scoped.knowledge.getBySlug(slug)?.id ?? null;
+      case 'tasks':     return this.scoped.tasks.getBySlug(slug)?.id ?? null;
+      case 'skills':    return this.scoped.skills.getBySlug(slug)?.id ?? null;
+      case 'epics':     return this.scoped.epics.getBySlug(slug)?.id ?? null;
+      default:          return null; // indexed graphs not resolvable by slug
+    }
+  }
+
+  /** Resolve a numeric ID to a slug in a given graph. */
+  private resolveIdToSlug(graph: GraphName, id: number): string | null {
+    switch (graph) {
+      case 'knowledge': return this.scoped.knowledge.get(id)?.slug ?? null;
+      case 'tasks':     return this.scoped.tasks.get(id)?.slug ?? null;
+      case 'skills':    return this.scoped.skills.get(id)?.slug ?? null;
+      case 'epics':     return this.scoped.epics.get(id)?.slug ?? null;
+      default:          return null;
+    }
+  }
+
+  // -- Attachment sync from parsed file --
+
+  /**
+   * Replace all attachment metadata for an entity with the given list.
+   * Removes stale entries, adds new ones.
+   */
+  private syncAttachmentsFromParsed(graph: GraphName, entityId: number, attachments: AttachmentMeta[]): void {
+    const current = this.scoped.attachments.list(graph, entityId);
+    const currentNames = new Set(current.map(a => a.filename));
+    const desiredNames = new Set(attachments.map(a => a.filename));
+
+    for (const name of currentNames) {
+      if (!desiredNames.has(name)) {
+        this.scoped.attachments.remove(graph, entityId, name);
+      }
+    }
+    for (const att of attachments) {
+      if (!currentNames.has(att.filename)) {
+        this.scoped.attachments.add(graph, entityId, att);
+      }
+    }
   }
 }
 

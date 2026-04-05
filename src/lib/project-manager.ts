@@ -1,23 +1,15 @@
 import { EventEmitter } from 'events';
 import { loadModel, embed, embedQuery, type EmbeddingCacheFactory } from '@/lib/embedder';
-import { loadKnowledgeGraph, saveKnowledgeGraph, KnowledgeGraphManager } from '@/graphs/knowledge';
-import { loadTaskGraph, saveTaskGraph, TaskGraphManager } from '@/graphs/task';
-import { loadSkillGraph, saveSkillGraph, SkillGraphManager } from '@/graphs/skill';
 import { createProjectIndexer, type ProjectIndexer, type IndexPhase } from '@/cli/indexer';
 import { clearPathMappingsCache } from '@/lib/parsers/code';
 import { clearWikiIndexCache } from '@/lib/parsers/docs';
 import { PromiseQueue } from '@/lib/promise-queue';
 import type { ProjectConfig, ServerConfig, WorkspaceConfig, GraphName } from '@/lib/multi-config';
-import { GRAPH_NAMES, formatAuthor, embeddingFingerprint } from '@/lib/multi-config';
-import type { KnowledgeGraph } from '@/graphs/knowledge-types';
-import type { TaskGraph } from '@/graphs/task-types';
-import type { SkillGraph } from '@/graphs/skill-types';
+import { GRAPH_NAMES } from '@/lib/multi-config';
 import type { EmbedFnMap } from '@/api/index';
 import type { WatcherHandle } from '@/lib/watcher';
-import type { GraphManagerContext, ExternalGraphs } from '@/graphs/manager-types';
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { MirrorWriteTracker, scanMirrorDirs, startMirrorWatcher } from '@/lib/mirror-watcher';
-import { ensureAuthorInTeam } from '@/lib/team';
 import path from 'path';
 import { AUTO_SAVE_INTERVAL_MS } from '@/lib/defaults';
 import { createLogger } from '@/lib/logger';
@@ -38,14 +30,8 @@ export interface ProjectInstance {
   scopedStore: ProjectScopedStore;
   /** Numeric project ID in SQLite Store */
   dbProjectId: number;
-  // User-managed graphs (still Graphology — will be removed in Phase 4)
-  knowledgeGraph?: KnowledgeGraph;
-  taskGraph?: TaskGraph;
-  skillGraph?: SkillGraph;
-  knowledgeManager?: KnowledgeGraphManager;
-  taskManager?: TaskGraphManager;
-  skillManager?: SkillGraphManager;
-  storeManager?: StoreManager;
+  /** StoreManager handles CRUD, embedding, mirror, events for user-managed graphs */
+  storeManager: StoreManager;
   indexer?: ProjectIndexer;
   watcher?: WatcherHandle;
   embedFns: EmbedFnMap;
@@ -67,16 +53,11 @@ export interface ProjectInstance {
 export interface WorkspaceInstance {
   id: string;
   config: WorkspaceConfig;
-  knowledgeGraph: KnowledgeGraph;
-  taskGraph: TaskGraph;
-  skillGraph: SkillGraph;
-  knowledgeManager: KnowledgeGraphManager;
-  taskManager: TaskGraphManager;
-  skillManager: SkillGraphManager;
+  store: Store;
+  storeManager: StoreManager;
   mirrorTracker: MirrorWriteTracker;
   mirrorWatcher?: WatcherHandle;
   mutationQueue: PromiseQueue;
-  dirty: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -91,12 +72,9 @@ export class ProjectManager extends EventEmitter {
   /** Per-project SQLite stores — keyed by project id */
   private stores = new Map<string, Store>();
 
-  private hasUsers: boolean;
-
-  constructor(private serverConfig: ServerConfig, cacheFactory?: EmbeddingCacheFactory, hasUsers = false) {
+  constructor(private serverConfig: ServerConfig, cacheFactory?: EmbeddingCacheFactory, _hasUsers = false) {
     super();
     this.cacheFactory = cacheFactory;
-    this.hasUsers = hasUsers;
   }
 
   // ---------------------------------------------------------------------------
@@ -104,75 +82,44 @@ export class ProjectManager extends EventEmitter {
   // ---------------------------------------------------------------------------
 
   /**
-   * Add a workspace: load shared knowledge/task/skill graphs.
+   * Add a workspace: create shared SQLite Store for user-managed graphs.
    * Must be called before addProject for projects that belong to this workspace.
    */
-  async addWorkspace(id: string, config: WorkspaceConfig, reindex = false): Promise<void> {
+  async addWorkspace(id: string, config: WorkspaceConfig, _reindex = false): Promise<void> {
     if (this.workspaces.has(id)) {
       throw new Error(`Workspace "${id}" already exists`);
     }
 
-    const gc = config.graphConfigs;
+    // Create workspace-level Store for shared user-managed graphs
+    const store = new SqliteStore();
+    const dbPath = path.join(config.graphMemory, 'store.db');
+    store.open({ dbPath });
+    this.stores.set(`ws:${id}`, store);
 
-    const knowledgeGraph = loadKnowledgeGraph(config.graphMemory, reindex, embeddingFingerprint(gc.knowledge.model));
-    const taskGraph = loadTaskGraph(config.graphMemory, reindex, embeddingFingerprint(gc.tasks.model));
-    const skillGraph = loadSkillGraph(config.graphMemory, reindex, embeddingFingerprint(gc.skills.model));
-
+    // Create a workspace "project" entry to scope shared user-managed data
+    let dbProject = store.projects.list().results.find(p => p.slug === id);
+    if (!dbProject) {
+      dbProject = store.projects.create({ slug: id, name: id, directory: config.mirrorDir });
+    }
     const mutationQueue = new PromiseQueue();
     const mirrorTracker = new MirrorWriteTracker();
+
+    const emitter = this;
+    const embedFn = (text: string) => embed(text, '', `${id}:knowledge`);
+    const storeManager = new StoreManager({
+      store, projectId: dbProject.id, projectDir: config.mirrorDir,
+      embedFn, emitter,
+    });
+    storeManager.setMirrorTracker(mirrorTracker);
 
     const wsInstance: WorkspaceInstance = {
       id,
       config,
-      knowledgeGraph,
-      taskGraph,
-      skillGraph,
-      mutationQueue,
+      store,
+      storeManager,
       mirrorTracker,
-      dirty: false,
-    } as WorkspaceInstance;
-
-    let _authorEnsured = false;
-    const ctx: GraphManagerContext = {
-      markDirty: () => {
-        wsInstance.dirty = true;
-        if (!_authorEnsured && !this.hasUsers) {
-          _authorEnsured = true;
-          ensureAuthorInTeam(path.join(config.mirrorDir, '.team'), config.author);
-        }
-      },
-      emit: (event: string, data: unknown) => { this.emit(event, data); },
-      projectId: id,
-      mirrorDir: config.mirrorDir,
-      author: formatAuthor(config.author),
+      mutationQueue,
     };
-
-    const ext: ExternalGraphs = {
-      knowledgeGraph,
-      taskGraph,
-      skillGraph,
-    };
-
-    const knowledgeEmbedFns = {
-      document: (q: string) => embed(q, '', `${id}:knowledge`),
-      query:    (q: string) => embedQuery(q, `${id}:knowledge`),
-    };
-    const taskEmbedFns = {
-      document: (q: string) => embed(q, '', `${id}:tasks`),
-      query:    (q: string) => embedQuery(q, `${id}:tasks`),
-    };
-    const skillEmbedFns = {
-      document: (q: string) => embed(q, '', `${id}:skills`),
-      query:    (q: string) => embedQuery(q, `${id}:skills`),
-    };
-
-    wsInstance.knowledgeManager = new KnowledgeGraphManager(knowledgeGraph, knowledgeEmbedFns, ctx, ext);
-    wsInstance.taskManager = new TaskGraphManager(taskGraph, taskEmbedFns, ctx, ext);
-    wsInstance.skillManager = new SkillGraphManager(skillGraph, skillEmbedFns, ctx, ext);
-
-    wsInstance.knowledgeManager.setMirrorTracker(mirrorTracker);
-    wsInstance.taskManager.setMirrorTracker(mirrorTracker);
-    wsInstance.skillManager.setMirrorTracker(mirrorTracker);
 
     this.workspaces.set(id, wsInstance);
     log.info({ workspace: id }, 'Added workspace');
@@ -198,11 +145,11 @@ export class ProjectManager extends EventEmitter {
     const ws = this.workspaces.get(id);
     if (!ws) throw new Error(`Workspace "${id}" not found`);
 
+    const gc = ws.config.graphConfigs;
     const mirrorConfig = {
       projectDir: ws.config.mirrorDir,
-      knowledgeManager: ws.knowledgeManager,
-      taskManager: ws.taskManager,
-      skillManager: ws.skillManager,
+      storeManager: ws.storeManager,
+      skillsEnabled: gc.skills.enabled && !gc.skills.readonly,
       mutationQueue: ws.mutationQueue,
       tracker: ws.mirrorTracker,
     };
@@ -226,7 +173,7 @@ export class ProjectManager extends EventEmitter {
   }
 
   /**
-   * Add a project: load graphs, load models, create indexer, start watcher.
+   * Add a project: create Store, create StoreManager, setup indexer.
    */
   async addProject(id: string, config: ProjectConfig, reindex = false, workspaceId?: string): Promise<void> {
     if (this.projects.has(id)) {
@@ -258,84 +205,44 @@ export class ProjectManager extends EventEmitter {
     }
     const scopedStore = store.project(dbProject.id);
 
-    // Knowledge/tasks/skills: shared from workspace or per-project (gated by enabled)
-    const knowledgeGraph = ws ? ws.knowledgeGraph
-      : gc.knowledge.enabled ? loadKnowledgeGraph(config.graphMemory, reindex, embeddingFingerprint(gc.knowledge.model)) : undefined;
-    const taskGraph = ws ? ws.taskGraph
-      : gc.tasks.enabled ? loadTaskGraph(config.graphMemory, reindex, embeddingFingerprint(gc.tasks.model)) : undefined;
-    const skillGraph = ws ? ws.skillGraph
-      : gc.skills.enabled ? loadSkillGraph(config.graphMemory, reindex, embeddingFingerprint(gc.skills.model)) : undefined;
-
     // Build embed functions (project-scoped model names)
     const embedFns = this.buildEmbedFns(id);
 
-    // Build StoreManager for user-managed graphs (knowledge/tasks/skills/epics)
-    const emitter = this; // ProjectManager is an EventEmitter
-    const embedFn = (text: string) => embed(text, '', `${id}:knowledge`);
-    const storeManager = new StoreManager({
-      store, projectId: dbProject.id, projectDir: config.projectDir,
-      embedFn, emitter,
-    });
+    // Build StoreManager — for workspace projects, use workspace's shared StoreManager
+    // For standalone projects, create per-project StoreManager
+    let storeManager: StoreManager;
+    if (ws) {
+      storeManager = ws.storeManager;
+    } else {
+      const emitter = this;
+      const embedFn = (text: string) => embed(text, '', `${id}:knowledge`);
+      storeManager = new StoreManager({
+        store, projectId: dbProject.id, projectDir: config.projectDir,
+        embedFn, emitter,
+      });
+    }
 
     const instance: ProjectInstance = {
       id,
       config,
       scopedStore,
       dbProjectId: dbProject.id,
-      knowledgeGraph,
-      taskGraph,
-      skillGraph,
       storeManager,
       embedFns,
       mutationQueue: ws ? ws.mutationQueue : new PromiseQueue(),
       dirty: false,
       workspaceId,
-    } as ProjectInstance;
-
-    // Build graph manager context
-    let _authorEnsured = false;
-    const ctx: GraphManagerContext = {
-      markDirty: () => {
-        instance.dirty = true;
-        if (!_authorEnsured && !this.hasUsers) {
-          _authorEnsured = true;
-          ensureAuthorInTeam(path.join(config.projectDir, '.team'), config.author);
-        }
-      },
-      emit: (event: string, data: unknown) => { this.emit(event, data); },
-      projectId: id,
-      projectDir: config.projectDir,
-      author: formatAuthor(config.author),
     };
 
-    const ext: ExternalGraphs = { knowledgeGraph, taskGraph, skillGraph };
-
-    if (ws) {
-      // Use workspace-level shared managers
-      instance.knowledgeManager = ws.knowledgeManager;
-      instance.taskManager = ws.taskManager;
-      instance.skillManager = ws.skillManager;
-      instance.mirrorTracker = ws.mirrorTracker;
-    } else {
-      // Per-project managers (only if enabled)
-      if (knowledgeGraph) {
-        instance.knowledgeManager = new KnowledgeGraphManager(knowledgeGraph, embedFns.knowledge, ctx, ext);
-      }
-      if (taskGraph) {
-        instance.taskManager = new TaskGraphManager(taskGraph, embedFns.tasks, ctx, ext);
-      }
-      if (skillGraph) {
-        instance.skillManager = new SkillGraphManager(skillGraph, embedFns.skills, ctx, ext);
-      }
-
-      // Set up mirror write tracker for feedback loop prevention
-      if (instance.knowledgeManager || instance.taskManager || instance.skillManager) {
+    // Set up mirror write tracker for feedback loop prevention (standalone only)
+    if (!ws) {
+      if (gc.knowledge.enabled || gc.tasks.enabled || gc.skills.enabled) {
         const mirrorTracker = new MirrorWriteTracker();
         instance.mirrorTracker = mirrorTracker;
-        instance.knowledgeManager?.setMirrorTracker(mirrorTracker);
-        instance.taskManager?.setMirrorTracker(mirrorTracker);
-        instance.skillManager?.setMirrorTracker(mirrorTracker);
+        storeManager.setMirrorTracker(mirrorTracker);
       }
+    } else {
+      instance.mirrorTracker = ws.mirrorTracker;
     }
 
     this.projects.set(id, instance);
@@ -434,7 +341,7 @@ export class ProjectManager extends EventEmitter {
   }
 
   /**
-   * Finalize indexing: run full drain (finalize edges), start watcher, save, mirror, emit.
+   * Finalize indexing: run full drain (finalize edges), start watcher, mirror scan, emit.
    * Call after all phases are done.
    */
   async finalizeIndexing(id: string): Promise<void> {
@@ -442,7 +349,7 @@ export class ProjectManager extends EventEmitter {
     if (!instance) throw new Error(`Project "${id}" not found`);
     if (!instance.indexer) throw new Error(`Indexer not created for "${id}". Call ensureIndexer() first.`);
 
-    // Full drain with finalize (rebuildDirectoryStats, resolvePendingLinks, etc.)
+    // Full drain with finalize (resolvePendingLinks, etc.)
     try {
       await instance.indexer.drain();
     } catch (err) {
@@ -455,20 +362,14 @@ export class ProjectManager extends EventEmitter {
       await instance.watcher.whenReady;
     }
 
-    // Save after initial scan
-    this.saveProject(instance);
-    instance.dirty = false;
-
-    // Scan and watch .notes/ and .tasks/ for reverse import (skip for workspace projects — handled by workspace)
-    // Skip mirror entirely if knowledge or tasks graph is readonly (mirror requires both)
-    if (instance.mirrorTracker && !instance.workspaceId && instance.knowledgeManager && instance.taskManager) {
+    // Scan and watch .notes/ and .tasks/ for reverse import (skip for workspace — handled by workspace)
+    if (instance.mirrorTracker && !instance.workspaceId) {
       const gc = instance.config.graphConfigs;
-      if (!gc.knowledge.readonly && !gc.tasks.readonly) {
+      if (gc.knowledge.enabled && gc.tasks.enabled && !gc.knowledge.readonly && !gc.tasks.readonly) {
         const mirrorConfig = {
           projectDir: instance.config.projectDir,
-          knowledgeManager: instance.knowledgeManager,
-          taskManager: instance.taskManager,
-          skillManager: gc.skills.readonly ? undefined : instance.skillManager,
+          storeManager: instance.storeManager,
+          skillsEnabled: gc.skills.enabled && !gc.skills.readonly,
           mutationQueue: instance.mutationQueue,
           tracker: instance.mirrorTracker,
         };
@@ -482,7 +383,7 @@ export class ProjectManager extends EventEmitter {
   }
 
   /**
-   * Remove a project: drain indexer, save graphs, close watcher.
+   * Remove a project: drain indexer, close watcher, close store.
    */
   async removeProject(id: string): Promise<void> {
     const instance = this.projects.get(id);
@@ -492,26 +393,6 @@ export class ProjectManager extends EventEmitter {
     if (instance.watcher) await instance.watcher.close();
     if (instance.indexer) await instance.indexer.drain();
     if (instance.mcpClientCleanup) await instance.mcpClientCleanup();
-    this.saveProject(instance);
-
-    // Clean up workspace shared graphs: remove orphaned proxy nodes
-    if (instance.workspaceId) {
-      const ws = this.workspaces.get(instance.workspaceId);
-      if (ws) {
-        for (const graph of [ws.knowledgeManager.graph, ws.taskManager?.graph, ws.skillManager?.graph]) {
-          if (!graph) continue;
-          const toRemove: string[] = [];
-          graph.forEachNode((nodeId: string, attrs: any) => {
-            if (attrs.proxyFor?.projectId === id) {
-              toRemove.push(nodeId);
-            } else if (attrs.proxyFor && !attrs.proxyFor.projectId && graph.degree(nodeId) === 0) {
-              toRemove.push(nodeId);
-            }
-          });
-          for (const nodeId of toRemove) graph.dropNode(nodeId);
-        }
-      }
-    }
 
     this.projects.delete(id);
     // Close project's SQLite store
@@ -531,45 +412,18 @@ export class ProjectManager extends EventEmitter {
     return Array.from(this.projects.keys());
   }
 
-  markDirty(id: string): void {
-    const instance = this.projects.get(id);
-    if (instance) instance.dirty = true;
-  }
-
   /**
-   * Start auto-save interval (every intervalMs, save dirty projects).
-   * Safe despite running outside PromiseQueue: graph.export() and
-   * JSON.stringify are synchronous, so the event loop won't interleave
-   * them with async mutations (which yield at await points).
+   * Start auto-save interval. With SQLite Store, there is no Graphology JSON to save —
+   * all writes are persisted immediately to SQLite. This is kept as a no-op hook
+   * for any future periodic maintenance tasks.
    */
-  startAutoSave(intervalMs = AUTO_SAVE_INTERVAL_MS): void {
-    this.autoSaveInterval = setInterval(() => {
-      for (const instance of this.projects.values()) {
-        if (instance.dirty) {
-          try {
-            this.saveProject(instance);
-            instance.dirty = false;
-          } catch (err) {
-            log.error({ project: instance.id, err }, 'Auto-save error');
-          }
-        }
-      }
-      for (const ws of this.workspaces.values()) {
-        if (ws.dirty) {
-          try {
-            this.saveWorkspace(ws);
-            ws.dirty = false;
-          } catch (err) {
-            log.error({ workspace: ws.id, err }, 'Auto-save error for workspace');
-          }
-        }
-      }
-    }, intervalMs);
-    this.autoSaveInterval.unref();
+  startAutoSave(_intervalMs = AUTO_SAVE_INTERVAL_MS): void {
+    // SQLite writes are immediately durable — no periodic save needed.
+    // Kept as API for backward compatibility.
   }
 
   /**
-   * Save all projects and shut down.
+   * Shut down all projects and workspaces.
    */
   async shutdown(): Promise<void> {
     if (this.autoSaveInterval) clearInterval(this.autoSaveInterval);
@@ -581,7 +435,6 @@ export class ProjectManager extends EventEmitter {
         if (instance.indexer) await instance.indexer.drain();
         if (instance.mcpClientCleanup) await instance.mcpClientCleanup();
         await instance.mutationQueue.waitForPending();
-        this.saveProject(instance);
       } catch (err) {
         log.error({ project: instance.id, err }, 'Shutdown error');
       }
@@ -590,7 +443,6 @@ export class ProjectManager extends EventEmitter {
       try {
         if (ws.mirrorWatcher) await ws.mirrorWatcher.close();
         await ws.mutationQueue.waitForPending();
-        this.saveWorkspace(ws);
       } catch (err) {
         log.error({ workspace: ws.id, err }, 'Shutdown error for workspace');
       }
@@ -608,24 +460,6 @@ export class ProjectManager extends EventEmitter {
   // ---------------------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------------------
-
-  private saveProject(instance: ProjectInstance): void {
-    // Indexed graphs (docs/code/files) are in SQLite — no separate save needed.
-    // Knowledge/tasks/skills still use Graphology JSON persistence.
-    if (!instance.workspaceId) {
-      const gc = instance.config.graphConfigs;
-      if (instance.knowledgeGraph) saveKnowledgeGraph(instance.knowledgeGraph, instance.config.graphMemory, embeddingFingerprint(gc.knowledge.model));
-      if (instance.taskGraph) saveTaskGraph(instance.taskGraph, instance.config.graphMemory, embeddingFingerprint(gc.tasks.model));
-      if (instance.skillGraph) saveSkillGraph(instance.skillGraph, instance.config.graphMemory, embeddingFingerprint(gc.skills.model));
-    }
-  }
-
-  private saveWorkspace(ws: WorkspaceInstance): void {
-    const gc = ws.config.graphConfigs;
-    saveKnowledgeGraph(ws.knowledgeGraph, ws.config.graphMemory, embeddingFingerprint(gc.knowledge.model));
-    saveTaskGraph(ws.taskGraph, ws.config.graphMemory, embeddingFingerprint(gc.tasks.model));
-    saveSkillGraph(ws.skillGraph, ws.config.graphMemory, embeddingFingerprint(gc.skills.model));
-  }
 
   private buildEmbedFns(projectId: string): EmbedFnMap {
     const pair = (gn: GraphName) => ({

@@ -132,7 +132,8 @@ program
       // Save workspaces
       for (const wsId of manager.listWorkspaces()) {
         const ws = manager.getWorkspace(wsId)!;
-        log.info({ workspaceId: wsId, knowledge: ws.knowledgeGraph.order, tasks: ws.taskGraph.order, skills: ws.skillGraph.order }, 'Workspace stats');
+        const sm = ws.storeManager.scoped;
+        log.info({ workspaceId: wsId, knowledge: sm.knowledge.list({ limit: 0 }).total, tasks: sm.tasks.list({ limit: 0 }).total, skills: sm.skills.list({ limit: 0 }).total }, 'Workspace stats');
       }
 
       await manager.shutdown();

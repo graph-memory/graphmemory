@@ -21,7 +21,7 @@ export function useProjectDir(projectId: string | undefined): string | null {
         for (const p of projects) cache.set(p.id, p.projectDir);
         setDir(cache.get(projectId) ?? null);
       })
-      .catch(() => {});
+      .catch(e => console.error('Failed to load projects', e));
   }, [projectId]);
 
   return dir;

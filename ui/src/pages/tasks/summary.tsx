@@ -55,17 +55,17 @@ export default function TaskSummaryPage() {
 
   useEffect(() => {
     if (!projectId) return;
-    listTeam(projectId).then(setTeam).catch(() => {});
+    listTeam(projectId).then(setTeam).catch(e => console.error('Failed to load team', e));
     listEpics(projectId).then(async ({ items }) => {
       setEpics(items);
       const counts = new Map<string, { done: number; total: number }>();
       await Promise.all(items.map(async (epic) => {
-        const tasks = await listEpicTasks(projectId, epic.id).catch(() => []);
+        const tasks = await listEpicTasks(projectId, epic.id).catch(e => { console.error('Failed to load epic tasks', e); return []; });
         const done = tasks.filter(t => DONE_STATUSES.includes(t.status)).length;
         counts.set(epic.id, { done, total: tasks.length });
       }));
       setEpicTaskCounts(counts);
-    }).catch(() => {});
+    }).catch(e => console.error('Failed to load epics', e));
   }, [projectId]);
 
   useWebSocket(projectId ?? null, useCallback((event) => {

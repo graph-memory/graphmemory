@@ -400,12 +400,12 @@ export default function TaskListPage() {
   useEffect(() => { refresh(); }, [refresh]);
   useEffect(() => {
     if (!projectId) return;
-    listTeam(projectId).then(setTeam).catch(() => {});
+    listTeam(projectId).then(setTeam).catch(e => console.error('Failed to load team', e));
     listEpics(projectId).then(async ({ items: list }) => {
       setEpics(list);
       const map = new Map<string, Epic[]>();
       await Promise.all(list.map(async (epic) => {
-        const tasks = await listEpicTasks(projectId, epic.id).catch(() => []);
+        const tasks = await listEpicTasks(projectId, epic.id).catch(e => { console.error('Failed to load epic tasks', e); return []; });
         for (const t of tasks) {
           const arr = map.get(t.id) ?? [];
           arr.push(epic);
@@ -413,11 +413,11 @@ export default function TaskListPage() {
         }
       }));
       setTaskEpicMap(map);
-    }).catch(() => {});
+    }).catch(e => console.error('Failed to load epics', e));
   }, [projectId]);
   useEffect(() => {
     if (!projectId || !filters.epic) { setEpicTaskIds(null); return; }
-    listEpicTasks(projectId, filters.epic).then(tasks => setEpicTaskIds(new Set(tasks.map(t => t.id)))).catch(() => setEpicTaskIds(null));
+    listEpicTasks(projectId, filters.epic).then(tasks => setEpicTaskIds(new Set(tasks.map(t => t.id)))).catch(e => { console.error('Failed to filter epic tasks', e); setEpicTaskIds(null); });
   }, [projectId, filters.epic]);
   useWebSocket(projectId ?? null, useCallback((event) => { if (event.type.startsWith('task:') && !activeId) refresh(); }, [refresh, activeId]));
 

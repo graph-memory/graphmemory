@@ -17,7 +17,7 @@ export default function NoteNewPage() {
     if (!projectId) return;
     const note = await createNote(projectId, data);
     for (const file of stagedFiles) {
-      await uploadNoteAttachment(projectId, note.id, file).catch(() => {});
+      await uploadNoteAttachment(projectId, note.id, file).catch(e => console.error('Failed to upload attachment', e));
     }
     navigate(`/${projectId}/knowledge/${note.id}`);
   };

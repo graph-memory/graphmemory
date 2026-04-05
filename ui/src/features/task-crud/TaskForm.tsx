@@ -73,8 +73,8 @@ export function TaskForm({ task, defaults, onSubmit, onCancel, submitLabel = 'Sa
 
   useEffect(() => {
     if (!projectId) return;
-    listTeam(projectId).then(setTeam).catch(() => {});
-    listEpics(projectId).then(({ items }) => setEpics(items)).catch(() => {});
+    listTeam(projectId).then(setTeam).catch(e => console.error('Failed to load team', e));
+    listEpics(projectId).then(({ items }) => setEpics(items)).catch(e => console.error('Failed to load epics', e));
   }, [projectId]);
 
   useEffect(() => {
@@ -83,7 +83,7 @@ export function TaskForm({ task, defaults, onSubmit, onCancel, submitLabel = 'Sa
       const epicId = rels.find(r => r.kind === 'belongs_to')?.toId ?? '';
       setSelectedEpicId(epicId);
       setInitialEpicId(epicId);
-    }).catch(() => {});
+    }).catch(e => console.error('Failed to load task relations', e));
   }, [projectId, task]);
 
   const handleSubmit = async () => {

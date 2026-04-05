@@ -110,7 +110,7 @@ export function ConnectDialog({ open, onClose, projectId }: ConnectDialogProps) 
         if (data.authenticated) {
           request<{ apiKey: string | null }>('/auth/apikey')
             .then(d => { if (d?.apiKey) setApiKey(d.apiKey) })
-            .catch(() => {})
+            .catch(e => console.error('Failed to fetch API key', e))
         }
       })
       .catch(() => setAuthRequired(false))

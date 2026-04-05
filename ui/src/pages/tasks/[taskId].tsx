@@ -68,7 +68,7 @@ export default function TaskDetailPage() {
   }, [projectId, taskId]);
 
   const loadEpics = useCallback(() => {
-    if (projectId) listEpics(projectId).then(({ items }) => setEpics(items)).catch(() => {});
+    if (projectId) listEpics(projectId).then(({ items }) => setEpics(items)).catch(e => console.error('Failed to load epics', e));
   }, [projectId]);
 
   useEffect(() => { load(); loadEpics(); }, [load, loadEpics]);

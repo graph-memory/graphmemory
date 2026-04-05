@@ -27,7 +27,7 @@ export default function SkillNewPage() {
     if (!projectId) return;
     const skill = await createSkill(projectId, data);
     for (const file of stagedFiles) {
-      await uploadSkillAttachment(projectId, skill.id, file).catch(() => {});
+      await uploadSkillAttachment(projectId, skill.id, file).catch(e => console.error('Failed to upload attachment', e));
     }
     navigate(`/${projectId}/skills/${skill.id}`);
   };

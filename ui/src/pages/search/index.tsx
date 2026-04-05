@@ -90,7 +90,7 @@ export default function SearchPage() {
               id: n.id, scope: 'knowledge', title: n.title,
               subtitle: n.content?.slice(0, 120), score: n.score, tags: n.tags,
             });
-          }).catch(() => {})
+          }).catch(e => console.error('Failed to search notes', e))
         );
       }
       if (sc.includes('tasks')) {
@@ -101,7 +101,7 @@ export default function SearchPage() {
               subtitle: `${t.status} / ${t.priority}${t.description ? ' — ' + t.description.slice(0, 80) : ''}`,
               score: t.score, tags: t.tags,
             });
-          }).catch(() => {})
+          }).catch(e => console.error('Failed to search tasks', e))
         );
       }
       if (sc.includes('skills')) {
@@ -112,7 +112,7 @@ export default function SearchPage() {
               subtitle: `${s.source} / ${Math.round(s.confidence * 100)}%${s.description ? ' — ' + s.description.slice(0, 80) : ''}`,
               score: s.score, tags: s.tags,
             });
-          }).catch(() => {})
+          }).catch(e => console.error('Failed to search skills', e))
         );
       }
       if (sc.includes('files')) {
@@ -123,7 +123,7 @@ export default function SearchPage() {
               subtitle: [f.language, f.size ? `${(f.size / 1024).toFixed(1)} KB` : ''].filter(Boolean).join(' / '),
               score: f.score,
             });
-          }).catch(() => {})
+          }).catch(e => console.error('Failed to search files', e))
         );
       }
       if (sc.includes('docs')) {
@@ -133,7 +133,7 @@ export default function SearchPage() {
               id: d.id, scope: 'docs', title: d.title || d.id,
               subtitle: d.content?.slice(0, 120), score: d.score,
             });
-          }).catch(() => {})
+          }).catch(e => console.error('Failed to search docs', e))
         );
       }
       if (sc.includes('code')) {
@@ -143,7 +143,7 @@ export default function SearchPage() {
               id: s.id, scope: 'code', title: s.name || s.id,
               subtitle: `${s.kind}${s.content ? ' — ' + s.content.slice(0, 80) : ''}`, score: s.score,
             });
-          }).catch(() => {})
+          }).catch(e => console.error('Failed to search code', e))
         );
       }
 

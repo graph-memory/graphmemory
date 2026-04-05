@@ -28,10 +28,10 @@ export default function TaskNewPage() {
     if (!projectId) return;
     const task = await createTask(projectId, data);
     if (epicId) {
-      await linkTaskToEpic(projectId, epicId, task.id).catch(() => {});
+      await linkTaskToEpic(projectId, epicId, task.id).catch(e => console.error('Failed to link task to epic', e));
     }
     for (const file of stagedFiles) {
-      await uploadTaskAttachment(projectId, task.id, file).catch(() => {});
+      await uploadTaskAttachment(projectId, task.id, file).catch(e => console.error('Failed to upload attachment', e));
     }
     navigate(`/${projectId}/tasks/${task.id}`);
   };

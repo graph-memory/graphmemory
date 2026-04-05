@@ -59,8 +59,8 @@ export function QuickCreateDialog({ open, onClose, onCreated, defaultStatus }: Q
     if (open) {
       resetForm();
       if (projectId) {
-        listTeam(projectId).then(setTeam).catch(() => {});
-        listEpics(projectId).then(({ items: list }) => setEpics(list.filter(e => e.status === 'open' || e.status === 'in_progress'))).catch(() => {});
+        listTeam(projectId).then(setTeam).catch(e => console.error('Failed to load team', e));
+        listEpics(projectId).then(({ items: list }) => setEpics(list.filter(e => e.status === 'open' || e.status === 'in_progress'))).catch(e => console.error('Failed to load epics', e));
       }
     }
   }, [open, defaultStatus, projectId]);
@@ -78,7 +78,7 @@ export function QuickCreateDialog({ open, onClose, onCreated, defaultStatus }: Q
         assignee: assignee || undefined,
       });
       if (epicId) {
-        await linkTaskToEpic(projectId, epicId, task.id).catch(() => {});
+        await linkTaskToEpic(projectId, epicId, task.id).catch(e => console.error('Failed to link task to epic', e));
       }
       onCreated?.();
       return true;

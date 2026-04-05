@@ -7,7 +7,7 @@ Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before contributing.
 ## Getting started
 
 ```bash
-git clone https://github.com/graphmemory/graphmemory.git
+git clone https://github.com/graph-memory/graphmemory.git
 cd graphmemory
 npm install
 npm run dev          # tsc --watch

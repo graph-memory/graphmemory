@@ -39,7 +39,7 @@ import type {
   SearchResult,
   AttachmentMeta,
 } from '../store/types';
-import type { ParsedNoteFile, ParsedTaskFile, ParsedSkillFile } from './file-import';
+import type { ParsedNoteFile, ParsedTaskFile, ParsedSkillFile, ParsedEpicFile } from './file-import';
 import type { RelationFrontmatter } from './file-mirror';
 import { diffRelations } from './file-import';
 import {
@@ -664,6 +664,39 @@ export class StoreManager {
     this.emit(existing ? 'skill:updated' : 'skill:created', { projectId: this.projectId, skillId: record.id });
   }
 
+  /** Upsert an epic from parsed mirror file. Re-embeds, syncs edges. */
+  async importEpicFromFile(parsed: ParsedEpicFile): Promise<void> {
+    const existing = this.scoped.epics.getBySlug(parsed.id);
+    const embedding = await this.embedFn(`${parsed.title} ${parsed.description}`);
+
+    let record: EpicRecord;
+    if (existing) {
+      record = this.scoped.epics.update(existing.id, {
+        title: parsed.title,
+        description: parsed.description,
+        status: parsed.status,
+        priority: parsed.priority,
+        tags: parsed.tags,
+      }, embedding);
+    } else {
+      record = this.scoped.epics.create({
+        title: parsed.title,
+        description: parsed.description,
+        status: parsed.status,
+        priority: parsed.priority,
+        tags: parsed.tags,
+        slug: parsed.id,
+        createdAt: parsed.createdAt ?? undefined,
+        updatedAt: parsed.updatedAt ?? undefined,
+        version: parsed.version ?? undefined,
+      }, embedding);
+    }
+
+    this.syncEdgesFromFile('epics', record.id, parsed.relations);
+    this.syncAttachmentsFromParsed('epics', record.id, parsed.attachments);
+    this.emit(existing ? 'epic:updated' : 'epic:created', { projectId: this.projectId, epicId: record.id });
+  }
+
   /** Delete an entity by its slug (mirror directory name). */
   deleteNoteBySlug(slug: string): void {
     const record = this.scoped.knowledge.getBySlug(slug);
@@ -686,6 +719,13 @@ export class StoreManager {
     this.emit('skill:deleted', { projectId: this.projectId, skillId: record.id });
   }
 
+  deleteEpicBySlug(slug: string): void {
+    const record = this.scoped.epics.getBySlug(slug);
+    if (!record) return;
+    this.scoped.epics.delete(record.id);
+    this.emit('epic:deleted', { projectId: this.projectId, epicId: record.id });
+  }
+
   /** Get updatedAt timestamp for an entity by slug. Returns null if not found. */
   getNoteUpdatedAt(slug: string): number | null {
     return this.scoped.knowledge.getBySlug(slug)?.updatedAt ?? null;
@@ -697,6 +737,10 @@ export class StoreManager {
 
   getSkillUpdatedAt(slug: string): number | null {
     return this.scoped.skills.getBySlug(slug)?.updatedAt ?? null;
+  }
+
+  getEpicUpdatedAt(slug: string): number | null {
+    return this.scoped.epics.getBySlug(slug)?.updatedAt ?? null;
   }
 
   /** Sync attachment metadata from disk for an entity identified by slug. */
@@ -719,6 +763,13 @@ export class StoreManager {
     if (!record) return;
     const attachments = scanAttachments(path.join(this.projectDir, '.skills', slug));
     this.syncAttachmentsFromParsed('skills', record.id, attachments);
+  }
+
+  syncEpicAttachments(slug: string): void {
+    const record = this.scoped.epics.getBySlug(slug);
+    if (!record) return;
+    const attachments = scanAttachments(path.join(this.projectDir, '.epics', slug));
+    this.syncAttachmentsFromParsed('epics', record.id, attachments);
   }
 
   // =========================================================================

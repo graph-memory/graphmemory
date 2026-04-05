@@ -3,13 +3,14 @@ import * as path from 'path';
 import chokidar from 'chokidar';
 import type { StoreManager } from './store-manager';
 import type { PromiseQueue } from './promise-queue';
-import { parseNoteDir, parseTaskDir, parseSkillDir } from './file-import';
+import { parseNoteDir, parseTaskDir, parseSkillDir, parseEpicDir } from './file-import';
 import { appendEvent } from './events-log';
 import { parseMarkdown } from './frontmatter';
 import type { WatcherHandle } from './watcher';
 import { MIRROR_STALE_MS, MIRROR_MAX_ENTRIES, MIRROR_MTIME_TOLERANCE_MS } from '@/lib/defaults';
 import type { TaskStatus, TaskPriority } from '../store/types/tasks';
 import type { SkillSource } from '../store/types/skills';
+import type { EpicStatus } from '../store/types/epics';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('mirror-watcher');
@@ -214,6 +215,33 @@ function parseSkillSnapshot(filePath: string): {
   }
 }
 
+const VALID_EPIC_STATUSES = new Set(['open', 'in_progress', 'done', 'cancelled']);
+
+/** Parse an epic snapshot file. */
+function parseEpicSnapshot(filePath: string): {
+  title?: string; tags?: string[]; status?: EpicStatus; priority?: TaskPriority; description?: string;
+} | null {
+  try {
+    const raw = fs.readFileSync(filePath, 'utf-8');
+    const { frontmatter: fm, body } = parseMarkdown(raw);
+    const lines = body.split('\n');
+    const headingMatch = lines[0]?.match(/^#\s+(.+)/);
+    const title = headingMatch?.[1]?.trim();
+    let start = 1;
+    if (lines[start] === '') start++;
+    const description = lines.slice(start).join('\n').trim();
+    const result: ReturnType<typeof parseEpicSnapshot> = {};
+    if (title) result.title = title;
+    if (description) result.description = description;
+    if (VALID_EPIC_STATUSES.has(fm.status as string)) result.status = fm.status as EpicStatus;
+    if (VALID_PRIORITIES.has(fm.priority as string)) result.priority = fm.priority as TaskPriority;
+    if (Array.isArray(fm.tags)) result.tags = fm.tags.filter((t: unknown) => typeof t === 'string');
+    return result;
+  } catch {
+    return null;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // startMirrorWatcher
 // ---------------------------------------------------------------------------
@@ -235,11 +263,12 @@ export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
   const notesDir = path.join(config.projectDir, '.notes');
   const tasksDir = path.join(config.projectDir, '.tasks');
   const skillsDir = path.join(config.projectDir, '.skills');
+  const epicsDir = path.join(config.projectDir, '.epics');
 
   let resolveReady!: () => void;
   const whenReady = new Promise<void>(resolve => { resolveReady = resolve; });
 
-  const watchPaths = [notesDir, tasksDir];
+  const watchPaths = [notesDir, tasksDir, epicsDir];
   if (config.skillsEnabled) watchPaths.push(skillsDir);
 
   const watcher = chokidar.watch(watchPaths, {
@@ -278,6 +307,13 @@ export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
       }).catch(err => log.error({ err }, 'skill events import error'));
       return;
     }
+    if (type === 'epic-events') {
+      config.mutationQueue.enqueue(async () => {
+        const parsed = parseEpicDir(entityDir);
+        if (parsed) await mgr.importEpicFromFile(parsed);
+      }).catch(err => log.error({ err }, 'epic events import error'));
+      return;
+    }
 
     // --- content.md / description.md changed (human-edited in IDE) ---
     if (type === 'note-content') {
@@ -301,8 +337,15 @@ export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
       }).catch(err => log.error({ err }, 'skill content import error'));
       return;
     }
+    if (type === 'epic-content') {
+      config.mutationQueue.enqueue(async () => {
+        const parsed = parseEpicDir(entityDir);
+        if (parsed) await mgr.importEpicFromFile(parsed);
+      }).catch(err => log.error({ err }, 'epic content import error'));
+      return;
+    }
 
-    // --- snapshot (task.md / note.md / skill.md) edited by user ---
+    // --- snapshot (task.md / note.md / skill.md / epic.md) edited by user ---
     // Detect delta vs current store state, append update events, then re-import from dir
     if (type === 'task-snapshot') {
       config.mutationQueue.enqueue(async () => {
@@ -398,6 +441,37 @@ export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
       return;
     }
 
+    if (type === 'epic-snapshot') {
+      config.mutationQueue.enqueue(async () => {
+        const current = mgr.getEpicBySlug(id);
+        const snapshot = parseEpicSnapshot(filePath);
+        if (!current || !snapshot) return;
+
+        const eventsPath = path.join(entityDir, 'events.jsonl');
+        const delta: Record<string, unknown> = {};
+        if (snapshot.title !== undefined && snapshot.title !== current.title) delta.title = snapshot.title;
+        if (snapshot.status !== undefined && snapshot.status !== current.status) delta.status = snapshot.status;
+        if (snapshot.priority !== undefined && snapshot.priority !== current.priority) delta.priority = snapshot.priority;
+        if (snapshot.tags !== undefined && JSON.stringify(snapshot.tags) !== JSON.stringify(current.tags)) delta.tags = snapshot.tags;
+
+        if (Object.keys(delta).length > 0) {
+          appendEvent(eventsPath, { op: 'update', ...delta });
+          config.tracker.recordWrite(eventsPath);
+        }
+
+        // If description changed, write to description.md
+        if (snapshot.description !== undefined && snapshot.description !== current.description) {
+          const descPath = path.join(entityDir, 'description.md');
+          fs.writeFileSync(descPath, snapshot.description, 'utf-8');
+          config.tracker.recordWrite(descPath);
+        }
+
+        const parsed = parseEpicDir(entityDir);
+        if (parsed) await mgr.importEpicFromFile(parsed);
+      }).catch(err => log.error({ err }, 'epic snapshot edit error'));
+      return;
+    }
+
     // --- attachment file added ---
     if (type === 'note-attachment') {
       config.mutationQueue.enqueue(async () => {
@@ -415,6 +489,12 @@ export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
       config.mutationQueue.enqueue(async () => {
         mgr.syncSkillAttachments(id);
       }).catch(err => log.error({ err }, 'skill attachment sync error'));
+      return;
+    }
+    if (type === 'epic-attachment') {
+      config.mutationQueue.enqueue(async () => {
+        mgr.syncEpicAttachments(id);
+      }).catch(err => log.error({ err }, 'epic attachment sync error'));
       return;
     }
   };
@@ -444,9 +524,15 @@ export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
       }).catch(err => log.error({ err }, 'skill delete error'));
       return;
     }
+    if (type === 'epic-events') {
+      config.mutationQueue.enqueue(async () => {
+        mgr.deleteEpicBySlug(id);
+      }).catch(err => log.error({ err }, 'epic delete error'));
+      return;
+    }
 
     // Snapshot deleted → ignore (gitignored, server regenerates it)
-    if (type === 'note-snapshot' || type === 'task-snapshot' || type === 'skill-snapshot') {
+    if (type === 'note-snapshot' || type === 'task-snapshot' || type === 'skill-snapshot' || type === 'epic-snapshot') {
       return;
     }
 
@@ -472,6 +558,13 @@ export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
       }).catch(err => log.error({ err }, 'skill content delete sync error'));
       return;
     }
+    if (type === 'epic-content') {
+      config.mutationQueue.enqueue(async () => {
+        const parsed = parseEpicDir(entityDir);
+        if (parsed) await mgr.importEpicFromFile(parsed);
+      }).catch(err => log.error({ err }, 'epic content delete sync error'));
+      return;
+    }
 
     // Attachment deleted → sync attachments metadata
     if (type === 'note-attachment') {
@@ -492,13 +585,19 @@ export function startMirrorWatcher(config: MirrorWatcherConfig): WatcherHandle {
       }).catch(err => log.error({ err }, 'skill attachment sync error'));
       return;
     }
+    if (type === 'epic-attachment') {
+      config.mutationQueue.enqueue(async () => {
+        mgr.syncEpicAttachments(id);
+      }).catch(err => log.error({ err }, 'epic attachment sync error'));
+      return;
+    }
   };
 
   watcher.on('add', handleAddOrChange);
   watcher.on('change', handleAddOrChange);
   watcher.on('unlink', handleUnlink);
   watcher.once('ready', () => {
-    const watched = ['.notes/', '.tasks/'];
+    const watched = ['.notes/', '.tasks/', '.epics/'];
     if (config.skillsEnabled) watched.push('.skills/');
     log.info({ dirs: watched, projectDir: config.projectDir }, 'Watching mirror directories');
     resolveReady();
@@ -519,9 +618,11 @@ export async function scanMirrorDirs(config: MirrorWatcherConfig): Promise<void>
   const notesDir = path.join(config.projectDir, '.notes');
   const tasksDir = path.join(config.projectDir, '.tasks');
   const skillsDir = path.join(config.projectDir, '.skills');
+  const epicsDir = path.join(config.projectDir, '.epics');
   let noteCount = 0;
   let taskCount = 0;
   let skillCount = 0;
+  let epicCount = 0;
 
   // Scan notes (directory-based: .notes/{id}/events.jsonl)
   if (fs.existsSync(notesDir)) {
@@ -604,7 +705,34 @@ export async function scanMirrorDirs(config: MirrorWatcherConfig): Promise<void>
     }
   }
 
-  if (noteCount > 0 || taskCount > 0 || skillCount > 0) {
-    log.info({ notes: noteCount, tasks: taskCount, skills: skillCount }, 'Scanned mirror directories');
+  // Scan epics (directory-based: .epics/{id}/events.jsonl)
+  if (fs.existsSync(epicsDir)) {
+    const entries = fs.readdirSync(epicsDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const entityDir = path.join(epicsDir, entry.name);
+      const eventsPath = path.join(entityDir, 'events.jsonl');
+      if (!fs.existsSync(eventsPath)) continue;
+
+      epicCount++;
+      const parsed = parseEpicDir(entityDir);
+      if (!parsed) continue;
+
+      const existingUpdatedAt = mgr.getEpicUpdatedAt(parsed.id);
+      const evMtime = fs.statSync(eventsPath).mtimeMs;
+      const descPath = path.join(entityDir, 'description.md');
+      const descMtime = fs.existsSync(descPath) ? fs.statSync(descPath).mtimeMs : 0;
+      const fileMtime = Math.max(evMtime, descMtime);
+
+      if (existingUpdatedAt == null || fileMtime > existingUpdatedAt) {
+        await config.mutationQueue.enqueue(async () => {
+          await mgr.importEpicFromFile(parsed);
+        });
+      }
+    }
+  }
+
+  if (noteCount > 0 || taskCount > 0 || skillCount > 0 || epicCount > 0) {
+    log.info({ notes: noteCount, tasks: taskCount, skills: skillCount, epics: epicCount }, 'Scanned mirror directories');
   }
 }

@@ -140,7 +140,7 @@ See [docs/docker.md](docs/docker.md) for details.
 | **Code** | `code_list_files`, `code_get_file_symbols`, `code_search`, `code_get_symbol`, `code_search_files` |
 | **Files** | `files_list`, `files_search`, `files_get_info` |
 | **Knowledge** | `notes_create`, `notes_update`, `notes_delete`, `notes_get`, `notes_list`, `notes_search`, `notes_create_link`, `notes_delete_link`, `notes_list_links`, `notes_find_linked`, `notes_add_attachment`, `notes_remove_attachment` |
-| **Tasks** | `tasks_create`, `tasks_update`, `tasks_delete`, `tasks_get`, `tasks_list`, `tasks_search`, `tasks_move`, `tasks_reorder`, `tasks_link`, `tasks_create_link`, `tasks_delete_link`, `tasks_find_linked`, `tasks_add_attachment`, `tasks_remove_attachment` |
+| **Tasks** | `tasks_create`, `tasks_update`, `tasks_delete`, `tasks_get`, `tasks_list`, `tasks_search`, `tasks_move`, `tasks_reorder`, `tasks_link`, `tasks_create_link`, `tasks_delete_link`, `tasks_find_linked`, `tasks_add_attachment`, `tasks_remove_attachment`, `tasks_bulk_delete`, `tasks_bulk_move`, `tasks_bulk_priority` |
 | **Epics** | `epics_create`, `epics_update`, `epics_delete`, `epics_get`, `epics_list`, `epics_search`, `epics_link_task`, `epics_unlink_task` |
 | **Skills** | `skills_create`, `skills_update`, `skills_delete`, `skills_get`, `skills_list`, `skills_search`, `skills_recall`, `skills_bump_usage`, `skills_link`, `skills_create_link`, `skills_delete_link`, `skills_find_linked`, `skills_add_attachment`, `skills_remove_attachment` |
 
@@ -184,7 +184,7 @@ See [docs/authentication.md](docs/authentication.md).
 ```bash
 npm run dev              # tsc --watch (backend)
 cd ui && npm run dev     # Vite on :5173, proxies /api → :3000
-npm test                 # 1809 tests across 45 suites
+npm test                 # all tests
 ```
 
 ## Documentation

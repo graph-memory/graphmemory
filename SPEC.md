@@ -11,14 +11,17 @@ access control, and real-time updates.
 
 ## Graphs
 
-| Graph | Storage | Description |
-|-------|---------|-------------|
-| **DocGraph** | `docs.json` | Markdown chunks with cross-file links and code block extraction |
-| **CodeGraph** | `code.json` | AST symbols (functions, classes, interfaces) via tree-sitter |
-| **KnowledgeGraph** | `knowledge.json` | User/LLM-created notes with typed relations |
-| **FileIndexGraph** | `file-index.json` | All project files with metadata and directory hierarchy |
-| **TaskGraph** | `tasks.json` | Tasks with kanban workflow, priorities, assignees |
-| **SkillGraph** | `skills.json` | Reusable recipes with steps, triggers, usage tracking |
+All graphs are stored in a single **SQLite** database (better-sqlite3 + sqlite-vec + FTS5) per workspace.
+
+| Graph | Store | Description |
+|-------|-------|-------------|
+| **DocsStore** | indexed | Markdown chunks with cross-file links and code block extraction |
+| **CodeStore** | indexed | AST symbols (functions, classes, interfaces) via tree-sitter |
+| **FilesStore** | indexed | All project files with metadata and directory hierarchy |
+| **KnowledgeStore** | user-managed | User/LLM-created notes with typed relations |
+| **TasksStore** | user-managed | Tasks with kanban workflow, priorities, assignees |
+| **EpicsStore** | user-managed | Epics grouping related tasks with progress tracking |
+| **SkillsStore** | user-managed | Reusable recipes with steps, triggers, usage tracking |
 
 See [docs/graphs-overview.md](docs/graphs-overview.md) for data models, node IDs, and edge types.
 

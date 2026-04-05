@@ -3,8 +3,8 @@
 ## Project overview
 
 MCP server that builds a semantic graph memory from a project directory — indexing
-markdown docs, TypeScript/JavaScript source code, and all project files into six
-interconnected graphs. Exposes 70 MCP tools + REST API + Web UI.
+markdown docs, TypeScript/JavaScript source code, and all project files into seven
+stores (docs, code, files, knowledge, tasks, epics, skills). Exposes 70 MCP tools + REST API + Web UI.
 
 **Full documentation**: see [docs/](docs/README.md)
 
@@ -18,7 +18,7 @@ npm run cli:dev        # tsx src/cli/index.ts (no build needed)
 
 Run tests:
 ```bash
-npm test                               # all tests (1809 tests across 45 suites)
+npm test                               # all tests
 npm test -- --testPathPatterns=search   # specific test file
 npm run test:watch                     # watch mode
 npx tsx src/tests/embedder.test.ts     # real model test (slow, excluded from Jest)
@@ -35,16 +35,16 @@ graphmemory users add --config graph-memory.yaml                     # add user 
 
 ## Architecture
 
-Graphs on Graphology: DocGraph, CodeGraph, KnowledgeGraph, FileIndexGraph, TaskGraph, SkillGraph.
-Each has a Manager class (unified API for CRUD + search + embedding + events + file mirror).
-MCP tools and REST routes are thin adapters over managers.
+SQLite storage layer (better-sqlite3 + sqlite-vec + FTS5): DocsStore, CodeStore, FilesStore, KnowledgeStore, TasksStore, EpicsStore, SkillsStore.
+One DB per workspace. StoreManager wraps store lifecycle + project-scoped access.
+MCP tools and REST routes are thin adapters over store methods.
 
 See [docs/architecture.md](docs/architecture.md) for diagrams and directory structure.
 
 ## Key design decisions
 
 - **CommonJS** (`module: "CommonJS"` in tsconfig)
-- **Graph managers** encapsulate everything: embed → CRUD → dirty → emit → file mirror → proxy cleanup
+- **SQLite storage**: better-sqlite3 + sqlite-vec (vector search) + FTS5 (keyword search), one DB per workspace
 - **tree-sitter** (web-tree-sitter WASM) for AST parsing — supports TS/JS/TSX/JSX, extensible to other languages
 - **Hybrid search**: BM25 keyword + vector cosine, fused via RRF, with BFS graph expansion
 - **Three serial queues**: docs, code, file index — independent Promise chains, concurrent with each other

@@ -1,17 +1,18 @@
 # Graphs — Overview
 
-The system maintains multiple graph types, all built on **Graphology** (in-memory directed graph library). Each graph is persisted as a JSON file and managed by a dedicated Manager class.
+The system maintains multiple graph types, all stored in a **SQLite** database (one per workspace) using better-sqlite3, sqlite-vec for vector search, and FTS5 for keyword search.
 
 ## Graph types
 
-| Graph | File | Manager | Description |
-|-------|------|---------|-------------|
-| **DocGraph** | `docs.json` | `DocGraphManager` | Markdown document chunks |
-| **CodeGraph** | `code.json` | `CodeGraphManager` | AST symbols from TS/JS source |
-| **KnowledgeGraph** | `knowledge.json` | `KnowledgeGraphManager` | User/LLM-created notes and facts |
-| **FileIndexGraph** | `file-index.json` | `FileIndexGraphManager` | All project files and directories |
-| **TaskGraph** | `tasks.json` | `TaskGraphManager` | Tasks and epics with kanban workflow |
-| **SkillGraph** | `skills.json` | `SkillGraphManager` | Reusable recipes and procedures |
+| Graph | Store | Category | Description |
+|-------|-------|----------|-------------|
+| **Docs** | `DocsStore` | indexed | Markdown document chunks |
+| **Code** | `CodeStore` | indexed | AST symbols from TS/JS source |
+| **Files** | `FilesStore` | indexed | All project files and directories |
+| **Knowledge** | `KnowledgeStore` | user-managed | User/LLM-created notes and facts |
+| **Tasks** | `TasksStore` | user-managed | Tasks with kanban workflow |
+| **Epics** | `EpicsStore` | user-managed | Epics grouping related tasks with progress tracking |
+| **Skills** | `SkillsStore` | user-managed | Reusable recipes and procedures |
 
 See individual graph pages for detailed documentation:
 - [DocGraph](graph-docs.md)
@@ -47,54 +48,37 @@ CRUD-only graphs also feature:
 
 ## Graph Managers
 
-Each graph has a Manager class that serves as the single entry point for all operations. MCP tools and REST handlers call manager methods instead of raw graph functions.
+MCP tools and REST handlers access stores via `StoreManager` → `ProjectScopedStore`.
 
-### GraphManagerContext
+### Store categories
 
-```typescript
-interface GraphManagerContext {
-  markDirty(): void;      // Sets project.dirty = true (triggers auto-save)
-  emit(event, data): void; // Broadcasts via ProjectManager (→ WebSocket → UI)
-  projectId: string;       // Used in event payloads
-  projectDir?: string;     // Enables file mirror (.notes/, .tasks/, .skills/)
-}
-```
-
-- In **production** (serve/mcp commands): context has real callbacks connected to ProjectManager
-- In **tests**: `noopContext()` provides no-op callbacks (no file I/O, no events)
-
-### Manager responsibilities
-
-| Manager | Responsibilities |
-|---------|-----------------|
-| `DocGraphManager` | Read: listFiles, getFileChunks, search. Write: updateFile, removeFile (used by indexer) |
-| `CodeGraphManager` | Read: listFiles, getFileSymbols, search. Write: updateFile, removeFile (used by indexer) |
-| `FileIndexGraphManager` | Read: listAllFiles, getFileInfo, search. Write: updateFileEntry, removeFileEntry (used by indexer) |
-| `KnowledgeGraphManager` | Full cycle: embed → CRUD → dirty → emit → file mirror → cross-graph proxy cleanup |
-| `TaskGraphManager` | Full cycle: embed → CRUD → dirty → emit → file mirror → cross-graph proxy cleanup |
-| `SkillGraphManager` | Full cycle: embed → CRUD → dirty → emit → file mirror → cross-graph proxy cleanup |
+| Store | Responsibilities |
+|-------|-----------------|
+| `DocsStore` | Read: listFiles, getFileChunks, search. Write: bulk upsert/remove by file (used by indexer) |
+| `CodeStore` | Read: listFiles, getFileSymbols, search. Write: bulk upsert/remove by file (used by indexer) |
+| `FilesStore` | Read: listAllFiles, getFileInfo, search. Write: bulk upsert/remove by file (used by indexer) |
+| `KnowledgeStore` | Full CRUD with slugs, versions, tags, attachments, optimistic locking, file mirror |
+| `TasksStore` | Full CRUD with slugs, versions, tags, attachments, optimistic locking, file mirror |
+| `EpicsStore` | Full CRUD with slugs, progress tracking (done/total), task linking |
+| `SkillsStore` | Full CRUD with slugs, versions, tags, attachments, optimistic locking, file mirror |
 
 ## Persistence
 
-Each graph is serialized as JSON using Graphology's `export()`/`import()`:
+All graphs are stored in a single SQLite database per workspace using:
 
-```json
-{
-  "version": 2,
-  "embeddingModel": "Xenova/bge-m3|cls|true||q8",
-  "graph": { /* graphology export */ }
-}
-```
+- **better-sqlite3** — synchronous SQLite bindings (WAL mode)
+- **sqlite-vec** — vector similarity search (per-graph configurable dimensions, default 384)
+- **FTS5** — full-text keyword search
 
-Two checks trigger automatic re-indexing on load:
-- **`version`** — a data schema version (`GRAPH_DATA_VERSION` in `defaults.ts`). Bumped when changing what gets embedded, path normalization, stored format, or any change requiring fresh data. If missing or mismatched, the graph is discarded.
-- **`embeddingModel`** — a fingerprint of the embedding config (model + pooling + normalize + documentPrefix + dtype). If the configured model differs from the stored one, the graph is discarded.
+The database file is located in the workspace data directory. Schema migrations use `PRAGMA user_version`.
 
-Files are stored in the `graphMemory` directory (default: `{projectDir}/.graph-memory/`).
+### Embedding model validation
 
-### Auto-save
+An embedding model fingerprint (model + pooling + normalize + documentPrefix + dtype) is stored in the database metadata. If the configured model differs from the stored one, indexed data (docs, code, files) is re-indexed automatically.
 
-The `serve` command runs auto-save every 30 seconds. Only dirty projects (those with pending graph changes) are saved.
+### Transactions
+
+Store methods are not transactional internally. The caller wraps multi-step operations in `store.transaction()` for atomicity. SQLite triggers cascade DELETEs to edges, attachments, and vec0 tables.
 
 ## Cross-graph links
 
@@ -140,22 +124,15 @@ In workspaces, cross-graph links between projects use project-scoped proxy IDs:
 
 Slug generation uses `slugify()` — lowercase, replace non-alphanumeric with hyphens, trim, deduplicate with `::2`, `::3`, etc.
 
-## BM25 index
+## Search
 
-Each graph manager maintains a BM25 keyword index alongside the vector embeddings. The BM25 index is updated incrementally on every CRUD operation (add/remove/update).
-
-The tokenizer splits on whitespace, punctuation, and camelCase (`getUserById` → `[get, user, by, id]`).
+Each store supports hybrid search combining **FTS5** (keyword) and **sqlite-vec** (vector cosine), fused via Reciprocal Rank Fusion (RRF, K=60). Three modes: `hybrid`, `keyword`, `vector`.
 
 See [Search](search.md) for the hybrid search algorithm.
 
-## Epics in TaskGraph
+## Epics
 
-Epics are stored in the same TaskGraph alongside tasks, distinguished by a `nodeType` field:
-
-- **Tasks** have `nodeType: "task"` (default)
-- **Epics** have `nodeType: "epic"`
-
-Tasks are linked to epics via `belongs_to` edges. Epics support an `order` field for positioning, using gap-based integers for efficient reordering without renumbering siblings. This shared-graph approach avoids a separate persistence file while keeping epics and tasks queryable together.
+Epics have a dedicated `EpicsStore` (separate from `TasksStore`). Tasks are linked to epics via `belongs_to` edges. Epics support an `order` field for positioning, using gap-based integers for efficient reordering without renumbering siblings.
 
 ## Enabled/disabled graphs
 

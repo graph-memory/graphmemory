@@ -10,6 +10,8 @@ import type {
   GraphName,
   EmbeddingDims,
 } from '../types';
+import type { VecGraph } from '../types/common';
+import { getEmbeddingDim } from '../types/common';
 import { openDatabase } from './lib/db';
 import { runMigrations } from './lib/migrate';
 import { MetaHelper } from './lib/meta';
@@ -51,6 +53,37 @@ export class SqliteStore implements Store {
     this.edgeHelper = new EdgeHelper(this.db);
     this._projects = new SqliteProjectsStore(this.db);
     this._team = new SqliteTeamStore(this.db);
+  }
+
+  /**
+   * Update embedding dimensions: recreate vec0 tables whose dimension changed.
+   * Must be called after open() once actual model dimensions are known.
+   * Clears the scoped store cache so subsequent project() calls use the new dims.
+   */
+  updateEmbeddingDims(dims: EmbeddingDims): void {
+    this.requireDb();
+    const VEC_TABLES: VecGraph[] = ['knowledge', 'tasks', 'epics', 'skills', 'code', 'docs', 'files'];
+    for (const graph of VEC_TABLES) {
+      const wanted = getEmbeddingDim(dims, graph);
+      const current = this.getVecDimension(`${graph}_vec`);
+      if (current !== null && current !== wanted) {
+        this.db!.exec(`DROP TABLE ${graph}_vec`);
+        this.db!.exec(`CREATE VIRTUAL TABLE ${graph}_vec USING vec0(embedding float[${wanted}])`);
+      }
+    }
+    this.embeddingDims = dims;
+    this.scopedCache.clear();
+  }
+
+  /** Read the dimension of a vec0 table from its CREATE SQL, or null if the table doesn't exist. */
+  private getVecDimension(tableName: string): number | null {
+    const row = this.db!.prepare(
+      `SELECT sql FROM sqlite_master WHERE type='table' AND name=?`,
+    ).get(tableName) as { sql: string } | undefined;
+    if (!row) return null;
+    // sql looks like: CREATE VIRTUAL TABLE x USING vec0(embedding float[384])
+    const m = row.sql.match(/float\[(\d+)\]/);
+    return m ? Number(m[1]) : null;
   }
 
   close(): void {

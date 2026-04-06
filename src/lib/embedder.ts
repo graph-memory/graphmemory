@@ -324,6 +324,15 @@ function getEntry(modelName: string): ModelEntry {
   return entry;
 }
 
+/**
+ * Probe the embedding dimension for a registered model by running a single test embed.
+ * Triggers lazy model loading for local ONNX models.
+ */
+export async function probeEmbeddingDim(modelName = 'default'): Promise<number> {
+  const vec = await embed('test', '', modelName);
+  return vec.length;
+}
+
 /** Embed a document (indexing). Applies documentPrefix and configured pooling. */
 export async function embed(title: string, content: string, modelName = 'default'): Promise<number[]> {
   const entry = getEntry(modelName);

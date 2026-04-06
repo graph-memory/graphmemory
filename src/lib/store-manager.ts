@@ -85,7 +85,7 @@ export interface StoreManagerConfig {
 
 export class StoreManager {
   readonly store: Store;
-  readonly scoped: ProjectScopedStore;
+  scoped: ProjectScopedStore;
   readonly projectId: number;
   readonly projectDir: string;
   private embedFn: EmbedFn;
@@ -99,6 +99,11 @@ export class StoreManager {
     this.embedFn = config.embedFn;
     this.emitter = config.emitter ?? new EventEmitter();
     this.scoped = config.store.project(config.projectId);
+  }
+
+  /** Re-fetch the scoped store from the parent store (e.g. after embedding dims change). */
+  refreshScoped(): void {
+    this.scoped = this.store.project(this.projectId);
   }
 
   setMirrorTracker(tracker: MirrorWriteTracker): void {

@@ -84,7 +84,7 @@ export default function DashboardPage() {
     { label: 'Skills', value: (stats as Record<string, any>)?.skills?.nodes ?? 0, edges: (stats as Record<string, any>)?.skills?.edges ?? 0, icon: <PsychologyIcon />, path: 'skills', graph: 'skills', color: '#9c27b0' },
     { label: 'Docs', value: stats?.docs?.nodes ?? 0, edges: stats?.docs?.edges ?? 0, icon: <DescriptionIcon />, path: 'docs', graph: 'docs', color: palette.secondary.main },
     { label: 'Code Symbols', value: stats?.code?.nodes ?? 0, edges: stats?.code?.edges ?? 0, icon: <CodeIcon />, path: 'search', graph: 'code', color: palette.error.main },
-    { label: 'Files', value: stats?.fileIndex?.nodes ?? 0, edges: stats?.fileIndex?.edges ?? 0, icon: <FolderIcon />, path: 'files', graph: 'files', color: palette.success.main },
+    { label: 'Files', value: stats?.files?.nodes ?? 0, edges: stats?.files?.edges ?? 0, icon: <FolderIcon />, path: 'files', graph: 'files', color: palette.success.main },
   ];
   const statCards = allStatCards.filter(c => canReadGraph(c.graph));
 

@@ -366,11 +366,15 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
     const ws = p.workspaceId ? projectManager.getWorkspace(p.workspaceId) : undefined;
 
     const scoped = p.storeManager.scoped;
-    const graphNames = ['knowledge', 'tasks', 'skills'] as const;
+    const projectScoped = p.scopedStore;
+    const graphNames = ['knowledge', 'tasks', 'skills', 'docs', 'code', 'files'] as const;
     const countFns: Record<string, () => number> = {
       knowledge: () => scoped.knowledge.list({ limit: 0 }).total,
       tasks: () => scoped.tasks.list({ limit: 0 }).total,
       skills: () => scoped.skills.list({ limit: 0 }).total,
+      docs: () => projectScoped.docs.listFiles().total,
+      code: () => projectScoped.code.listFiles().total,
+      files: () => projectScoped.files.listFiles().total,
     };
 
     const result: Record<string, { nodes: number; edges: number } | null> = {};

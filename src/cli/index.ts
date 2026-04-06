@@ -98,6 +98,14 @@ program
         await manager.loadModels(id);
       }
 
+      // Probe embedding dimensions and update vec0 tables if needed
+      for (const wsId of manager.listWorkspaces()) {
+        await manager.probeWorkspaceDimensions(wsId);
+      }
+      for (const id of ids) {
+        await manager.probeDimensions(id);
+      }
+
       // Create indexers for all projects
       for (const id of ids) {
         manager.ensureIndexer(id);
@@ -253,6 +261,22 @@ program
         await manager.loadModels(id);
       } catch (err: unknown) {
         log.error({ err, projectId: id }, 'Failed to register project models');
+      }
+    }
+
+    // Probe embedding dimensions and update vec0 tables if needed
+    for (const wsId of manager.listWorkspaces()) {
+      try {
+        await manager.probeWorkspaceDimensions(wsId);
+      } catch (err: unknown) {
+        log.error({ err, workspaceId: wsId }, 'Failed to probe workspace embedding dimensions');
+      }
+    }
+    for (const id of projectIds) {
+      try {
+        await manager.probeDimensions(id);
+      } catch (err: unknown) {
+        log.error({ err, projectId: id }, 'Failed to probe project embedding dimensions');
       }
     }
 

@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import { loadModel, embed, embedQuery, type EmbeddingCacheFactory } from '@/lib/embedder';
+import { loadModel, embed, embedQuery, probeEmbeddingDim, type EmbeddingCacheFactory } from '@/lib/embedder';
 import { createProjectIndexer, type ProjectIndexer, type IndexPhase } from '@/cli/indexer';
 import { clearPathMappingsCache } from '@/lib/parsers/code';
 import { clearWikiIndexCache } from '@/lib/parsers/docs';
@@ -15,7 +15,8 @@ import { AUTO_SAVE_INTERVAL_MS } from '@/lib/defaults';
 import { createLogger } from '@/lib/logger';
 import { StoreManager } from '@/lib/store-manager';
 import { SqliteStore } from '@/store';
-import type { Store, ProjectScopedStore } from '@/store/types';
+import type { Store, ProjectScopedStore, EmbeddingDims } from '@/store/types';
+import type { VecGraph } from '@/store/types/common';
 
 const log = createLogger('project-manager');
 
@@ -272,6 +273,62 @@ export class ProjectManager extends EventEmitter {
       if (!gc[gn].enabled) continue;
       await loadModel(gc[gn].model, gc[gn].embedding, this.serverConfig.modelsDir, `${id}:${gn}`, this.cacheFactory);
     }
+  }
+
+  /**
+   * Probe embedding dimensions for a workspace's models and update its vec0 tables.
+   * Call after loadWorkspaceModels.
+   */
+  async probeWorkspaceDimensions(id: string): Promise<void> {
+    const ws = this.workspaces.get(id);
+    if (!ws) throw new Error(`Workspace "${id}" not found`);
+
+    const dims: EmbeddingDims = {};
+    const graphNames: VecGraph[] = ['knowledge', 'tasks', 'skills'];
+    for (const gn of graphNames) {
+      dims[gn] = await probeEmbeddingDim(`${id}:${gn}`);
+    }
+    // Epics share the same embedder as tasks
+    dims.epics = dims.tasks;
+    ws.store.updateEmbeddingDims(dims);
+    ws.storeManager.refreshScoped();
+    log.info({ workspace: id, dims }, 'Probed workspace embedding dimensions');
+  }
+
+  /**
+   * Probe embedding dimensions for a project's models and update its vec0 tables.
+   * Call after loadModels.
+   */
+  async probeDimensions(id: string): Promise<void> {
+    const instance = this.projects.get(id);
+    if (!instance) throw new Error(`Project "${id}" not found`);
+
+    const gc = instance.config.graphConfigs;
+    const dims: EmbeddingDims = {};
+    const skipGraphs = instance.workspaceId
+      ? new Set<GraphName>(['knowledge', 'tasks', 'skills'])
+      : new Set<GraphName>();
+
+    for (const gn of GRAPH_NAMES) {
+      if (skipGraphs.has(gn)) continue;
+      if (!gc[gn].enabled) continue;
+      dims[gn as VecGraph] = await probeEmbeddingDim(`${id}:${gn}`);
+    }
+    // Epics share the same embedder as knowledge (standalone) or tasks (workspace — handled in probeWorkspaceDimensions)
+    if (!instance.workspaceId && dims.knowledge) {
+      dims.epics = dims.knowledge;
+    }
+
+    const store = this.stores.get(id);
+    if (store) {
+      store.updateEmbeddingDims(dims);
+      // Refresh scopedStore references — old ones have stale embeddingDim values
+      instance.scopedStore = store.project(instance.dbProjectId);
+      if (!instance.workspaceId) {
+        instance.storeManager.refreshScoped();
+      }
+    }
+    log.info({ project: id, dims }, 'Probed project embedding dimensions');
   }
 
   /**

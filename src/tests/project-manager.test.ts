@@ -3,6 +3,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import { ProjectManager } from '@/lib/project-manager';
 import type { ServerConfig, ProjectConfig, WorkspaceConfig } from '@/lib/multi-config';
+import * as embedder from '@/lib/embedder';
 
 // ---------------------------------------------------------------------------
 // Helpers — minimal configs to test project/workspace management without
@@ -327,6 +328,93 @@ describe('ProjectManager', () => {
 
       const project = pm.getProject('reindex-test');
       expect(project).toBeDefined();
+    });
+  });
+
+  // --- Embedding dimension probing ---
+
+  describe('probeWorkspaceDimensions', () => {
+    it('sets epics embedding dimension from tasks embedder', async () => {
+      const wsDir = makeTmpDir('ws-probe-');
+      const projDir = makeTmpDir('proj-probe-');
+
+      await pm.addWorkspace('ws-probe', makeWorkspaceConfig(wsDir));
+      await pm.addProject('proj-probe', makeProjectConfig(projDir), false, 'ws-probe');
+
+      // Mock loadModel (no-op) and probeEmbeddingDim to return 1024 for all models
+      const loadSpy = jest.spyOn(embedder, 'loadModel').mockResolvedValue();
+      const probeSpy = jest.spyOn(embedder, 'probeEmbeddingDim').mockResolvedValue(1024);
+
+      await pm.loadWorkspaceModels('ws-probe');
+      await pm.probeWorkspaceDimensions('ws-probe');
+
+      // probeEmbeddingDim should have been called for knowledge, tasks, skills, AND epics
+      const probeKeys = probeSpy.mock.calls.map(c => c[0]);
+      expect(probeKeys).toContain('ws-probe:knowledge');
+      expect(probeKeys).toContain('ws-probe:tasks');
+      expect(probeKeys).toContain('ws-probe:skills');
+      // epics shares tasks embedder — dim should be set (either probed or inherited)
+
+      // The workspace store should now accept 1024-dim epics embeddings
+      const scoped = pm.getProject('proj-probe')!.storeManager.scoped;
+
+      // Create a 1024-dim embedding — should NOT throw "Embedding dimension mismatch"
+      const embedding = new Array(1024).fill(0.01);
+      const epic = scoped.epics.create({ title: 'Probe test', description: '' }, embedding);
+      expect(epic.id).toBeGreaterThan(0);
+
+      loadSpy.mockRestore();
+      probeSpy.mockRestore();
+    });
+
+    it('rejects 384-dim embedding when model produces 1024', async () => {
+      const wsDir = makeTmpDir('ws-rej-');
+      const projDir = makeTmpDir('proj-rej-');
+
+      await pm.addWorkspace('ws-rej', makeWorkspaceConfig(wsDir));
+      await pm.addProject('proj-rej', makeProjectConfig(projDir), false, 'ws-rej');
+
+      jest.spyOn(embedder, 'loadModel').mockResolvedValue();
+      const probeSpy = jest.spyOn(embedder, 'probeEmbeddingDim').mockResolvedValue(1024);
+
+      await pm.loadWorkspaceModels('ws-rej');
+      await pm.probeWorkspaceDimensions('ws-rej');
+
+      const scoped = pm.getProject('proj-rej')!.storeManager.scoped;
+      const badEmbedding = new Array(384).fill(0.01);
+      expect(() => scoped.epics.create({ title: 'Bad', description: '' }, badEmbedding))
+        .toThrow('Embedding dimension mismatch');
+
+      probeSpy.mockRestore();
+    });
+  });
+
+  describe('probeDimensions (standalone)', () => {
+    it('sets epics dimension from knowledge embedder for standalone projects', async () => {
+      const dir = makeTmpDir('standalone-');
+      const config = makeProjectConfig(dir);
+      // Enable knowledge so it gets probed
+      config.graphConfigs.knowledge.enabled = true;
+
+      await pm.addProject('standalone-probe', config);
+
+      jest.spyOn(embedder, 'loadModel').mockResolvedValue();
+      const probeSpy = jest.spyOn(embedder, 'probeEmbeddingDim').mockResolvedValue(1024);
+
+      await pm.loadModels('standalone-probe');
+      await pm.probeDimensions('standalone-probe');
+
+      // Epics should inherit dimension from knowledge
+      const scoped = pm.getProject('standalone-probe')!.storeManager.scoped;
+      const embedding = new Array(1024).fill(0.01);
+      const epic = scoped.epics.create({ title: 'Standalone', description: '' }, embedding);
+      expect(epic.id).toBeGreaterThan(0);
+
+      // 384-dim should be rejected
+      expect(() => scoped.epics.create({ title: 'Bad', description: '' }, new Array(384).fill(0.01)))
+        .toThrow('Embedding dimension mismatch');
+
+      probeSpy.mockRestore();
     });
   });
 });

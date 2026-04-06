@@ -31,11 +31,12 @@ describe('EpicsStore contract', () => {
     expect(epic.progress).toEqual({ total: 0, done: 0 });
   });
 
-  it('gets epic detail', () => {
+  it('gets epic detail with progress zero when no tasks linked', () => {
     const epic = epics.create({ title: 'Epic', description: '' }, seedEmbedding(1));
     const detail = epics.get(epic.id);
     expect(detail).not.toBeNull();
     expect(detail!.edges).toEqual([]);
+    expect(detail!.progress).toEqual({ total: 0, done: 0 });
   });
 
   it('updates an epic', () => {
@@ -185,6 +186,32 @@ describe('EpicsStore contract', () => {
 
   it('create throws on wrong embedding dimension', () => {
     expect(() => epics.create({ title: 'Bad', description: '' }, [1, 2, 3])).toThrow('Embedding dimension mismatch');
+  });
+
+  // --- Embedding dim via updateEmbeddingDims ---
+
+  it('works with non-default embedding dimension (e.g. 1024)', () => {
+    // Simulate real-world scenario: model produces 1024-dim embeddings,
+    // store must accept them after updateEmbeddingDims is called.
+    const DIM = 1024;
+    store.updateEmbeddingDims({ epics: DIM });
+    const scoped = store.project(projectId);
+
+    const epic = scoped.epics.create({ title: 'Hi-dim', description: 'test' }, seedEmbedding(1, DIM));
+    expect(epic.id).toBeGreaterThan(0);
+
+    const detail = scoped.epics.get(epic.id);
+    expect(detail).not.toBeNull();
+    expect(detail!.progress).toEqual({ total: 0, done: 0 });
+  });
+
+  it('rejects default-dim embedding after updateEmbeddingDims to 1024', () => {
+    store.updateEmbeddingDims({ epics: 1024 });
+    const scoped = store.project(projectId);
+
+    // 384-dim embedding should be rejected when store expects 1024
+    expect(() => scoped.epics.create({ title: 'Bad', description: '' }, seedEmbedding(1, 384)))
+      .toThrow('Embedding dimension mismatch');
   });
 
   // --- Hybrid search ---

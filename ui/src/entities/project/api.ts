@@ -23,7 +23,7 @@ export interface ProjectDetailedStats {
   docs: { nodes: number; edges: number } | null;
   code: { nodes: number; edges: number } | null;
   knowledge: { nodes: number; edges: number } | null;
-  fileIndex: { nodes: number; edges: number } | null;
+  files: { nodes: number; edges: number } | null;
   tasks: { nodes: number; edges: number } | null;
   skills: { nodes: number; edges: number } | null;
 }

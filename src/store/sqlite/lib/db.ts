@@ -1,3 +1,5 @@
+import { mkdirSync } from 'fs';
+import { dirname } from 'path';
 import Database from 'better-sqlite3';
 import sqliteVec from 'sqlite-vec';
 
@@ -10,6 +12,7 @@ import sqliteVec from 'sqlite-vec';
  * - foreign_keys enforced
  */
 export function openDatabase(dbPath: string): Database.Database {
+  mkdirSync(dirname(dbPath), { recursive: true });
   const db = new Database(dbPath);
   db.defaultSafeIntegers(true);
   sqliteVec.load(db);

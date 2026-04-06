@@ -72,7 +72,8 @@ export class SqliteEpicsStore implements EpicsStore {
       FROM edges e
       JOIN tasks t ON t.id = e.to_id
       WHERE e.from_graph = 'epics' AND e.from_id = ? AND e.to_graph = 'tasks' AND e.kind = 'belongs_to'
-    `).get(epicId) as { total: bigint; done: bigint };
+    `).get(epicId) as { total: bigint; done: bigint } | undefined;
+    if (!row) return { total: 0, done: 0 };
     return { total: num(row.total), done: num(row.done) };
   }
 

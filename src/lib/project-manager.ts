@@ -54,7 +54,7 @@ export interface ProjectInstance {
 export interface WorkspaceInstance {
   id: string;
   config: WorkspaceConfig;
-  store: Store;
+  store: SqliteStore;
   storeManager: StoreManager;
   mirrorTracker: MirrorWriteTracker;
   mirrorWatcher?: WatcherHandle;
@@ -187,12 +187,17 @@ export class ProjectManager extends EventEmitter {
     const gc = config.graphConfigs;
 
     // ---------------------------------------------------------------------------
-    // SQLite Store — one per project, holds indexed + user-managed graphs
+    // SQLite Store — workspace projects share the workspace DB; standalone get their own
     // ---------------------------------------------------------------------------
-    const store = new SqliteStore();
-    const dbPath = path.join(config.graphMemory, 'store.db');
-    store.open({ dbPath });
-    this.stores.set(id, store);
+    let store: SqliteStore;
+    if (ws) {
+      store = ws.store;
+    } else {
+      store = new SqliteStore();
+      const dbPath = path.join(config.graphMemory, 'store.db');
+      store.open({ dbPath });
+      this.stores.set(id, store);
+    }
 
     // Ensure project exists in store
     let dbProject = store.projects.list().results.find(p => p.slug === id);
@@ -319,7 +324,10 @@ export class ProjectManager extends EventEmitter {
       dims.epics = dims.knowledge;
     }
 
-    const store = this.stores.get(id);
+    // Workspace projects share the workspace store; standalone have their own in this.stores
+    const store = instance.workspaceId
+      ? this.workspaces.get(instance.workspaceId)?.store
+      : this.stores.get(id);
     if (store) {
       store.updateEmbeddingDims(dims);
       // Refresh scopedStore references — old ones have stale embeddingDim values
@@ -456,11 +464,13 @@ export class ProjectManager extends EventEmitter {
     if (instance.mcpClientCleanup) await instance.mcpClientCleanup();
 
     this.projects.delete(id);
-    // Close project's SQLite store
-    const store = this.stores.get(id);
-    if (store) {
-      try { store.close(); } catch { /* ignore */ }
-      this.stores.delete(id);
+    // Close project's SQLite store (only standalone projects own their store)
+    if (!instance.workspaceId) {
+      const store = this.stores.get(id);
+      if (store) {
+        try { store.close(); } catch { /* ignore */ }
+        this.stores.delete(id);
+      }
     }
     log.info({ project: id }, 'Removed project');
   }

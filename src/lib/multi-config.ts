@@ -353,8 +353,8 @@ export function resolveRequestAuthor(userId?: string, users?: Record<string, Use
 // ---------------------------------------------------------------------------
 
 const MODEL_DEFAULTS: ModelConfig = {
-  name:           'Xenova/bge-m3',
-  pooling:        'cls',
+  name:           'Xenova/jina-embeddings-v2-small-en',
+  pooling:        'mean',
   normalize:      true,
   dtype:          'q8',
   queryPrefix:    '',

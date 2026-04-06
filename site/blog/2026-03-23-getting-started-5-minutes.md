@@ -23,7 +23,7 @@ No config file needed. Graph Memory uses your current directory as the project. 
 You'll see output like:
 
 ```
-INFO  Registered model (lazy)         model="Xenova/bge-m3"
+INFO  Registered model (lazy)         model="Xenova/jina-embeddings-v2-small-en"
 INFO  Starting indexing phase         phase="1/3 docs"
 INFO  Starting indexing phase         phase="2/3 files"
 INFO  Starting indexing phase         phase="3/3 code"

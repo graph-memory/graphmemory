@@ -27,7 +27,7 @@ projects:
     expect(p.exclude).toContain('**/node_modules/**');
     expect(p.chunkDepth).toBe(4);
     expect(p.embedding.maxChars).toBe(24000);
-    expect(p.model.name).toBe('Xenova/bge-m3');
+    expect(p.model.name).toBe('Xenova/jina-embeddings-v2-small-en');
     // All graphs enabled by default
     for (const gn of ['docs', 'code', 'knowledge', 'tasks', 'files', 'skills'] as const) {
       expect(p.graphConfigs[gn].enabled).toBe(true);
@@ -58,8 +58,8 @@ projects:
     expect(mc.server.host).toBe('127.0.0.1');
     expect(mc.server.port).toBe(3000);
     expect(mc.server.sessionTimeout).toBe(3600);
-    expect(mc.server.model.name).toBe('Xenova/bge-m3');
-    expect(mc.server.model.pooling).toBe('cls');
+    expect(mc.server.model.name).toBe('Xenova/jina-embeddings-v2-small-en');
+    expect(mc.server.model.pooling).toBe('mean');
     expect(mc.server.model.queryPrefix).toBe('');
     expect(mc.server.model.documentPrefix).toBe('');
   });
@@ -152,7 +152,7 @@ projects:
     expect(x.graphConfigs.docs.model.name).toBe('model/docs');
     expect(x.graphConfigs.docs.model.pooling).toBe('cls');
     expect(x.graphConfigs.code.model.name).toBe('model/code');
-    expect(x.graphConfigs.code.model.pooling).toBe('cls'); // from MODEL_DEFAULTS (whole object, no merge)
+    expect(x.graphConfigs.code.model.pooling).toBe('mean'); // from MODEL_DEFAULTS (whole object, no merge)
     expect(x.graphConfigs.knowledge.model.name).toBe('model/knowledge');
     expect(x.graphConfigs.knowledge.model.queryPrefix).toBe('search: ');
     // skills not overridden — inherits project model (which inherits server)
@@ -286,7 +286,7 @@ workspaces:
     expect(ws.projects).toEqual(['frontend', 'backend']);
     expect(ws.graphMemory).toBe('/tmp/shared/.graph-memory');
     expect(ws.mirrorDir).toBe('/tmp/shared/mirror');
-    expect(ws.model.name).toBe('Xenova/bge-m3');
+    expect(ws.model.name).toBe('Xenova/jina-embeddings-v2-small-en');
   });
 
   it('workspace inherits global model', () => {
@@ -337,7 +337,7 @@ workspaces:
     expect(ws.graphConfigs.tasks.model.name).toBe('model/t');
     expect(ws.graphConfigs.skills.model.name).toBe('model/s');
     // Whole object from graph level — pooling from MODEL_DEFAULTS, not ws model
-    expect(ws.graphConfigs.tasks.model.pooling).toBe('cls');
+    expect(ws.graphConfigs.tasks.model.pooling).toBe('mean');
   });
 
   it('throws when workspace references unknown project', () => {

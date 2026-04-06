@@ -12,7 +12,7 @@ Graph Memory generates vector embeddings for every node in every graph — doc c
 
 ## How it works
 
-Graph Memory uses the [@huggingface/transformers](https://github.com/huggingface/transformers.js) library to run ONNX models directly in Node.js. The default model is `Xenova/bge-m3`, a multilingual embedding model quantized to 8-bit (`q8` dtype) for smaller size and faster inference.
+Graph Memory uses the [@huggingface/transformers](https://github.com/huggingface/transformers.js) library to run ONNX models directly in Node.js. The default model is `Xenova/jina-embeddings-v2-small-en`, a lightweight English embedding model quantized to 8-bit (`q8` dtype) for smaller size and faster inference.
 
 For code-specific embeddings, we use `jinaai/jina-embeddings-v2-base-code` — a model trained specifically on source code that understands programming language semantics better than general-purpose models.
 
@@ -29,7 +29,7 @@ const pipe = await pipeline('feature-extraction', model.name, {
 });
 
 const tensor = await pipe._call(text, {
-  pooling: 'cls',
+  pooling: 'mean',
   normalize: true,
 });
 const vector = Array.from(tensor.data as Float32Array);
@@ -39,9 +39,9 @@ Models are registered for lazy loading — the ONNX pipeline isn't created until
 
 ## The download cost
 
-The first time you run Graph Memory, it downloads the model weights. For `Xenova/bge-m3` at q8 quantization, that's roughly 560 MB. The models are cached in a local directory (configurable via `modelsDir` in your config), so subsequent starts are fast.
+The first time you run Graph Memory, it downloads the model weights. For `Xenova/jina-embeddings-v2-small-en` at q8 quantization, that's roughly 33 MB. The models are cached in a local directory (configurable via `modelsDir` in your config), so subsequent starts are fast.
 
-This is the biggest UX friction point. A 560 MB download on first run is noticeable. But it's a one-time cost, and after that the model loads from disk in seconds.
+The download is small enough that first-run friction is minimal. After that, the model loads from disk in seconds.
 
 ## Why not use an API?
 

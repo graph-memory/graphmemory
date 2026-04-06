@@ -14,7 +14,7 @@ Graph Memory indexes markdown documentation, TypeScript/JavaScript source code, 
 npm install -g @graphmemory/server
 ```
 
-Requires Node.js >= 22. The default embedding model (`Xenova/bge-m3`, ~560 MB) downloads on first startup and is cached at `~/.graph-memory/models/`.
+Requires Node.js >= 22. The default embedding model (`Xenova/jina-embeddings-v2-small-en`, ~33 MB) downloads on first startup and is cached at `~/.graph-memory/models/`.
 
 ### npx (no install)
 
@@ -104,7 +104,7 @@ server:
 | `include` | `["**/*.md"]` | Glob patterns for doc indexing |
 | `code` | `["**/*.ts", "**/*.js", ...]` | Glob patterns for code indexing |
 | `exclude` | `["node_modules/**", ...]` | Glob patterns to exclude |
-| `model` | `"Xenova/bge-m3"` | Embedding model for docs/knowledge/tasks/skills |
+| `model` | `"Xenova/jina-embeddings-v2-small-en"` | Embedding model for docs/knowledge/tasks/skills |
 | `codeModel` | (inherits `model`) | Separate embedding model for code graph |
 | `server.port` | `3000` | HTTP port |
 | `server.host` | `"127.0.0.1"` | Bind address |
@@ -117,11 +117,10 @@ server:
 ```yaml
 server:
   embedding:
-    model: "Xenova/bge-m3"
-    pooling: "cls"
+    model: "Xenova/jina-embeddings-v2-small-en"
+    pooling: "mean"
     normalize: true
-    dtype: "fp32"
-    queryPrefix: "Represent this sentence: "
+    dtype: "q8"
     docPrefix: ""
 ```
 
@@ -131,8 +130,8 @@ Per-graph model override:
 projects:
   my-app:
     projectDir: "/path/to/my-app"
-    model: "Xenova/bge-m3"
-    codeModel: "Xenova/jina-embeddings-v2-base-code"
+    model: "Xenova/jina-embeddings-v2-small-en"
+    codeModel: "jinaai/jina-embeddings-v2-base-code"
 ```
 
 ### Remote embedding

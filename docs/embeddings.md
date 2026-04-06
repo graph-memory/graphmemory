@@ -6,12 +6,12 @@ The embedding system converts text into high-dimensional vectors for semantic se
 
 ## Default models
 
-**Xenova/bge-m3** — the default embedding model (docs, knowledge, tasks, skills, files):
-- 1024 dimensions
-- Multilingual (100+ languages)
+**Xenova/jina-embeddings-v2-small-en** — the default embedding model (docs, knowledge, tasks, skills, files):
+- 512 dimensions
+- English, 33M parameters (4 transformer layers)
 - 8K token context
-- ~560 MB download size
-- Pooling: `cls`
+- ~33 MB download size (q8)
+- Pooling: `mean`
 - Normalization: L2-normalized (cosine similarity = dot product)
 
 **jinaai/jina-embeddings-v2-base-code** — the default code graph model:
@@ -21,7 +21,7 @@ The embedding system converts text into high-dimensional vectors for semantic se
 - Pooling: `mean`
 - Normalization: L2-normalized
 
-The code graph uses a separate model inheritance chain (`codeModel`) so it can use a code-optimized model by default while other graphs use BGE-M3.
+The code graph uses a separate model inheritance chain (`codeModel`) so it can use a code-optimized model by default while other graphs use jina-small.
 
 ## Model registry
 
@@ -77,8 +77,8 @@ graph.model → project.codeModel → server.codeModel  → code defaults   (cod
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `name` | string | `Xenova/bge-m3` | HuggingFace model ID |
-| `pooling` | string | `cls` | Pooling strategy: `mean` or `cls` |
+| `name` | string | `Xenova/jina-embeddings-v2-small-en` | HuggingFace model ID |
+| `pooling` | string | `mean` | Pooling strategy: `mean` or `cls` |
 | `normalize` | boolean | `true` | L2-normalize output vectors |
 | `dtype` | string | `q8` | Quantization: `fp32`, `fp16`, `q8`, `q4` |
 | `queryPrefix` | string | `""` | Prefix prepended to search queries |
@@ -103,7 +103,16 @@ graph.embedding → project.embedding → server.embedding → defaults
 
 ## Model examples
 
-### BGE-M3 (default, recommended)
+### jina-embeddings-v2-small-en (default)
+
+```yaml
+model:
+  name: "Xenova/jina-embeddings-v2-small-en"
+  pooling: "mean"
+  normalize: true
+```
+
+### BGE-M3 (multilingual, larger)
 
 ```yaml
 model:
@@ -117,7 +126,7 @@ model:
 ```yaml
 model:
   name: "Xenova/bge-base-en-v1.5"
-  pooling: "cls"
+  pooling: "mean"
   normalize: true
   queryPrefix: "Represent this sentence for searching relevant passages: "
 ```
@@ -127,7 +136,7 @@ model:
 ```yaml
 model:
   name: "Xenova/bge-small-en-v1.5"
-  pooling: "cls"
+  pooling: "mean"
   normalize: true
   queryPrefix: "Represent this sentence for searching relevant passages: "
 ```
@@ -156,10 +165,10 @@ model:
 
 ```yaml
 model:
-  name: "Xenova/bge-m3"
-  pooling: "cls"
+  name: "Xenova/jina-embeddings-v2-small-en"
+  pooling: "mean"
   normalize: true
-  dtype: "q8"      # fp32, fp16, q8, q4
+  dtype: "q4"      # fp32, fp16, q8, q4
 ```
 
 ## Remote embedding
@@ -222,7 +231,7 @@ server:
 { "embeddings": [[0.1, 0.2, ...], [0.3, 0.4, ...]] }
 ```
 
-The `model` parameter selects which embedding model to use: `"default"` (general, BGE-M3) or `"code"` (code-optimized, jina-code). Both models are loaded when the embedding API is enabled.
+The `model` parameter selects which embedding model to use: `"default"` (general, jina-small) or `"code"` (code-optimized, jina-code). Both models are loaded when the embedding API is enabled.
 
 ### Embedding API configuration
 
@@ -271,19 +280,19 @@ projects:
   my-app:
     projectDir: "/path/to/my-app"
     model:
-      name: "Xenova/bge-m3"               # default for most graphs
+      name: "Xenova/bge-m3"               # multilingual model for most graphs
       pooling: "cls"
       normalize: true
     graphs:
       files:
         model:
-          name: "Xenova/bge-small-en-v1.5" # smaller model for file paths
-          pooling: "cls"
+          name: "Xenova/jina-embeddings-v2-small-en" # lighter model for file paths
+          pooling: "mean"
           normalize: true
       code:
         model:
           name: "Xenova/bge-base-en-v1.5"  # different model for code
-          pooling: "cls"
+          pooling: "mean"
           normalize: true
 ```
 

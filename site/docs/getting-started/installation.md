@@ -49,11 +49,11 @@ node dist/cli/index.js serve
 
 ## First startup
 
-On first run, Graph Memory downloads the default embedding model (`Xenova/bge-m3`, ~560 MB). This is cached at `~/.graph-memory/models/` and reused on subsequent starts.
+On first run, Graph Memory downloads the default embedding model (`Xenova/jina-embeddings-v2-small-en`, ~33 MB). This is cached at `~/.graph-memory/models/` and reused on subsequent starts.
 
 ## System requirements
 
 - **Node.js** >= 22
-- **Disk**: ~560 MB for the default embedding model + graph storage
+- **Disk**: ~33 MB for the default embedding model + graph storage
 - **RAM**: ~500 MB during indexing (depends on project size)
 - **OS**: macOS, Linux, Windows (via WSL or native)

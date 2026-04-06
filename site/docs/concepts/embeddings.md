@@ -3,7 +3,7 @@ title: "Embeddings"
 sidebar_label: "Embeddings"
 sidebar_position: 9
 description: "How Graph Memory generates embeddings locally for semantic search — default model, configuration, remote delegation, and embedding compression."
-keywords: [embeddings, vectors, bge-m3, ONNX, semantic search, model, local, remote]
+keywords: [embeddings, vectors, jina-embeddings, ONNX, semantic search, model, local, remote]
 ---
 
 # Embeddings
@@ -18,17 +18,17 @@ The model is downloaded once from HuggingFace and cached locally at `~/.graph-me
 
 ## Default model
 
-The default model is **Xenova/bge-m3**:
+The default model is **Xenova/jina-embeddings-v2-small-en**:
 
 | Property | Value |
 |----------|-------|
-| Dimensions | 1024 |
-| Languages | 100+ (multilingual) |
+| Dimensions | 512 |
+| Parameters | 33M (4 transformer layers) |
 | Context window | 8,192 tokens |
-| Download size | ~560 MB |
+| Download size | ~33 MB (q8) |
 | Quantization | q8 (8-bit, lower memory) |
 
-This model provides strong multilingual performance and is suitable for most projects.
+This is a lightweight English model with fast inference and low memory usage.
 
 ## Model configuration
 
@@ -37,8 +37,8 @@ Configure the embedding model in `graph-memory.yaml`:
 ```yaml
 server:
   model:
-    name: "Xenova/bge-m3"
-    pooling: "cls"
+    name: "Xenova/jina-embeddings-v2-small-en"
+    pooling: "mean"
     normalize: true
     dtype: "q8"           # fp32, fp16, q8, or q4
 ```
@@ -46,14 +46,13 @@ server:
 ### Alternative models
 
 ```yaml
-# Smaller English-only model (~130 MB)
+# Multilingual model (~560 MB, 1024 dims)
 model:
-  name: "Xenova/bge-small-en-v1.5"
+  name: "Xenova/bge-m3"
   pooling: "cls"
   normalize: true
-  queryPrefix: "Represent this sentence for searching relevant passages: "
 
-# Nomic embed (good general-purpose)
+# Nomic embed (good general-purpose, 768 dims)
 model:
   name: "nomic-ai/nomic-embed-text-v1.5"
   pooling: "mean"
@@ -63,7 +62,7 @@ model:
 ```
 
 :::tip
-Use a smaller model like `bge-small-en-v1.5` if your project is English-only and you want faster indexing with lower memory usage.
+Use `Xenova/bge-m3` if your project needs multilingual support. The default `jina-embeddings-v2-small-en` is optimized for English with faster inference and lower memory.
 :::
 
 ### Per-graph models
@@ -74,12 +73,14 @@ Different graphs can use different models. For example, use a smaller model for 
 projects:
   my-app:
     model:
-      name: "Xenova/bge-m3"         # default for most graphs
+      name: "Xenova/bge-m3"         # multilingual model for most graphs
+      pooling: "cls"
+      normalize: true
     graphs:
       files:
         model:
-          name: "Xenova/bge-small-en-v1.5"   # lighter model for paths
-          pooling: "cls"
+          name: "Xenova/jina-embeddings-v2-small-en" # lighter model for paths
+          pooling: "mean"
           normalize: true
 ```
 
@@ -130,11 +131,11 @@ During initial indexing, Graph Memory processes graphs in a fixed order: **docs 
 ```mermaid
 graph LR
     subgraph Phase1["Phase 1: Docs"]
-        D1[Scan docs] --> D2[Embed with bge-m3]
+        D1[Scan docs] --> D2[Embed with jina-small]
         D2 --> D3[Drain queue]
     end
     subgraph Phase2["Phase 2: Files"]
-        F1[Scan files] --> F2[Embed with bge-m3]
+        F1[Scan files] --> F2[Embed with jina-small]
         F2 --> F3[Drain queue]
     end
     subgraph Phase3["Phase 3: Code"]
@@ -168,8 +169,8 @@ If you change the embedding model, the first startup after the change will take 
 
 | Field | Default | Description |
 |-------|---------|-------------|
-| `model.name` | `Xenova/bge-m3` | HuggingFace model ID |
-| `model.pooling` | `cls` | Pooling strategy (`mean` or `cls`) |
+| `model.name` | `Xenova/jina-embeddings-v2-small-en` | HuggingFace model ID |
+| `model.pooling` | `mean` | Pooling strategy (`mean` or `cls`) |
 | `model.normalize` | `true` | L2-normalize output vectors |
 | `model.dtype` | `q8` | Quantization level (`fp32`, `fp16`, `q8`, `q4`) |
 | `model.queryPrefix` | `""` | Prefix prepended to search queries |

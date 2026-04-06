@@ -76,7 +76,7 @@ This means you can search for code examples by the symbols they define, or by se
 
 ### Step 4: Embed everything
 
-Each chunk is embedded into a vector using the configured model (default: `Xenova/bge-m3`). The embedding captures the **semantic meaning** of `title + content`, enabling similarity-based search.
+Each chunk is embedded into a vector using the configured model (default: `Xenova/jina-embeddings-v2-small-en`). The embedding captures the **semantic meaning** of `title + content`, enabling similarity-based search.
 
 Root nodes additionally get a `fileEmbedding` — embedded from `file path + h1 title` — used for file-level search ("find docs about authentication").
 

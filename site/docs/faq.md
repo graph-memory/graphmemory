@@ -22,7 +22,7 @@ No. Graph Memory runs entirely locally. The embedding model is downloaded once a
 
 ## How much disk space does the embedding model need?
 
-The default model (BGE-M3 quantized to q8) requires approximately **560 MB** of disk space. It is cached at `~/.graph-memory/models/` and shared across all projects.
+The default model (jina-embeddings-v2-small-en quantized to q8) requires approximately **33 MB** of disk space. It is cached at `~/.graph-memory/models/` and shared across all projects.
 
 ## Is my code sent anywhere?
 

@@ -25,8 +25,8 @@ flowchart TD
 During initial indexing, the three queues run **sequentially by phase** rather than concurrently. This ensures only one embedding model is loaded at a time, reducing peak memory:
 
 ```
-Phase 1: docs   → scan(docs)  + drain(docs)   — triggers bge-m3 lazy load
-Phase 2: files  → scan(files) + drain(files)  — reuses bge-m3 (already loaded)
+Phase 1: docs   → scan(docs)  + drain(docs)   — triggers jina-small lazy load
+Phase 2: files  → scan(files) + drain(files)  — reuses jina-small (already loaded)
 Phase 3: code   → scan(code)  + drain(code)   — triggers jina-code lazy load
 Finalize:  rebuildDirectoryStats, resolvePendingLinks, scanMirrorDirs (K/T/S)
 ```

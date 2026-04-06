@@ -75,7 +75,7 @@ Each project can override server-level settings:
 ```yaml
 server:
   model:
-    name: "Xenova/bge-m3"
+    name: "Xenova/jina-embeddings-v2-small-en"
     dtype: "q8"
 
 projects:

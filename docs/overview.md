@@ -10,7 +10,7 @@
 - **Stores knowledge** (facts, notes, decisions) in a dedicated knowledge graph with typed relations, file attachments, and cross-graph links
 - **Tracks tasks** with kanban workflow, priorities, due dates, estimates, assignees, and cross-graph links
 - **Manages skills** (reusable recipes/procedures) with steps, triggers, usage tracking, and cross-graph links
-- **Embeds every node** locally using `Xenova/bge-m3` by default (no external API calls); supports per-graph models with configurable pooling, normalization, dtype, and prefixes
+- **Embeds every node** locally using `Xenova/jina-embeddings-v2-small-en` by default (no external API calls); supports per-graph models with configurable pooling, normalization, dtype, and prefixes
 - **Answers search queries** via hybrid search (BM25 keyword + vector cosine similarity) with BFS graph expansion
 - **Watches for file changes** and re-indexes incrementally in real time
 
@@ -45,7 +45,7 @@
 ## Requirements
 
 - **Node.js** >= 22
-- The default embedding model (`Xenova/bge-m3`, ~560 MB) downloads on first startup
+- The default embedding model (`Xenova/jina-embeddings-v2-small-en`, ~33 MB) downloads on first startup
 
 ## Repository
 

@@ -77,8 +77,8 @@ server:
   # Default model config (fallback for all graphs except code).
   # Taken as a whole object from the first level that defines it (no field-by-field merge).
   # model:
-  #   name: "Xenova/bge-m3"                     # HuggingFace model ID (default: Xenova/bge-m3)
-  #   pooling: "cls"                            # Pooling strategy: "mean" or "cls"
+  #   name: "Xenova/jina-embeddings-v2-small-en" # HuggingFace model ID (default)
+  #   pooling: "mean"                           # Pooling strategy: "mean" or "cls"
   #   normalize: true                           # L2-normalize output vectors
   #   dtype: "q8"                               # Quantization: fp32, fp16, q8, q4 (default: q8)
   #   queryPrefix: ""                           # Prefix prepended to search queries
@@ -130,8 +130,8 @@ projects:
 
     # Per-project model config (overrides server.model — taken as whole object)
     # model:
-    #   name: "Xenova/bge-m3"
-    #   pooling: "cls"
+    #   name: "Xenova/jina-embeddings-v2-small-en"
+    #   pooling: "mean"
     #   normalize: true
 
     # Per-project code model (overrides server.codeModel — separate chain for code graph)
@@ -164,7 +164,7 @@ projects:
     #     include: "**/*.md"                     # Glob for markdown files (default: "**/*.md")
     #     exclude: "**/changelog/**"              # Additional exclude (merged with project + server)
     #     model:                                 # Full model config (no merge with parent)
-    #       name: "Xenova/bge-m3"
+    #       name: "Xenova/bge-m3"                # override: use multilingual model for docs
     #       pooling: "cls"
     #       normalize: true
     #     embedding:                             # Embedding config (field-by-field merge with parent)
@@ -224,8 +224,8 @@ projects:
 #     # exclude: "**/vendor/**"                 # Additional exclude (merged with server default)
 #     # Workspace-level model (overrides server.model for shared graphs)
 #     # model:
-#     #   name: "Xenova/bge-m3"
-#     #   pooling: "cls"
+#     #   name: "Xenova/jina-embeddings-v2-small-en"
+#     #   pooling: "mean"
 #     #   normalize: true
 #     # Workspace-level embedding (overrides server.embedding for shared graphs)
 #     # embedding:
@@ -235,7 +235,7 @@ projects:
 #     #   knowledge:
 #     #     enabled: true
 #     #     model:
-#     #       name: "Xenova/bge-m3"
+#     #       name: "Xenova/jina-embeddings-v2-small-en"
 #     #     embedding:
 #     #       maxChars: 16000
 
@@ -245,9 +245,17 @@ projects:
 # Below are examples of how to configure different embedding models.
 # Copy the relevant `model:` block into server, project, or graphs section.
 #
-# ── Default: BGE-M3 (recommended) ─────────────────────────────────────────
-# Best general-purpose model. 1024 dimensions, multilingual (100+ languages),
-# 8K token context. Works out of the box with default settings.
+# ── Default: jina-embeddings-v2-small-en ──────────────────────────────────
+# Lightweight English model. 512 dimensions, 33M parameters, 8K token context.
+# ~33 MB download (q8). Works out of the box with default settings.
+#
+#   model:
+#     name: "Xenova/jina-embeddings-v2-small-en"
+#     pooling: "mean"
+#     normalize: true
+#
+# ── BGE-M3 (multilingual) ────────────────────────────────────────────────
+# Best multilingual model. 1024 dimensions, 100+ languages, 8K context, ~560 MB.
 #
 #   model:
 #     name: "Xenova/bge-m3"
@@ -260,7 +268,7 @@ projects:
 #
 #   model:
 #     name: "Xenova/bge-base-en-v1.5"
-#     pooling: "cls"
+#     pooling: "mean"
 #     normalize: true
 #     queryPrefix: "Represent this sentence for searching relevant passages: "
 #
@@ -269,7 +277,7 @@ projects:
 #
 #   model:
 #     name: "Xenova/bge-small-en-v1.5"
-#     pooling: "cls"
+#     pooling: "mean"
 #     normalize: true
 #     queryPrefix: "Represent this sentence for searching relevant passages: "
 #
@@ -298,20 +306,21 @@ projects:
 # Options: fp32 (default), fp16, q8, q4
 #
 #   model:
-#     name: "Xenova/bge-m3"
-#     pooling: "cls"
+#     name: "Xenova/jina-embeddings-v2-small-en"
+#     pooling: "mean"
 #     normalize: true
-#     dtype: "q8"
+#     dtype: "q4"
 #
 # ── Mixed config: different models per graph ──────────────────────────────
 # The code graph defaults to jinaai/jina-embeddings-v2-base-code via `codeModel`.
-# Other graphs default to Xenova/bge-m3 via `model`. You can override per-graph:
+# Other graphs default to Xenova/jina-embeddings-v2-small-en via `model`.
+# You can override per-graph:
 #
 # projects:
 #   my-app:
 #     projectDir: "/path/to/my-app"
 #     model:
-#       name: "Xenova/bge-m3"                     # default for docs, knowledge, tasks, skills, files
+#       name: "Xenova/bge-m3"                     # override: multilingual model for most graphs
 #       pooling: "cls"
 #       normalize: true
 #     codeModel:
@@ -321,6 +330,6 @@ projects:
 #     graphs:
 #       files:
 #         model:
-#           name: "Xenova/bge-small-en-v1.5"      # smaller model for file paths
-#           pooling: "cls"
+#           name: "Xenova/jina-embeddings-v2-small-en" # lighter model for file paths
+#           pooling: "mean"
 #           normalize: true

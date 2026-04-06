@@ -108,7 +108,7 @@ projects:
 
 ### Model cache
 
-The default embedding model (Xenova/bge-m3) downloads on first startup. Use a **named volume** for `/data/models` so you don't re-download 560 MB every time the container restarts.
+The default embedding model (Xenova/jina-embeddings-v2-small-en) downloads on first startup. Use a **named volume** for `/data/models` so you don't re-download the model every time the container restarts.
 
 ### Project directory access
 

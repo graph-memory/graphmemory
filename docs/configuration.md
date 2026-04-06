@@ -2,7 +2,7 @@
 
 ## Zero-config mode
 
-No config file needed. Just run `graphmemory serve` in your project directory — the current directory becomes the project with sensible defaults (BGE-M3 q8 model, all graphs enabled).
+No config file needed. Just run `graphmemory serve` in your project directory — the current directory becomes the project with sensible defaults (jina-small q8 model, all graphs enabled).
 
 ## Config file
 
@@ -60,8 +60,8 @@ server:
     search: 120
     auth: 10
   model:
-    name: "Xenova/bge-m3"
-    pooling: "cls"
+    name: "Xenova/jina-embeddings-v2-small-en"
+    pooling: "mean"
     normalize: true
     dtype: "q8"
     queryPrefix: ""
@@ -100,7 +100,7 @@ projects:
       name: "Project Bot"
       email: "bot@example.com"
     model:
-      name: "Xenova/bge-m3"
+      name: "Xenova/jina-embeddings-v2-small-en"
     embedding:
       maxChars: 24000
     access:
@@ -111,7 +111,7 @@ projects:
         include: "**/*.md"
         exclude: "**/drafts/**"
         model:
-          name: "Xenova/bge-m3"
+          name: "Xenova/bge-m3"    # override: use multilingual model for docs
           pooling: "cls"
           normalize: true
         access:
@@ -140,7 +140,7 @@ workspaces:
     access:
       alice: rw
     model:
-      name: "Xenova/bge-m3"
+      name: "Xenova/jina-embeddings-v2-small-en"
     embedding:
       maxChars: 24000
 ```
@@ -195,8 +195,8 @@ graphs.code.model → project.codeModel → server.codeModel → code defaults
 
 | Field | Type | Default (general / code) | Description |
 |-------|------|---------|-------------|
-| `name` | string | `Xenova/bge-m3` / `jinaai/jina-embeddings-v2-base-code` | HuggingFace model ID |
-| `pooling` | string | `cls` / `mean` | Pooling strategy: `mean` or `cls` |
+| `name` | string | `Xenova/jina-embeddings-v2-small-en` / `jinaai/jina-embeddings-v2-base-code` | HuggingFace model ID |
+| `pooling` | string | `mean` / `mean` | Pooling strategy: `mean` or `cls` |
 | `normalize` | boolean | `true` | L2-normalize output vectors |
 | `dtype` | string | `q8` | Quantization: `fp32`, `fp16`, `q8`, `q4` |
 | `queryPrefix` | string | `""` | Prefix prepended to search queries |

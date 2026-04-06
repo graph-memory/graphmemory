@@ -52,7 +52,7 @@ server:
   refreshTokenTtl: "7d"
   modelsDir: "~/.graph-memory/models"
   model:
-    name: "Xenova/bge-m3"
+    name: "Xenova/jina-embeddings-v2-small-en"
     dtype: "q8"                   # fp32, fp16, q8, q4
   rateLimit:
     global: 600                   # requests/min
@@ -119,8 +119,8 @@ The **code graph** has its own chain via `codeModel`: **graphs.code.model → pr
 
 | Field | Default | Description |
 |-------|---------|-------------|
-| `name` | `Xenova/bge-m3` | HuggingFace model ID |
-| `pooling` | `cls` | `mean` or `cls` |
+| `name` | `Xenova/jina-embeddings-v2-small-en` | HuggingFace model ID |
+| `pooling` | `mean` | `mean` or `cls` |
 | `normalize` | `true` | L2-normalize vectors |
 | `dtype` | `q8` | Quantization: `fp32`, `fp16`, `q8`, `q4` |
 

@@ -43,7 +43,7 @@ See [docs/api-mcp.md](docs/api-mcp.md) for schemas and [docs/mcp-tools-guide.md]
 ## Key features
 
 - **Hybrid search**: BM25 + vector cosine, fused via RRF, BFS graph expansion — [docs/search.md](docs/search.md)
-- **Embeddings**: local ONNX (Xenova/bge-m3 default) or remote HTTP proxy — [docs/embeddings.md](docs/embeddings.md)
+- **Embeddings**: local ONNX (Xenova/jina-embeddings-v2-small-en default) or remote HTTP proxy — [docs/embeddings.md](docs/embeddings.md)
 - **File mirror**: `.notes/`, `.tasks/`, `.skills/` markdown files with reverse import — [docs/file-mirror.md](docs/file-mirror.md)
 - **Cross-graph links**: phantom proxy nodes connecting any graph to any graph — [docs/graphs-overview.md](docs/graphs-overview.md)
 - **Auth**: password login (JWT cookies) + API keys (Bearer) — [docs/authentication.md](docs/authentication.md)

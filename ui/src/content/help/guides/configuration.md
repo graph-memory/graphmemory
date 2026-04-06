@@ -49,7 +49,7 @@ Can be overridden per project or per workspace.
 | `rateLimit.global` | `600` | Requests/min per IP for all API routes |
 | `rateLimit.search` | `120` | Requests/min per IP for search/embed endpoints |
 | `rateLimit.auth` | `10` | Requests/min per IP for login endpoint |
-| `model` | `Xenova/bge-m3` | Default embedding model for all graphs (except code) |
+| `model` | `Xenova/jina-embeddings-v2-small-en` | Default embedding model for all graphs (except code) |
 | `codeModel` | `jinaai/jina-embeddings-v2-base-code` | Default embedding model for code graph (separate inheritance chain) |
 | `embedding.remote` | — | Remote embedding API URL (delegates instead of local model) |
 | `embedding.remoteApiKey` | — | API key for remote embedding |
@@ -88,7 +88,7 @@ projects:
         include: "**/*.md"                 # Default — indexes all markdown files
         exclude: "**/archive/**"           # Glob to exclude
         model:                              # Full model config (whole object, no merge with parent)
-          name: "Xenova/bge-m3"
+          name: "Xenova/bge-m3"           # override: multilingual model
           pooling: "cls"
           normalize: true
         access:                             # Per-graph access control
@@ -291,7 +291,7 @@ Instead of running the embedding model locally, delegate to a remote embedding A
 ```yaml
 server:
   model:
-    name: "Xenova/bge-m3"
+    name: "Xenova/jina-embeddings-v2-small-en"
   embedding:
     remote: "http://gpu-server:3000/api/embed"
     remoteApiKey: "emb-secret-key"

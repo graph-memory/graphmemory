@@ -76,7 +76,7 @@ docker compose up -d
 
 ### Model cache
 
-The default embedding model (`Xenova/bge-m3`, ~560 MB) downloads on first startup. Use a **named volume** so the model persists across container restarts.
+The default embedding model (`Xenova/jina-embeddings-v2-small-en`, ~33 MB) downloads on first startup. Use a **named volume** so the model persists across container restarts.
 
 ## Config for Docker
 

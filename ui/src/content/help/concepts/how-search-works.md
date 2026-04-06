@@ -4,9 +4,9 @@ Graph Memory uses **hybrid search** — combining BM25 keyword matching with vec
 
 ## Vector embeddings
 
-When content is indexed, each chunk (doc section, code symbol, file path, note, task, skill) is converted to a **vector embedding** — a list of ~1024 numbers that represent semantic meaning.
+When content is indexed, each chunk (doc section, code symbol, file path, note, task, skill) is converted to a **vector embedding** — a list of ~512 numbers that represent semantic meaning.
 
-The default model is `bge-m3` for docs, notes, tasks, skills, and files. The code graph uses `jina-embeddings-v2-base-code`, a model trained on code + natural language pairs. Both run locally — no API calls, no data leaves your machine.
+The default model is `jina-embeddings-v2-small-en` for docs, notes, tasks, skills, and files. The code graph uses `jina-embeddings-v2-base-code`, a model trained on code + natural language pairs. Both run locally — no API calls, no data leaves your machine.
 
 Similar concepts produce similar vectors:
 - "authentication" and "login" will have high similarity
@@ -33,11 +33,11 @@ Each graph can use a different embedding model, configured in `graph-memory.yaml
 projects:
   my-app:
     model:
-      name: Xenova/bge-m3          # default for all graphs
+      name: Xenova/jina-embeddings-v2-small-en  # default for all graphs
     graphs:
       docs:
         model:
-          name: Xenova/bge-m3      # override for docs (whole object, no merge)
+          name: Xenova/bge-m3      # override: multilingual model for docs
       code:
         model:
           name: Xenova/bge-base-en-v1.5

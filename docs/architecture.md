@@ -21,7 +21,7 @@ graph TD
 
     subgraph Embed["Embedding Layer"]
         ONNX["ONNX Runtime"]
-        Models["bge-m3 / jina-code"]
+        Models["jina-small / jina-code"]
     end
 
     Indexer --> Embed

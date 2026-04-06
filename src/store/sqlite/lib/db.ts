@@ -17,5 +17,7 @@ export function openDatabase(dbPath: string): Database.Database {
   db.pragma('foreign_keys = ON');
   db.pragma('busy_timeout = 5000');
   db.pragma('synchronous = NORMAL');
+  // Optimize FTS5 indexes and query planner statistics on open
+  db.pragma('optimize');
   return db;
 }

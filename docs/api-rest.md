@@ -77,13 +77,13 @@ See [Authentication](authentication.md) for details on auth middleware.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/projects/:id/tasks` | List tasks (query: `status`, `priority`, `tag`, `filter`, `assignee`, `limit`) |
+| GET | `/api/projects/:id/tasks` | List tasks (query: `status`, `priority`, `tag`, `filter`, `assigneeId`, `limit`) |
 | POST | `/api/projects/:id/tasks` | Create task |
 | GET | `/api/projects/:id/tasks/:taskId` | Get task (enriched with subtasks/blocks/related) |
 | PUT | `/api/projects/:id/tasks/:taskId` | Update task (partial) |
 | DELETE | `/api/projects/:id/tasks/:taskId` | Delete task (204) |
 | POST | `/api/projects/:id/tasks/:taskId/move` | Move task status (body: `status`) |
-| POST | `/api/projects/:id/tasks/:taskId/reorder` | Reorder task (body: `beforeId?`, `afterId?`) |
+| POST | `/api/projects/:id/tasks/:taskId/reorder` | Reorder task (body: `order`, optional `status`) |
 | POST | `/api/projects/:id/tasks/bulk/move` | Bulk move tasks (body: `taskIds`, `status`) |
 | POST | `/api/projects/:id/tasks/bulk/priority` | Bulk set priority (body: `taskIds`, `priority`) |
 | POST | `/api/projects/:id/tasks/bulk/delete` | Bulk delete tasks (body: `taskIds`) |

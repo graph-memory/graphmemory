@@ -109,11 +109,11 @@ Requires both DocGraph and CodeGraph to be enabled. Bridges code definitions wit
 
 | Tool | Input | Output |
 |------|-------|--------|
-| `tasks_create` | `title`, `description`, `priority` + optional `status`, `tags`, `dueDate`, `estimate`, `assignee` | `{ taskId }` |
+| `tasks_create` | `title`, `description`, `priority` + optional `status`, `tags`, `dueDate`, `estimate`, `assigneeId` | `{ taskId }` |
 | `tasks_update` | `taskId` + optional fields, `expectedVersion` | `{ taskId, updated }` |
 | `tasks_delete` | `taskId` | `{ taskId, deleted }` |
-| `tasks_get` | `taskId` | `{ id, title, description, status, priority, tags, dueDate, estimate, assignee, completedAt, createdAt, updatedAt, subtasks, blockedBy, blocks, related, crossLinks? }` |
-| `tasks_list` | optional `status`, `priority`, `tag`, `filter`, `assignee`, `limit` | `[{ id, title, description, status, priority, tags, dueDate, estimate, assignee, completedAt, createdAt, updatedAt }]` |
+| `tasks_get` | `taskId` | `{ id, title, description, status, priority, tags, dueDate, estimate, assigneeId, completedAt, createdAt, updatedAt, subtasks, blockedBy, blocks, related, crossLinks? }` |
+| `tasks_list` | optional `status`, `priority`, `tag`, `filter`, `assigneeId`, `limit` | `[{ id, title, description, status, priority, tags, dueDate, estimate, assigneeId, completedAt, createdAt, updatedAt }]` |
 | `tasks_search` | `query` + optional `topK`, `bfsDepth`, `maxResults`, `minScore`, `bfsDecay`, `searchMode` | `[{ id, title, description, status, priority, tags, score }]` |
 | `tasks_move` | `taskId`, `status` + optional `expectedVersion` | `{ taskId, status, completedAt }` |
 | `tasks_link` | `fromId`, `toId`, `kind` (`subtask_of`, `blocks`, `related_to`) | `{ fromId, toId, kind, created }` |
@@ -122,7 +122,7 @@ Requires both DocGraph and CodeGraph to be enabled. Bridges code definitions wit
 | `tasks_find_linked` | `targetId`, `targetGraph` + optional `kind`, `projectId` | `[{ taskId, title, kind, status, priority, tags }]` |
 | `tasks_add_attachment` | `taskId`, `filePath` (absolute path on disk) | `{ filename, mimeType, size, addedAt }` |
 | `tasks_remove_attachment` | `taskId`, `filename` | `{ deleted: filename }` |
-| `tasks_reorder` | `taskId`, `beforeId?`, `afterId?` | `{ taskId, order }` |
+| `tasks_reorder` | `taskId`, `order`, optional `status` | `{ taskId, status, order }` |
 | `tasks_bulk_move` | `taskIds` (array, 1–100), `status` | `{ moved: string[] }` |
 | `tasks_bulk_priority` | `taskIds` (array, 1–100), `priority` | `{ updated: string[] }` |
 | `tasks_bulk_delete` | `taskIds` (array, 1–100) | `{ deleted: string[] }` |

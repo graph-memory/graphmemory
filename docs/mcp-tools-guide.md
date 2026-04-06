@@ -338,7 +338,7 @@ Add or remove file attachments.
 
 ### `tasks_create`
 
-**Input**: `title` (required) + optional `description`, `status`, `priority`, `tags`, `dueDate`, `estimate`, `assignee`
+**Input**: `title` (required) + optional `description`, `status`, `priority`, `tags`, `dueDate`, `estimate`, `assigneeId`
 **Output**: `{ taskId }`
 
 ### `tasks_update`
@@ -357,7 +357,7 @@ Returns enriched data: subtasks, blockedBy, blocks, related, crossLinks.
 
 Filtered list sorted by priority (critical→low) then dueDate (earliest first, nulls last).
 
-**Input**: optional `status`, `priority`, `tag`, `filter`, `assignee`, `limit`
+**Input**: optional `status`, `priority`, `tag`, `filter`, `assigneeId`, `limit`
 
 ### `tasks_search`
 
@@ -391,10 +391,10 @@ Reverse lookup: find tasks linking to a specific node.
 
 Reposition a task within its status column using gap-based ordering.
 
-**Input**: `taskId` (required), optional `beforeId`, `afterId`
-**Output**: `{ taskId, order }`
+**Input**: `taskId` (required), `order` (integer position), optional `status`
+**Output**: `{ taskId, status, order }`
 
-**When to use**: When the user wants to reorder tasks within a column. Place a task between two others by specifying `beforeId` and/or `afterId`.
+**When to use**: When the user wants to reorder tasks within a column. Lower `order` values appear first. Optionally move to a different status at the same time.
 
 ### `tasks_add_attachment` / `tasks_remove_attachment`
 

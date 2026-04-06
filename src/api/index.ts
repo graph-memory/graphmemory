@@ -433,7 +433,7 @@ export async function startHttpServer(
       await mcpServer.connect(transport);
       await transport.handleRequest(req, res, body);
     } catch (err) {
-      if (!res.headersSent) res.writeHead(400).end(String(err));
+      if (!res.headersSent) res.writeHead(400).end('Bad request');
     }
   });
 
@@ -645,7 +645,7 @@ export async function startMultiProjectHttpServer(
     await mcpServer.connect(transport);
     await transport.handleRequest(req, res, body);
     } catch (err) {
-      if (!res.headersSent) res.writeHead(400).end(String(err));
+      if (!res.headersSent) res.writeHead(400).end('Bad request');
     }
   });
 

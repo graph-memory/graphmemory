@@ -53,7 +53,7 @@ export function createSkillsRouter(_users?: Record<string, UserConfig>): Router 
         text: q.q,
         searchMode: q.searchMode,
         maxResults: q.maxResults,
-        minScore: q.minScore ?? 0.3,
+        minScore: q.minScore ?? 0,
       });
       res.json({ results });
     } catch (err) { next(err); }
@@ -64,7 +64,7 @@ export function createSkillsRouter(_users?: Record<string, UserConfig>): Router 
     try {
       const p = getProject(req);
       const { targetGraph, targetNodeId, kind } = req.validatedQuery;
-      const edges = p.storeManager.findIncomingEdges(targetGraph, Number(targetNodeId));
+      const edges = p.storeManager.findIncomingEdges(targetGraph, targetNodeId);
       const filtered = edges.filter((e: Edge) => e.fromGraph === 'skills' && (!kind || e.kind === kind));
       const results = filtered.map((e: Edge) => {
         const skill = p.storeManager.getSkill(e.fromId);
@@ -146,9 +146,9 @@ export function createSkillsRouter(_users?: Record<string, UserConfig>): Router 
       await p.mutationQueue.enqueue(async () => {
         p.storeManager.createEdge({
           fromGraph: 'skills',
-          fromId: Number(fromId),
+          fromId,
           toGraph: targetGraph ?? 'skills',
-          toId: Number(toId),
+          toId,
           kind: kind ?? 'related',
         });
       });
@@ -165,9 +165,9 @@ export function createSkillsRouter(_users?: Record<string, UserConfig>): Router 
       await p.mutationQueue.enqueue(async () => {
         p.storeManager.deleteEdge({
           fromGraph: 'skills',
-          fromId: Number(fromId),
+          fromId,
           toGraph: targetGraph ?? 'skills',
-          toId: Number(toId),
+          toId,
           kind: '',
         });
       });

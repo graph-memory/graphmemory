@@ -52,7 +52,7 @@ export function createTasksRouter(_users?: Record<string, unknown>): Router {
       const edges = p.storeManager.listEdges({
         fromGraph: 'tasks' as GraphName,
         toGraph: targetGraph as GraphName,
-        toId: Number(targetNodeId),
+        toId: targetNodeId,
         kind: kind || undefined,
       });
       res.json({ results: edges });
@@ -98,9 +98,8 @@ export function createTasksRouter(_users?: Record<string, unknown>): Router {
     try {
       const p = getProject(req);
       const { taskIds, status } = req.body;
-      const numericIds = (taskIds as string[]).map(Number);
       const moved = await p.mutationQueue.enqueue(async () => {
-        return p.storeManager.bulkMoveTasks(numericIds, status);
+        return p.storeManager.bulkMoveTasks(taskIds, status);
       });
       res.json({ moved });
     } catch (err) { next(err); }
@@ -111,9 +110,8 @@ export function createTasksRouter(_users?: Record<string, unknown>): Router {
     try {
       const p = getProject(req);
       const { taskIds, priority } = req.body;
-      const numericIds = (taskIds as string[]).map(Number);
       const updated = await p.mutationQueue.enqueue(async () => {
-        return p.storeManager.bulkPriorityTasks(numericIds, priority);
+        return p.storeManager.bulkPriorityTasks(taskIds, priority);
       });
       res.json({ updated });
     } catch (err) { next(err); }
@@ -124,9 +122,8 @@ export function createTasksRouter(_users?: Record<string, unknown>): Router {
     try {
       const p = getProject(req);
       const { taskIds } = req.body;
-      const numericIds = (taskIds as string[]).map(Number);
       const deleted = await p.mutationQueue.enqueue(async () => {
-        return p.storeManager.bulkDeleteTasks(numericIds);
+        return p.storeManager.bulkDeleteTasks(taskIds);
       });
       res.json({ deleted });
     } catch (err) { next(err); }
@@ -192,9 +189,9 @@ export function createTasksRouter(_users?: Record<string, unknown>): Router {
       const { fromId, toId, kind, targetGraph } = req.body;
       const edge: Edge = {
         fromGraph: 'tasks' as GraphName,
-        fromId: Number(fromId),
+        fromId,
         toGraph: (targetGraph ?? 'tasks') as GraphName,
-        toId: Number(toId),
+        toId,
         kind,
       };
       await p.mutationQueue.enqueue(async () => {
@@ -212,9 +209,9 @@ export function createTasksRouter(_users?: Record<string, unknown>): Router {
       const { fromId, toId, targetGraph } = req.body;
       const edge: Edge = {
         fromGraph: 'tasks' as GraphName,
-        fromId: Number(fromId),
+        fromId,
         toGraph: (targetGraph ?? 'tasks') as GraphName,
-        toId: Number(toId),
+        toId,
         kind: '',  // kind not required for delete lookup
       };
       await p.mutationQueue.enqueue(async () => {

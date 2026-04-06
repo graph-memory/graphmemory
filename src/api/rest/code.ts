@@ -40,7 +40,7 @@ export function createCodeRouter(): Router {
     try {
       const p = getProject(req);
       const symbolId = Number(req.params.symbolId);
-      if (!Number.isFinite(symbolId)) return res.status(400).json({ error: 'Invalid symbolId' });
+      if (!Number.isFinite(symbolId)) return res.status(404).json({ error: 'Symbol not found' });
       const symbol = p.scopedStore.code.getNode(symbolId);
       if (!symbol) return res.status(404).json({ error: 'Symbol not found' });
       res.json(symbol);

@@ -13,7 +13,6 @@ import {
   MAX_SKILL_STEPS_COUNT,
   MAX_SKILL_TRIGGER_LEN,
   MAX_SKILL_TRIGGERS_COUNT,
-  MAX_TARGET_NODE_ID_LEN,
   MAX_LINK_KIND_LEN,
   MAX_PROJECT_ID_LEN,
   MAX_ATTACHMENT_FILENAME_LEN,
@@ -56,9 +55,12 @@ export const updateNoteSchema = z.object({
   version: z.number().int().positive().optional(),
 });
 
+/** Numeric ID field — all entity IDs are SQLite INTEGER PRIMARY KEYs. */
+const idField = () => z.number().int().positive();
+
 export const createRelationSchema = z.object({
-  fromId: z.string().min(1).max(MAX_TARGET_NODE_ID_LEN),
-  toId:   z.string().min(1).max(MAX_TARGET_NODE_ID_LEN),
+  fromId: idField(),
+  toId:   idField(),
   kind:   z.string().min(1).max(MAX_LINK_KIND_LEN),
   targetGraph: z.enum(['docs', 'code', 'files', 'tasks', 'skills']).optional(),
   projectId: z.string().min(1).max(MAX_PROJECT_ID_LEN).optional(),
@@ -122,22 +124,22 @@ export const reorderTaskSchema = z.object({
 });
 
 export const bulkMoveSchema = z.object({
-  taskIds: z.array(z.string().min(1).max(500)).min(1).max(100),
+  taskIds: z.array(idField()).min(1).max(100),
   status:  z.enum(['backlog', 'todo', 'in_progress', 'review', 'done', 'cancelled']),
 });
 
 export const bulkPrioritySchema = z.object({
-  taskIds:  z.array(z.string().min(1).max(500)).min(1).max(100),
+  taskIds:  z.array(idField()).min(1).max(100),
   priority: z.enum(['critical', 'high', 'medium', 'low']),
 });
 
 export const bulkDeleteSchema = z.object({
-  taskIds: z.array(z.string().min(1).max(500)).min(1).max(100),
+  taskIds: z.array(idField()).min(1).max(100),
 });
 
 export const createTaskLinkSchema = z.object({
-  fromId: z.string().min(1).max(MAX_TARGET_NODE_ID_LEN),
-  toId:   z.string().min(1).max(MAX_TARGET_NODE_ID_LEN),
+  fromId: idField(),
+  toId:   idField(),
   kind:   z.string().min(1).max(MAX_LINK_KIND_LEN),
   targetGraph: z.enum(['docs', 'code', 'files', 'knowledge', 'skills']).optional(),
   projectId: z.string().min(1).max(MAX_PROJECT_ID_LEN).optional(),
@@ -233,8 +235,8 @@ export const updateSkillSchema = z.object({
 });
 
 export const createSkillLinkSchema = z.object({
-  fromId:      z.string().min(1).max(MAX_TARGET_NODE_ID_LEN),
-  toId:        z.string().min(1).max(MAX_TARGET_NODE_ID_LEN),
+  fromId:      idField(),
+  toId:        idField(),
   kind:        z.string().min(1).max(MAX_LINK_KIND_LEN),
   targetGraph: z.enum(['docs', 'code', 'files', 'knowledge', 'tasks']).optional(),
   projectId:   z.string().min(1).max(MAX_PROJECT_ID_LEN).optional(),
@@ -297,7 +299,7 @@ export const epicListSchema = z.object({
 });
 
 export const epicLinkSchema = z.object({
-  taskId: z.string().min(1).max(500),
+  taskId: idField(),
 });
 
 // ---------------------------------------------------------------------------
@@ -306,7 +308,7 @@ export const epicLinkSchema = z.object({
 
 export const linkedQuerySchema = z.object({
   targetGraph:  z.enum(['docs', 'code', 'files', 'knowledge', 'tasks', 'skills']),
-  targetNodeId: z.string().min(1).max(MAX_TARGET_NODE_ID_LEN),
+  targetNodeId: z.coerce.number().int().positive(),
   kind:         z.string().max(MAX_LINK_KIND_LEN).optional(),
   projectId:    z.string().max(MAX_PROJECT_ID_LEN).optional(),
 });

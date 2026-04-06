@@ -20,8 +20,8 @@ function parseNoteId(raw: string | string[]): number {
   if (Array.isArray(raw)) raw = raw[0];
   const id = Number(raw);
   if (!Number.isFinite(id) || id < 1 || id !== Math.floor(id)) {
-    const err = new Error('Invalid note ID');
-    throw Object.assign(err, { status: 400 });
+    const err = new Error('Note not found');
+    throw Object.assign(err, { status: 404 });
   }
   return id;
 }
@@ -127,7 +127,7 @@ export function createKnowledgeRouter(_users?: Record<string, UserConfig>): Rout
       const fromGraph: GraphName = 'knowledge';
       const toGraph: GraphName = targetGraph || 'knowledge';
       await mutationQueue.enqueue(async () => {
-        mgr.createEdge({ fromGraph, fromId: Number(fromId), toGraph, toId: Number(toId), kind });
+        mgr.createEdge({ fromGraph, fromId, toGraph, toId, kind });
       });
       res.status(201).json({ fromId, toId, kind, targetGraph: targetGraph || undefined });
     } catch (err) { next(err); }
@@ -141,7 +141,7 @@ export function createKnowledgeRouter(_users?: Record<string, UserConfig>): Rout
       const fromGraph: GraphName = 'knowledge';
       const toGraph: GraphName = targetGraph || 'knowledge';
       await mutationQueue.enqueue(async () => {
-        mgr.deleteEdge({ fromGraph, fromId: Number(fromId), toGraph, toId: Number(toId), kind: '' });
+        mgr.deleteEdge({ fromGraph, fromId, toGraph, toId, kind: '' });
       });
       res.status(204).end();
     } catch (err) { next(err); }
@@ -163,7 +163,7 @@ export function createKnowledgeRouter(_users?: Record<string, UserConfig>): Rout
     try {
       const { storeManager: mgr } = getProject(req);
       const { targetGraph, targetNodeId } = req.validatedQuery;
-      const edges = mgr.listEdges({ fromGraph: 'knowledge', toGraph: targetGraph as GraphName, toId: Number(targetNodeId) });
+      const edges = mgr.listEdges({ fromGraph: 'knowledge', toGraph: targetGraph as GraphName, toId: targetNodeId });
       const notes = edges
         .map(e => mgr.getNote(e.fromId))
         .filter((n): n is NonNullable<typeof n> => n != null);

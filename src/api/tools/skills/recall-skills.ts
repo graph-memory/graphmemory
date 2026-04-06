@@ -19,7 +19,7 @@ export function register(server: McpServer, mgr: StoreManager): void {
       },
     },
     async ({ context, maxResults, minScore, searchMode }) => {
-      const results = await mgr.searchSkills({ text: context, searchMode, maxResults, minScore: minScore ?? 0.3 });
+      const results = await mgr.searchSkills({ text: context, searchMode, maxResults, minScore: minScore ?? 0 });
       return { content: [{ type: 'text', text: JSON.stringify(results, stripEmptyInList, 2) }] };
     },
   );

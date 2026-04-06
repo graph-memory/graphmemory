@@ -44,7 +44,12 @@ export function createEpicsRouter(_users?: Record<string, UserConfig>): Router {
       const epicId = Number(req.params.epicId);
       const epic = p.storeManager.getEpic(epicId);
       if (!epic) return res.status(404).json({ error: 'Epic not found' });
-      res.json(epic);
+      // Include linked task IDs for convenience
+      const tasks = epic.edges
+        .filter(e => e.kind === 'belongs_to')
+        .map(e => e.toId);
+      const { edges: _edges, ...rest } = epic;
+      res.json({ ...rest, tasks });
     } catch (err) { next(err); }
   });
 
@@ -113,7 +118,7 @@ export function createEpicsRouter(_users?: Record<string, UserConfig>): Router {
     try {
       const p = getProject(req);
       const epicId = Number(req.params.epicId);
-      const taskId = Number(req.body.taskId);
+      const taskId = req.body.taskId;
       await p.mutationQueue.enqueue(async () => {
         p.storeManager.linkTaskToEpic(epicId, taskId);
       });
@@ -126,7 +131,7 @@ export function createEpicsRouter(_users?: Record<string, UserConfig>): Router {
     try {
       const p = getProject(req);
       const epicId = Number(req.params.epicId);
-      const taskId = Number(req.body.taskId);
+      const taskId = req.body.taskId;
       await p.mutationQueue.enqueue(async () => {
         p.storeManager.unlinkTaskFromEpic(epicId, taskId);
       });

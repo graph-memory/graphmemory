@@ -524,6 +524,9 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
     if (err.type === 'entity.parse.failed' || (err instanceof SyntaxError && 'body' in err)) {
       return res.status(400).json({ error: 'Invalid JSON' });
     }
+    if (err.status && err.status >= 400 && err.status < 500) {
+      return res.status(err.status).json({ error: err.message });
+    }
     log.error({ err }, 'unhandled error');
     res.status(500).json({ error: 'Internal server error' });
   });

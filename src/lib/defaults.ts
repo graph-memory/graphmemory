@@ -11,8 +11,8 @@ export const RRF_K    = 60;
 
 export const SEARCH_TOP_K       = 5;
 export const SEARCH_MIN_SCORE   = 0.5;
-export const SEARCH_MIN_SCORE_CODE  = 0.3;
-export const SEARCH_MIN_SCORE_FILES = 0.3;
+export const SEARCH_MIN_SCORE_CODE  = 0;
+export const SEARCH_MIN_SCORE_FILES = 0;
 
 export const FILE_SEARCH_TOP_K  = 10;
 

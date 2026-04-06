@@ -14,7 +14,13 @@ export function register(server: McpServer, mgr: StoreManager): void {
     async ({ epicId }) => {
       const epic = mgr.getEpic(epicId);
       if (!epic) return { content: [{ type: 'text', text: 'Epic not found' }], isError: true };
-      return { content: [{ type: 'text', text: JSON.stringify(epic, null, 2) }] };
+      // Extract linked task IDs from edges
+      const tasks = epic.edges
+        .filter(e => e.kind === 'belongs_to')
+        .map(e => e.toId);
+      const { edges: _edges, ...rest } = epic;
+      const result = { ...rest, tasks };
+      return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
     },
   );
 }

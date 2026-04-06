@@ -36,7 +36,7 @@ export function createDocsRouter(): Router {
     try {
       const p = getProject(req);
       const nodeId = Number(req.params.nodeId);
-      if (!Number.isFinite(nodeId)) return res.status(400).json({ error: 'Invalid nodeId' });
+      if (!Number.isFinite(nodeId)) return res.status(404).json({ error: 'Node not found' });
       const node = p.scopedStore.docs.getNode(nodeId);
       if (!node) return res.status(404).json({ error: 'Node not found' });
       res.json(node);

@@ -43,6 +43,19 @@ describe('SQLite DB lifecycle', () => {
     expect(Number(fk[0].foreign_keys)).toBe(1);
   });
 
+  it('sets busy_timeout', () => {
+    const db = store.getDb();
+    const bt = db.pragma('busy_timeout') as Array<{ timeout: bigint }>;
+    expect(Number(bt[0].timeout)).toBe(5000);
+  });
+
+  it('sets synchronous to NORMAL', () => {
+    const db = store.getDb();
+    const sync = db.pragma('synchronous') as Array<{ synchronous: bigint }>;
+    // NORMAL = 1
+    expect(Number(sync[0].synchronous)).toBe(1);
+  });
+
   it('throws on double open', () => {
     const dir = mkdtempSync(join(tmpdir(), 'db-test-'));
     const s = new SqliteStore();

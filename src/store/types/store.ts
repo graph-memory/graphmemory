@@ -80,6 +80,12 @@ export interface Store {
    */
   transaction<T>(fn: () => T): T;
 
+  // --- FTS maintenance ---
+  /** Rebuild all FTS5 indexes. Use after suspected corruption or out-of-sync state. */
+  rebuildFts(): void;
+  /** Run FTS5 integrity-check on all indexes. Returns list of tables that failed. */
+  checkFts(): string[];
+
   // --- Workspace metadata (key-value) ---
   getMeta(key: string): string | null;
   setMeta(key: string, value: string): void;

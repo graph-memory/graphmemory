@@ -59,7 +59,11 @@ export class SqliteStore implements Store {
     this._projects = null;
     this._team = null;
     this.edgeHelper = null;
-    this.db.pragma('wal_checkpoint(TRUNCATE)');
+    try {
+      this.db.pragma('wal_checkpoint(TRUNCATE)');
+    } catch {
+      // Checkpoint failure is non-fatal — WAL will be checkpointed on next open
+    }
     this.db.close();
     this.db = null;
     this.metaHelper = null;
@@ -131,6 +135,32 @@ export class SqliteStore implements Store {
   deleteMeta(key: string): void {
     this.requireDb();
     this.metaHelper!.deleteMeta(key);
+  }
+
+  // --- FTS maintenance ---
+
+  /** Rebuild all FTS5 indexes. Use after suspected corruption or out-of-sync state. */
+  rebuildFts(): void {
+    this.requireDb();
+    const tables = ['knowledge_fts', 'tasks_fts', 'epics_fts', 'skills_fts', 'code_fts', 'docs_fts'];
+    for (const table of tables) {
+      this.db!.prepare(`INSERT INTO ${table}(${table}) VALUES ('rebuild')`).run();
+    }
+  }
+
+  /** Run FTS5 integrity-check on all indexes. Returns list of tables that failed. */
+  checkFts(): string[] {
+    this.requireDb();
+    const tables = ['knowledge_fts', 'tasks_fts', 'epics_fts', 'skills_fts', 'code_fts', 'docs_fts'];
+    const failed: string[] = [];
+    for (const table of tables) {
+      try {
+        this.db!.prepare(`INSERT INTO ${table}(${table}) VALUES ('integrity-check')`).run();
+      } catch {
+        failed.push(table);
+      }
+    }
+    return failed;
   }
 
   // --- Internal ---

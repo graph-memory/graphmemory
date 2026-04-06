@@ -15,5 +15,7 @@ export function openDatabase(dbPath: string): Database.Database {
   sqliteVec.load(db);
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
+  db.pragma('busy_timeout = 5000');
+  db.pragma('synchronous = NORMAL');
   return db;
 }

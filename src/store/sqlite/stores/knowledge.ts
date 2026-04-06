@@ -76,75 +76,79 @@ export class SqliteKnowledgeStore implements KnowledgeStore {
 
   create(data: NoteCreate, embedding: number[]): NoteRecord {
     assertEmbeddingDim(embedding, this.embeddingDim);
-    const slug = data.slug ?? randomUUID();
-    const ts = now();
-    const authorId = data.authorId ?? null;
-    const version = data.version ?? 1;
-    const createdAt = data.createdAt ?? ts;
-    const updatedAt = data.updatedAt ?? ts;
+    return this.db.transaction(() => {
+      const slug = data.slug ?? randomUUID();
+      const ts = now();
+      const authorId = data.authorId ?? null;
+      const version = data.version ?? 1;
+      const createdAt = data.createdAt ?? ts;
+      const updatedAt = data.updatedAt ?? ts;
 
-    // Upsert when slug is provided and already exists
-    if (data.slug) {
-      const existing = this.stmts.getBySlug.get(slug, this.projectId) as Record<string, unknown> | undefined;
-      if (existing) {
-        const id = num(existing.id as bigint);
-        this.db.prepare(`
-          UPDATE knowledge SET title = ?, content = ?, version = ?, updated_at = ?
-          WHERE id = ? AND project_id = ?
-        `).run(data.title, data.content, version, updatedAt, id, this.projectId);
-        this.stmts.deleteVec.run(BigInt(id));
-        this.stmts.insertVec.run(BigInt(id), Buffer.from(new Float32Array(embedding).buffer));
-        if (data.tags) this.helpers.setTags(GRAPH, id, data.tags);
-        return this.toRecord(this.stmts.getById.get(id, this.projectId) as Record<string, unknown>);
+      // Upsert when slug is provided and already exists
+      if (data.slug) {
+        const existing = this.stmts.getBySlug.get(slug, this.projectId) as Record<string, unknown> | undefined;
+        if (existing) {
+          const id = num(existing.id as bigint);
+          this.db.prepare(`
+            UPDATE knowledge SET title = ?, content = ?, version = ?, updated_at = ?
+            WHERE id = ? AND project_id = ?
+          `).run(data.title, data.content, version, updatedAt, id, this.projectId);
+          this.stmts.deleteVec.run(BigInt(id));
+          this.stmts.insertVec.run(BigInt(id), Buffer.from(new Float32Array(embedding).buffer));
+          if (data.tags) this.helpers.setTags(GRAPH, id, data.tags);
+          return this.toRecord(this.stmts.getById.get(id, this.projectId) as Record<string, unknown>);
+        }
       }
-    }
 
-    const result = this.stmts.insert.run(this.projectId, slug, data.title, data.content, version, authorId, authorId, createdAt, updatedAt);
-    const id = result.lastInsertRowid;
+      const result = this.stmts.insert.run(this.projectId, slug, data.title, data.content, version, authorId, authorId, createdAt, updatedAt);
+      const id = result.lastInsertRowid;
 
-    this.stmts.insertVec.run(BigInt(id as number | bigint), Buffer.from(new Float32Array(embedding).buffer));
+      this.stmts.insertVec.run(BigInt(id as number | bigint), Buffer.from(new Float32Array(embedding).buffer));
 
-    if (data.tags && data.tags.length > 0) {
-      this.helpers.setTags(GRAPH, num(id), data.tags);
-    }
+      if (data.tags && data.tags.length > 0) {
+        this.helpers.setTags(GRAPH, num(id), data.tags);
+      }
 
-    return this.toRecord(this.stmts.getById.get(num(id), this.projectId) as Record<string, unknown>);
+      return this.toRecord(this.stmts.getById.get(num(id), this.projectId) as Record<string, unknown>);
+    })();
   }
 
   update(noteId: number, patch: NotePatch, embedding: number[] | null, authorId?: number, expectedVersion?: number): NoteRecord {
-    const row = this.stmts.getById.get(noteId, this.projectId) as Record<string, unknown> | undefined;
-    if (!row) throw new Error(`Note ${noteId} not found`);
+    if (embedding) assertEmbeddingDim(embedding, this.embeddingDim);
+    return this.db.transaction(() => {
+      const row = this.stmts.getById.get(noteId, this.projectId) as Record<string, unknown> | undefined;
+      if (!row) throw new Error(`Note ${noteId} not found`);
 
-    if (expectedVersion !== undefined) {
-      const current = num(row.version as bigint);
-      if (current !== expectedVersion) throw new VersionConflictError(current, expectedVersion);
-    }
+      if (expectedVersion !== undefined) {
+        const current = num(row.version as bigint);
+        if (current !== expectedVersion) throw new VersionConflictError(current, expectedVersion);
+      }
 
-    const fields: string[] = [];
-    const params: unknown[] = [];
-    const set = (col: string, val: unknown) => { fields.push(`${col} = ?`); params.push(val); };
+      const fields: string[] = [];
+      const params: unknown[] = [];
+      const set = (col: string, val: unknown) => { fields.push(`${col} = ?`); params.push(val); };
 
-    if (patch.title !== undefined) set('title', patch.title);
-    if (patch.content !== undefined) set('content', patch.content);
+      if (patch.title !== undefined) set('title', patch.title);
+      if (patch.content !== undefined) set('content', patch.content);
 
-    set('version', num(row.version as bigint) + 1);
-    set('updated_by_id', authorId ?? null);
-    set('updated_at', now());
+      set('version', num(row.version as bigint) + 1);
+      set('updated_by_id', authorId ?? null);
+      set('updated_at', now());
 
-    params.push(noteId, this.projectId);
-    this.db.prepare(`UPDATE knowledge SET ${fields.join(', ')} WHERE id = ? AND project_id = ?`).run(...params);
+      params.push(noteId, this.projectId);
+      this.db.prepare(`UPDATE knowledge SET ${fields.join(', ')} WHERE id = ? AND project_id = ?`).run(...params);
 
-    if (embedding) {
-      assertEmbeddingDim(embedding, this.embeddingDim);
-      this.stmts.deleteVec.run(BigInt(noteId));
-      this.stmts.insertVec.run(BigInt(noteId), Buffer.from(new Float32Array(embedding).buffer));
-    }
+      if (embedding) {
+        this.stmts.deleteVec.run(BigInt(noteId));
+        this.stmts.insertVec.run(BigInt(noteId), Buffer.from(new Float32Array(embedding).buffer));
+      }
 
-    if (patch.tags !== undefined) {
-      this.helpers.setTags(GRAPH, noteId, patch.tags);
-    }
+      if (patch.tags !== undefined) {
+        this.helpers.setTags(GRAPH, noteId, patch.tags);
+      }
 
-    return this.toRecord(this.stmts.getById.get(noteId, this.projectId) as Record<string, unknown>);
+      return this.toRecord(this.stmts.getById.get(noteId, this.projectId) as Record<string, unknown>);
+    })();
   }
 
   delete(noteId: number): void {

@@ -75,48 +75,50 @@ export class SqliteFilesStore implements FilesStore {
 
   updateFile(filePath: string, size: number, mtime: number, embedding: number[], opts?: FileUpdateOptions): void {
     assertEmbeddingDim(embedding, this.embeddingDim);
-    const fileName = path.basename(filePath);
-    const directory = path.dirname(filePath);
-    const extension = path.extname(filePath);
-    const language = opts?.language ?? null;
-    const mimeType = opts?.mimeType ?? null;
+    this.db.transaction(() => {
+      const fileName = path.basename(filePath);
+      const directory = path.dirname(filePath);
+      const extension = path.extname(filePath);
+      const language = opts?.language ?? null;
+      const mimeType = opts?.mimeType ?? null;
 
-    // Ensure parent directory exists
-    if (directory && directory !== '.') {
-      this.ensureDirectory(directory);
-    }
+      // Ensure parent directory exists
+      if (directory && directory !== '.') {
+        this.ensureDirectory(directory);
+      }
 
-    // Check if file already exists
-    const existing = this.db.prepare(
-      "SELECT id FROM files WHERE project_id = ? AND file_path = ? AND kind = 'file'"
-    ).get(this.projectId, filePath) as { id: bigint } | undefined;
+      // Check if file already exists
+      const existing = this.db.prepare(
+        "SELECT id FROM files WHERE project_id = ? AND file_path = ? AND kind = 'file'"
+      ).get(this.projectId, filePath) as { id: bigint } | undefined;
 
-    let fileId: number;
+      let fileId: number;
 
-    if (existing) {
-      fileId = num(existing.id);
-      // Update existing
-      this.db.prepare(`
-        UPDATE files SET file_name = ?, directory = ?, extension = ?, language = ?, mime_type = ?, size = ?, mtime = ?
-        WHERE id = ? AND project_id = ?
-      `).run(fileName, directory, extension, language, mimeType, size, mtime, fileId, this.projectId);
+      if (existing) {
+        fileId = num(existing.id);
+        // Update existing
+        this.db.prepare(`
+          UPDATE files SET file_name = ?, directory = ?, extension = ?, language = ?, mime_type = ?, size = ?, mtime = ?
+          WHERE id = ? AND project_id = ?
+        `).run(fileName, directory, extension, language, mimeType, size, mtime, fileId, this.projectId);
 
-      // Update vec0 (DELETE + INSERT pattern)
-      this.db.prepare('DELETE FROM files_vec WHERE rowid = ?').run(BigInt(fileId));
-      this.db.prepare('INSERT INTO files_vec (rowid, embedding) VALUES (?, ?)')
-        .run(BigInt(fileId), Buffer.from(new Float32Array(embedding).buffer));
-    } else {
-      // Insert new file
-      const result = this.db.prepare(`
-        INSERT INTO files (project_id, kind, file_path, file_name, directory, extension, language, mime_type, size, mtime)
-        VALUES (?, 'file', ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(this.projectId, filePath, fileName, directory, extension, language, mimeType, size, mtime);
-      fileId = num(result.lastInsertRowid as bigint);
+        // Update vec0 (DELETE + INSERT pattern)
+        this.db.prepare('DELETE FROM files_vec WHERE rowid = ?').run(BigInt(fileId));
+        this.db.prepare('INSERT INTO files_vec (rowid, embedding) VALUES (?, ?)')
+          .run(BigInt(fileId), Buffer.from(new Float32Array(embedding).buffer));
+      } else {
+        // Insert new file
+        const result = this.db.prepare(`
+          INSERT INTO files (project_id, kind, file_path, file_name, directory, extension, language, mime_type, size, mtime)
+          VALUES (?, 'file', ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(this.projectId, filePath, fileName, directory, extension, language, mimeType, size, mtime);
+        fileId = num(result.lastInsertRowid as bigint);
 
-      // Insert vec0
-      this.db.prepare('INSERT INTO files_vec (rowid, embedding) VALUES (?, ?)')
-        .run(BigInt(fileId), Buffer.from(new Float32Array(embedding).buffer));
-    }
+        // Insert vec0
+        this.db.prepare('INSERT INTO files_vec (rowid, embedding) VALUES (?, ?)')
+          .run(BigInt(fileId), Buffer.from(new Float32Array(embedding).buffer));
+      }
+    })();
   }
 
   // =========================================================================
@@ -124,18 +126,20 @@ export class SqliteFilesStore implements FilesStore {
   // =========================================================================
 
   removeFile(filePath: string): void {
-    const row = this.db.prepare(
-      "SELECT id, directory FROM files WHERE project_id = ? AND file_path = ? AND kind = 'file'"
-    ).get(this.projectId, filePath) as { id: bigint; directory: string } | undefined;
+    this.db.transaction(() => {
+      const row = this.db.prepare(
+        "SELECT id, directory FROM files WHERE project_id = ? AND file_path = ? AND kind = 'file'"
+      ).get(this.projectId, filePath) as { id: bigint; directory: string } | undefined;
 
-    if (!row) return;
+      if (!row) return;
 
-    // Delete the file (cleanup trigger handles edges, attachments, vec0)
-    this.db.prepare('DELETE FROM files WHERE id = ? AND project_id = ?')
-      .run(num(row.id), this.projectId);
+      // Delete the file (cleanup trigger handles edges, attachments, vec0)
+      this.db.prepare('DELETE FROM files WHERE id = ? AND project_id = ?')
+        .run(num(row.id), this.projectId);
 
-    // Clean up empty parent directories
-    this.cleanEmptyDirs(row.directory as string);
+      // Clean up empty parent directories
+      this.cleanEmptyDirs(row.directory as string);
+    })();
   }
 
   private cleanEmptyDirs(dirPath: string): void {

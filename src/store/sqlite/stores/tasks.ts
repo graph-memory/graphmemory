@@ -72,94 +72,98 @@ export class SqliteTasksStore implements TasksStore {
 
   create(data: TaskCreate, embedding: number[]): TaskRecord {
     assertEmbeddingDim(embedding, this.embeddingDim);
-    const slug = data.slug ?? randomUUID();
-    const ts = now();
-    const status = data.status ?? 'backlog';
-    const order = data.order ?? this.nextOrderForStatus(status);
-    const authorId = data.authorId ?? null;
-    const version = data.version ?? 1;
-    const createdAt = data.createdAt ?? ts;
-    const updatedAt = data.updatedAt ?? ts;
+    return this.db.transaction(() => {
+      const slug = data.slug ?? randomUUID();
+      const ts = now();
+      const status = data.status ?? 'backlog';
+      const order = data.order ?? this.nextOrderForStatus(status);
+      const authorId = data.authorId ?? null;
+      const version = data.version ?? 1;
+      const createdAt = data.createdAt ?? ts;
+      const updatedAt = data.updatedAt ?? ts;
 
-    // Upsert when slug is provided and already exists
-    if (data.slug) {
-      const existing = this.db.prepare('SELECT * FROM tasks WHERE slug = ? AND project_id = ?').get(slug, this.projectId) as Record<string, unknown> | undefined;
-      if (existing) {
-        const id = num(existing.id as bigint);
-        this.db.prepare(`
-          UPDATE tasks SET title = ?, description = ?, status = ?, priority = ?,
-          due_date = ?, estimate = ?, completed_at = ?, "order" = ?,
-          version = ?, updated_at = ?
-          WHERE id = ? AND project_id = ?
-        `).run(
-          data.title, data.description ?? '', status, data.priority ?? 'medium',
-          data.dueDate ?? null, data.estimate ?? null, data.completedAt ?? null, order,
-          version, updatedAt, id, this.projectId,
-        );
-        this.db.prepare('DELETE FROM tasks_vec WHERE rowid = ?').run(BigInt(id));
-        this.db.prepare('INSERT INTO tasks_vec (rowid, embedding) VALUES (?, ?)').run(BigInt(id), Buffer.from(new Float32Array(embedding).buffer));
-        if (data.tags) this.helpers.setTags(GRAPH_TASKS, id, data.tags);
-        return this.toTaskRecord(this.db.prepare('SELECT * FROM tasks WHERE id = ? AND project_id = ?').get(id, this.projectId) as Record<string, unknown>);
+      // Upsert when slug is provided and already exists
+      if (data.slug) {
+        const existing = this.db.prepare('SELECT * FROM tasks WHERE slug = ? AND project_id = ?').get(slug, this.projectId) as Record<string, unknown> | undefined;
+        if (existing) {
+          const id = num(existing.id as bigint);
+          this.db.prepare(`
+            UPDATE tasks SET title = ?, description = ?, status = ?, priority = ?,
+            due_date = ?, estimate = ?, completed_at = ?, "order" = ?,
+            version = ?, updated_at = ?
+            WHERE id = ? AND project_id = ?
+          `).run(
+            data.title, data.description ?? '', status, data.priority ?? 'medium',
+            data.dueDate ?? null, data.estimate ?? null, data.completedAt ?? null, order,
+            version, updatedAt, id, this.projectId,
+          );
+          this.db.prepare('DELETE FROM tasks_vec WHERE rowid = ?').run(BigInt(id));
+          this.db.prepare('INSERT INTO tasks_vec (rowid, embedding) VALUES (?, ?)').run(BigInt(id), Buffer.from(new Float32Array(embedding).buffer));
+          if (data.tags) this.helpers.setTags(GRAPH_TASKS, id, data.tags);
+          return this.toTaskRecord(this.db.prepare('SELECT * FROM tasks WHERE id = ? AND project_id = ?').get(id, this.projectId) as Record<string, unknown>);
+        }
       }
-    }
 
-    const result = this.db.prepare(`
-      INSERT INTO tasks (project_id, slug, title, description, status, priority, "order", due_date, estimate, completed_at, assignee_id, version, created_by_id, updated_by_id, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      this.projectId, slug, data.title, data.description ?? '', status, data.priority ?? 'medium',
-      order, data.dueDate ?? null, data.estimate ?? null, data.completedAt ?? null, data.assigneeId ?? null,
-      version, authorId, authorId, createdAt, updatedAt,
-    );
-    const id = result.lastInsertRowid;
+      const result = this.db.prepare(`
+        INSERT INTO tasks (project_id, slug, title, description, status, priority, "order", due_date, estimate, completed_at, assignee_id, version, created_by_id, updated_by_id, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        this.projectId, slug, data.title, data.description ?? '', status, data.priority ?? 'medium',
+        order, data.dueDate ?? null, data.estimate ?? null, data.completedAt ?? null, data.assigneeId ?? null,
+        version, authorId, authorId, createdAt, updatedAt,
+      );
+      const id = result.lastInsertRowid;
 
-    this.db.prepare('INSERT INTO tasks_vec (rowid, embedding) VALUES (?, ?)').run(BigInt(id as number | bigint), Buffer.from(new Float32Array(embedding).buffer));
+      this.db.prepare('INSERT INTO tasks_vec (rowid, embedding) VALUES (?, ?)').run(BigInt(id as number | bigint), Buffer.from(new Float32Array(embedding).buffer));
 
-    if (data.tags && data.tags.length > 0) this.helpers.setTags(GRAPH_TASKS, num(id), data.tags);
+      if (data.tags && data.tags.length > 0) this.helpers.setTags(GRAPH_TASKS, num(id), data.tags);
 
-    return this.toTaskRecord(this.db.prepare('SELECT * FROM tasks WHERE id = ? AND project_id = ?').get(num(id), this.projectId) as Record<string, unknown>);
+      return this.toTaskRecord(this.db.prepare('SELECT * FROM tasks WHERE id = ? AND project_id = ?').get(num(id), this.projectId) as Record<string, unknown>);
+    })();
   }
 
   update(taskId: number, patch: TaskPatch, embedding: number[] | null, authorId?: number, expectedVersion?: number): TaskRecord {
-    const row = this.db.prepare('SELECT * FROM tasks WHERE id = ? AND project_id = ?').get(taskId, this.projectId) as Record<string, unknown> | undefined;
-    if (!row) throw new Error(`Task ${taskId} not found`);
+    if (embedding) assertEmbeddingDim(embedding, this.embeddingDim);
+    return this.db.transaction(() => {
+      const row = this.db.prepare('SELECT * FROM tasks WHERE id = ? AND project_id = ?').get(taskId, this.projectId) as Record<string, unknown> | undefined;
+      if (!row) throw new Error(`Task ${taskId} not found`);
 
-    if (expectedVersion !== undefined) {
-      const current = num(row.version as bigint);
-      if (current !== expectedVersion) throw new VersionConflictError(current, expectedVersion);
-    }
+      if (expectedVersion !== undefined) {
+        const current = num(row.version as bigint);
+        if (current !== expectedVersion) throw new VersionConflictError(current, expectedVersion);
+      }
 
-    const fields: string[] = [];
-    const params: unknown[] = [];
+      const fields: string[] = [];
+      const params: unknown[] = [];
 
-    const set = (col: string, val: unknown) => { fields.push(`${col} = ?`); params.push(val); };
+      const set = (col: string, val: unknown) => { fields.push(`${col} = ?`); params.push(val); };
 
-    if (patch.title !== undefined) set('title', patch.title);
-    if (patch.description !== undefined) set('description', patch.description);
-    if (patch.status !== undefined) set('status', patch.status);
-    if (patch.priority !== undefined) set('priority', patch.priority);
-    if (patch.dueDate !== undefined) set('due_date', patch.dueDate);
-    if (patch.estimate !== undefined) set('estimate', patch.estimate);
-    if (patch.assigneeId !== undefined) set('assignee_id', patch.assigneeId);
-    if (patch.completedAt !== undefined) set('completed_at', patch.completedAt);
-    if (patch.order !== undefined) set('"order"', patch.order);
+      if (patch.title !== undefined) set('title', patch.title);
+      if (patch.description !== undefined) set('description', patch.description);
+      if (patch.status !== undefined) set('status', patch.status);
+      if (patch.priority !== undefined) set('priority', patch.priority);
+      if (patch.dueDate !== undefined) set('due_date', patch.dueDate);
+      if (patch.estimate !== undefined) set('estimate', patch.estimate);
+      if (patch.assigneeId !== undefined) set('assignee_id', patch.assigneeId);
+      if (patch.completedAt !== undefined) set('completed_at', patch.completedAt);
+      if (patch.order !== undefined) set('"order"', patch.order);
 
-    set('version', num(row.version as bigint) + 1);
-    set('updated_by_id', authorId ?? null);
-    set('updated_at', now());
+      set('version', num(row.version as bigint) + 1);
+      set('updated_by_id', authorId ?? null);
+      set('updated_at', now());
 
-    params.push(taskId, this.projectId);
-    this.db.prepare(`UPDATE tasks SET ${fields.join(', ')} WHERE id = ? AND project_id = ?`).run(...params);
+      params.push(taskId, this.projectId);
+      this.db.prepare(`UPDATE tasks SET ${fields.join(', ')} WHERE id = ? AND project_id = ?`).run(...params);
 
-    if (embedding) {
-      assertEmbeddingDim(embedding, this.embeddingDim);
-      this.db.prepare('DELETE FROM tasks_vec WHERE rowid = ?').run(BigInt(taskId));
-      this.db.prepare('INSERT INTO tasks_vec (rowid, embedding) VALUES (?, ?)').run(BigInt(taskId), Buffer.from(new Float32Array(embedding).buffer));
-    }
+      if (embedding) {
+        this.db.prepare('DELETE FROM tasks_vec WHERE rowid = ?').run(BigInt(taskId));
+        this.db.prepare('INSERT INTO tasks_vec (rowid, embedding) VALUES (?, ?)').run(BigInt(taskId), Buffer.from(new Float32Array(embedding).buffer));
+      }
 
-    if (patch.tags !== undefined) this.helpers.setTags(GRAPH_TASKS, taskId, patch.tags);
+      if (patch.tags !== undefined) this.helpers.setTags(GRAPH_TASKS, taskId, patch.tags);
 
-    return this.toTaskRecord(this.db.prepare('SELECT * FROM tasks WHERE id = ? AND project_id = ?').get(taskId, this.projectId) as Record<string, unknown>);
+      return this.toTaskRecord(this.db.prepare('SELECT * FROM tasks WHERE id = ? AND project_id = ?').get(taskId, this.projectId) as Record<string, unknown>);
+    })();
   }
 
   delete(taskId: number): void {
@@ -252,45 +256,51 @@ export class SqliteTasksStore implements TasksStore {
 
   bulkDelete(taskIds: number[]): number {
     if (taskIds.length === 0) return 0;
-    let total = 0;
-    // Cleanup triggers handle edges, attachments, vec0
-    for (const batch of chunk(taskIds)) {
-      const ph = batch.map(() => '?').join(',');
-      const result = this.db.prepare(`DELETE FROM tasks WHERE id IN (${ph}) AND project_id = ?`).run(...batch, this.projectId);
-      total += num(result.changes);
-    }
-    return total;
+    return this.db.transaction(() => {
+      let total = 0;
+      // Cleanup triggers handle edges, attachments, vec0
+      for (const batch of chunk(taskIds)) {
+        const ph = batch.map(() => '?').join(',');
+        const result = this.db.prepare(`DELETE FROM tasks WHERE id IN (${ph}) AND project_id = ?`).run(...batch, this.projectId);
+        total += num(result.changes);
+      }
+      return total;
+    })();
   }
 
   bulkMove(taskIds: number[], status: TaskStatus, authorId?: number): number {
     if (taskIds.length === 0) return 0;
-    const ts = now();
-    const completedAt = TERMINAL_STATUSES.has(status) ? ts : null;
-    let total = 0;
-    for (const batch of chunk(taskIds)) {
-      const ph = batch.map(() => '?').join(',');
-      const result = this.db.prepare(`
-        UPDATE tasks SET status = ?, completed_at = ?, version = version + 1, updated_by_id = ?, updated_at = ?
-        WHERE id IN (${ph}) AND project_id = ?
-      `).run(status, completedAt, authorId ?? null, ts, ...batch, this.projectId);
-      total += num(result.changes);
-    }
-    return total;
+    return this.db.transaction(() => {
+      const ts = now();
+      const completedAt = TERMINAL_STATUSES.has(status) ? ts : null;
+      let total = 0;
+      for (const batch of chunk(taskIds)) {
+        const ph = batch.map(() => '?').join(',');
+        const result = this.db.prepare(`
+          UPDATE tasks SET status = ?, completed_at = ?, version = version + 1, updated_by_id = ?, updated_at = ?
+          WHERE id IN (${ph}) AND project_id = ?
+        `).run(status, completedAt, authorId ?? null, ts, ...batch, this.projectId);
+        total += num(result.changes);
+      }
+      return total;
+    })();
   }
 
   bulkPriority(taskIds: number[], priority: TaskPriority, authorId?: number): number {
     if (taskIds.length === 0) return 0;
-    const ts = now();
-    let total = 0;
-    for (const batch of chunk(taskIds)) {
-      const ph = batch.map(() => '?').join(',');
-      const result = this.db.prepare(`
-        UPDATE tasks SET priority = ?, version = version + 1, updated_by_id = ?, updated_at = ?
-        WHERE id IN (${ph}) AND project_id = ?
-      `).run(priority, authorId ?? null, ts, ...batch, this.projectId);
-      total += num(result.changes);
-    }
-    return total;
+    return this.db.transaction(() => {
+      const ts = now();
+      let total = 0;
+      for (const batch of chunk(taskIds)) {
+        const ph = batch.map(() => '?').join(',');
+        const result = this.db.prepare(`
+          UPDATE tasks SET priority = ?, version = version + 1, updated_by_id = ?, updated_at = ?
+          WHERE id IN (${ph}) AND project_id = ?
+        `).run(priority, authorId ?? null, ts, ...batch, this.projectId);
+        total += num(result.changes);
+      }
+      return total;
+    })();
   }
 
   // =========================================================================

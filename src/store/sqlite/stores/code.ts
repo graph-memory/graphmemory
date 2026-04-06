@@ -71,69 +71,71 @@ export class SqliteCodeStore implements CodeStore {
     mtime: number,
     embeddings: Map<string, number[]>,
   ): void {
-    // 1. Delete old nodes for this file (cleanup triggers handle edges + vec0)
-    this.db.prepare('DELETE FROM code WHERE project_id = ? AND file_id = ?')
-      .run(this.projectId, fileId);
+    this.db.transaction(() => {
+      // 1. Delete old nodes for this file (cleanup triggers handle edges + vec0)
+      this.db.prepare('DELETE FROM code WHERE project_id = ? AND file_id = ?')
+        .run(this.projectId, fileId);
 
-    // 2. Insert file node
-    const fileName = path.basename(fileId);
-    const language = nodes.length > 0 ? nodes[0].language : '';
-    const fileResult = this.db.prepare(`
-      INSERT INTO code (project_id, kind, file_id, language, name, mtime)
-      VALUES (?, 'file', ?, ?, ?, ?)
-    `).run(this.projectId, fileId, language, fileName, mtime);
-    const fileNodeId = num(fileResult.lastInsertRowid as bigint);
+      // 2. Insert file node
+      const fileName = path.basename(fileId);
+      const language = nodes.length > 0 ? nodes[0].language : '';
+      const fileResult = this.db.prepare(`
+        INSERT INTO code (project_id, kind, file_id, language, name, mtime)
+        VALUES (?, 'file', ?, ?, ?, ?)
+      `).run(this.projectId, fileId, language, fileName, mtime);
+      const fileNodeId = num(fileResult.lastInsertRowid as bigint);
 
-    // Insert file embedding if available
-    const fileEmb = embeddings.get(fileId);
-    if (fileEmb) {
-      assertEmbeddingDim(fileEmb, this.embeddingDim);
-      this.db.prepare('INSERT INTO code_vec (rowid, embedding) VALUES (?, ?)')
-        .run(BigInt(fileNodeId), Buffer.from(new Float32Array(fileEmb).buffer));
-    }
-
-    // 3. Insert symbol nodes
-    const insertNode = this.db.prepare(`
-      INSERT INTO code (project_id, kind, file_id, language, name, signature, doc_comment, body, start_line, end_line, is_exported, mtime)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    const insertVec = this.db.prepare('INSERT INTO code_vec (rowid, embedding) VALUES (?, ?)');
-    const insertEdge = this.db.prepare(`
-      INSERT OR IGNORE INTO edges (from_project_id, from_graph, from_id, to_project_id, to_graph, to_id, kind)
-      VALUES (?, 'code', ?, ?, 'code', ?, ?)
-    `);
-
-    const nameToId = new Map<string, number>();
-    nameToId.set(fileName, fileNodeId);
-
-    for (const node of nodes) {
-      const result = insertNode.run(
-        this.projectId, node.kind, fileId, node.language,
-        node.name, node.signature, node.docComment, node.body,
-        node.startLine, node.endLine, node.isExported ? 1 : 0, node.mtime,
-      );
-      const nodeId = num(result.lastInsertRowid as bigint);
-      nameToId.set(node.name, nodeId);
-
-      // Insert embedding
-      const emb = embeddings.get(node.name);
-      if (emb) {
-        assertEmbeddingDim(emb, this.embeddingDim);
-        insertVec.run(BigInt(nodeId), Buffer.from(new Float32Array(emb).buffer));
+      // Insert file embedding if available
+      const fileEmb = embeddings.get(fileId);
+      if (fileEmb) {
+        assertEmbeddingDim(fileEmb, this.embeddingDim);
+        this.db.prepare('INSERT INTO code_vec (rowid, embedding) VALUES (?, ?)')
+          .run(BigInt(fileNodeId), Buffer.from(new Float32Array(fileEmb).buffer));
       }
 
-      // Edge: file → symbol (contains)
-      insertEdge.run(this.projectId, fileNodeId, this.projectId, nodeId, 'contains');
-    }
+      // 3. Insert symbol nodes
+      const insertNode = this.db.prepare(`
+        INSERT INTO code (project_id, kind, file_id, language, name, signature, doc_comment, body, start_line, end_line, is_exported, mtime)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      const insertVec = this.db.prepare('INSERT INTO code_vec (rowid, embedding) VALUES (?, ?)');
+      const insertEdge = this.db.prepare(`
+        INSERT OR IGNORE INTO edges (from_project_id, from_graph, from_id, to_project_id, to_graph, to_id, kind)
+        VALUES (?, 'code', ?, ?, 'code', ?, ?)
+      `);
 
-    // 4. Insert intra-file edges
-    for (const edge of edges) {
-      const fromId = nameToId.get(edge.fromName);
-      const toId = nameToId.get(edge.toName);
-      if (fromId !== undefined && toId !== undefined) {
-        insertEdge.run(this.projectId, fromId, this.projectId, toId, edge.kind);
+      const nameToId = new Map<string, number>();
+      nameToId.set(fileName, fileNodeId);
+
+      for (const node of nodes) {
+        const result = insertNode.run(
+          this.projectId, node.kind, fileId, node.language,
+          node.name, node.signature, node.docComment, node.body,
+          node.startLine, node.endLine, node.isExported ? 1 : 0, node.mtime,
+        );
+        const nodeId = num(result.lastInsertRowid as bigint);
+        nameToId.set(node.name, nodeId);
+
+        // Insert embedding
+        const emb = embeddings.get(node.name);
+        if (emb) {
+          assertEmbeddingDim(emb, this.embeddingDim);
+          insertVec.run(BigInt(nodeId), Buffer.from(new Float32Array(emb).buffer));
+        }
+
+        // Edge: file → symbol (contains)
+        insertEdge.run(this.projectId, fileNodeId, this.projectId, nodeId, 'contains');
       }
-    }
+
+      // 4. Insert intra-file edges
+      for (const edge of edges) {
+        const fromId = nameToId.get(edge.fromName);
+        const toId = nameToId.get(edge.toName);
+        if (fromId !== undefined && toId !== undefined) {
+          insertEdge.run(this.projectId, fromId, this.projectId, toId, edge.kind);
+        }
+      }
+    })();
   }
 
   // =========================================================================
@@ -151,21 +153,23 @@ export class SqliteCodeStore implements CodeStore {
   // =========================================================================
 
   resolveEdges(edges: Array<{ fromName: string; toName: string; kind: string }>): void {
-    const findByName = this.db.prepare("SELECT id FROM code WHERE project_id = ? AND name = ? AND kind != 'file'");
-    const insertEdge = this.db.prepare(`
-      INSERT OR IGNORE INTO edges (from_project_id, from_graph, from_id, to_project_id, to_graph, to_id, kind)
-      VALUES (?, 'code', ?, ?, 'code', ?, ?)
-    `);
+    this.db.transaction(() => {
+      const findByName = this.db.prepare("SELECT id FROM code WHERE project_id = ? AND name = ? AND kind != 'file'");
+      const insertEdge = this.db.prepare(`
+        INSERT OR IGNORE INTO edges (from_project_id, from_graph, from_id, to_project_id, to_graph, to_id, kind)
+        VALUES (?, 'code', ?, ?, 'code', ?, ?)
+      `);
 
-    for (const edge of edges) {
-      const fromRows = findByName.all(this.projectId, edge.fromName) as Array<{ id: bigint }>;
-      const toRows = findByName.all(this.projectId, edge.toName) as Array<{ id: bigint }>;
-      for (const fromRow of fromRows) {
-        for (const toRow of toRows) {
-          insertEdge.run(this.projectId, num(fromRow.id), this.projectId, num(toRow.id), edge.kind);
+      for (const edge of edges) {
+        const fromRows = findByName.all(this.projectId, edge.fromName) as Array<{ id: bigint }>;
+        const toRows = findByName.all(this.projectId, edge.toName) as Array<{ id: bigint }>;
+        for (const fromRow of fromRows) {
+          for (const toRow of toRows) {
+            insertEdge.run(this.projectId, num(fromRow.id), this.projectId, num(toRow.id), edge.kind);
+          }
         }
       }
-    }
+    })();
   }
 
   // =========================================================================
@@ -173,21 +177,23 @@ export class SqliteCodeStore implements CodeStore {
   // =========================================================================
 
   resolveImports(imports: Array<{ fromFileId: string; toFileId: string }>): void {
-    const findFile = this.db.prepare(
-      "SELECT id FROM code WHERE project_id = ? AND file_id = ? AND kind = 'file' LIMIT 1"
-    );
-    const insertEdge = this.db.prepare(`
-      INSERT OR IGNORE INTO edges (from_project_id, from_graph, from_id, to_project_id, to_graph, to_id, kind)
-      VALUES (?, 'code', ?, ?, 'code', ?, 'imports')
-    `);
+    this.db.transaction(() => {
+      const findFile = this.db.prepare(
+        "SELECT id FROM code WHERE project_id = ? AND file_id = ? AND kind = 'file' LIMIT 1"
+      );
+      const insertEdge = this.db.prepare(`
+        INSERT OR IGNORE INTO edges (from_project_id, from_graph, from_id, to_project_id, to_graph, to_id, kind)
+        VALUES (?, 'code', ?, ?, 'code', ?, 'imports')
+      `);
 
-    for (const imp of imports) {
-      const fromRow = findFile.get(this.projectId, imp.fromFileId) as { id: bigint } | undefined;
-      const toRow = findFile.get(this.projectId, imp.toFileId) as { id: bigint } | undefined;
-      if (fromRow && toRow) {
-        insertEdge.run(this.projectId, num(fromRow.id), this.projectId, num(toRow.id));
+      for (const imp of imports) {
+        const fromRow = findFile.get(this.projectId, imp.fromFileId) as { id: bigint } | undefined;
+        const toRow = findFile.get(this.projectId, imp.toFileId) as { id: bigint } | undefined;
+        if (fromRow && toRow) {
+          insertEdge.run(this.projectId, num(fromRow.id), this.projectId, num(toRow.id));
+        }
       }
-    }
+    })();
   }
 
   // =========================================================================

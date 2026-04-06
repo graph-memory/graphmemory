@@ -107,82 +107,86 @@ export class SqliteEpicsStore implements EpicsStore {
 
   create(data: EpicCreate, embedding: number[]): EpicRecord {
     assertEmbeddingDim(embedding, this.embeddingDim);
-    const slug = data.slug ?? randomUUID();
-    const ts = now();
-    const authorId = data.authorId ?? null;
-    const version = data.version ?? 1;
-    const createdAt = data.createdAt ?? ts;
-    const updatedAt = data.updatedAt ?? ts;
-    const order = data.order ?? this.nextOrder();
+    return this.db.transaction(() => {
+      const slug = data.slug ?? randomUUID();
+      const ts = now();
+      const authorId = data.authorId ?? null;
+      const version = data.version ?? 1;
+      const createdAt = data.createdAt ?? ts;
+      const updatedAt = data.updatedAt ?? ts;
+      const order = data.order ?? this.nextOrder();
 
-    // Upsert when slug is provided and already exists
-    if (data.slug) {
-      const existing = this.db.prepare('SELECT * FROM epics WHERE slug = ? AND project_id = ?').get(slug, this.projectId) as Record<string, unknown> | undefined;
-      if (existing) {
-        const id = num(existing.id as bigint);
-        this.db.prepare(`
-          UPDATE epics SET title = ?, description = ?, status = ?, priority = ?,
-          "order" = ?, version = ?, updated_at = ?
-          WHERE id = ? AND project_id = ?
-        `).run(
-          data.title, data.description ?? '', data.status ?? 'open', data.priority ?? 'medium',
-          order, version, updatedAt, id, this.projectId,
-        );
-        this.db.prepare('DELETE FROM epics_vec WHERE rowid = ?').run(BigInt(id));
-        this.db.prepare('INSERT INTO epics_vec (rowid, embedding) VALUES (?, ?)').run(BigInt(id), Buffer.from(new Float32Array(embedding).buffer));
-        if (data.tags) this.helpers.setTags(GRAPH, id, data.tags);
-        return this.toRecord(this.db.prepare('SELECT * FROM epics WHERE id = ? AND project_id = ?').get(id, this.projectId) as Record<string, unknown>);
+      // Upsert when slug is provided and already exists
+      if (data.slug) {
+        const existing = this.db.prepare('SELECT * FROM epics WHERE slug = ? AND project_id = ?').get(slug, this.projectId) as Record<string, unknown> | undefined;
+        if (existing) {
+          const id = num(existing.id as bigint);
+          this.db.prepare(`
+            UPDATE epics SET title = ?, description = ?, status = ?, priority = ?,
+            "order" = ?, version = ?, updated_at = ?
+            WHERE id = ? AND project_id = ?
+          `).run(
+            data.title, data.description ?? '', data.status ?? 'open', data.priority ?? 'medium',
+            order, version, updatedAt, id, this.projectId,
+          );
+          this.db.prepare('DELETE FROM epics_vec WHERE rowid = ?').run(BigInt(id));
+          this.db.prepare('INSERT INTO epics_vec (rowid, embedding) VALUES (?, ?)').run(BigInt(id), Buffer.from(new Float32Array(embedding).buffer));
+          if (data.tags) this.helpers.setTags(GRAPH, id, data.tags);
+          return this.toRecord(this.db.prepare('SELECT * FROM epics WHERE id = ? AND project_id = ?').get(id, this.projectId) as Record<string, unknown>);
+        }
       }
-    }
 
-    const result = this.db.prepare(`
-      INSERT INTO epics (project_id, slug, title, description, status, priority, "order", version, created_by_id, updated_by_id, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(this.projectId, slug, data.title, data.description ?? '', data.status ?? 'open', data.priority ?? 'medium', order, version, authorId, authorId, createdAt, updatedAt);
-    const id = result.lastInsertRowid;
+      const result = this.db.prepare(`
+        INSERT INTO epics (project_id, slug, title, description, status, priority, "order", version, created_by_id, updated_by_id, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(this.projectId, slug, data.title, data.description ?? '', data.status ?? 'open', data.priority ?? 'medium', order, version, authorId, authorId, createdAt, updatedAt);
+      const id = result.lastInsertRowid;
 
-    this.db.prepare('INSERT INTO epics_vec (rowid, embedding) VALUES (?, ?)').run(BigInt(id as number | bigint), Buffer.from(new Float32Array(embedding).buffer));
+      this.db.prepare('INSERT INTO epics_vec (rowid, embedding) VALUES (?, ?)').run(BigInt(id as number | bigint), Buffer.from(new Float32Array(embedding).buffer));
 
-    if (data.tags && data.tags.length > 0) this.helpers.setTags(GRAPH, num(id), data.tags);
+      if (data.tags && data.tags.length > 0) this.helpers.setTags(GRAPH, num(id), data.tags);
 
-    return this.toRecord(this.db.prepare('SELECT * FROM epics WHERE id = ? AND project_id = ?').get(num(id), this.projectId) as Record<string, unknown>);
+      return this.toRecord(this.db.prepare('SELECT * FROM epics WHERE id = ? AND project_id = ?').get(num(id), this.projectId) as Record<string, unknown>);
+    })();
   }
 
   update(epicId: number, patch: EpicPatch, embedding: number[] | null, authorId?: number, expectedVersion?: number): EpicRecord {
-    const row = this.db.prepare('SELECT * FROM epics WHERE id = ? AND project_id = ?').get(epicId, this.projectId) as Record<string, unknown> | undefined;
-    if (!row) throw new Error(`Epic ${epicId} not found`);
+    if (embedding) assertEmbeddingDim(embedding, this.embeddingDim);
+    return this.db.transaction(() => {
+      const row = this.db.prepare('SELECT * FROM epics WHERE id = ? AND project_id = ?').get(epicId, this.projectId) as Record<string, unknown> | undefined;
+      if (!row) throw new Error(`Epic ${epicId} not found`);
 
-    if (expectedVersion !== undefined) {
-      const current = num(row.version as bigint);
-      if (current !== expectedVersion) throw new VersionConflictError(current, expectedVersion);
-    }
+      if (expectedVersion !== undefined) {
+        const current = num(row.version as bigint);
+        if (current !== expectedVersion) throw new VersionConflictError(current, expectedVersion);
+      }
 
-    const fields: string[] = [];
-    const params: unknown[] = [];
-    const set = (col: string, val: unknown) => { fields.push(`${col} = ?`); params.push(val); };
+      const fields: string[] = [];
+      const params: unknown[] = [];
+      const set = (col: string, val: unknown) => { fields.push(`${col} = ?`); params.push(val); };
 
-    if (patch.title !== undefined) set('title', patch.title);
-    if (patch.description !== undefined) set('description', patch.description);
-    if (patch.status !== undefined) set('status', patch.status);
-    if (patch.priority !== undefined) set('priority', patch.priority);
-    if (patch.order !== undefined) set('"order"', patch.order);
+      if (patch.title !== undefined) set('title', patch.title);
+      if (patch.description !== undefined) set('description', patch.description);
+      if (patch.status !== undefined) set('status', patch.status);
+      if (patch.priority !== undefined) set('priority', patch.priority);
+      if (patch.order !== undefined) set('"order"', patch.order);
 
-    set('version', num(row.version as bigint) + 1);
-    set('updated_by_id', authorId ?? null);
-    set('updated_at', now());
+      set('version', num(row.version as bigint) + 1);
+      set('updated_by_id', authorId ?? null);
+      set('updated_at', now());
 
-    params.push(epicId, this.projectId);
-    this.db.prepare(`UPDATE epics SET ${fields.join(', ')} WHERE id = ? AND project_id = ?`).run(...params);
+      params.push(epicId, this.projectId);
+      this.db.prepare(`UPDATE epics SET ${fields.join(', ')} WHERE id = ? AND project_id = ?`).run(...params);
 
-    if (embedding) {
-      assertEmbeddingDim(embedding, this.embeddingDim);
-      this.db.prepare('DELETE FROM epics_vec WHERE rowid = ?').run(BigInt(epicId));
-      this.db.prepare('INSERT INTO epics_vec (rowid, embedding) VALUES (?, ?)').run(BigInt(epicId), Buffer.from(new Float32Array(embedding).buffer));
-    }
+      if (embedding) {
+        this.db.prepare('DELETE FROM epics_vec WHERE rowid = ?').run(BigInt(epicId));
+        this.db.prepare('INSERT INTO epics_vec (rowid, embedding) VALUES (?, ?)').run(BigInt(epicId), Buffer.from(new Float32Array(embedding).buffer));
+      }
 
-    if (patch.tags !== undefined) this.helpers.setTags(GRAPH, epicId, patch.tags);
+      if (patch.tags !== undefined) this.helpers.setTags(GRAPH, epicId, patch.tags);
 
-    return this.toRecord(this.db.prepare('SELECT * FROM epics WHERE id = ? AND project_id = ?').get(epicId, this.projectId) as Record<string, unknown>);
+      return this.toRecord(this.db.prepare('SELECT * FROM epics WHERE id = ? AND project_id = ?').get(epicId, this.projectId) as Record<string, unknown>);
+    })();
   }
 
   delete(epicId: number): void {

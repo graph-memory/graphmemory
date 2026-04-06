@@ -66,59 +66,61 @@ export class SqliteDocsStore implements DocsStore {
     mtime: number,
     embeddings: Map<string, number[]>,
   ): void {
-    // 1. Delete old nodes for this file (cleanup triggers handle edges + vec0)
-    this.db.prepare('DELETE FROM docs WHERE project_id = ? AND file_id = ?')
-      .run(this.projectId, fileId);
+    this.db.transaction(() => {
+      // 1. Delete old nodes for this file (cleanup triggers handle edges + vec0)
+      this.db.prepare('DELETE FROM docs WHERE project_id = ? AND file_id = ?')
+        .run(this.projectId, fileId);
 
-    // 2. Insert file node
-    const fileTitle = chunks.length > 0 ? chunks[0].title : fileId;
-    const fileResult = this.db.prepare(`
-      INSERT INTO docs (project_id, kind, file_id, title, content, level, symbols_json, mtime)
-      VALUES (?, 'file', ?, ?, '', 0, '[]', ?)
-    `).run(this.projectId, fileId, fileTitle, mtime);
-    const fileNodeId = num(fileResult.lastInsertRowid as bigint);
+      // 2. Insert file node
+      const fileTitle = chunks.length > 0 ? chunks[0].title : fileId;
+      const fileResult = this.db.prepare(`
+        INSERT INTO docs (project_id, kind, file_id, title, content, level, symbols_json, mtime)
+        VALUES (?, 'file', ?, ?, '', 0, '[]', ?)
+      `).run(this.projectId, fileId, fileTitle, mtime);
+      const fileNodeId = num(fileResult.lastInsertRowid as bigint);
 
-    // Insert file embedding if available
-    const fileEmb = embeddings.get(fileId);
-    if (fileEmb) {
-      assertEmbeddingDim(fileEmb, this.embeddingDim);
-      this.db.prepare('INSERT INTO docs_vec (rowid, embedding) VALUES (?, ?)')
-        .run(BigInt(fileNodeId), Buffer.from(new Float32Array(fileEmb).buffer));
-    }
-
-    // 3. Insert chunk nodes
-    const insertChunk = this.db.prepare(`
-      INSERT INTO docs (project_id, kind, file_id, title, content, level, language, symbols_json, mtime)
-      VALUES (?, 'chunk', ?, ?, ?, ?, ?, ?, ?)
-    `);
-    const insertVec = this.db.prepare('INSERT INTO docs_vec (rowid, embedding) VALUES (?, ?)');
-    const insertEdge = this.db.prepare(`
-      INSERT OR IGNORE INTO edges (from_project_id, from_graph, from_id, to_project_id, to_graph, to_id, kind)
-      VALUES (?, 'docs', ?, ?, 'docs', ?, ?)
-    `);
-
-    for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i];
-      const result = insertChunk.run(
-        this.projectId, fileId,
-        chunk.title, chunk.content, chunk.level,
-        chunk.language ?? null,
-        JSON.stringify(chunk.symbols),
-        chunk.mtime,
-      );
-      const chunkId = num(result.lastInsertRowid as bigint);
-
-      // Insert embedding (key by chunk ref: `fileId#index`)
-      const embKey = `${fileId}#${i}`;
-      const emb = embeddings.get(embKey);
-      if (emb) {
-        assertEmbeddingDim(emb, this.embeddingDim);
-        insertVec.run(BigInt(chunkId), Buffer.from(new Float32Array(emb).buffer));
+      // Insert file embedding if available
+      const fileEmb = embeddings.get(fileId);
+      if (fileEmb) {
+        assertEmbeddingDim(fileEmb, this.embeddingDim);
+        this.db.prepare('INSERT INTO docs_vec (rowid, embedding) VALUES (?, ?)')
+          .run(BigInt(fileNodeId), Buffer.from(new Float32Array(fileEmb).buffer));
       }
 
-      // Edge: file → chunk (contains)
-      insertEdge.run(this.projectId, fileNodeId, this.projectId, chunkId, 'contains');
-    }
+      // 3. Insert chunk nodes
+      const insertChunk = this.db.prepare(`
+        INSERT INTO docs (project_id, kind, file_id, title, content, level, language, symbols_json, mtime)
+        VALUES (?, 'chunk', ?, ?, ?, ?, ?, ?, ?)
+      `);
+      const insertVec = this.db.prepare('INSERT INTO docs_vec (rowid, embedding) VALUES (?, ?)');
+      const insertEdge = this.db.prepare(`
+        INSERT OR IGNORE INTO edges (from_project_id, from_graph, from_id, to_project_id, to_graph, to_id, kind)
+        VALUES (?, 'docs', ?, ?, 'docs', ?, ?)
+      `);
+
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        const result = insertChunk.run(
+          this.projectId, fileId,
+          chunk.title, chunk.content, chunk.level,
+          chunk.language ?? null,
+          JSON.stringify(chunk.symbols),
+          chunk.mtime,
+        );
+        const chunkId = num(result.lastInsertRowid as bigint);
+
+        // Insert embedding (key by chunk ref: `fileId#index`)
+        const embKey = `${fileId}#${i}`;
+        const emb = embeddings.get(embKey);
+        if (emb) {
+          assertEmbeddingDim(emb, this.embeddingDim);
+          insertVec.run(BigInt(chunkId), Buffer.from(new Float32Array(emb).buffer));
+        }
+
+        // Edge: file → chunk (contains)
+        insertEdge.run(this.projectId, fileNodeId, this.projectId, chunkId, 'contains');
+      }
+    })();
   }
 
   // =========================================================================
@@ -135,21 +137,23 @@ export class SqliteDocsStore implements DocsStore {
   // =========================================================================
 
   resolveLinks(edges: Array<{ fromFileId: string; toFileId: string }>): void {
-    const findFile = this.db.prepare(
-      "SELECT id FROM docs WHERE project_id = ? AND file_id = ? AND kind = 'file' LIMIT 1"
-    );
-    const insertEdge = this.db.prepare(`
-      INSERT OR IGNORE INTO edges (from_project_id, from_graph, from_id, to_project_id, to_graph, to_id, kind)
-      VALUES (?, 'docs', ?, ?, 'docs', ?, 'references')
-    `);
+    this.db.transaction(() => {
+      const findFile = this.db.prepare(
+        "SELECT id FROM docs WHERE project_id = ? AND file_id = ? AND kind = 'file' LIMIT 1"
+      );
+      const insertEdge = this.db.prepare(`
+        INSERT OR IGNORE INTO edges (from_project_id, from_graph, from_id, to_project_id, to_graph, to_id, kind)
+        VALUES (?, 'docs', ?, ?, 'docs', ?, 'references')
+      `);
 
-    for (const edge of edges) {
-      const fromRow = findFile.get(this.projectId, edge.fromFileId) as { id: bigint } | undefined;
-      const toRow = findFile.get(this.projectId, edge.toFileId) as { id: bigint } | undefined;
-      if (fromRow && toRow) {
-        insertEdge.run(this.projectId, num(fromRow.id), this.projectId, num(toRow.id));
+      for (const edge of edges) {
+        const fromRow = findFile.get(this.projectId, edge.fromFileId) as { id: bigint } | undefined;
+        const toRow = findFile.get(this.projectId, edge.toFileId) as { id: bigint } | undefined;
+        if (fromRow && toRow) {
+          insertEdge.run(this.projectId, num(fromRow.id), this.projectId, num(toRow.id));
+        }
       }
-    }
+    })();
   }
 
   // =========================================================================

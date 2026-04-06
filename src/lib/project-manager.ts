@@ -358,6 +358,123 @@ export class ProjectManager extends EventEmitter {
   }
 
   /**
+   * Check embedding fingerprints for workspace shared graphs (knowledge, tasks, skills, epics).
+   * If the model changed, re-embed all existing nodes. Call after loadWorkspaceModels + probeWorkspaceDimensions.
+   */
+  async checkWorkspaceFingerprints(id: string): Promise<void> {
+    const ws = this.workspaces.get(id);
+    if (!ws) throw new Error(`Workspace "${id}" not found`);
+
+    const gc = ws.config.graphConfigs;
+    const store = ws.store;
+    const scoped = ws.storeManager.scoped;
+    const embedFn = (text: string) => embed(text, '', `${id}:knowledge`);
+
+    const graphs = ['knowledge', 'tasks', 'skills'] as const;
+    for (const gn of graphs) {
+      const fp = embeddingFingerprint(gc[gn].model);
+      const metaKey = `model_fp:${id}:${gn}`;
+      const stored = store.getMeta(metaKey);
+      if (stored !== null && stored !== fp) {
+        await this.reembedGraph(scoped, gn, embedFn);
+        log.info({ workspace: id, graph: gn }, 'Model changed — re-embedded user graph');
+      }
+      store.setMeta(metaKey, fp);
+    }
+    // Epics use the tasks model — check separately
+    const epicFp = embeddingFingerprint(gc.tasks.model);
+    const epicMetaKey = `model_fp:${id}:epics`;
+    const epicStored = store.getMeta(epicMetaKey);
+    if (epicStored !== null && epicStored !== epicFp) {
+      await this.reembedEpics(scoped, embedFn);
+      log.info({ workspace: id, graph: 'epics' }, 'Model changed — re-embedded epics');
+    }
+    store.setMeta(epicMetaKey, epicFp);
+  }
+
+  /**
+   * Check embedding fingerprints for standalone project's user graphs.
+   * Call after loadModels + probeDimensions.
+   */
+  async checkProjectFingerprints(id: string): Promise<void> {
+    const instance = this.projects.get(id);
+    if (!instance) throw new Error(`Project "${id}" not found`);
+    if (instance.workspaceId) return; // workspace projects handled by checkWorkspaceFingerprints
+
+    const gc = instance.config.graphConfigs;
+    const store = instance.workspaceId
+      ? this.workspaces.get(instance.workspaceId)!.store
+      : this.stores.get(id);
+    if (!store) return;
+
+    const scoped = instance.storeManager.scoped;
+    const embedFn = (text: string) => embed(text, '', `${id}:knowledge`);
+
+    const graphs = ['knowledge', 'tasks', 'skills'] as const;
+    for (const gn of graphs) {
+      if (!gc[gn].enabled) continue;
+      const fp = embeddingFingerprint(gc[gn].model);
+      const metaKey = `model_fp:${id}:${gn}`;
+      const stored = store.getMeta(metaKey);
+      if (stored !== null && stored !== fp) {
+        await this.reembedGraph(scoped, gn, embedFn);
+        log.info({ project: id, graph: gn }, 'Model changed — re-embedded user graph');
+      }
+      store.setMeta(metaKey, fp);
+    }
+    // Epics use knowledge model for standalone
+    if (gc.knowledge.enabled) {
+      const epicFp = embeddingFingerprint(gc.knowledge.model);
+      const epicMetaKey = `model_fp:${id}:epics`;
+      const epicStored = store.getMeta(epicMetaKey);
+      if (epicStored !== null && epicStored !== epicFp) {
+        await this.reembedEpics(scoped, embedFn);
+        log.info({ project: id, graph: 'epics' }, 'Model changed — re-embedded epics');
+      }
+      store.setMeta(epicMetaKey, epicFp);
+    }
+  }
+
+  /** Re-embed all nodes in a user-managed graph (knowledge, tasks, or skills). */
+  private async reembedGraph(
+    scoped: ProjectScopedStore,
+    graph: 'knowledge' | 'tasks' | 'skills',
+    embedFn: (text: string) => Promise<number[]>,
+  ): Promise<void> {
+    if (graph === 'knowledge') {
+      const { results } = scoped.knowledge.list({ limit: 100_000 });
+      for (const note of results) {
+        const vec = await embedFn(`${note.title} ${note.content}`);
+        scoped.knowledge.update(note.id, {}, vec);
+      }
+    } else if (graph === 'tasks') {
+      const { results } = scoped.tasks.list({ limit: 100_000 });
+      for (const task of results) {
+        const vec = await embedFn(`${task.title} ${task.description}`);
+        scoped.tasks.update(task.id, {}, vec);
+      }
+    } else {
+      const { results } = scoped.skills.list({ limit: 100_000 });
+      for (const skill of results) {
+        const vec = await embedFn(`${skill.title} ${skill.description}`);
+        scoped.skills.update(skill.id, {}, vec);
+      }
+    }
+  }
+
+  /** Re-embed all epics. */
+  private async reembedEpics(
+    scoped: ProjectScopedStore,
+    embedFn: (text: string) => Promise<number[]>,
+  ): Promise<void> {
+    const { results } = scoped.epics.list({ limit: 100_000 });
+    for (const epic of results) {
+      const vec = await embedFn(`${epic.title} ${epic.description}`);
+      scoped.epics.update(epic.id, {}, vec);
+    }
+  }
+
+  /**
    * Start indexing + watching for a project. Call after loadModels.
    * Uses three sequential phases: docs → files → code, then finalize.
    */

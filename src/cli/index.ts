@@ -106,6 +106,14 @@ program
         await manager.probeDimensions(id);
       }
 
+      // Re-embed user graphs if embedding model changed
+      for (const wsId of manager.listWorkspaces()) {
+        await manager.checkWorkspaceFingerprints(wsId);
+      }
+      for (const id of ids) {
+        await manager.checkProjectFingerprints(id);
+      }
+
       // Create indexers for all projects
       for (const id of ids) {
         manager.ensureIndexer(id);
@@ -277,6 +285,22 @@ program
         await manager.probeDimensions(id);
       } catch (err: unknown) {
         log.error({ err, projectId: id }, 'Failed to probe project embedding dimensions');
+      }
+    }
+
+    // Re-embed user graphs if embedding model changed
+    for (const wsId of manager.listWorkspaces()) {
+      try {
+        await manager.checkWorkspaceFingerprints(wsId);
+      } catch (err: unknown) {
+        log.error({ err, workspaceId: wsId }, 'Failed to check workspace embedding fingerprints');
+      }
+    }
+    for (const id of projectIds) {
+      try {
+        await manager.checkProjectFingerprints(id);
+      } catch (err: unknown) {
+        log.error({ err, projectId: id }, 'Failed to check project embedding fingerprints');
       }
     }
 

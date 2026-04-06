@@ -5,7 +5,7 @@ import { clearPathMappingsCache } from '@/lib/parsers/code';
 import { clearWikiIndexCache } from '@/lib/parsers/docs';
 import { PromiseQueue } from '@/lib/promise-queue';
 import type { ProjectConfig, ServerConfig, WorkspaceConfig, GraphName } from '@/lib/multi-config';
-import { GRAPH_NAMES } from '@/lib/multi-config';
+import { GRAPH_NAMES, embeddingFingerprint } from '@/lib/multi-config';
 import type { EmbedFnMap } from '@/api/index';
 import type { WatcherHandle } from '@/lib/watcher';
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -214,6 +214,24 @@ export class ProjectManager extends EventEmitter {
       }
     }
     const scopedStore = store.project(dbProject.id);
+
+    // Check embedding model fingerprints — auto-clear graphs whose model changed
+    const clearFns: Record<string, () => void> = {
+      docs: () => scopedStore.docs.clear(),
+      code: () => scopedStore.code.clear(),
+      files: () => scopedStore.files.clear(),
+    };
+    for (const gn of ['docs', 'code', 'files'] as const) {
+      if (!gc[gn].enabled) continue;
+      const fp = embeddingFingerprint(gc[gn].model);
+      const metaKey = `model_fp:${id}:${gn}`;
+      const stored = store.getMeta(metaKey);
+      if (!reindex && stored !== null && stored !== fp) {
+        clearFns[gn]();
+        log.info({ project: id, graph: gn, old: stored, new: fp }, 'Model changed — cleared graph for reindex');
+      }
+      store.setMeta(metaKey, fp);
+    }
 
     // Build embed functions (project-scoped model names)
     const embedFns = this.buildEmbedFns(id);

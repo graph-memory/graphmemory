@@ -417,4 +417,60 @@ describe('ProjectManager', () => {
       probeSpy.mockRestore();
     });
   });
+
+  // --- Auto-reindex on model change ---
+
+  describe('model fingerprint auto-reindex', () => {
+    it('clears indexed graphs when embedding model changes', async () => {
+      const dir = makeTmpDir('fp-');
+      const config = makeProjectConfig(dir);
+      config.graphConfigs.docs.enabled = true;
+
+      await pm.addProject('fp-test', config);
+      const project = pm.getProject('fp-test')!;
+
+      // Insert a doc file so we can verify it gets cleared
+      const embedding = new Array(384).fill(0.01);
+      const embeddings = new Map([['test.md', embedding], ['test.md#chunk-0', embedding]]);
+      project.scopedStore.docs.updateFile('test.md', [{
+        fileId: 'test.md', title: 'Test', level: 1,
+        content: 'hello', language: undefined, symbols: [], mtime: Date.now(),
+      }], Date.now(), embeddings);
+
+      expect(project.scopedStore.docs.listFiles().total).toBe(1);
+
+      // Remove project and re-add with different model → should auto-clear docs
+      await pm.removeProject('fp-test');
+      config.graphConfigs.docs.model = { ...TEST_MODEL, name: 'different-model' };
+      await pm.addProject('fp-test', config);
+
+      const project2 = pm.getProject('fp-test')!;
+      expect(project2.scopedStore.docs.listFiles().total).toBe(0);
+    });
+
+    it('does NOT clear when model fingerprint is unchanged', async () => {
+      const dir = makeTmpDir('fp-same-');
+      const config = makeProjectConfig(dir);
+      config.graphConfigs.docs.enabled = true;
+
+      await pm.addProject('fp-same', config);
+      const project = pm.getProject('fp-same')!;
+
+      const embedding = new Array(384).fill(0.01);
+      const embeddings = new Map([['test.md', embedding], ['test.md#chunk-0', embedding]]);
+      project.scopedStore.docs.updateFile('test.md', [{
+        fileId: 'test.md', title: 'Test', level: 1,
+        content: 'hello', language: undefined, symbols: [], mtime: Date.now(),
+      }], Date.now(), embeddings);
+
+      expect(project.scopedStore.docs.listFiles().total).toBe(1);
+
+      // Remove and re-add with same model → data should persist
+      await pm.removeProject('fp-same');
+      await pm.addProject('fp-same', config);
+
+      const project2 = pm.getProject('fp-same')!;
+      expect(project2.scopedStore.docs.listFiles().total).toBe(1);
+    });
+  });
 });

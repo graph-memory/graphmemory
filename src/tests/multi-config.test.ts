@@ -352,6 +352,24 @@ workspaces:
     expect(() => loadMultiConfig(yamlPath)).toThrow('unknown project "nonexistent"');
   });
 
+  it('throws when project belongs to multiple workspaces', () => {
+    const yamlPath = tmpYaml(`
+projects:
+  a:
+    projectDir: /tmp/a
+  b:
+    projectDir: /tmp/b
+workspaces:
+  ws1:
+    projects: [a]
+    graphMemory: /tmp/ws1
+  ws2:
+    projects: [a, b]
+    graphMemory: /tmp/ws2
+`);
+    expect(() => loadMultiConfig(yamlPath)).toThrow('multiple workspaces: "ws1" and "ws2"');
+  });
+
   it('workspace defaults graphMemory to first project dir', () => {
     const yamlPath = tmpYaml(`
 projects:

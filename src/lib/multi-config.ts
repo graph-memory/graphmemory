@@ -594,12 +594,18 @@ export function loadMultiConfig(yamlPath: string): MultiConfig {
   // --- Workspaces ---
   const workspaces = new Map<string, WorkspaceConfig>();
 
+  const projectToWorkspace = new Map<string, string>();
   if (validated.workspaces) {
     for (const [wsId, raw] of Object.entries(validated.workspaces)) {
       for (const projId of raw.projects) {
         if (!projects.has(projId)) {
           throw new Error(`Workspace "${wsId}" references unknown project "${projId}"`);
         }
+        const existing = projectToWorkspace.get(projId);
+        if (existing) {
+          throw new Error(`Project "${projId}" belongs to multiple workspaces: "${existing}" and "${wsId}"`);
+        }
+        projectToWorkspace.set(projId, wsId);
       }
 
       const firstProject = projects.get(raw.projects[0])!;

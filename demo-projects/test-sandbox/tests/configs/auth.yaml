@@ -1,0 +1,42 @@
+author:
+  name: Tester
+  email: tester@test.dev
+
+server:
+  host: "127.0.0.1"
+  port: 3838
+  defaultAccess: deny
+  jwtSecret: "test-jwt-secret-must-be-32-chars-long!"
+  accessTokenTtl: "15m"
+  refreshTokenTtl: "7d"
+  access:
+    admin: rw
+    reader: r
+
+  oauth:
+    enabled: true
+    accessTokenTtl: "1h"
+    refreshTokenTtl: "7d"
+
+users:
+  admin:
+    name: "Admin User"
+    email: "admin@test.dev"
+    apiKey: "mgm-test-admin-key-123"
+    # password: "admin-pass"
+    passwordHash: "$scrypt$65536$8$1$5946c8cdfadfad3a4a72be6916fbce37$553563422af0cb6e0859f1a17461b6efcde873367aca9c3350eabb887eeb4588a46e07877b1c712d7b31f3922e8c239df808fe91d75380e07a9786092057ed79"
+  reader:
+    name: "Read Only"
+    email: "reader@test.dev"
+    apiKey: "mgm-test-reader-key-456"
+    # password: "reader-pass"
+    passwordHash: "$scrypt$65536$8$1$6ad70772c16ed9848c70ca7c31983ac8$7208bbfa97daa54172071b858d24b3eea6d637308fd49d110061fcd2b9d1d92e28c781f9a14a91a40de88c5833c866efe8afddd55cd50fde963cb41252c35759"
+
+projects:
+  sandbox:
+    projectDir: ".."
+    graphs:
+      docs:
+        include: "docs/**/*.md"
+      code:
+        include: "src/**/*.ts"

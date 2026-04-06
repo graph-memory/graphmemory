@@ -1,0 +1,23 @@
+author:
+  name: Tester
+  email: tester@test.dev
+
+server:
+  host: "127.0.0.1"
+  port: 3939
+  defaultAccess: rw
+
+  embeddingApi:
+    enabled: true
+    apiKey: "emb-test-key-789"
+    maxTexts: 10
+    maxTextChars: 5000
+
+projects:
+  sandbox:
+    projectDir: ".."
+    graphs:
+      docs:
+        include: "docs/**/*.md"
+      code:
+        include: "src/**/*.ts"

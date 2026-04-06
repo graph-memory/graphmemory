@@ -2,8 +2,12 @@
  * Test runner — executes all phases in order and prints combined summary.
  *
  * Usage:
- *   npx tsx tests/run-all.ts              # run all phases
- *   npx tsx tests/run-all.ts --phase 1 3  # run specific phases
+ *   npx tsx tests/run-all.ts                # run all phases
+ *   npx tsx tests/run-all.ts --phase 1 3    # run specific phases
+ *   npx tsx tests/run-all.ts --phase 10 11  # run auth + oauth only
+ *
+ * Phases 1-9 require a running server on port 3737 (default sandbox).
+ * Phases 10-18 start/stop their own servers with different configs.
  */
 
 import { PhaseResult, printSummary } from './utils';
@@ -24,6 +28,7 @@ async function main() {
   const shouldRun = (n: number) => phaseFilter.size === 0 || phaseFilter.has(n);
   const results: PhaseResult[] = [];
 
+  // Phases 1-9: require external server on port 3737
   if (shouldRun(1)) {
     const { run } = require('./01-server-indexing');
     results.push(await run());
@@ -66,6 +71,52 @@ async function main() {
 
   if (shouldRun(9)) {
     const { run } = require('./09-db-filesystem');
+    results.push(await run());
+  }
+
+  // Phases 10-18: self-contained (start/stop own servers)
+  if (shouldRun(10)) {
+    const { run } = require('./10-auth');
+    results.push(await run());
+  }
+
+  if (shouldRun(11)) {
+    const { run } = require('./11-oauth');
+    results.push(await run());
+  }
+
+  if (shouldRun(12)) {
+    const { run } = require('./12-embedding-api');
+    results.push(await run());
+  }
+
+  if (shouldRun(13)) {
+    const { run } = require('./13-websocket');
+    results.push(await run());
+  }
+
+  if (shouldRun(14)) {
+    const { run } = require('./14-watcher');
+    results.push(await run());
+  }
+
+  if (shouldRun(15)) {
+    const { run } = require('./15-workspace');
+    results.push(await run());
+  }
+
+  if (shouldRun(16)) {
+    const { run } = require('./16-ratelimit');
+    results.push(await run());
+  }
+
+  if (shouldRun(17)) {
+    const { run } = require('./17-concurrent');
+    results.push(await run());
+  }
+
+  if (shouldRun(18)) {
+    const { run } = require('./18-mirror-import');
     results.push(await run());
   }
 

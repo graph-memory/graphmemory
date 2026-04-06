@@ -1,0 +1,22 @@
+author:
+  name: Tester
+  email: tester@test.dev
+
+server:
+  host: "127.0.0.1"
+  port: 4040
+  defaultAccess: rw
+
+  rateLimit:
+    global: 10
+    search: 3
+    auth: 2
+
+projects:
+  sandbox:
+    projectDir: ".."
+    graphs:
+      docs:
+        include: "docs/**/*.md"
+      code:
+        include: "src/**/*.ts"

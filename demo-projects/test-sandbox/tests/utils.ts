@@ -279,8 +279,9 @@ export function printSummary(results: PhaseResult[]): void {
 
 // ─── Filesystem helpers ──────────────────────────────────────────
 
-import { existsSync, readFileSync } from 'fs';
-import { join } from 'path';
+import { existsSync, readFileSync, writeFileSync, rmSync } from 'fs';
+import { join, resolve as pathResolve } from 'path';
+import { ChildProcess, spawn } from 'child_process';
 
 export function fileExists(path: string): boolean {
   return existsSync(path);
@@ -288,6 +289,10 @@ export function fileExists(path: string): boolean {
 
 export function readFile(path: string): string {
   return readFileSync(path, 'utf-8');
+}
+
+export function writeFile(path: string, content: string): void {
+  writeFileSync(path, content, 'utf-8');
 }
 
 export function projectPath(...segments: string[]): string {
@@ -300,6 +305,113 @@ export function projectPath(...segments: string[]): string {
 
 export function wait(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// ─── Server lifecycle ────────────────────────────────────────────
+
+const ROOT = pathResolve(__dirname, '..', '..', '..');
+const CLI = join(ROOT, 'dist', 'cli', 'index.js');
+
+let serverProc: ChildProcess | null = null;
+
+export interface ServerOptions {
+  config: string;     // path to graph-memory.yaml (relative to cwd)
+  port?: number;
+  cwd?: string;       // working directory (default: demo-projects/test-sandbox)
+}
+
+/**
+ * Start the server with a given config. Waits until healthy.
+ * Returns the base URL.
+ */
+export async function startServer(opts: ServerOptions): Promise<string> {
+  const port = opts.port ?? 3737;
+  const cwd = opts.cwd ?? join(ROOT, 'demo-projects', 'test-sandbox');
+  const base = `http://127.0.0.1:${port}`;
+
+  // Clean previous data
+  for (const dir of ['.graph-memory', '.notes', '.tasks', '.skills', '.epics', '.workspace-shared']) {
+    const p = join(cwd, dir);
+    if (existsSync(p)) rmSync(p, { recursive: true });
+  }
+
+  serverProc = spawn('node', [CLI, 'serve', '--config', opts.config], {
+    cwd,
+    stdio: 'pipe',
+    env: { ...process.env, NODE_ENV: 'test' },
+  });
+
+  // Wait for server to be ready (poll /api/auth/status)
+  const deadline = Date.now() + 30_000;
+  while (Date.now() < deadline) {
+    try {
+      const res = await fetch(`${base}/api/auth/status`);
+      if (res.ok) return base;
+    } catch {}
+    await wait(500);
+  }
+
+  throw new Error(`Server did not become healthy within 30s on port ${port}`);
+}
+
+/** Stop the currently running server. */
+export function stopServer(): void {
+  if (serverProc) {
+    serverProc.kill('SIGTERM');
+    serverProc = null;
+  }
+}
+
+// ─── REST with custom base/auth ─────────────────────────────────
+
+interface AuthOptions {
+  bearer?: string;           // Bearer token
+  cookie?: string;           // raw Cookie header
+}
+
+/** REST call with explicit base URL and optional auth. */
+export async function restWith<T = any>(
+  baseUrl: string,
+  method: Method,
+  path: string,
+  body?: any,
+  auth?: AuthOptions,
+): Promise<RestResponse<T>> {
+  const url = path.startsWith('http') ? path : `${baseUrl}${path}`;
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (auth?.bearer) headers['Authorization'] = `Bearer ${auth.bearer}`;
+  if (auth?.cookie) headers['Cookie'] = auth.cookie;
+
+  const opts: RequestInit = { method, headers };
+  if (body !== undefined) opts.body = JSON.stringify(body);
+
+  const res = await fetch(url, opts);
+  let data: any = null;
+  const ct = res.headers.get('content-type') ?? '';
+  if (ct.includes('application/json')) {
+    data = await res.json();
+  } else if (res.status !== 204) {
+    data = await res.text();
+  }
+
+  return { status: res.status, ok: res.ok, data, headers: res.headers };
+}
+
+/** Extract Set-Cookie values from response headers. */
+export function getCookies(res: RestResponse): Record<string, string> {
+  const cookies: Record<string, string> = {};
+  const raw = res.headers.getSetCookie?.() ?? [];
+  for (const c of raw) {
+    const [kv] = c.split(';');
+    const [k, v] = kv.split('=');
+    if (k && v) cookies[k.trim()] = v.trim();
+  }
+  return cookies;
+}
+
+/** Build Cookie header from cookies object. */
+export function cookieHeader(cookies: Record<string, string>): string {
+  return Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join('; ');
 }
 
 // ─── Exports ─────────────────────────────────────────────────────

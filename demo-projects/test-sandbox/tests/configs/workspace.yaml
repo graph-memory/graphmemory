@@ -1,0 +1,31 @@
+author:
+  name: Tester
+  email: tester@test.dev
+
+server:
+  host: "127.0.0.1"
+  port: 4141
+  defaultAccess: rw
+
+projects:
+  sandbox-a:
+    projectDir: "."
+    graphs:
+      docs:
+        include: "docs/**/*.md"
+      code:
+        include: "src/**/*.ts"
+
+  sandbox-b:
+    projectDir: "../test-sandbox-b"
+    graphs:
+      docs:
+        include: "docs/**/*.md"
+      code:
+        include: "src/**/*.ts"
+
+workspaces:
+  shared:
+    projects: [sandbox-a, sandbox-b]
+    graphMemory: "./.workspace-shared"
+    mirrorDir: "./.workspace-shared"

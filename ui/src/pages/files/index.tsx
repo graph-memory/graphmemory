@@ -31,7 +31,7 @@ export default function FilesPage() {
   const [error, setError] = useState<string | null>(null);
   const [currentDir, setCurrentDir] = useState(searchParams.get('dir') || '.');
   const { page, setPage, setTotal, totalPages, offset, pageSize } = usePagination(PAGE_SIZE);
-  const [searchResults, setSearchResults] = useState<Array<FileInfo & { score: number }> | null>(null);
+  const [searchResults, setSearchResults] = useState<Array<{ id: number; label: string; score: number }> | null>(null);
   const [searching, setSearching] = useState(false);
   const [search, setSearch] = useState(searchParams.get('q') || '');
 
@@ -107,7 +107,14 @@ export default function FilesPage() {
   };
 
   const breadcrumbs = currentDir && currentDir !== '.' ? currentDir.split('/') : [];
-  const displayFiles = searchResults ?? files;
+  // Search results carry only {id, label, score} — render as stub file rows
+  const displayFiles: FileInfo[] = searchResults
+    ? searchResults.map(r => ({
+        id: r.id, filePath: r.label, kind: 'file' as const,
+        fileName: r.label.split('/').pop() ?? r.label,
+        extension: '', language: null, mimeType: null, size: 0,
+      }))
+    : files;
 
   const sorted = [...displayFiles].sort((a, b) => {
     if (a.kind === 'directory' && b.kind !== 'directory') return -1;
@@ -194,9 +201,9 @@ export default function FilesPage() {
       ) : (
         <Paper variant="outlined">
           <List dense disablePadding>
-            {sorted.map((file) => (
+            {sorted.map((file, i) => (
               <ListItemButton
-                key={file.filePath}
+                key={`${file.filePath}-${i}`}
                 onClick={() => handleNavigate(file)}
                 sx={{ borderBottom: `1px solid ${palette.custom.border}` }}
               >

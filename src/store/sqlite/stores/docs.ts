@@ -14,7 +14,7 @@ import { hybridSearch, SearchConfig } from '../lib/search';
 const GRAPH = 'docs';
 
 const SEARCH_CONFIG: SearchConfig = {
-  ftsTable: 'docs_fts', vecTable: 'docs_vec', parentTable: 'docs', parentIdColumn: 'id',
+  ftsTable: 'docs_fts', vecTable: 'docs_vec', parentTable: 'docs', parentIdColumn: 'id', labelColumn: 'title',
 };
 
 export class SqliteDocsStore implements DocsStore {

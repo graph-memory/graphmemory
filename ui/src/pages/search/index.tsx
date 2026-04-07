@@ -83,67 +83,51 @@ export default function SearchPage() {
     try {
       const promises: Promise<void>[] = [];
 
+      const pushResults = (scope: SearchScope, items: Array<{ id: number; label: string; score: number }>) => {
+        for (const r of items) allResults.push({
+          id: String(r.id), scope, title: r.label || String(r.id), score: r.score,
+        });
+      };
       if (sc.includes('knowledge')) {
         promises.push(
-          searchNotes(projectId, trimmed, searchOpts).then(notes => {
-            for (const n of notes) allResults.push({
-              id: n.id, scope: 'knowledge', title: n.title,
-              subtitle: n.content?.slice(0, 120), score: n.score, tags: n.tags,
-            });
-          }).catch(e => console.error('Failed to search notes', e))
+          searchNotes(projectId, trimmed, searchOpts)
+            .then(rs => pushResults('knowledge', rs))
+            .catch(e => console.error('Failed to search notes', e))
         );
       }
       if (sc.includes('tasks')) {
         promises.push(
-          searchTasks(projectId, trimmed, searchOpts).then(tasks => {
-            for (const t of tasks) allResults.push({
-              id: t.id, scope: 'tasks', title: t.title,
-              subtitle: `${t.status} / ${t.priority}${t.description ? ' — ' + t.description.slice(0, 80) : ''}`,
-              score: t.score, tags: t.tags,
-            });
-          }).catch(e => console.error('Failed to search tasks', e))
+          searchTasks(projectId, trimmed, searchOpts)
+            .then(rs => pushResults('tasks', rs))
+            .catch(e => console.error('Failed to search tasks', e))
         );
       }
       if (sc.includes('skills')) {
         promises.push(
-          searchSkills(projectId, trimmed, searchOpts).then(skills => {
-            for (const s of skills) allResults.push({
-              id: s.id, scope: 'skills', title: s.title,
-              subtitle: `${s.source} / ${Math.round(s.confidence * 100)}%${s.description ? ' — ' + s.description.slice(0, 80) : ''}`,
-              score: s.score, tags: s.tags,
-            });
-          }).catch(e => console.error('Failed to search skills', e))
+          searchSkills(projectId, trimmed, searchOpts)
+            .then(rs => pushResults('skills', rs))
+            .catch(e => console.error('Failed to search skills', e))
         );
       }
       if (sc.includes('files')) {
         promises.push(
-          searchFiles(projectId, trimmed, searchOpts).then(files => {
-            for (const f of files) allResults.push({
-              id: f.filePath, scope: 'files', title: f.filePath,
-              subtitle: [f.language, f.size ? `${(f.size / 1024).toFixed(1)} KB` : ''].filter(Boolean).join(' / '),
-              score: f.score,
-            });
-          }).catch(e => console.error('Failed to search files', e))
+          searchFiles(projectId, trimmed, searchOpts)
+            .then(rs => pushResults('files', rs))
+            .catch(e => console.error('Failed to search files', e))
         );
       }
       if (sc.includes('docs')) {
         promises.push(
-          searchDocs(projectId, trimmed, searchOpts).then(docs => {
-            for (const d of docs) allResults.push({
-              id: d.id, scope: 'docs', title: d.title || d.id,
-              subtitle: d.content?.slice(0, 120), score: d.score,
-            });
-          }).catch(e => console.error('Failed to search docs', e))
+          searchDocs(projectId, trimmed, searchOpts)
+            .then(rs => pushResults('docs', rs))
+            .catch(e => console.error('Failed to search docs', e))
         );
       }
       if (sc.includes('code')) {
         promises.push(
-          searchCode(projectId, trimmed, searchOpts).then(symbols => {
-            for (const s of symbols) allResults.push({
-              id: s.id, scope: 'code', title: s.name || s.id,
-              subtitle: `${s.kind}${s.content ? ' — ' + s.content.slice(0, 80) : ''}`, score: s.score,
-            });
-          }).catch(e => console.error('Failed to search code', e))
+          searchCode(projectId, trimmed, searchOpts)
+            .then(rs => pushResults('code', rs))
+            .catch(e => console.error('Failed to search code', e))
         );
       }
 

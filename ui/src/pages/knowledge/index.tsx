@@ -23,7 +23,7 @@ export default function KnowledgePage() {
   const { notes, page, setPage, totalPages, loading, error, refresh } = useNotes(projectId ?? null, PAGE_SIZE);
 
   const [search, setSearch] = useState(searchParams.get('q') || '');
-  const [searchResults, setSearchResults] = useState<Array<Note & { score: number }> | null>(null);
+  const [searchResults, setSearchResults] = useState<Array<{ id: number; label: string; score: number }> | null>(null);
   const [searching, setSearching] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Note | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -66,7 +66,14 @@ export default function KnowledgePage() {
     setSearchParams(next, { replace: true });
   };
 
-  const displayNotes = searchResults ?? notes;
+  // Search results carry only {id, label, score} — render as stub notes (label → title).
+  // For full content the user opens the note detail page.
+  const displayNotes: Array<Note & { score?: number }> = searchResults
+    ? searchResults.map(r => ({
+        id: String(r.id), title: r.label, content: '', tags: [],
+        createdAt: 0, updatedAt: 0, version: 0, score: r.score,
+      }))
+    : notes;
 
   return (
     <Box>

@@ -15,7 +15,7 @@ import { PageTopBar, FilterBar, StatusBadge, EmptyState, PaginationBar } from '@
 import { usePagination, PAGE_SIZE } from '@/shared/lib/usePagination.ts';
 import {
   listCodeFiles, getFileSymbols, searchCode,
-  type CodeFile, type CodeSymbol, type CodeSearchResult,
+  type CodeFile, type CodeSymbol,
 } from '@/entities/code/index.ts';
 
 type ChipColor = 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'info' | 'default';
@@ -45,7 +45,7 @@ export default function CodePage() {
   const [symbolsLoading, setSymbolsLoading] = useState(false);
 
   const [search, setSearch] = useState(searchParams.get('q') || '');
-  const [searchResults, setSearchResults] = useState<CodeSearchResult[] | null>(null);
+  const [searchResults, setSearchResults] = useState<Array<{ id: number; label: string; score: number }> | null>(null);
   const [searching, setSearching] = useState(false);
 
   const loadFiles = useCallback(async () => {
@@ -167,10 +167,10 @@ export default function CodePage() {
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
       ) : searchResults ? (
         <List disablePadding>
-          {searchResults.map(result => (
+          {searchResults.map((result, i) => (
             <ListItemButton
-              key={result.id}
-              onClick={() => navigate(encodeURIComponent(result.id))}
+              key={`${result.id}-${i}`}
+              onClick={() => navigate(encodeURIComponent(String(result.id)))}
               sx={{ borderRadius: 1, mb: 0.5 }}
             >
               <ListItemIcon sx={{ minWidth: 36 }}>
@@ -179,21 +179,9 @@ export default function CodePage() {
               <ListItemText
                 primary={
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography variant="body2" fontWeight={600}>{result.name}</Typography>
-                    <Chip label={result.kind} size="small" color={kindColor(result.kind)} variant="outlined" />
+                    <Typography variant="body2" fontWeight={600}>{result.label || String(result.id)}</Typography>
                     <StatusBadge label={`${(result.score * 100).toFixed(0)}%`} color="primary" size="small" />
                   </Box>
-                }
-                secondary={
-                  result.content ? (
-                    <Typography
-                      variant="caption"
-                      sx={{ color: palette.custom.textMuted, fontFamily: 'monospace', fontSize: '0.75rem' }}
-                      noWrap
-                    >
-                      {result.content.slice(0, 120)}
-                    </Typography>
-                  ) : undefined
                 }
               />
             </ListItemButton>
@@ -207,8 +195,8 @@ export default function CodePage() {
         />
       ) : (
         <List disablePadding>
-          {files.map(file => (
-            <Box key={file.fileId}>
+          {files.map((file, i) => (
+            <Box key={`${file.fileId}-${i}`}>
               <ListItemButton onClick={() => handleToggle(file.fileId)} sx={{ borderRadius: 1 }}>
                 <ListItemIcon sx={{ minWidth: 36 }}>
                   {expandedFile === file.fileId ? <ExpandMoreIcon /> : <ChevronRightIcon />}
@@ -231,9 +219,9 @@ export default function CodePage() {
                   <Box sx={{ pl: 9, py: 1 }}><CircularProgress size={16} /></Box>
                 ) : (
                   <List disablePadding sx={{ pl: 4 }}>
-                    {symbols.filter(s => s.kind !== 'file').map(sym => (
+                    {symbols.filter(s => s.kind !== 'file').map((sym, i) => (
                       <ListItemButton
-                        key={sym.id}
+                        key={`${sym.id}-${i}`}
                         onClick={() => navigate(encodeURIComponent(sym.id))}
                         sx={{ borderRadius: 1, py: 0.5 }}
                       >

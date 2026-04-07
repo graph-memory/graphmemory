@@ -23,7 +23,7 @@ export default function SkillsPage() {
   const { skills, page, setPage, totalPages, loading, error, refresh } = useSkills(projectId ?? null, PAGE_SIZE);
 
   const [search, setSearch] = useState(searchParams.get('q') || '');
-  const [searchResults, setSearchResults] = useState<SkillSearchResult[] | null>(null);
+  const [searchResults, setSearchResults] = useState<Array<{ id: number; label: string; score: number }> | null>(null);
   const [searching, setSearching] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Skill | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -78,7 +78,15 @@ export default function SkillsPage() {
     setSearchParams(next, { replace: true });
   };
 
-  const displaySkills = searchResults ?? skills;
+  // Search results carry only {id, label, score} — render as stub skills (label → title)
+  const displaySkills: Array<Skill & { score?: number }> = searchResults
+    ? searchResults.map(r => ({
+        id: String(r.id), title: r.label, description: '', steps: [], triggers: [],
+        inputHints: [], filePatterns: [], tags: [], source: 'user' as const,
+        confidence: 0, usageCount: 0, lastUsedAt: null,
+        createdAt: 0, updatedAt: 0, version: 0, attachments: [], score: r.score,
+      } as Skill & { score: number }))
+    : skills;
 
   return (
     <Box>

@@ -23,7 +23,7 @@ const GRAPH_TASKS = 'tasks';
 const ORDER_GAP = 1000;
 
 const TASK_SEARCH_CONFIG: SearchConfig = {
-  ftsTable: 'tasks_fts', vecTable: 'tasks_vec', parentTable: 'tasks', parentIdColumn: 'id',
+  ftsTable: 'tasks_fts', vecTable: 'tasks_vec', parentTable: 'tasks', parentIdColumn: 'id', labelColumn: 'title',
 };
 
 const TERMINAL_STATUSES = new Set<string>(['done', 'cancelled']);

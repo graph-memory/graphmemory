@@ -58,7 +58,7 @@ export function deleteNote(projectId: string, noteId: string) {
 }
 
 export function searchNotes(projectId: string, query: string, params?: { topK?: number; minScore?: number }) {
-  return request<ListResponse<Note & { score: number }>>(`/projects/${projectId}/knowledge/search${qs({ q: query, topK: params?.topK, minScore: params?.minScore })}`).then(unwrapList);
+  return request<ListResponse<{ id: number; label: string; score: number }>>(`/projects/${projectId}/knowledge/search${qs({ q: query, topK: params?.topK, minScore: params?.minScore })}`).then(unwrapList);
 }
 
 export function listRelations(projectId: string, noteId: string) {

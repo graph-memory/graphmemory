@@ -23,7 +23,7 @@ const GRAPH = 'epics';
 const ORDER_GAP = 1000;
 
 const SEARCH_CONFIG: SearchConfig = {
-  ftsTable: 'epics_fts', vecTable: 'epics_vec', parentTable: 'epics', parentIdColumn: 'id',
+  ftsTable: 'epics_fts', vecTable: 'epics_vec', parentTable: 'epics', parentIdColumn: 'id', labelColumn: 'title',
 };
 
 export class SqliteEpicsStore implements EpicsStore {

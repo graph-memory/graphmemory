@@ -40,5 +40,5 @@ export function getDocNode(projectId: string, nodeId: string) {
 }
 
 export function searchDocs(projectId: string, query: string, params?: { topK?: number; minScore?: number }) {
-  return request<ListResponse<DocNode & { score: number }>>(`/projects/${projectId}/docs/search${qs({ q: query, topK: params?.topK, minScore: params?.minScore })}`).then(unwrapList);
+  return request<ListResponse<{ id: number; label: string; score: number }>>(`/projects/${projectId}/docs/search${qs({ q: query, topK: params?.topK, minScore: params?.minScore })}`).then(unwrapList);
 }

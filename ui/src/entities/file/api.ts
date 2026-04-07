@@ -19,7 +19,7 @@ export function listFiles(projectId: string, params?: { directory?: string; exte
 }
 
 export function searchFiles(projectId: string, query: string, params?: { topK?: number; minScore?: number }) {
-  return request<ListResponse<FileInfo & { score: number }>>(`/projects/${projectId}/files/search${qs({ q: query, topK: params?.topK, minScore: params?.minScore })}`).then(unwrapList);
+  return request<ListResponse<{ id: number; label: string; score: number }>>(`/projects/${projectId}/files/search${qs({ q: query, topK: params?.topK, minScore: params?.minScore })}`).then(unwrapList);
 }
 
 export function getFileInfo(projectId: string, path: string) {

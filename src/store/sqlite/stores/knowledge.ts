@@ -24,6 +24,7 @@ const SEARCH_CONFIG: SearchConfig = {
   vecTable: 'knowledge_vec',
   parentTable: 'knowledge',
   parentIdColumn: 'id',
+  labelColumn: 'title',
 };
 
 export class SqliteKnowledgeStore implements KnowledgeStore {

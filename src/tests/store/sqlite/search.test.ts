@@ -28,6 +28,7 @@ describe('hybridSearch', () => {
     vecTable: 'test_vec',
     parentTable: 'test_items',
     parentIdColumn: 'id',
+    labelColumn: 'title',
   };
   const projectId = 1;
 

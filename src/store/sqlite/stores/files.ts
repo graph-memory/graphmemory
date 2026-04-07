@@ -219,12 +219,12 @@ export class SqliteFilesStore implements FilesStore {
     if (mode === 'keyword' && query.text) {
       // Fallback: LIKE-based search on file_path
       const rows = this.db.prepare(`
-        SELECT id FROM files WHERE project_id = ? AND file_path LIKE ? ESCAPE '\\' AND kind = 'file'
+        SELECT id, file_path FROM files WHERE project_id = ? AND file_path LIKE ? ESCAPE '\\' AND kind = 'file'
         ORDER BY file_path ASC LIMIT ?
-      `).all(this.projectId, `%${likeEscape(query.text)}%`, maxResults) as Array<{ id: bigint }>;
+      `).all(this.projectId, `%${likeEscape(query.text)}%`, maxResults) as Array<{ id: bigint; file_path: string }>;
 
       return rows
-        .map((r, i) => ({ id: num(r.id), score: 1 / (60 + i + 1) }))
+        .map((r, i) => ({ id: num(r.id), score: 1 / (60 + i + 1), label: r.file_path }))
         .filter(r => r.score >= minScore);
     }
 
@@ -234,50 +234,57 @@ export class SqliteFilesStore implements FilesStore {
       const topK = query.topK ?? 50;
 
       const rows = this.db.prepare(`
-        SELECT v.rowid AS id, v.distance
+        SELECT v.rowid AS id, p.file_path, v.distance
         FROM files_vec v
         JOIN files p ON p.id = v.rowid AND p.project_id = ? AND p.kind = 'file'
         WHERE v.embedding MATCH ? AND v.k = ?
-      `).all(this.projectId, embeddingBuf, topK * 3) as Array<{ id: bigint; distance: number }>;
+      `).all(this.projectId, embeddingBuf, topK * 3) as Array<{ id: bigint; file_path: string; distance: number }>;
 
       return rows.slice(0, maxResults)
-        .map((r, i) => ({ id: num(r.id), score: 1 / (60 + i + 1) }))
+        .map((r, i) => ({ id: num(r.id), score: 1 / (60 + i + 1), label: r.file_path }))
         .filter(r => r.score >= minScore);
     }
 
     // Hybrid: combine LIKE + vector
     if (mode === 'hybrid') {
-      const likeResults: Array<{ id: number; rn: number }> = [];
-      const vecResults: Array<{ id: number; rn: number }> = [];
+      const likeResults: Array<{ id: number; rn: number; label: string }> = [];
+      const vecResults: Array<{ id: number; rn: number; label: string }> = [];
 
       if (query.text) {
         const rows = this.db.prepare(`
-          SELECT id FROM files WHERE project_id = ? AND file_path LIKE ? ESCAPE '\\' AND kind = 'file'
+          SELECT id, file_path FROM files WHERE project_id = ? AND file_path LIKE ? ESCAPE '\\' AND kind = 'file'
           ORDER BY file_path ASC LIMIT ?
-        `).all(this.projectId, `%${likeEscape(query.text)}%`, query.topK ?? 50) as Array<{ id: bigint }>;
-        rows.forEach((r, i) => likeResults.push({ id: num(r.id), rn: i + 1 }));
+        `).all(this.projectId, `%${likeEscape(query.text)}%`, query.topK ?? 50) as Array<{ id: bigint; file_path: string }>;
+        rows.forEach((r, i) => likeResults.push({ id: num(r.id), rn: i + 1, label: r.file_path }));
       }
 
       if (query.embedding) {
         const embeddingBuf = Buffer.from(new Float32Array(query.embedding).buffer);
         const topK = query.topK ?? 50;
         const rows = this.db.prepare(`
-          SELECT v.rowid AS id, v.distance
+          SELECT v.rowid AS id, p.file_path, v.distance
           FROM files_vec v
           JOIN files p ON p.id = v.rowid AND p.project_id = ? AND p.kind = 'file'
           WHERE v.embedding MATCH ? AND v.k = ?
-        `).all(this.projectId, embeddingBuf, topK * 3) as Array<{ id: bigint; distance: number }>;
-        rows.slice(0, topK).forEach((r, i) => vecResults.push({ id: num(r.id), rn: i + 1 }));
+        `).all(this.projectId, embeddingBuf, topK * 3) as Array<{ id: bigint; file_path: string; distance: number }>;
+        rows.slice(0, topK).forEach((r, i) => vecResults.push({ id: num(r.id), rn: i + 1, label: r.file_path }));
       }
 
       // RRF fusion
       const K = 60;
       const scores = new Map<number, number>();
-      for (const r of likeResults) scores.set(r.id, (scores.get(r.id) ?? 0) + 1 / (K + r.rn));
-      for (const r of vecResults) scores.set(r.id, (scores.get(r.id) ?? 0) + 1 / (K + r.rn));
+      const labels = new Map<number, string>();
+      for (const r of likeResults) {
+        scores.set(r.id, (scores.get(r.id) ?? 0) + 1 / (K + r.rn));
+        labels.set(r.id, r.label);
+      }
+      for (const r of vecResults) {
+        scores.set(r.id, (scores.get(r.id) ?? 0) + 1 / (K + r.rn));
+        if (!labels.has(r.id)) labels.set(r.id, r.label);
+      }
 
       return [...scores.entries()]
-        .map(([id, score]) => ({ id, score }))
+        .map(([id, score]) => ({ id, score, label: labels.get(id) ?? '' }))
         .filter(r => r.score >= minScore)
         .sort((a, b) => b.score - a.score)
         .slice(0, maxResults);

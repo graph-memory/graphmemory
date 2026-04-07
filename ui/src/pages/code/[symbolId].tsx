@@ -179,7 +179,7 @@ export default function CodeDetailPage() {
         </FieldRow>
         <FieldRow label="File">
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Link component="button" variant="body2" onClick={() => navigate(`/${projectId}/files/${symbol.fileId}`)}>
+            <Link component="button" variant="body2" onClick={() => navigate(`/${projectId}/files/view/${symbol.fileId}`)}>
               {symbol.fileId}
             </Link>
             {projectDir && (
@@ -216,9 +216,9 @@ export default function CodeDetailPage() {
       {siblings.filter(s => s.kind !== 'file').length > 1 && (
         <Section title="In this file">
           <List dense disablePadding>
-            {siblings.filter(s => s.kind !== 'file').map(sym => (
+            {siblings.filter(s => s.kind !== 'file').map((sym, i) => (
               <ListItemButton
-                key={sym.id}
+                key={`${sym.id}-${i}`}
                 selected={sym.id === nodeId}
                 onClick={() => navigate(`/${projectId}/code/${encodeURIComponent(sym.id)}`)}
                 sx={{

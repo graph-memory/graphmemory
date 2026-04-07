@@ -51,5 +51,5 @@ export function getSymbolEdges(projectId: string, symbolId: string) {
 }
 
 export function searchCode(projectId: string, query: string, params?: { topK?: number; minScore?: number }) {
-  return request<ListResponse<CodeSearchResult>>(`/projects/${projectId}/code/search${qs({ q: query, topK: params?.topK, minScore: params?.minScore })}`).then(unwrapList);
+  return request<ListResponse<{ id: number; label: string; score: number }>>(`/projects/${projectId}/code/search${qs({ q: query, topK: params?.topK, minScore: params?.minScore })}`).then(unwrapList);
 }

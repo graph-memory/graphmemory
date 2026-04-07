@@ -119,7 +119,7 @@ export default function DocDetailPage() {
             </FieldRow>
             <FieldRow label="File">
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Link component="button" variant="body2" onClick={() => navigate(`/${projectId}/files/${node.fileId}`)}>
+                <Link component="button" variant="body2" onClick={() => navigate(`/${projectId}/files/view/${node.fileId}`)}>
                   {node.fileId}
                 </Link>
                 {projectDir && (

@@ -98,7 +98,7 @@ export function deleteSkill(projectId: string, skillId: string) {
 }
 
 export function searchSkills(projectId: string, query: string, params?: { topK?: number; minScore?: number }) {
-  return request<ListResponse<SkillSearchResult>>(`/projects/${projectId}/skills/search${qs({ q: query, topK: params?.topK, minScore: params?.minScore })}`).then(unwrapList);
+  return request<ListResponse<{ id: number; label: string; score: number }>>(`/projects/${projectId}/skills/search${qs({ q: query, topK: params?.topK, minScore: params?.minScore })}`).then(unwrapList);
 }
 
 export function bumpSkillUsage(projectId: string, skillId: string) {

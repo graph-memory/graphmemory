@@ -41,6 +41,8 @@ export interface SearchConfig {
   parentTable: string;
   /** Column to join parent table to FTS rowid (usually 'id') */
   parentIdColumn: string;
+  /** Column on parent table to expose as a human-readable label (title / name) */
+  labelColumn: string;
   /** Optional extra SQL appended to the JOIN condition on parent table (e.g. "AND p.kind = 'file'") */
   extraJoinCondition?: string;
 }
@@ -65,14 +67,15 @@ export function hybridSearch(
   const maxResults = query.maxResults ?? 20;
   const minScore = query.minScore ?? 0;
 
-  let ftsRanked: Array<{ id: number; rn: number }> = [];
-  let vecRanked: Array<{ id: number; rn: number }> = [];
+  let ftsRanked: Array<{ id: number; rn: number; label: string }> = [];
+  let vecRanked: Array<{ id: number; rn: number; label: string }> = [];
 
   // Validate config identifiers to prevent SQL injection
   assertIdentifier(config.ftsTable, 'ftsTable');
   assertIdentifier(config.vecTable, 'vecTable');
   assertIdentifier(config.parentTable, 'parentTable');
   assertIdentifier(config.parentIdColumn, 'parentIdColumn');
+  assertIdentifier(config.labelColumn, 'labelColumn');
 
   const extraJoin = config.extraJoinCondition ?? '';
 
@@ -82,14 +85,14 @@ export function hybridSearch(
     if (!escaped && mode === 'keyword') return [];
     if (escaped) {
       const rows = db.prepare(`
-        SELECT p.${config.parentIdColumn} AS id, ROW_NUMBER() OVER (ORDER BY rank) AS rn
+        SELECT p.${config.parentIdColumn} AS id, p.${config.labelColumn} AS label, ROW_NUMBER() OVER (ORDER BY rank) AS rn
         FROM ${config.ftsTable} fts
         JOIN ${config.parentTable} p ON p.${config.parentIdColumn} = fts.rowid AND p.project_id = ? ${extraJoin}
         WHERE ${config.ftsTable} MATCH ?
         LIMIT ?
-      `).all(projectId, escaped, topK) as Array<{ id: bigint; rn: bigint }>;
+      `).all(projectId, escaped, topK) as Array<{ id: bigint; label: string | null; rn: bigint }>;
 
-      ftsRanked = rows.map(r => ({ id: num(r.id), rn: num(r.rn) }));
+      ftsRanked = rows.map(r => ({ id: num(r.id), rn: num(r.rn), label: r.label ?? '' }));
     }
   }
 
@@ -100,41 +103,44 @@ export function hybridSearch(
     const vecK = topK * 3;
 
     const rows = db.prepare(`
-      SELECT v.rowid AS id, v.distance
+      SELECT v.rowid AS id, p.${config.labelColumn} AS label, v.distance
       FROM ${config.vecTable} v
       JOIN ${config.parentTable} p ON p.${config.parentIdColumn} = v.rowid AND p.project_id = ? ${extraJoin}
       WHERE v.embedding MATCH ? AND v.k = ?
-    `).all(projectId, embeddingBuf, vecK) as Array<{ id: bigint; distance: number }>;
+    `).all(projectId, embeddingBuf, vecK) as Array<{ id: bigint; label: string | null; distance: number }>;
 
-    vecRanked = rows.slice(0, topK).map((r, i) => ({ id: num(r.id), rn: i + 1 }));
+    vecRanked = rows.slice(0, topK).map((r, i) => ({ id: num(r.id), rn: i + 1, label: r.label ?? '' }));
   }
 
   // Single-mode: return directly with normalized scores
   if (mode === 'keyword') {
     return ftsRanked
-      .map(r => ({ id: r.id, score: 1 / (RRF_K + r.rn) }))
+      .map(r => ({ id: r.id, score: 1 / (RRF_K + r.rn), label: r.label }))
       .filter(r => r.score >= minScore)
       .slice(0, maxResults);
   }
 
   if (mode === 'vector') {
     return vecRanked
-      .map(r => ({ id: r.id, score: 1 / (RRF_K + r.rn) }))
+      .map(r => ({ id: r.id, score: 1 / (RRF_K + r.rn), label: r.label }))
       .filter(r => r.score >= minScore)
       .slice(0, maxResults);
   }
 
   // Hybrid: RRF fusion
   const scores = new Map<number, number>();
+  const labels = new Map<number, string>();
   for (const r of ftsRanked) {
     scores.set(r.id, (scores.get(r.id) ?? 0) + 1 / (RRF_K + r.rn));
+    labels.set(r.id, r.label);
   }
   for (const r of vecRanked) {
     scores.set(r.id, (scores.get(r.id) ?? 0) + 1 / (RRF_K + r.rn));
+    if (!labels.has(r.id)) labels.set(r.id, r.label);
   }
 
   return [...scores.entries()]
-    .map(([id, score]) => ({ id, score }))
+    .map(([id, score]) => ({ id, score, label: labels.get(id) ?? '' }))
     .filter(r => r.score >= minScore)
     .sort((a, b) => b.score - a.score)
     .slice(0, maxResults);

@@ -20,7 +20,7 @@ import { hybridSearch, SearchConfig } from '../lib/search';
 const GRAPH = 'skills';
 
 const SEARCH_CONFIG: SearchConfig = {
-  ftsTable: 'skills_fts', vecTable: 'skills_vec', parentTable: 'skills', parentIdColumn: 'id',
+  ftsTable: 'skills_fts', vecTable: 'skills_vec', parentTable: 'skills', parentIdColumn: 'id', labelColumn: 'title',
 };
 
 export class SqliteSkillsStore implements SkillsStore {

@@ -15,7 +15,7 @@ import * as path from 'path';
 const GRAPH = 'code';
 
 const SEARCH_CONFIG: SearchConfig = {
-  ftsTable: 'code_fts', vecTable: 'code_vec', parentTable: 'code', parentIdColumn: 'id',
+  ftsTable: 'code_fts', vecTable: 'code_vec', parentTable: 'code', parentIdColumn: 'id', labelColumn: 'name',
 };
 
 export class SqliteCodeStore implements CodeStore {

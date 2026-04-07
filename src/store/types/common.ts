@@ -26,6 +26,8 @@ export interface SearchQuery {
 export interface SearchResult {
   id: number;
   score: number;
+  /** Human-readable label (title / name / file_path) returned by the search query */
+  label: string;
 }
 
 // ---------------------------------------------------------------------------

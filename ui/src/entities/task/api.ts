@@ -88,7 +88,7 @@ export function deleteTask(projectId: string, taskId: string) {
 }
 
 export function searchTasks(projectId: string, query: string, params?: { topK?: number; minScore?: number }) {
-  return request<ListResponse<Task & { score: number }>>(`/projects/${projectId}/tasks/search${qs({ q: query, topK: params?.topK, minScore: params?.minScore })}`).then(unwrapList);
+  return request<ListResponse<{ id: number; label: string; score: number }>>(`/projects/${projectId}/tasks/search${qs({ q: query, topK: params?.topK, minScore: params?.minScore })}`).then(unwrapList);
 }
 
 export interface TaskRelation {

@@ -31,7 +31,7 @@ export default function DocsPage() {
   const [tocLoading, setTocLoading] = useState(false);
 
   const [search, setSearch] = useState(searchParams.get('q') || '');
-  const [searchResults, setSearchResults] = useState<Array<DocChunk & { score: number }> | null>(null);
+  const [searchResults, setSearchResults] = useState<Array<{ id: number; label: string; score: number }> | null>(null);
   const [searching, setSearching] = useState(false);
 
   const loadTopics = useCallback(async () => {
@@ -151,10 +151,10 @@ export default function DocsPage() {
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
       ) : searchResults ? (
         <List disablePadding>
-          {searchResults.map(chunk => (
+          {searchResults.map((chunk, i) => (
             <ListItemButton
-              key={chunk.id}
-              onClick={() => navigate(encodeURIComponent(chunk.id))}
+              key={`${chunk.id}-${i}`}
+              onClick={() => navigate(encodeURIComponent(String(chunk.id)))}
               sx={{ borderRadius: 1, mb: 0.5 }}
             >
               <ListItemIcon sx={{ minWidth: 36 }}>
@@ -163,15 +163,9 @@ export default function DocsPage() {
               <ListItemText
                 primary={
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography variant="body2" fontWeight={600}>{chunk.title || chunk.id}</Typography>
+                    <Typography variant="body2" fontWeight={600}>{chunk.label || chunk.id}</Typography>
                     <StatusBadge label={`${(chunk.score * 100).toFixed(0)}%`} color="primary" size="small" />
                   </Box>
-                }
-                secondary={
-                  <Typography variant="caption" sx={{ color: palette.custom.textMuted }} noWrap>
-                    {chunk.fileId} · level {chunk.level}
-                    {chunk.content ? ` · ${chunk.content.slice(0, 100)}` : ''}
-                  </Typography>
                 }
               />
             </ListItemButton>
@@ -185,8 +179,8 @@ export default function DocsPage() {
         />
       ) : (
         <List disablePadding>
-          {topics.map(topic => (
-            <Box key={topic.fileId}>
+          {topics.map((topic, i) => (
+            <Box key={`${topic.fileId}-${i}`}>
               <ListItemButton onClick={() => handleToggle(topic.fileId)} sx={{ borderRadius: 1 }}>
                 <ListItemIcon sx={{ minWidth: 36 }}>
                   {expandedFile === topic.fileId ? <ExpandMoreIcon /> : <ChevronRightIcon />}
@@ -205,9 +199,9 @@ export default function DocsPage() {
                   <Box sx={{ pl: 9, py: 1 }}><CircularProgress size={16} /></Box>
                 ) : (
                   <List disablePadding sx={{ pl: 4 }}>
-                    {toc.map(chunk => (
+                    {toc.map((chunk, i) => (
                       <ListItemButton
-                        key={chunk.id}
+                        key={`${chunk.id}-${i}`}
                         onClick={() => navigate(encodeURIComponent(chunk.id))}
                         sx={{ borderRadius: 1, py: 0.5 }}
                       >

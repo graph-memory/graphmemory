@@ -10,7 +10,7 @@ import { hashPassword } from '@/lib/jwt';
 import { ProjectManager } from '@/lib/project-manager';
 import { loadModel, RedisEmbeddingCache, type EmbeddingCacheFactory } from '@/lib/embedder';
 import { startMultiProjectHttpServer } from '@/api/index';
-import { GRACEFUL_SHUTDOWN_TIMEOUT_MS, MIN_PASSWORD_LEN, MAX_PASSWORD_LEN } from '@/lib/defaults';
+import { GRACEFUL_SHUTDOWN_TIMEOUT_MS, GRACEFUL_SHUTDOWN_GRACE_MS, MIN_PASSWORD_LEN, MAX_PASSWORD_LEN } from '@/lib/defaults';
 import { getRedisClient, closeRedis, parseRedisTtl } from '@/lib/redis';
 import { RedisSessionStore } from '@/lib/session-store';
 import type { SessionStore } from '@/lib/session-store';
@@ -60,6 +60,29 @@ program
 
       const hasUsers = Object.keys(mc.users).length > 0;
       const manager = new ProjectManager(mc.server, undefined, hasUsers);
+
+      // Graceful shutdown on Ctrl+C / kill: drain queues and close SQLite stores cleanly.
+      let indexShuttingDown = false;
+      const onSignal = (sig: NodeJS.Signals) => {
+        if (indexShuttingDown) {
+          log.warn('Force exit');
+          process.exit(1);
+        }
+        indexShuttingDown = true;
+        log.info({ sig }, 'Shutting down indexer...');
+        const forceTimer = setTimeout(() => {
+          log.warn('Shutdown timeout, force exit');
+          process.exit(1);
+        }, GRACEFUL_SHUTDOWN_TIMEOUT_MS);
+        manager.shutdown()
+          .catch((err: unknown) => log.error({ err }, 'Error during shutdown'))
+          .finally(() => {
+            clearTimeout(forceTimer);
+            process.exit(130);
+          });
+      };
+      process.on('SIGINT',  onSignal);
+      process.on('SIGTERM', onSignal);
 
       // Build workspace membership lookup
       const projectWorkspace = new Map<string, string>();
@@ -346,7 +369,7 @@ program
     manager.startAutoSave();
 
     // Start HTTP server (all models loaded, all projects indexed)
-    const httpServer = await startMultiProjectHttpServer(host, port, sessionTimeoutMs, manager, {
+    const { httpServer, wsHandle } = await startMultiProjectHttpServer(host, port, sessionTimeoutMs, manager, {
       serverConfig: mc.server,
       users: mc.users,
       embeddingApiModelNames,
@@ -368,21 +391,36 @@ program
       }
       shuttingDown = true;
       log.info('Shutting down...');
-      // Force exit after 5s if graceful shutdown hangs
+      // Force exit if graceful shutdown hangs
       const forceTimer = setTimeout(() => {
         log.warn('Shutdown timeout, force exit');
         process.exit(1);
       }, GRACEFUL_SHUTDOWN_TIMEOUT_MS);
       try {
-        httpServer.close();
-        // Destroy all open connections (including WebSocket) so the server can close
+        // 1. Close WebSocket server: stop accepting new clients, ask existing to close.
+        wsHandle.wss.close();
+        for (const client of wsHandle.wss.clients) {
+          try { client.close(1001, 'server shutting down'); } catch (err) { log.debug({ err }, 'ws client close failed'); }
+        }
+        // 2. Stop accepting new HTTP connections; wait for in-flight responses to drain.
+        const closePromise = new Promise<void>((resolve) => httpServer.close(() => resolve()));
+        // Grace window: let active requests finish writing before we destroy sockets.
+        await Promise.race([
+          closePromise,
+          new Promise<void>((resolve) => setTimeout(resolve, GRACEFUL_SHUTDOWN_GRACE_MS)),
+        ]);
+        // 3. Destroy any leftover sockets (long-lived keep-alive / WebSocket TCP).
         for (const socket of openSockets) {
           socket.destroy();
         }
         openSockets.clear();
+        await closePromise;
+        // 4. Drain indexers, mutation queues, watchers; close SQLite stores.
         await manager.shutdown();
         await closeRedis();
-      } catch { /* ignore */ }
+      } catch (err) {
+        log.error({ err }, 'Error during shutdown');
+      }
       clearTimeout(forceTimer);
       // Let event loop drain naturally — avoids ONNX global thread pool destructor crash on macOS
     }

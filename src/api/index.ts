@@ -460,13 +460,18 @@ interface MultiProjectHttpSession {
   lastActivity: number;
 }
 
+export interface MultiProjectHttpServerHandle {
+  httpServer: http.Server;
+  wsHandle: import('@/api/rest/websocket').WebSocketHandle;
+}
+
 export async function startMultiProjectHttpServer(
   host: string,
   port: number,
   sessionTimeoutMs: number,
   projectManager: ProjectManager,
   restOptions?: import('@/api/rest/index').RestAppOptions,
-): Promise<http.Server> {
+): Promise<MultiProjectHttpServerHandle> {
   const sessions = new Map<string, MultiProjectHttpSession>();
 
   // Sweep stale sessions every 60s
@@ -650,13 +655,16 @@ export async function startMultiProjectHttpServer(
   });
 
   // Attach WebSocket server for real-time events
-  attachWebSocket(httpServer, projectManager, {
+  const wsHandle = attachWebSocket(httpServer, projectManager, {
     jwtSecret: restOptions?.serverConfig?.jwtSecret,
     users: restOptions?.users,
     serverConfig: restOptions?.serverConfig,
   });
 
-  httpServer.on('close', () => clearInterval(sweepInterval));
+  httpServer.on('close', () => {
+    clearInterval(sweepInterval);
+    wsHandle.cleanup();
+  });
 
   return new Promise((resolve) => {
     httpServer.listen(port, host, () => {
@@ -694,7 +702,7 @@ export async function startMultiProjectHttpServer(
 
       lines.push('');
       createLogger('server').info(lines.join('\n'));
-      resolve(httpServer);
+      resolve({ httpServer, wsHandle });
     });
   });
 }

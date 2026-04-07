@@ -64,6 +64,7 @@ export const RATE_LIMIT_WINDOW_MS       = 60_000;
 export const DEFAULT_RATE_LIMIT_AUTH    = 20;
 export const SESSION_SWEEP_INTERVAL_MS  = 60_000;
 export const GRACEFUL_SHUTDOWN_TIMEOUT_MS = 15_000;
+export const GRACEFUL_SHUTDOWN_GRACE_MS   = 2_000;
 export const ERROR_BODY_LIMIT           = 500;
 
 // ---------------------------------------------------------------------------

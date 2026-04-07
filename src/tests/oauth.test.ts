@@ -1080,7 +1080,8 @@ describe('MCP handler — auth 401 responses', () => {
 
   beforeAll(async () => {
     const pm = createFakeProjectManager();
-    server = await startMultiProjectHttpServer('127.0.0.1', 0, 60_000, pm, restOptions);
+    const handle = await startMultiProjectHttpServer('127.0.0.1', 0, 60_000, pm, restOptions);
+    server = handle.httpServer;
   });
 
   afterAll(() => {

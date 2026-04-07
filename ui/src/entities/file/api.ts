@@ -1,6 +1,7 @@
 import { request, qs, unwrapList, unwrapPaginated, type ListResponse, type PaginatedResponse } from '@/shared/api/client.ts';
 
 export interface FileInfo {
+  id: number;
   filePath: string;
   kind: 'file' | 'directory';
   fileName: string;

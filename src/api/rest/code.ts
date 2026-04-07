@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { ProjectInstance } from '@/lib/project-manager';
 import { validateQuery, searchQuerySchema, listQuerySchema } from '@/api/rest/validation';
-import type { SearchQuery } from '@/store/types';
+import type { GraphName, SearchQuery } from '@/store/types';
 
 /** Express 5 wildcard params are arrays — join them back into a path string. */
 function joinParam(value: unknown): string {
@@ -44,6 +44,19 @@ export function createCodeRouter(): Router {
       const symbol = p.scopedStore.code.getNode(symbolId);
       if (!symbol) return res.status(404).json({ error: 'Symbol not found' });
       res.json(symbol);
+    } catch (err) { next(err); }
+  });
+
+  // List edges for a symbol (incoming + outgoing)
+  router.get('/symbols/:symbolId/edges', (req, res, next) => {
+    try {
+      const p = getProject(req);
+      const symbolId = Number(req.params.symbolId);
+      if (!Number.isFinite(symbolId)) return res.status(404).json({ error: 'Symbol not found' });
+      if (!p.scopedStore.code.getNode(symbolId)) return res.status(404).json({ error: 'Symbol not found' });
+      const outgoing = p.storeManager.findOutgoingEdges('code' as GraphName, symbolId);
+      const incoming = p.storeManager.findIncomingEdges('code' as GraphName, symbolId);
+      res.json({ results: [...outgoing, ...incoming] });
     } catch (err) { next(err); }
   });
 

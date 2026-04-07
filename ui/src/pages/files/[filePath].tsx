@@ -49,13 +49,16 @@ export default function FileDetailPage() {
   useEffect(() => {
     if (!projectId || !filePath) return;
     setLoading(true);
-    Promise.all([
-      getFileInfo(projectId, filePath),
-      findLinkedNotes(projectId, 'files', filePath).catch(() => []),
-      findLinkedTasks(projectId, 'files', filePath).catch(() => []),
-    ])
-      .then(([f, notes, tasks]) => {
+    // Resolve the file path to its numeric id first — the linked-edges endpoint
+    // requires a numeric targetNodeId (see linkedQuerySchema in src/api/rest/validation.ts).
+    getFileInfo(projectId, filePath)
+      .then(async (f) => {
         setFile(f);
+        const targetId = String(f.id);
+        const [notes, tasks] = await Promise.all([
+          findLinkedNotes(projectId, 'files', targetId).catch(() => []),
+          findLinkedTasks(projectId, 'files', targetId).catch(() => []),
+        ]);
         setLinkedNotes(notes as LinkedNote[]);
         setLinkedTasks(tasks as LinkedTask[]);
         setError(null);

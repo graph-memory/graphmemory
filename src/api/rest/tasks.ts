@@ -245,7 +245,8 @@ export function createTasksRouter(_users?: Record<string, unknown>): Router {
       const taskId = Number(req.params.taskId);
       const outgoing = p.storeManager.findOutgoingEdges('tasks' as GraphName, taskId);
       const incoming = p.storeManager.findIncomingEdges('tasks' as GraphName, taskId);
-      res.json({ results: [...outgoing, ...incoming] });
+      const enriched = p.storeManager.enrichRelations('tasks', taskId, [...outgoing, ...incoming]);
+      res.json({ results: enriched });
     } catch (err) { next(err); }
   });
 

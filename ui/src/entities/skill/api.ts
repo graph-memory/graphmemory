@@ -47,11 +47,15 @@ export interface SkillSearchResult {
 }
 
 export interface SkillRelation {
-  fromId: string;
-  toId: string;
+  fromGraph: string;
+  fromId: number;
+  toGraph: string;
+  toId: number;
   kind: string;
-  targetGraph?: string;
-  title?: string;
+  targetGraph: string;
+  targetId: number;
+  title: string;
+  direction: 'out' | 'in';
 }
 
 export function listSkills(projectId: string, params?: { source?: string; tag?: string; limit?: number; offset?: number }) {
@@ -102,14 +106,14 @@ export function bumpSkillUsage(projectId: string, skillId: string) {
   });
 }
 
-export function createSkillLink(projectId: string, data: { fromId: string; toId: string; kind: string; targetGraph?: string }) {
+export function createSkillLink(projectId: string, data: { fromId: number; toId: number; kind: string; targetGraph?: string }) {
   return request<SkillRelation>(`/projects/${projectId}/skills/links`, {
     method: 'POST',
     body: JSON.stringify(data),
   });
 }
 
-export function deleteSkillLink(projectId: string, data: { fromId: string; toId: string; targetGraph?: string }) {
+export function deleteSkillLink(projectId: string, data: { fromId: number; toId: number; targetGraph?: string }) {
   return request<void>(`/projects/${projectId}/skills/links`, {
     method: 'DELETE',
     body: JSON.stringify(data),

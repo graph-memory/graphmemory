@@ -37,6 +37,13 @@ export interface ProjectScopedStore {
   findIncomingEdges(targetGraph: GraphName, targetId: number): Edge[];
   /** Find all edges going FROM a given node (across all projects) */
   findOutgoingEdges(fromGraph: GraphName, fromId: number): Edge[];
+
+  /**
+   * Batch-resolve human-readable labels for nodes in a given graph.
+   * Returns a Map of id → title (or path/name for indexed graphs).
+   * Missing ids are simply absent from the map.
+   */
+  resolveTitles(graph: GraphName, ids: number[]): Map<number, string>;
 }
 
 // ---------------------------------------------------------------------------

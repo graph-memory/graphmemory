@@ -154,7 +154,8 @@ export function createKnowledgeRouter(_users?: Record<string, UserConfig>): Rout
       const noteId = parseNoteId(req.params.noteId);
       const outgoing = mgr.findOutgoingEdges('knowledge', noteId);
       const incoming = mgr.findIncomingEdges('knowledge', noteId);
-      res.json({ results: [...outgoing, ...incoming] });
+      const enriched = mgr.enrichRelations('knowledge', noteId, [...outgoing, ...incoming]);
+      res.json({ results: enriched });
     } catch (err) { next(err); }
   });
 

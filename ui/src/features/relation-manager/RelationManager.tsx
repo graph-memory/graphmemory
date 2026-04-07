@@ -44,11 +44,7 @@ interface RelationManagerProps {
   onRefresh: () => void;
 }
 
-function getTargetId(rel: Relation | TaskRelation | SkillRelation, entityId: string): string {
-  return rel.fromId === entityId ? rel.toId : rel.fromId;
-}
-
-function getNavigationPath(projectId: string, graph: string, targetId: string): string | null {
+function getNavigationPath(projectId: string, graph: string, targetId: string | number): string | null {
   if (graph === 'knowledge') return `/${projectId}/knowledge/${targetId}`;
   if (graph === 'tasks') return `/${projectId}/tasks/${targetId}`;
   if (graph === 'skills') return `/${projectId}/skills/${targetId}`;
@@ -111,12 +107,14 @@ export function RelationManager({ projectId, entityId, entityType, relations, on
     setCreating(true);
     try {
       const tg = targetGraph === entityType ? undefined : targetGraph;
+      const fromId = Number(entityId);
+      const toId = Number(selectedTarget.id);
       if (entityType === 'knowledge') {
-        await createRelation(projectId, { fromId: entityId, toId: selectedTarget.id, kind, targetGraph: tg });
+        await createRelation(projectId, { fromId, toId, kind, targetGraph: tg });
       } else if (entityType === 'skills') {
-        await createSkillLink(projectId, { fromId: entityId, toId: selectedTarget.id, kind, targetGraph: tg });
+        await createSkillLink(projectId, { fromId, toId, kind, targetGraph: tg });
       } else {
-        await createTaskLink(projectId, { fromId: entityId, toId: selectedTarget.id, kind, targetGraph: tg });
+        await createTaskLink(projectId, { fromId, toId, kind, targetGraph: tg });
       }
       setShowAdd(false);
       setSearchQuery('');
@@ -133,19 +131,23 @@ export function RelationManager({ projectId, entityId, entityType, relations, on
     if (!deleteConfirm) return;
     const rel = deleteConfirm;
     setDeleteConfirm(null);
+    // Backend identifies the edge by (fromId, toId, toGraph). Always pass the
+    // original edge endpoints (not the target-perspective ones) so outgoing
+    // cross-graph edges are deleted correctly.
+    const payload = { fromId: rel.fromId, toId: rel.toId, targetGraph: rel.toGraph };
     try {
       if (entityType === 'knowledge') {
-        await deleteRelation(projectId, { fromId: rel.fromId, toId: rel.toId, targetGraph: rel.targetGraph });
+        await deleteRelation(projectId, payload);
       } else if (entityType === 'skills') {
-        await deleteSkillLink(projectId, { fromId: rel.fromId, toId: rel.toId, targetGraph: rel.targetGraph });
+        await deleteSkillLink(projectId, payload);
       } else {
-        await deleteTaskLink(projectId, { fromId: rel.fromId, toId: rel.toId, targetGraph: rel.targetGraph });
+        await deleteTaskLink(projectId, payload);
       }
       onRefresh();
     } catch { /* ignore */ }
   };
 
-  const handleNavigate = (graph: string, targetId: string) => {
+  const handleNavigate = (graph: string, targetId: number) => {
     const path = getNavigationPath(pid, graph, targetId);
     if (path) navigate(path);
   };
@@ -166,13 +168,13 @@ export function RelationManager({ projectId, entityId, entityType, relations, on
       {relations.length > 0 && (
         <List dense disablePadding>
           {relations.map((rel, i) => {
-            const targetId = getTargetId(rel, entityId);
-            const graph = rel.targetGraph || entityType;
+            const targetId = rel.targetId;
+            const graph = rel.targetGraph;
             const navPath = getNavigationPath(pid, graph, targetId);
-            const displayLabel = rel.title || targetId;
+            const displayLabel = rel.title || String(targetId);
             return (
               <ListItem
-                key={`${rel.fromId}-${rel.toId}-${i}`}
+                key={`${rel.fromId}-${rel.toId}-${rel.kind}-${i}`}
                 disablePadding
                 secondaryAction={
                   <IconButton size="small" onClick={() => setDeleteConfirm(rel)}>
@@ -210,7 +212,7 @@ export function RelationManager({ projectId, entityId, entityType, relations, on
       <ConfirmDialog
         open={deleteConfirm !== null}
         title="Delete Relation"
-        message={`Remove ${deleteConfirm?.kind} link to ${deleteConfirm ? (deleteConfirm.title || getTargetId(deleteConfirm, entityId)) : ''}?`}
+        message={`Remove ${deleteConfirm?.kind} link to ${deleteConfirm ? (deleteConfirm.title || String(deleteConfirm.targetId)) : ''}?`}
         confirmLabel="Delete"
         confirmColor="error"
         onConfirm={handleDeleteConfirmed}

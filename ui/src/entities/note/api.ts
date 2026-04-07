@@ -13,11 +13,18 @@ export interface Note {
 }
 
 export interface Relation {
-  fromId: string;
-  toId: string;
+  fromGraph: string;
+  fromId: number;
+  toGraph: string;
+  toId: number;
   kind: string;
-  targetGraph?: string;
-  title?: string;
+  /** Graph of the "other end" relative to the queried entity. */
+  targetGraph: string;
+  /** Id of the "other end" relative to the queried entity. */
+  targetId: number;
+  /** Human-readable label of the target (title / path / name). */
+  title: string;
+  direction: 'out' | 'in';
 }
 
 export function listNotes(projectId: string, params?: { tag?: string; limit?: number; offset?: number }) {
@@ -56,14 +63,14 @@ export function listRelations(projectId: string, noteId: string) {
   return request<ListResponse<Relation>>(`/projects/${projectId}/knowledge/notes/${noteId}/relations`).then(unwrapList);
 }
 
-export function createRelation(projectId: string, data: { fromId: string; toId: string; kind: string; targetGraph?: string }) {
+export function createRelation(projectId: string, data: { fromId: number; toId: number; kind: string; targetGraph?: string }) {
   return request<Relation>(`/projects/${projectId}/knowledge/relations`, {
     method: 'POST',
     body: JSON.stringify(data),
   });
 }
 
-export function deleteRelation(projectId: string, data: { fromId: string; toId: string; targetGraph?: string }) {
+export function deleteRelation(projectId: string, data: { fromId: number; toId: number; targetGraph?: string }) {
   return request<void>(`/projects/${projectId}/knowledge/relations`, {
     method: 'DELETE',
     body: JSON.stringify(data),

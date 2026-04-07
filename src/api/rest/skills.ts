@@ -85,7 +85,8 @@ export function createSkillsRouter(_users?: Record<string, UserConfig>): Router 
         ...p.storeManager.findOutgoingEdges('skills', skillId),
         ...p.storeManager.findIncomingEdges('skills', skillId),
       ];
-      res.json({ ...skill, relations: edges });
+      const relations = p.storeManager.enrichRelations('skills', skillId, edges);
+      res.json({ ...skill, relations });
     } catch (err) { next(err); }
   });
 
@@ -198,7 +199,8 @@ export function createSkillsRouter(_users?: Record<string, UserConfig>): Router 
         ...p.storeManager.findOutgoingEdges('skills', skillId),
         ...p.storeManager.findIncomingEdges('skills', skillId),
       ];
-      res.json({ results: edges });
+      const enriched = p.storeManager.enrichRelations('skills', skillId, edges);
+      res.json({ results: enriched });
     } catch (err) { next(err); }
   });
 

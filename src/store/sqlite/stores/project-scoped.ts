@@ -35,8 +35,10 @@ export class SqliteProjectScopedStore implements ProjectScopedStore {
   readonly skills: SkillsStore;
   readonly attachments: AttachmentsStore;
   private edgeHelper: EdgeHelper;
+  private db: Database.Database;
 
   constructor(db: Database.Database, readonly projectId: number, dims?: EmbeddingDims) {
+    this.db = db;
     this.code = new SqliteCodeStore(db, projectId, getEmbeddingDim(dims, 'code'));
     this.docs = new SqliteDocsStore(db, projectId, getEmbeddingDim(dims, 'docs'));
     this.files = new SqliteFilesStore(db, projectId, getEmbeddingDim(dims, 'files'));
@@ -74,5 +76,44 @@ export class SqliteProjectScopedStore implements ProjectScopedStore {
 
   findOutgoingEdges(fromGraph: GraphName, fromId: number): Edge[] {
     return this.edgeHelper.findOutgoingEdges(fromGraph, fromId);
+  }
+
+  /**
+   * Batch-resolve labels (titles / paths / symbol names) for nodes in a given graph.
+   * One SQL query per call. Caller is expected to group ids by graph first.
+   */
+  resolveTitles(graph: GraphName, ids: number[]): Map<number, string> {
+    const out = new Map<number, string>();
+    if (ids.length === 0) return out;
+    // Deduplicate to keep the IN-list minimal.
+    const unique = Array.from(new Set(ids));
+    const placeholders = unique.map(() => '?').join(',');
+    let sql: string;
+    switch (graph) {
+      case 'knowledge':
+      case 'tasks':
+      case 'epics':
+      case 'skills':
+        sql = `SELECT id, title AS label FROM ${graph} WHERE id IN (${placeholders})`;
+        break;
+      case 'docs':
+        // chunks have a title; the file node itself stores its path in file_id with empty title
+        sql = `SELECT id, CASE WHEN title <> '' THEN title ELSE file_id END AS label FROM docs WHERE id IN (${placeholders})`;
+        break;
+      case 'code':
+        // symbols have a name; the file node has kind='file' with name = file path
+        sql = `SELECT id, name AS label FROM code WHERE id IN (${placeholders})`;
+        break;
+      case 'files':
+        sql = `SELECT id, file_path AS label FROM files WHERE id IN (${placeholders})`;
+        break;
+      default:
+        return out;
+    }
+    const rows = this.db.prepare(sql).all(...unique) as Array<{ id: number; label: string }>;
+    for (const row of rows) {
+      if (row.label) out.set(row.id, row.label);
+    }
+    return out;
   }
 }

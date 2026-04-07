@@ -92,25 +92,29 @@ export function searchTasks(projectId: string, query: string, params?: { topK?: 
 }
 
 export interface TaskRelation {
-  fromId: string;
-  toId: string;
+  fromGraph: string;
+  fromId: number;
+  toGraph: string;
+  toId: number;
   kind: string;
-  targetGraph?: string;
-  title?: string;
+  targetGraph: string;
+  targetId: number;
+  title: string;
+  direction: 'out' | 'in';
 }
 
 export function listTaskRelations(projectId: string, taskId: string) {
   return request<ListResponse<TaskRelation>>(`/projects/${projectId}/tasks/${taskId}/relations`).then(unwrapList);
 }
 
-export function createTaskLink(projectId: string, data: { fromId: string; toId: string; kind: string; targetGraph?: string }) {
+export function createTaskLink(projectId: string, data: { fromId: number; toId: number; kind: string; targetGraph?: string }) {
   return request<TaskRelation>(`/projects/${projectId}/tasks/links`, {
     method: 'POST',
     body: JSON.stringify(data),
   });
 }
 
-export function deleteTaskLink(projectId: string, data: { fromId: string; toId: string; targetGraph?: string }) {
+export function deleteTaskLink(projectId: string, data: { fromId: number; toId: number; targetGraph?: string }) {
   return request<void>(`/projects/${projectId}/tasks/links`, {
     method: 'DELETE',
     body: JSON.stringify(data),

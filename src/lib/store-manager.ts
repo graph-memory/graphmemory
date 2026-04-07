@@ -517,6 +517,43 @@ export class StoreManager {
     return this.scoped.findOutgoingEdges(fromGraph, fromId);
   }
 
+  resolveTitles(graph: GraphName, ids: number[]): Map<number, string> {
+    return this.scoped.resolveTitles(graph, ids);
+  }
+
+  /**
+   * Take a list of edges and return them enriched with the "other end" view
+   * relative to a queried entity: targetGraph, targetId, title, direction.
+   * Titles are batch-resolved per graph (one SQL query per distinct graph).
+   */
+  enrichRelations(
+    entityGraph: GraphName,
+    entityId: number,
+    edges: Edge[],
+  ): Array<Edge & { targetGraph: GraphName; targetId: number; title: string; direction: 'out' | 'in' }> {
+    // Group target ids by their graph so we can batch-resolve titles.
+    const idsByGraph = new Map<GraphName, number[]>();
+    const view = edges.map(e => {
+      const isOutgoing = e.fromGraph === entityGraph && e.fromId === entityId;
+      const targetGraph: GraphName = isOutgoing ? e.toGraph : e.fromGraph;
+      const targetId = isOutgoing ? e.toId : e.fromId;
+      if (!idsByGraph.has(targetGraph)) idsByGraph.set(targetGraph, []);
+      idsByGraph.get(targetGraph)!.push(targetId);
+      return { edge: e, targetGraph, targetId, direction: (isOutgoing ? 'out' : 'in') as 'out' | 'in' };
+    });
+    const titles = new Map<GraphName, Map<number, string>>();
+    for (const [g, ids] of idsByGraph) {
+      titles.set(g, this.scoped.resolveTitles(g, ids));
+    }
+    return view.map(v => ({
+      ...v.edge,
+      targetGraph: v.targetGraph,
+      targetId: v.targetId,
+      title: titles.get(v.targetGraph)?.get(v.targetId) ?? String(v.targetId),
+      direction: v.direction,
+    }));
+  }
+
   // =========================================================================
   // Attachments
   // =========================================================================

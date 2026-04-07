@@ -534,15 +534,23 @@ export class StoreManager {
    * Take a list of edges and return them enriched with the "other end" view
    * relative to a queried entity: targetGraph, targetId, title, direction.
    * Titles are batch-resolved per graph (one SQL query per distinct graph).
+   *
+   * Auto-managed `kind: 'tagged'` edges from the `tags` graph are filtered out:
+   * tags already render in their own sidebar section, and surfacing them in
+   * the Relations panel just clutters it with one row per tag. The raw edges
+   * remain available via MCP notes_list_links / tasks_list_links / etc. for
+   * LLM agents that want the full graph.
    */
   enrichRelations(
     entityGraph: GraphName,
     entityId: number,
     edges: Edge[],
   ): Array<Edge & { targetGraph: GraphName; targetId: number; title: string; direction: 'out' | 'in' }> {
+    // Drop auto-tagged edges before enrichment.
+    const userEdges = edges.filter(e => !(e.kind === 'tagged' && (e.fromGraph === 'tags' || e.toGraph === 'tags')));
     // Group target ids by their graph so we can batch-resolve titles.
     const idsByGraph = new Map<GraphName, number[]>();
-    const view = edges.map(e => {
+    const view = userEdges.map(e => {
       const isOutgoing = e.fromGraph === entityGraph && e.fromId === entityId;
       const targetGraph: GraphName = isOutgoing ? e.toGraph : e.fromGraph;
       const targetId = isOutgoing ? e.toId : e.fromId;

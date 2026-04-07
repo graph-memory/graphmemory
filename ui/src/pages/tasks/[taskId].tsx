@@ -180,7 +180,7 @@ export default function TaskDetailPage() {
               />
             </Section>
 
-            <Section title="Cross-graph Links">
+            <Section title="Relations">
               <RelationManager
                 projectId={projectId!}
                 entityId={taskId!}

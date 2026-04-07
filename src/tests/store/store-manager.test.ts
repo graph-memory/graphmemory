@@ -571,26 +571,38 @@ describe('StoreManager', () => {
       expect(skillRel?.title).toBe('S title');
     });
 
-    it('resolves tag names for incoming tagged edges (auto-created by indexer)', async () => {
+    it('filters out auto-tagged edges so the Relations panel stays clean', async () => {
       // Notes with tags get auto-created `tags → knowledge` edges (kind: 'tagged').
-      // Those incoming edges show up in the relations panel and must resolve
-      // to the tag's name, not the raw tag id.
+      // Tags already render in their own sidebar section; the Relations panel
+      // should not duplicate them.
       const note = await manager.createNote({ title: 'Tagged note', content: '', tags: ['alpha', 'beta'] });
 
       const edges = [
         ...manager.findOutgoingEdges('knowledge', note.id),
         ...manager.findIncomingEdges('knowledge', note.id),
       ];
-      const enriched = manager.enrichRelations('knowledge', note.id, edges);
+      // Sanity check: the raw edge layer DOES expose the auto-tagged edges
+      // (they're real and findable for MCP/LLM agents).
+      const rawTagEdges = edges.filter(e => e.kind === 'tagged' && e.fromGraph === 'tags');
+      expect(rawTagEdges.length).toBeGreaterThanOrEqual(2);
 
-      const tagRels = enriched.filter(e => e.targetGraph === 'tags');
-      expect(tagRels.length).toBeGreaterThanOrEqual(2);
-      const titles = tagRels.map(r => r.title).sort();
-      expect(titles).toEqual(expect.arrayContaining(['alpha', 'beta']));
-      // None of them should fall back to the raw numeric id.
-      for (const r of tagRels) {
-        expect(r.title).not.toMatch(/^\d+$/);
-      }
+      // But enrichRelations strips them so the Relations panel only shows
+      // user-created relations.
+      const enriched = manager.enrichRelations('knowledge', note.id, edges);
+      expect(enriched.filter(e => e.targetGraph === 'tags')).toEqual([]);
+    });
+
+    it('resolves tag node names directly via resolveTitles (for non-panel callers)', async () => {
+      // The 'tags' case in resolveTitles must still resolve names — only the
+      // Relations-panel filter in enrichRelations skips them. Other callers
+      // (e.g. graph visualization tools) may still ask for tag labels.
+      const note = await manager.createNote({ title: 'X', content: '', tags: ['gamma'] });
+      // Find the tag id from the auto-created edge.
+      const tagEdge = manager.findIncomingEdges('knowledge', note.id)
+        .find(e => e.kind === 'tagged' && e.fromGraph === 'tags');
+      expect(tagEdge).toBeDefined();
+      const titles = manager.resolveTitles('tags', [tagEdge!.fromId]);
+      expect(titles.get(tagEdge!.fromId)).toBe('gamma');
     });
 
     it('falls back to String(targetId) when target node was deleted (orphan edge)', async () => {

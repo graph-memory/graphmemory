@@ -136,6 +136,18 @@
     ],
     "skillToDocs": [
       {"workspace": "backend", "from": "s_add_rest", "to": "docs/api-reference.md", "kind": "references", "project": "api-gateway"}
+    ],
+    "skillToKnowledge": [
+      {"workspace": "backend",  "from": "s_add_rate_limit",  "to": "n_rate_limiting"},
+      {"workspace": "backend",  "from": "s_handle_webhook",  "to": "n_webhook"},
+      {"workspace": "backend",  "from": "s_handle_webhook",  "to": "n_payment"},
+      {"workspace": "backend",  "from": "s_db_migration",    "to": "n_db_migration"},
+      {"workspace": "backend",  "from": "s_redis_cache",     "to": "n_caching"},
+      {"workspace": "backend",  "from": "s_debug_auth",      "to": "n_jwt"},
+      {"workspace": "frontend", "from": "s_dark_mode_support","to": "n_design_tokens"},
+      {"workspace": "frontend", "from": "s_data_table",      "to": "n_components"},
+      {"workspace": "infra",    "from": "s_sev1",            "to": "n_incident"},
+      {"workspace": "infra",    "from": "s_restore_db",      "to": "n_db_backup"}
     ]
   },
 
@@ -163,7 +175,16 @@
     {"workspace": "infra",    "from": "t_prom_alerting",      "to": "t_staging",             "kind": "depends_on"},
     {"workspace": "infra",    "from": "t_canary",             "to": "t_staging",             "kind": "depends_on"},
     {"workspace": "infra",    "from": "t_grafana_biz",        "to": "t_prom_alerting",       "kind": "depends_on"},
-    {"workspace": "infra",    "from": "t_log_rotation",       "to": "t_aws_costs",           "kind": "related_to"}
+    {"workspace": "infra",    "from": "t_log_rotation",       "to": "t_aws_costs",           "kind": "related_to"},
+
+    {"workspace": "backend",  "from": "t_fix_webhook",        "to": "t_webhook_system",      "kind": "subtask_of"},
+    {"workspace": "backend",  "from": "t_tax_calc",           "to": "t_multi_currency",      "kind": "subtask_of"},
+    {"workspace": "backend",  "from": "t_bulk_pricing",       "to": "t_multi_currency",      "kind": "subtask_of"},
+    {"workspace": "backend",  "from": "t_redis_session",      "to": "t_rate_limit_redis",    "kind": "subtask_of"},
+    {"workspace": "frontend", "from": "t_saved_addresses",    "to": "t_checkout",            "kind": "subtask_of"},
+    {"workspace": "frontend", "from": "t_cart_persist",       "to": "t_checkout",            "kind": "subtask_of"},
+    {"workspace": "infra",    "from": "t_prom_alerting",      "to": "t_grafana_biz",         "kind": "subtask_of"},
+    {"workspace": "infra",    "from": "t_canary",             "to": "t_staging",             "kind": "blocks"}
   ],
 
   "skillLinks": [

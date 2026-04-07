@@ -10,6 +10,12 @@ server:
   accessTokenTtl: "1m"
   access:
     demo: rw
+  # Demo seeds ~700 entities + relations in seconds; lift the default 600/min
+  # global rate limit so re-seeding does not get throttled.
+  rateLimit:
+    global: 5000
+    search: 600
+    auth: 30
 
 projects:
   api-gateway:
@@ -46,7 +52,7 @@ projects:
       docs:
         include: "docs/**/*.md"
       code:
-        include: "src/**/*.ts"
+        include: "src/**/*.{ts,tsx}"
 
   admin-panel:
     projectDir: "./admin-panel"
@@ -55,7 +61,7 @@ projects:
       docs:
         include: "docs/**/*.md"
       code:
-        include: "src/**/*.ts"
+        include: "src/**/*.{ts,tsx}"
 
   infra:
     projectDir: "./infra"

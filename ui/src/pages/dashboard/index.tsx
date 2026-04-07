@@ -52,7 +52,7 @@ export default function DashboardPage() {
     try {
       const [s, notesRes, tasksRes] = await Promise.all([
         getProjectStats(projectId),
-        listNotes(projectId, { limit: 5 }).catch(() => ({ items: [] as Note[], total: 0 })),
+        listNotes(projectId, { limit: 10 }).catch(() => ({ items: [] as Note[], total: 0 })),
         listTasks(projectId, { limit: 10 }).catch(() => ({ items: [] as Task[], total: 0 })),
       ]);
       setStats(s);

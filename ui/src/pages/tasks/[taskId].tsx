@@ -342,32 +342,34 @@ export default function TaskDetailPage() {
                   <Typography variant="body2">{task.estimate}h</Typography>
                 </FieldRow>
               )}
-              {(canWrite || task.assignee) && (
+              {(canWrite || task.assigneeId != null) && (
                 <FieldRow label="Assignee">
                   {canWrite ? (
                     <Select
                       size="small"
-                      value={task.assignee ?? ''}
+                      value={task.assigneeId == null ? '' : String(task.assigneeId)}
                       displayEmpty
                       onChange={async (e) => {
-                        const assignee = e.target.value as string || undefined;
-                        setTask(prev => prev ? { ...prev, assignee: assignee ?? null } : prev);
-                        await updateTask(projectId!, taskId!, { assignee: assignee ?? null });
+                        const raw = e.target.value as string;
+                        const assigneeId = raw === '' ? null : Number(raw);
+                        setTask(prev => prev ? { ...prev, assigneeId } : prev);
+                        await updateTask(projectId!, taskId!, { assigneeId });
                         load();
                       }}
                       renderValue={(v) => {
-                        if (!v) return <Typography variant="body2" color="text.secondary">Unassigned</Typography>;
-                        return <Typography variant="body2">{team.find(m => m.id === v)?.name ?? v}</Typography>;
+                        if (v === '' || v == null) return <Typography variant="body2" color="text.secondary">Unassigned</Typography>;
+                        const m = team.find(t => t.id === Number(v));
+                        return <Typography variant="body2">{m?.name ?? m?.slug ?? String(v)}</Typography>;
                       }}
                       sx={{ fontSize: '0.85rem', width: '100%' }}
                     >
                       <MenuItem value="">Unassigned</MenuItem>
                       {team.map(m => (
-                        <MenuItem key={m.id} value={m.id}>{m.name}</MenuItem>
+                        <MenuItem key={m.id} value={String(m.id)}>{m.name}</MenuItem>
                       ))}
                     </Select>
                   ) : (
-                    <Typography variant="body2">{team.find(m => m.id === task.assignee)?.name ?? task.assignee}</Typography>
+                    <Typography variant="body2">{team.find(m => m.id === task.assigneeId)?.name ?? task.assigneeId}</Typography>
                   )}
                 </FieldRow>
               )}

@@ -8,7 +8,6 @@ import {
   MAX_SEARCH_QUERY_LEN,
   MAX_SEARCH_TOP_K,
   MAX_DESCRIPTION_LEN,
-  MAX_ASSIGNEE_LEN,
   MAX_SKILL_STEP_LEN,
   MAX_SKILL_STEPS_COUNT,
   MAX_SKILL_TRIGGER_LEN,
@@ -95,7 +94,7 @@ export const createTaskSchema = z.object({
   tags:        z.array(z.string().max(MAX_TAG_LEN)).max(MAX_TAGS_COUNT).optional().default([]),
   dueDate:     z.number().nullable().optional(),
   estimate:    z.number().nullable().optional(),
-  assignee:    z.string().max(MAX_ASSIGNEE_LEN).nullable().optional(),
+  assigneeId:  z.number().int().positive().nullable().optional(),
   order:       z.number().int().optional(),
 });
 
@@ -108,7 +107,7 @@ export const updateTaskSchema = z.object({
   order:       z.number().int().optional(),
   dueDate:     z.number().nullable().optional(),
   estimate:    z.number().nullable().optional(),
-  assignee:    z.string().max(MAX_ASSIGNEE_LEN).nullable().optional(),
+  assigneeId:  z.number().int().positive().nullable().optional(),
   version:     z.number().int().positive().optional(),
 });
 
@@ -156,13 +155,13 @@ export const taskSearchSchema = z.object({
 });
 
 export const taskListSchema = z.object({
-  status:   z.enum(['backlog', 'todo', 'in_progress', 'review', 'done', 'cancelled']).optional(),
-  priority: z.enum(['critical', 'high', 'medium', 'low']).optional(),
-  tag:      z.string().max(MAX_TAG_LEN).optional(),
-  filter:   z.string().max(500).optional(),
-  assignee: z.string().max(MAX_ASSIGNEE_LEN).optional(),
-  limit:    z.coerce.number().int().positive().max(1000).optional(),
-  offset:   z.coerce.number().int().min(0).max(100_000).optional().default(0),
+  status:     z.enum(['backlog', 'todo', 'in_progress', 'review', 'done', 'cancelled']).optional(),
+  priority:   z.enum(['critical', 'high', 'medium', 'low']).optional(),
+  tag:        z.string().max(MAX_TAG_LEN).optional(),
+  filter:     z.string().max(500).optional(),
+  assigneeId: z.coerce.number().int().positive().optional(),
+  limit:      z.coerce.number().int().positive().max(1000).optional(),
+  offset:     z.coerce.number().int().min(0).max(100_000).optional().default(0),
 });
 
 // ---------------------------------------------------------------------------

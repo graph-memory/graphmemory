@@ -37,7 +37,7 @@ export function QuickCreateDialog({ open, onClose, onCreated, defaultStatus }: Q
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<TaskStatus>(defaultStatus ?? 'todo');
   const [priority, setPriority] = useState<TaskPriority>('medium');
-  const [assignee, setAssignee] = useState('');
+  const [assigneeId, setAssigneeId] = useState<number | ''>('');
   const [epicId, setEpicId] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [team, setTeam] = useState<TeamMember[]>([]);
@@ -49,7 +49,7 @@ export function QuickCreateDialog({ open, onClose, onCreated, defaultStatus }: Q
     setDescription('');
     setStatus(defaultStatus ?? 'todo');
     setPriority('medium');
-    setAssignee('');
+    setAssigneeId('');
     setEpicId('');
     setTags([]);
     setTimeout(() => titleRef.current?.focus(), 100);
@@ -75,7 +75,7 @@ export function QuickCreateDialog({ open, onClose, onCreated, defaultStatus }: Q
         status,
         priority,
         tags,
-        assignee: assignee || undefined,
+        assigneeId: assigneeId === '' ? undefined : assigneeId,
       });
       if (epicId) {
         await linkTaskToEpic(projectId, epicId, task.id).catch(e => console.error('Failed to link task to epic', e));
@@ -100,7 +100,7 @@ export function QuickCreateDialog({ open, onClose, onCreated, defaultStatus }: Q
     if (title.trim()) params.set('title', title.trim());
     if (status !== 'todo') params.set('status', status);
     if (priority !== 'medium') params.set('priority', priority);
-    if (assignee) params.set('assignee', assignee);
+    if (assigneeId !== '') params.set('assigneeId', String(assigneeId));
     if (epicId) params.set('epicId', epicId);
     if (tags.length) params.set('tags', tags.join(','));
     onClose();
@@ -188,17 +188,17 @@ export function QuickCreateDialog({ open, onClose, onCreated, defaultStatus }: Q
               <FormControl size="small" fullWidth>
                 <Select
                   name="qc-assignee"
-                  value={assignee}
-                  onChange={e => setAssignee(e.target.value)}
+                  value={assigneeId === '' ? '' : String(assigneeId)}
+                  onChange={e => setAssigneeId(e.target.value === '' ? '' : Number(e.target.value))}
                   displayEmpty
                   renderValue={v => {
-                    if (!v) return <Box sx={{ color: palette.custom.textMuted }}>Assignee</Box>;
-                    const m = team.find(t => t.id === v);
-                    return m?.name || v;
+                    if (v === '' || v == null) return <Box sx={{ color: palette.custom.textMuted }}>Assignee</Box>;
+                    const m = team.find(t => t.id === Number(v));
+                    return m?.name || m?.slug || String(v);
                   }}
                 >
                   <MenuItem value="">Unassigned</MenuItem>
-                  {team.map(m => <MenuItem key={m.id} value={m.id}>{m.name || m.id}</MenuItem>)}
+                  {team.map(m => <MenuItem key={m.id} value={String(m.id)}>{m.name || m.slug}</MenuItem>)}
                 </Select>
               </FormControl>
             )}

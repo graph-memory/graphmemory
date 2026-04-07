@@ -487,7 +487,6 @@ test('Create task with all optional fields', async () => {
     tags: ['full', 'test'],
     dueDate: now + 86400000,
     estimate: 8,
-    assignee: 'alice',
     order: 42,
   });
   assertOk(res);

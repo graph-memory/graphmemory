@@ -161,10 +161,10 @@ const SortableTaskRow = memo(function SortableTaskRow({
   task, teamMap, canWrite, selected, onToggleSelect, onNavigate, palette,
   onInlineStatus, onInlinePriority, groupColor, taskEpics, onTagClick, activeTag, onAssigneeClick, onEpicClick,
 }: {
-  task: Task; teamMap: Map<string, TeamMember>; canWrite: boolean; selected: boolean;
+  task: Task; teamMap: Map<number, TeamMember>; canWrite: boolean; selected: boolean;
   onToggleSelect: () => void; onNavigate: () => void; palette: any;
   onInlineStatus: (status: TaskStatus) => void; onInlinePriority: (priority: TaskPriority) => void;
-  groupColor: string; taskEpics?: Epic[]; onTagClick: (tag: string) => void; activeTag?: string; onAssigneeClick: (id: string) => void; onEpicClick: (id: string) => void;
+  groupColor: string; taskEpics?: Epic[]; onTagClick: (tag: string) => void; activeTag?: string; onAssigneeClick: (id: number) => void; onEpicClick: (id: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
   const style = {
@@ -280,14 +280,14 @@ const SortableTaskRow = memo(function SortableTaskRow({
         )}
       </TableCell>
       <TableCell>
-        {task.assignee && (
+        {task.assigneeId != null && (
           <Typography
             variant="body2"
             component="span"
-            onClick={(e: React.MouseEvent) => { e.stopPropagation(); onAssigneeClick(task.assignee!); }}
+            onClick={(e: React.MouseEvent) => { e.stopPropagation(); onAssigneeClick(task.assigneeId!); }}
             sx={{ color: palette.custom.textMuted, cursor: 'pointer', '&:hover': { textDecoration: 'underline', color: palette.text.primary } }}
           >
-            @{teamMap.get(task.assignee!)?.name ?? task.assignee}
+            @{teamMap.get(task.assigneeId!)?.name ?? task.assigneeId}
           </Typography>
         )}
       </TableCell>
@@ -361,7 +361,7 @@ export default function TaskListPage() {
 
   // Stable callbacks for row props
   const handleTagClick = useCallback((t: string) => setFilter('tag', t), [setFilter]);
-  const handleAssigneeClick = useCallback((id: string) => setFilter('assignee', id), [setFilter]);
+  const handleAssigneeClick = useCallback((id: number) => setFilter('assignee', String(id)), [setFilter]);
   const handleEpicClick = useCallback((id: string) => setFilter('epic', id), [setFilter]);
 
   const [epics, setEpics] = useState<Epic[]>([]);
@@ -435,7 +435,10 @@ export default function TaskListPage() {
     }
     if (filters.priority) filtered = filtered.filter(t => t.priority === filters.priority);
     if (filters.tag) filtered = filtered.filter(t => t.tags?.includes(filters.tag));
-    if (filters.assignee) filtered = filtered.filter(t => t.assignee === filters.assignee);
+    if (filters.assignee) {
+      const aid = Number(filters.assignee);
+      filtered = filtered.filter(t => t.assigneeId === aid);
+    }
     if (epicTaskIds) filtered = filtered.filter(t => epicTaskIds.has(t.id));
     return filtered;
   }, [tasks, filters.q, filters.priority, filters.tag, filters.assignee, epicTaskIds]);
@@ -446,13 +449,18 @@ export default function TaskListPage() {
     switch (sortField) {
       case 'title': cmp = a.title.localeCompare(b.title); break;
       case 'priority': cmp = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]; break;
-      case 'assignee': cmp = (a.assignee ?? '').localeCompare(b.assignee ?? ''); break;
+      case 'assignee': {
+        const aName = a.assigneeId != null ? (teamMap.get(a.assigneeId)?.name ?? '') : '';
+        const bName = b.assigneeId != null ? (teamMap.get(b.assigneeId)?.name ?? '') : '';
+        cmp = aName.localeCompare(bName);
+        break;
+      }
       case 'dueDate': cmp = (a.dueDate ?? Infinity) - (b.dueDate ?? Infinity); break;
       case 'estimate': cmp = (a.estimate ?? Infinity) - (b.estimate ?? Infinity); break;
       case 'order': cmp = a.order - b.order; break;
     }
     return sortDir === 'desc' ? -cmp : cmp;
-  }, [sortField, sortDir]);
+  }, [sortField, sortDir, teamMap]);
 
   // groupBy is stored in localStorage, not URL
   const groupContext = useMemo<GroupContext>(() => ({ team, epics, taskEpicMap }), [team, epics, taskEpicMap]);
@@ -622,7 +630,7 @@ export default function TaskListPage() {
       chips.push({ key: 'tag', label: `#${filters.tag}`, onClear: () => setFilter('tag', '') });
     }
     if (filters.assignee) {
-      const m = teamMap.get(filters.assignee);
+      const m = teamMap.get(Number(filters.assignee));
       chips.push({ key: 'assignee', label: `@${m?.name || filters.assignee}`, onClear: () => setFilter('assignee', '') });
     }
     if (filters.epic) {
@@ -675,7 +683,7 @@ export default function TaskListPage() {
           onChange={v => setFilter('assignee', v)}
           placeholder="Assignee"
           allLabel="All"
-          options={team.map(m => ({ value: m.id, label: m.name || m.id }))}
+          options={team.map(m => ({ value: String(m.id), label: m.name || m.slug }))}
           visible={team.length > 0}
         />
         <FilterControl

@@ -42,7 +42,7 @@ Tasks here are tightly integrated with your project's knowledge graph:
 | `tags` | string[] | Free-form | For filtering |
 | `dueDate` | number | Unix timestamp in milliseconds | Optional deadline |
 | `estimate` | number | Hours | Optional effort estimate |
-| `assignee` | string \| null | Team member ID | Optional assignee from `users:` config |
+| `assigneeId` | number \| null | Numeric team member id (from `/api/projects/:id/team`) | Optional assignee |
 | `completedAt` | number | Unix timestamp (auto-managed) | Set on done/cancelled, cleared on reopen |
 | `createdAt` | number | Unix timestamp (auto) | Set at creation |
 | `updatedAt` | number | Unix timestamp (auto) | Updated on every change |
@@ -68,7 +68,7 @@ Create a new task. Automatically embedded for semantic search.
 | `tags` | string[] | No | `[]` | Tags for filtering |
 | `dueDate` | number | No | — | Due date as Unix timestamp in milliseconds |
 | `estimate` | number | No | — | Estimated effort in hours |
-| `assignee` | string | No | — | Team member ID to assign the task to |
+| `assigneeId` | number | No | — | Numeric team member id to assign the task to |
 
 **Returns:** `{ taskId }`
 
@@ -86,7 +86,7 @@ Update an existing task. Only provided fields change. Re-embeds if title or desc
 | `tags` | string[] | No | Replace tags array (include all you want to keep) |
 | `dueDate` | number \| null | No | New due date (ms timestamp), or `null` to clear |
 | `estimate` | number \| null | No | New estimate (hours), or `null` to clear |
-| `assignee` | string \| null | No | Team member ID to assign, or `null` to unassign |
+| `assigneeId` | number \| null | No | Numeric team member id to assign, or `null` to unassign |
 
 **Returns:** `{ taskId, updated: true }`
 
@@ -113,7 +113,7 @@ Return full task details including all relations. This is the most complete view
 **Returns:**
 ```
 {
-  id, title, description, status, priority, tags, assignee,
+  id, title, description, status, priority, tags, assigneeId,
   dueDate, estimate, completedAt, createdAt, updatedAt,
   subtasks: [{ id, title, status }],
   blockedBy: [{ id, title, status }],
@@ -134,10 +134,10 @@ List tasks with optional filters. Sorted by priority (critical → low) then due
 | `priority` | enum | No | — | Filter by priority |
 | `tag` | string | No | — | Filter by tag (exact match, case-insensitive) |
 | `filter` | string | No | — | Substring match on title or ID |
-| `assignee` | string | No | — | Filter by assignee (team member ID) |
+| `assigneeId` | number | No | — | Filter by numeric team member id |
 | `limit` | number | No | 50 | Maximum results |
 
-**Returns:** `[{ id, title, description, status, priority, tags, dueDate, estimate, assignee, completedAt, createdAt, updatedAt }]`
+**Returns:** `[{ id, title, description, status, priority, tags, dueDate, estimate, assigneeId, completedAt, createdAt, updatedAt }]`
 
 ### tasks_search
 

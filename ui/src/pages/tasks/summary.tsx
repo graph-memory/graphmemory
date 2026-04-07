@@ -75,7 +75,7 @@ export default function TaskSummaryPage() {
   const stats = useMemo(() => {
     const byStatus = new Map<TaskStatus, number>();
     const byPriority = new Map<TaskPriority, number>();
-    const byAssignee = new Map<string, number>();
+    const byAssignee = new Map<number, number>();
     const overdue: Task[] = [];
     const upcoming: Task[] = [];
 
@@ -90,10 +90,10 @@ export default function TaskSummaryPage() {
 
       const isActive = !DONE_STATUSES.includes(t.status);
 
-      if (isActive && t.assignee) {
-        byAssignee.set(t.assignee, (byAssignee.get(t.assignee) ?? 0) + 1);
+      if (isActive && t.assigneeId != null) {
+        byAssignee.set(t.assigneeId, (byAssignee.get(t.assigneeId) ?? 0) + 1);
       }
-      if (isActive && !t.assignee) {
+      if (isActive && t.assigneeId == null) {
         unassigned++;
       }
 
@@ -209,7 +209,7 @@ export default function TaskSummaryPage() {
                 const pct = stats.active > 0 ? (count / stats.active) * 100 : 0;
                 return (
                   <ListItemButton key={m.id} sx={{ borderRadius: 1, py: 0.5, px: 1.5 }} onClick={() => navigate(`/${projectId}/tasks/list?assignee=${m.id}`)}>
-                    <ListItemText primary={<Typography variant="body2">{m.name || m.id}</Typography>} />
+                    <ListItemText primary={<Typography variant="body2">{m.name || m.slug}</Typography>} />
                     <Typography variant="body2" fontWeight={600} sx={{ mr: 1.5 }}>{count}</Typography>
                     <Box sx={{ width: 60, height: 5, bgcolor: alpha(palette.primary.main, 0.15), borderRadius: 3, overflow: 'hidden' }}>
                       <Box sx={{ height: '100%', width: `${pct}%`, bgcolor: palette.primary.main, borderRadius: 3 }} />

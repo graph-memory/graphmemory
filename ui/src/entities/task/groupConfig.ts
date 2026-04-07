@@ -70,18 +70,18 @@ export const GROUP_CONFIGS: Record<GroupByField, GroupConfig> = {
 
   assignee: {
     field: 'assignee',
-    getKeys: (task) => [task.assignee ?? '__none__'],
+    getKeys: (task) => [task.assigneeId != null ? String(task.assigneeId) : '__none__'],
     buildGroups: (tasks, context) => {
-      const seen = new Set<string>();
+      const seen = new Set<number>();
       const groups: GroupDefinition[] = [];
       // Add team members that have tasks assigned
       for (const t of tasks) {
-        if (t.assignee && !seen.has(t.assignee)) {
-          seen.add(t.assignee);
-          const member = context.team.find(m => m.id === t.assignee);
+        if (t.assigneeId != null && !seen.has(t.assigneeId)) {
+          seen.add(t.assigneeId);
+          const member = context.team.find(m => m.id === t.assigneeId);
           groups.push({
-            key: t.assignee,
-            label: member?.name ?? t.assignee,
+            key: String(t.assigneeId),
+            label: member?.name ?? member?.slug ?? String(t.assigneeId),
             color: '#1976d2',
             sortOrder: groups.length,
           });
@@ -93,7 +93,7 @@ export const GROUP_CONFIGS: Record<GroupByField, GroupConfig> = {
     nullGroupColor: '#616161',
     dndEnabled: true,
     applyGroupChange: async (projectId, taskId, groupKey) => {
-      await updateTask(projectId, taskId, { assignee: groupKey === '__none__' ? null : groupKey });
+      await updateTask(projectId, taskId, { assigneeId: groupKey === '__none__' ? null : Number(groupKey) });
     },
   },
 

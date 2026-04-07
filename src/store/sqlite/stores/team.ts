@@ -84,6 +84,20 @@ export class SqliteTeamStore implements TeamStore {
     return row ? this.toRecord(row) : null;
   }
 
+  upsertBySlug(data: TeamMemberCreate): TeamMemberRecord {
+    const existing = this.getBySlug(data.slug);
+    if (existing) {
+      // Only patch fields that differ to avoid bumping updated_at unnecessarily.
+      const patch: TeamMemberPatch = {};
+      if (data.name !== existing.name) patch.name = data.name;
+      if ((data.email ?? null) !== existing.email) patch.email = data.email;
+      if ((data.role ?? null) !== existing.role) patch.role = data.role;
+      if (Object.keys(patch).length > 0) return this.update(existing.id, patch);
+      return existing;
+    }
+    return this.create(data);
+  }
+
   list(pagination?: PaginationOptions): { results: TeamMemberRecord[]; total: number } {
     const limit = pagination?.limit ?? 50;
     const offset = pagination?.offset ?? 0;

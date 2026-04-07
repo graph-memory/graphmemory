@@ -60,9 +60,9 @@ function dueDateInfo(dueDate: number | null, status: TaskStatus): { label: strin
 const SortableTaskCard = memo(function SortableTaskCard({
   task, teamMap, canWrite, onNavigate, onEdit, onDelete, palette, taskEpics, onTagClick, activeTag, onAssigneeClick, onPriorityChange, onEpicClick,
 }: {
-  task: Task; teamMap: Map<string, TeamMember>; canWrite: boolean;
+  task: Task; teamMap: Map<number, TeamMember>; canWrite: boolean;
   onNavigate: (id: string) => void; onEdit: (id: string) => void; onDelete: (t: Task) => void;
-  palette: any; taskEpics?: Epic[]; onTagClick: (tag: string) => void; activeTag?: string; onAssigneeClick: (id: string) => void; onPriorityChange: (p: TaskPriority) => void; onEpicClick: (id: string) => void;
+  palette: any; taskEpics?: Epic[]; onTagClick: (tag: string) => void; activeTag?: string; onAssigneeClick: (id: number) => void; onPriorityChange: (p: TaskPriority) => void; onEpicClick: (id: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
   const style = {
@@ -152,14 +152,14 @@ const SortableTaskCard = memo(function SortableTaskCard({
             </MenuItem>
           ))}
         </Select>
-        {task.assignee && (
+        {task.assigneeId != null && (
           <Typography
             variant="caption"
             component="span"
-            onClick={(e: React.MouseEvent) => { e.stopPropagation(); onAssigneeClick(task.assignee!); }}
+            onClick={(e: React.MouseEvent) => { e.stopPropagation(); onAssigneeClick(task.assigneeId!); }}
             sx={{ color: palette.custom.textMuted, cursor: 'pointer', '&:hover': { textDecoration: 'underline', color: palette.text.primary } }}
           >
-            @{teamMap.get(task.assignee!)?.name ?? task.assignee}
+            @{teamMap.get(task.assigneeId!)?.name ?? task.assigneeId}
           </Typography>
         )}
         {task.estimate != null && (
@@ -280,7 +280,7 @@ export default function TaskBoardPage() {
   const handleCardNavigate = useCallback((id: string) => navigate(`/${projectId}/tasks/${id}?from=board`), [navigate, projectId]);
   const handleCardEdit = useCallback((id: string) => navigate(`/${projectId}/tasks/${id}/edit?from=board`), [navigate, projectId]);
   const handleTagClick = useCallback((t: string) => setFilter('tag', t), [setFilter]);
-  const handleAssigneeClick = useCallback((id: string) => setFilter('assignee', id), [setFilter]);
+  const handleAssigneeClick = useCallback((id: number) => setFilter('assignee', String(id)), [setFilter]);
   const handleEpicClick = useCallback((id: string) => setFilter('epic', id), [setFilter]);
 
   // DnD state
@@ -487,7 +487,8 @@ export default function TaskBoardPage() {
       filtered = filtered.filter(t => t.tags?.includes(filters.tag));
     }
     if (filters.assignee) {
-      filtered = filtered.filter(t => t.assignee === filters.assignee);
+      const aid = Number(filters.assignee);
+      filtered = filtered.filter(t => t.assigneeId === aid);
     }
     if (epicTaskIds) {
       filtered = filtered.filter(t => epicTaskIds.has(t.id));
@@ -519,7 +520,7 @@ export default function TaskBoardPage() {
       chips.push({ key: 'tag', label: `#${filters.tag}`, onClear: () => setFilter('tag', '') });
     }
     if (filters.assignee) {
-      const m = teamMap.get(filters.assignee);
+      const m = teamMap.get(Number(filters.assignee));
       chips.push({ key: 'assignee', label: `@${m?.name || filters.assignee}`, onClear: () => setFilter('assignee', '') });
     }
     if (filters.epic) {
@@ -577,7 +578,7 @@ export default function TaskBoardPage() {
           onChange={v => setFilter('assignee', v)}
           placeholder="Assignee"
           allLabel="All"
-          options={team.map(m => ({ value: m.id, label: m.name || m.id }))}
+          options={team.map(m => ({ value: String(m.id), label: m.name || m.slug }))}
           visible={team.length > 0}
         />
         <FilterControl

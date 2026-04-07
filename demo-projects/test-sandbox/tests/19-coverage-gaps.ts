@@ -13,7 +13,7 @@
 
 import {
   group, test, runPhase,
-  get, post, del,
+  get, post, put, del,
   mcpCall,
   assert, assertEqual, assertExists, assertOk, assertStatus, assertMcpOk,
   printSummary, runStandalone, wait,
@@ -678,6 +678,83 @@ test('Cleanup cross-graph file-link fixtures', async () => {
   });
   await del(`/knowledge/notes/${linkedNoteId}`);
   await del(`/tasks/${linkedTaskId}`);
+});
+
+// ─── 19.14 Tasks assignee end-to-end (numeric assigneeId) ────────
+//
+// Verifies the full pipeline:
+//   .team/{slug}.md  →  GET /team (upserts into team_members table, returns numeric id)
+//   POST /tasks { assigneeId } → store
+//   GET /tasks/:id → assigneeId round-trips
+//   GET /tasks?assigneeId=N → filter
+// Replaces the historically broken `assignee: <slug>` REST field which was
+// silently dropped because the validation schema accepted it but the handler
+// read a different key.
+
+group('19.14 Tasks assignee end-to-end (numeric assigneeId)');
+
+let assigneeMemberId: number;
+let assigneeTaskId: number;
+const TEAM_FILE = projectPath('.team', 'qa-bot.md');
+
+test('Setup: write .team/qa-bot.md and trigger /team upsert', async () => {
+  // Standalone mode reads team members from `.team/{slug}.md` in the project dir.
+  const { mkdirSync } = await import('fs');
+  mkdirSync(projectPath('.team'), { recursive: true });
+  writeFileSync(TEAM_FILE, '---\nname: QA Bot\nemail: qa@test.dev\n---\n# QA Bot\n', 'utf-8');
+
+  const res = await get('/team');
+  assertOk(res);
+  const members = res.data.results ?? res.data;
+  assert(Array.isArray(members), 'team is array');
+  const qa = members.find((m: any) => m.slug === 'qa-bot');
+  assertExists(qa, 'qa-bot in team listing');
+  assert(typeof qa.id === 'number' && qa.id > 0, 'team member id is positive number');
+  assertEqual(qa.name, 'QA Bot', 'name');
+  assigneeMemberId = qa.id;
+});
+
+test('POST /tasks with numeric assigneeId persists the assignment', async () => {
+  const res = await post('/tasks', {
+    title: 'Assigned Task',
+    description: 'has an assignee',
+    priority: 'medium',
+    assigneeId: assigneeMemberId,
+  });
+  assertOk(res);
+  assertEqual(res.data.assigneeId, assigneeMemberId, 'assigneeId in create response');
+  assigneeTaskId = res.data.id;
+});
+
+test('GET /tasks/:id round-trips assigneeId', async () => {
+  const res = await get(`/tasks/${assigneeTaskId}`);
+  assertOk(res);
+  assertEqual(res.data.assigneeId, assigneeMemberId, 'assigneeId on read');
+});
+
+test('GET /tasks?assigneeId=N filters by numeric assigneeId', async () => {
+  const res = await get(`/tasks?assigneeId=${assigneeMemberId}`);
+  assertOk(res);
+  const items = res.data.results ?? res.data;
+  assert(Array.isArray(items) && items.length > 0, 'at least one task in filter');
+  assert(items.every((t: any) => t.assigneeId === assigneeMemberId), 'all results have matching assigneeId');
+});
+
+test('PUT /tasks/:id with assigneeId=null unassigns', async () => {
+  const res = await put(`/tasks/${assigneeTaskId}`, { assigneeId: null });
+  assertOk(res);
+  assertEqual(res.data.assigneeId, null, 'assigneeId cleared on update');
+});
+
+test('PUT /tasks/:id with assigneeId restores assignment', async () => {
+  const res = await put(`/tasks/${assigneeTaskId}`, { assigneeId: assigneeMemberId });
+  assertOk(res);
+  assertEqual(res.data.assigneeId, assigneeMemberId, 'assigneeId restored');
+});
+
+test('Cleanup assignee fixtures', async () => {
+  await del(`/tasks/${assigneeTaskId}`);
+  try { unlinkSync(TEAM_FILE); } catch { /* ignore */ }
 });
 
 // ─── Run ─────────────────────────────────────────────────────────

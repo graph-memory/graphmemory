@@ -85,7 +85,7 @@ export function createTasksRouter(_users?: Record<string, unknown>): Router {
           tags,
           dueDate,
           estimate,
-          assigneeId: assigneeId != null ? Number(assigneeId) : undefined,
+          assigneeId,
           order,
         });
       });

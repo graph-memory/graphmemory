@@ -41,7 +41,10 @@ export function getProjectStats(projectId: string) {
 }
 
 export interface TeamMember {
-  id: string;
+  /** Numeric id from the team_members table — stable across slug renames. */
+  id: number;
+  /** Human-readable identifier (matches user config key or .team/{slug}.md filename). */
+  slug: string;
   name: string;
   email: string;
 }

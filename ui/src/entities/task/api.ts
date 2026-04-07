@@ -14,7 +14,7 @@ export interface Task {
   dueDate: number | null;
   estimate: number | null;
   completedAt: number | null;
-  assignee: string | null;
+  assigneeId: number | null;
   createdAt: number;
   updatedAt: number;
   version: number;
@@ -22,22 +22,22 @@ export interface Task {
   updatedBy?: string;
 }
 
-export function listTasks(projectId: string, params?: { status?: TaskStatus; priority?: TaskPriority; tag?: string; assignee?: string; limit?: number; offset?: number }) {
-  return request<PaginatedResponse<Task>>(`/projects/${projectId}/tasks${qs({ status: params?.status, priority: params?.priority, tag: params?.tag, assignee: params?.assignee, limit: params?.limit, offset: params?.offset })}`).then(unwrapPaginated);
+export function listTasks(projectId: string, params?: { status?: TaskStatus; priority?: TaskPriority; tag?: string; assigneeId?: number; limit?: number; offset?: number }) {
+  return request<PaginatedResponse<Task>>(`/projects/${projectId}/tasks${qs({ status: params?.status, priority: params?.priority, tag: params?.tag, assigneeId: params?.assigneeId, limit: params?.limit, offset: params?.offset })}`).then(unwrapPaginated);
 }
 
 export function getTask(projectId: string, taskId: string) {
   return request<Task>(`/projects/${projectId}/tasks/${taskId}`);
 }
 
-export function createTask(projectId: string, data: { title: string; description?: string; status?: TaskStatus; priority?: TaskPriority; tags?: string[]; dueDate?: number | null; estimate?: number | null; assignee?: string | null }) {
+export function createTask(projectId: string, data: { title: string; description?: string; status?: TaskStatus; priority?: TaskPriority; tags?: string[]; dueDate?: number | null; estimate?: number | null; assigneeId?: number | null }) {
   return request<Task>(`/projects/${projectId}/tasks`, {
     method: 'POST',
     body: JSON.stringify(data),
   });
 }
 
-export function updateTask(projectId: string, taskId: string, data: Partial<Pick<Task, 'title' | 'description' | 'status' | 'priority' | 'tags' | 'dueDate' | 'estimate' | 'assignee'>>) {
+export function updateTask(projectId: string, taskId: string, data: Partial<Pick<Task, 'title' | 'description' | 'status' | 'priority' | 'tags' | 'dueDate' | 'estimate' | 'assigneeId'>>) {
   return request<Task>(`/projects/${projectId}/tasks/${taskId}`, {
     method: 'PUT',
     body: JSON.stringify(data),

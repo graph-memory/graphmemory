@@ -405,17 +405,26 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
       );
       if (!hasAnyAccess) return res.status(403).json({ error: 'Access denied' });
     }
-    // When auth is configured, team = users from config (no .team/ files needed)
+    // Source members from config (auth) or .team/ markdown (no auth), then sync
+    // them into the team_members table so the rest of the system has stable
+    // numeric IDs to reference (tasks.assigneeId is a FK into team_members.id).
+    type SourceMember = { slug: string; name: string; email: string | null };
+    let source: SourceMember[];
     if (hasUsers) {
-      const members = Object.entries(users).map(([id, u]) => ({ id, name: u.name, email: u.email }));
-      return res.json({ results: members });
+      source = Object.entries(users).map(([slug, u]) => ({ slug, name: u.name, email: u.email ?? null }));
+    } else {
+      const p = req.project!;
+      const ws = p.workspaceId ? projectManager.getWorkspace(p.workspaceId) : undefined;
+      const baseDir = ws ? ws.config.mirrorDir : p.config.projectDir;
+      source = scanTeamDir(path.join(baseDir, '.team')).map(m => ({ slug: m.id, name: m.name, email: m.email || null }));
     }
-    // No auth — read from .team/ directory
-    const p = req.project!;
-    const ws = p.workspaceId ? projectManager.getWorkspace(p.workspaceId) : undefined;
-    const baseDir = ws ? ws.config.mirrorDir : p.config.projectDir;
-    const members = scanTeamDir(path.join(baseDir, '.team'));
-    res.json({ results: members });
+
+    const teamStore = req.project!.storeManager.store.team;
+    const results = source.map(m => {
+      const rec = teamStore.upsertBySlug({ slug: m.slug, name: m.name, email: m.email ?? undefined });
+      return { id: rec.id, slug: rec.slug, name: rec.name, email: rec.email ?? '' };
+    });
+    res.json({ results });
   });
 
   // Middleware: require a specific manager to be enabled, or return 404

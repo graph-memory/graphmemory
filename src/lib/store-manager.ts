@@ -584,10 +584,18 @@ export class StoreManager {
     for (const [g, ids] of idsByGraph) {
       titles.set(g, this.scoped.resolveTitles(g, ids));
     }
-    // Resolve project ids → slugs (batched via small in-memory cache).
+    // Resolve project ids → slugs only when the target lives in a *different*
+    // project than the current scoped store. Same-project (including workspace-
+    // shared graphs where every node has project_id = workspace root) leaves
+    // targetProjectSlug undefined so the UI falls back to whatever project is
+    // already in the URL — that's important because the synthetic workspace
+    // root project (e.g. slug 'backend') is not a navigable project in the
+    // multi-config: only its real members like 'api-gateway' / 'catalog-service'
+    // are exposed.
+    const currentProjectId = this.scoped.projectId;
     const projectSlugCache = new Map<number, string | undefined>();
-    const resolveProjectSlug = (id: number | undefined): string | undefined => {
-      if (id === undefined) return undefined;
+    const resolveTargetProjectSlug = (id: number | undefined): string | undefined => {
+      if (id === undefined || id === currentProjectId) return undefined;
       if (projectSlugCache.has(id)) return projectSlugCache.get(id);
       const slug = this.store.projects.get(id)?.slug;
       projectSlugCache.set(id, slug);
@@ -597,7 +605,7 @@ export class StoreManager {
       ...v.edge,
       targetGraph: v.targetGraph,
       targetId: v.targetId,
-      targetProjectSlug: resolveProjectSlug(v.targetProjectId),
+      targetProjectSlug: resolveTargetProjectSlug(v.targetProjectId),
       title: titles.get(v.targetGraph)?.get(v.targetId) ?? String(v.targetId),
       direction: v.direction,
     }));

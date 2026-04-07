@@ -605,27 +605,27 @@ describe('StoreManager', () => {
       expect(titles.get(tagEdge!.fromId)).toBe('gamma');
     });
 
-    it('populates targetProjectSlug from edge fromProjectId/toProjectId', async () => {
-      // The current test setup has a single project, so we synthesize the
-      // cross-project case by injecting raw Edge objects with explicit
-      // fromProjectId/toProjectId. This mirrors how the workspace scenario
-      // works in real life: shared knowledge → project-scoped code/docs/files.
-      const note = await manager.createNote({ title: 'Cross-project source', content: '' });
+    it('leaves targetProjectSlug undefined when target lives in the current project', async () => {
+      // Same-project edges should not surface a targetProjectSlug. The UI
+      // falls back to the project already in the URL, so workspace-shared
+      // knowledge (where every node lives under the synthetic workspace-root
+      // project) keeps navigating through whichever real project the user is
+      // currently viewing.
+      const note = await manager.createNote({ title: 'Source', content: '' });
       const fakeOutgoing = {
-        fromGraph: 'knowledge' as const, fromId: note.id, fromProjectId: 1,
-        toGraph: 'code' as const, toId: 999, toProjectId: 1,
-        kind: 'implemented_in',
+        fromGraph: 'knowledge' as const, fromId: note.id, fromProjectId: manager.projectId,
+        toGraph: 'knowledge' as const, toId: 999, toProjectId: manager.projectId,
+        kind: 'relates_to',
       };
       const fakeIncoming = {
-        fromGraph: 'tasks' as const, fromId: 888, fromProjectId: 1,
-        toGraph: 'knowledge' as const, toId: note.id, toProjectId: 1,
+        fromGraph: 'tasks' as const, fromId: 888, fromProjectId: manager.projectId,
+        toGraph: 'knowledge' as const, toId: note.id, toProjectId: manager.projectId,
         kind: 'documents',
       };
       const enriched = manager.enrichRelations('knowledge', note.id, [fakeOutgoing, fakeIncoming]);
       expect(enriched).toHaveLength(2);
-      // Project id 1 was created in beforeEach with slug 'test'.
-      expect(enriched[0].targetProjectSlug).toBe('test');
-      expect(enriched[1].targetProjectSlug).toBe('test');
+      expect(enriched[0].targetProjectSlug).toBeUndefined();
+      expect(enriched[1].targetProjectSlug).toBeUndefined();
     });
 
     it('createEdge stores correct to_project_id for cross-project targets', async () => {

@@ -147,6 +147,24 @@ test('Create skill → receives skill:created', async () => {
   assertExists(evt, 'skill:created event');
 });
 
+test('Update skill → receives skill:updated', async () => {
+  // Create a fresh skill so the update isn't ambiguous with stale list state
+  const created = await restWith(BASE, 'POST', '/api/projects/sandbox/skills',
+    { title: 'WS Skill Update Target', description: 'before' });
+  assertOk(created);
+  const skillId = created.data.id;
+
+  clearReceived();
+  await restWith(BASE, 'PUT', `/api/projects/sandbox/skills/${skillId}`,
+    { title: 'WS Skill Updated', description: 'after' });
+  const evt = await findEvent('skill:updated');
+  assertExists(evt, 'skill:updated event');
+  assertExists(evt.projectId, 'projectId on skill:updated');
+
+  // Cleanup
+  await restWith(BASE, 'DELETE', `/api/projects/sandbox/skills/${skillId}`);
+});
+
 test('Delete skill → receives skill:deleted', async () => {
   const listRes = await restWith(BASE, 'GET', '/api/projects/sandbox/skills');
   const skillId = (listRes.data.results ?? listRes.data)[0]?.id;
@@ -167,6 +185,23 @@ test('Create epic → receives epic:created', async () => {
     { title: 'WS Epic', description: 'test' });
   const evt = await findEvent('epic:created');
   assertExists(evt, 'epic:created event');
+});
+
+test('Update epic → receives epic:updated', async () => {
+  const created = await restWith(BASE, 'POST', '/api/projects/sandbox/epics',
+    { title: 'WS Epic Update Target', description: 'before' });
+  assertOk(created);
+  const epicId = created.data.id;
+
+  clearReceived();
+  await restWith(BASE, 'PUT', `/api/projects/sandbox/epics/${epicId}`,
+    { title: 'WS Epic Updated', description: 'after' });
+  const evt = await findEvent('epic:updated');
+  assertExists(evt, 'epic:updated event');
+  assertExists(evt.projectId, 'projectId on epic:updated');
+
+  // Cleanup
+  await restWith(BASE, 'DELETE', `/api/projects/sandbox/epics/${epicId}`);
 });
 
 test('Delete epic → receives epic:deleted', async () => {

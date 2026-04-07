@@ -390,6 +390,296 @@ test('POST /tools/notes_list/call — execute via explorer', async () => {
   assert(Array.isArray(res.data.result), 'result is array');
 });
 
+// ─── 19.10 Docs detail chain (UI Docs page) ─────────────────────
+
+group('19.10 Docs detail — topics → toc → nodes (UI Docs page)');
+
+let docsFileId: string | undefined;
+let docsNodeId: number | undefined;
+
+test('GET /docs/topics — returns at least one topic with fileId', async () => {
+  const res = await get('/docs/topics');
+  assertOk(res);
+  const topics = res.data.results ?? res.data;
+  assert(topics.length > 0, 'should have at least one indexed doc');
+  docsFileId = topics[0].fileId;
+  assertExists(docsFileId, 'topic.fileId');
+});
+
+test('GET /docs/toc/:fileId — returns TOC chunks for a real file', async () => {
+  if (!docsFileId) throw new Error('docsFileId not set from previous test');
+  const res = await get(`/docs/toc/${docsFileId}`);
+  assertOk(res);
+  const chunks = res.data.results ?? res.data;
+  assert(Array.isArray(chunks) && chunks.length > 0, 'TOC should have at least one chunk');
+  const first = chunks[0];
+  assertExists(first.id, 'chunk.id');
+  assertExists(first.title, 'chunk.title');
+  assert(typeof first.level === 'number', 'chunk.level is number');
+  docsNodeId = first.id;
+});
+
+test('GET /docs/nodes/:nodeId — returns full node by real id (happy path)', async () => {
+  if (docsNodeId == null) throw new Error('docsNodeId not set from previous test');
+  const res = await get(`/docs/nodes/${docsNodeId}`);
+  assertOk(res);
+  assertExists(res.data.id, 'node.id');
+  assertExists(res.data.title, 'node.title');
+  assertExists(res.data.content, 'node.content');
+  assertExists(res.data.fileId, 'node.fileId');
+});
+
+// ─── 19.11 Code detail chain (UI Code symbol page) ──────────────
+
+group('19.11 Code detail — files → symbols → symbol → edges (UI Code page)');
+
+let codeFileIdLocal: string | undefined;
+let codeSymbolId: number | undefined;
+
+test('GET /code/files — returns at least one indexed code file', async () => {
+  const res = await get('/code/files');
+  assertOk(res);
+  const files = res.data.results ?? res.data;
+  assert(files.length > 0, 'should have indexed code files');
+  codeFileIdLocal = files[0].fileId;
+  assertExists(codeFileIdLocal, 'fileId');
+});
+
+test('GET /code/files/:fileId/symbols — returns symbols for the file', async () => {
+  if (!codeFileIdLocal) throw new Error('codeFileIdLocal not set');
+  const res = await get(`/code/files/${codeFileIdLocal}/symbols`);
+  assertOk(res);
+  const symbols = res.data.results ?? res.data;
+  assert(symbols.length > 0, 'file should expose at least one symbol');
+  const sym = symbols[0];
+  assertExists(sym.id, 'symbol.id');
+  assertExists(sym.name, 'symbol.name');
+  assertExists(sym.kind, 'symbol.kind');
+  codeSymbolId = sym.id;
+});
+
+test('GET /code/symbols/:id — returns full symbol by real id (happy path)', async () => {
+  if (codeSymbolId == null) throw new Error('codeSymbolId not set');
+  const res = await get(`/code/symbols/${codeSymbolId}`);
+  assertOk(res);
+  assertExists(res.data.id, 'symbol.id');
+  assertExists(res.data.name, 'symbol.name');
+  assertExists(res.data.fileId, 'symbol.fileId');
+  assert(typeof res.data.startLine === 'number', 'symbol.startLine is number');
+});
+
+test('GET /code/symbols/:id/edges — returns edges array (UI symbol detail panel)', async () => {
+  if (codeSymbolId == null) throw new Error('codeSymbolId not set');
+  const res = await get(`/code/symbols/${codeSymbolId}/edges`);
+  assertOk(res);
+  const edges = res.data.results ?? res.data;
+  assert(Array.isArray(edges), 'edges should be an array (may be empty)');
+});
+
+// ─── 19.12 REST query-string filters (UI tasks/skills/epics lists) ──
+
+group('19.12 REST list filters — tasks/skills/epics');
+
+let filterTaskId: number;
+let filterSkillId: number;
+let filterEpicId: number;
+
+test('Setup: create filter fixtures (task, skill, epic)', async () => {
+  const t = await post('/tasks', {
+    title: 'Filter Fixture Task',
+    description: 'fixture',
+    priority: 'high',
+    status: 'todo',
+    tags: ['filter-test'],
+  });
+  assertOk(t);
+  filterTaskId = t.data.id;
+
+  const s = await post('/skills', {
+    title: 'Filter Fixture Skill',
+    description: 'fixture',
+    source: 'user',
+    tags: ['filter-test'],
+  });
+  assertOk(s);
+  filterSkillId = s.data.id;
+
+  const e = await post('/epics', {
+    title: 'Filter Fixture Epic',
+    description: 'fixture',
+    status: 'open',
+    priority: 'high',
+    tags: ['filter-test'],
+  });
+  assertOk(e);
+  filterEpicId = e.data.id;
+});
+
+test('GET /tasks?status=todo — returns todo tasks via REST query', async () => {
+  const res = await get('/tasks?status=todo');
+  assertOk(res);
+  const items = res.data.results ?? res.data;
+  assert(items.length > 0, 'should find todo tasks');
+  assert(items.every((t: any) => t.status === 'todo'),
+    'every result should have status=todo');
+});
+
+test('GET /tasks?priority=high — returns only high-priority tasks', async () => {
+  const res = await get('/tasks?priority=high');
+  assertOk(res);
+  const items = res.data.results ?? res.data;
+  assert(items.length > 0, 'should find high-priority tasks');
+  assert(items.every((t: any) => t.priority === 'high'),
+    'every result should have priority=high');
+});
+
+test('GET /tasks?tag=filter-test — returns only tagged tasks', async () => {
+  const res = await get('/tasks?tag=filter-test');
+  assertOk(res);
+  const items = res.data.results ?? res.data;
+  assert(items.length > 0, 'should find tasks with tag');
+  assert(items.some((t: any) => t.id === filterTaskId), 'should include fixture task');
+});
+
+test('GET /skills?source=user — returns only user-source skills', async () => {
+  const res = await get('/skills?source=user');
+  assertOk(res);
+  const items = res.data.results ?? res.data;
+  assert(items.length > 0, 'should find user skills');
+  assert(items.every((s: any) => s.source === 'user'),
+    'every result should have source=user');
+});
+
+test('GET /skills?tag=filter-test — returns only tagged skills', async () => {
+  const res = await get('/skills?tag=filter-test');
+  assertOk(res);
+  const items = res.data.results ?? res.data;
+  assert(items.some((s: any) => s.id === filterSkillId), 'should include fixture skill');
+});
+
+test('GET /epics?status=open — returns only open epics via REST query', async () => {
+  const res = await get('/epics?status=open');
+  assertOk(res);
+  const items = res.data.results ?? res.data;
+  assert(items.length > 0, 'should find open epics');
+  assert(items.every((e: any) => e.status === 'open'),
+    'every result should have status=open');
+});
+
+test('GET /epics?priority=high — returns only high-priority epics', async () => {
+  const res = await get('/epics?priority=high');
+  assertOk(res);
+  const items = res.data.results ?? res.data;
+  assert(items.length > 0, 'should find high-priority epics');
+  assert(items.every((e: any) => e.priority === 'high'),
+    'every result should have priority=high');
+});
+
+test('GET /epics?tag=filter-test — returns only tagged epics', async () => {
+  const res = await get('/epics?tag=filter-test');
+  assertOk(res);
+  const items = res.data.results ?? res.data;
+  assert(items.some((e: any) => e.id === filterEpicId), 'should include fixture epic');
+});
+
+test('Cleanup filter fixtures', async () => {
+  await del(`/tasks/${filterTaskId}`);
+  await del(`/skills/${filterSkillId}`);
+  await del(`/epics/${filterEpicId}`);
+});
+
+// ─── 19.13 Cross-graph linked with targetGraph=files (UI file detail) ─
+
+group('19.13 Cross-graph linked — targetGraph=files (UI file detail page)');
+
+let fileNodeId: number | undefined;
+let linkedNoteId: number;
+let linkedTaskId: number;
+
+test('Resolve a real file numeric id via /files/info', async () => {
+  // Pick any indexed file from the project
+  const list = await get('/files?extension=.ts&limit=5');
+  assertOk(list);
+  const files = list.data.results ?? list.data;
+  const firstFile = files.find((f: any) => f.kind === 'file') ?? files[0];
+  assertExists(firstFile, 'an indexed .ts file');
+  const info = await get(`/files/info?path=${encodeURIComponent(firstFile.filePath)}`);
+  assertOk(info);
+  assertExists(info.data.id, 'file numeric id');
+  assert(typeof info.data.id === 'number', 'file id is numeric');
+  fileNodeId = info.data.id;
+});
+
+test('Create note + link to file via POST /knowledge/relations targetGraph=files', async () => {
+  if (fileNodeId == null) throw new Error('fileNodeId not set');
+  const note = await post('/knowledge/notes', {
+    title: 'File Link Note',
+    content: 'Linking a note to a file index entry.',
+  });
+  assertOk(note);
+  linkedNoteId = note.data.id;
+
+  const link = await post('/knowledge/relations', {
+    fromId: linkedNoteId,
+    toId: fileNodeId,
+    kind: 'references',
+    targetGraph: 'files',
+  });
+  assertOk(link);
+});
+
+test('GET /knowledge/linked?targetGraph=files&targetNodeId={id} — finds note', async () => {
+  if (fileNodeId == null) throw new Error('fileNodeId not set');
+  const res = await get(`/knowledge/linked?targetGraph=files&targetNodeId=${fileNodeId}`);
+  assertOk(res);
+  const items = res.data.results ?? res.data;
+  assert(Array.isArray(items), 'response is array');
+  assert(items.length > 0, 'should find at least one linked edge from knowledge');
+});
+
+test('Create task + link to file via POST /tasks/links targetGraph=files', async () => {
+  if (fileNodeId == null) throw new Error('fileNodeId not set');
+  const task = await post('/tasks', {
+    title: 'File Link Task',
+    description: 'task linked to a file',
+    priority: 'low',
+  });
+  assertOk(task);
+  linkedTaskId = task.data.id;
+
+  const link = await post('/tasks/links', {
+    fromId: linkedTaskId,
+    toId: fileNodeId,
+    kind: 'references',
+    targetGraph: 'files',
+  });
+  assertOk(link);
+});
+
+test('GET /tasks/linked?targetGraph=files&targetNodeId={id} — finds task', async () => {
+  if (fileNodeId == null) throw new Error('fileNodeId not set');
+  const res = await get(`/tasks/linked?targetGraph=files&targetNodeId=${fileNodeId}`);
+  assertOk(res);
+  const items = res.data.results ?? res.data;
+  assert(Array.isArray(items), 'response is array');
+  assert(items.length > 0, 'should find at least one linked edge from tasks');
+});
+
+test('Cleanup cross-graph file-link fixtures', async () => {
+  await del('/knowledge/relations', {
+    fromId: linkedNoteId,
+    toId: fileNodeId,
+    targetGraph: 'files',
+  });
+  await del('/tasks/links', {
+    fromId: linkedTaskId,
+    toId: fileNodeId,
+    targetGraph: 'files',
+  });
+  await del(`/knowledge/notes/${linkedNoteId}`);
+  await del(`/tasks/${linkedTaskId}`);
+});
+
 // ─── Run ─────────────────────────────────────────────────────────
 
 export async function run() {

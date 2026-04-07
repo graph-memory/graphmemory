@@ -68,6 +68,17 @@ const log = createLogger('store-manager');
 // Types
 // ---------------------------------------------------------------------------
 
+/**
+ * Maps an entity graph name to the singular event prefix used by WebSocket
+ * subscribers and UI consumers (which filter by `event.type.startsWith('note:')`
+ * etc., not by the graph name). Used for relation and attachment sub-events.
+ */
+const ENTITY_EVENT_PREFIX: Partial<Record<GraphName, string>> = {
+  knowledge: 'note',
+  tasks: 'task',
+  skills: 'skill',
+};
+
 export type EmbedFn = (text: string) => Promise<number[]>;
 
 export interface StoreManagerConfig {
@@ -237,6 +248,7 @@ export class StoreManager {
     }, []);
     this.recordTaskMirrorWrites(record.slug);
     this.emit('task:updated', { projectId: this.projectId, taskId });
+    this.emit('task:moved', { projectId: this.projectId, taskId, status });
     return record;
   }
 
@@ -254,6 +266,7 @@ export class StoreManager {
     }, []);
     this.recordTaskMirrorWrites(record.slug);
     this.emit('task:updated', { projectId: this.projectId, taskId });
+    this.emit('task:reordered', { projectId: this.projectId, taskId, order });
     return record;
   }
 
@@ -407,12 +420,12 @@ export class StoreManager {
 
   linkTaskToEpic(epicId: number, taskId: number): void {
     this.scoped.epics.linkTask(epicId, taskId);
-    this.emit('epic:task_linked', { projectId: this.projectId, epicId, taskId });
+    this.emit('epic:linked', { projectId: this.projectId, epicId, taskId });
   }
 
   unlinkTaskFromEpic(epicId: number, taskId: number): void {
     this.scoped.epics.unlinkTask(epicId, taskId);
-    this.emit('epic:task_unlinked', { projectId: this.projectId, epicId, taskId });
+    this.emit('epic:unlinked', { projectId: this.projectId, epicId, taskId });
   }
 
   // =========================================================================
@@ -497,12 +510,20 @@ export class StoreManager {
 
   createEdge(edge: Edge): void {
     this.scoped.createEdge(edge);
-    this.emit('edge:created', { projectId: this.projectId, edge });
+    // Per-graph relation event for entity graphs so WebSocket clients (which
+    // subscribe to singular `note:` / `task:` / `skill:` prefixes) get notified.
+    const prefix = ENTITY_EVENT_PREFIX[edge.fromGraph];
+    if (prefix) {
+      this.emit(`${prefix}:relation:added`, { projectId: this.projectId, edge });
+    }
   }
 
   deleteEdge(edge: Edge): void {
     this.scoped.deleteEdge(edge);
-    this.emit('edge:deleted', { projectId: this.projectId, edge });
+    const prefix = ENTITY_EVENT_PREFIX[edge.fromGraph];
+    if (prefix) {
+      this.emit(`${prefix}:relation:deleted`, { projectId: this.projectId, edge });
+    }
   }
 
   listEdges(filter: EdgeFilter): Edge[] {
@@ -533,7 +554,10 @@ export class StoreManager {
     };
     this.scoped.attachments.add(graph, entityId, meta);
     mirrorAttachmentEvent(`${mirrorBase}/${entitySlug}`, 'add', filename);
-    this.emit(`${graph}:attachment:added`, { projectId: this.projectId, entityId, filename });
+    const prefix = ENTITY_EVENT_PREFIX[graph];
+    if (prefix) {
+      this.emit(`${prefix}:attachment:added`, { projectId: this.projectId, entityId, filename });
+    }
     return meta;
   }
 
@@ -542,7 +566,10 @@ export class StoreManager {
     deleteAttachment(mirrorBase, entitySlug, filename);
     this.scoped.attachments.remove(graph, entityId, filename);
     mirrorAttachmentEvent(`${mirrorBase}/${entitySlug}`, 'remove', filename);
-    this.emit(`${graph}:attachment:removed`, { projectId: this.projectId, entityId, filename });
+    const prefix = ENTITY_EVENT_PREFIX[graph];
+    if (prefix) {
+      this.emit(`${prefix}:attachment:deleted`, { projectId: this.projectId, entityId, filename });
+    }
   }
 
   listAttachments(graph: GraphName, entityId: number): AttachmentMeta[] {

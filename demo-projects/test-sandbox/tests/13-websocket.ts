@@ -9,7 +9,7 @@ import {
   group, test, runPhase,
   assert, assertEqual, assertExists, assertOk,
   printSummary, wait,
-  startServer, stopServer, restWith,
+  startServer, stopServer, restWith, uploadFile,
 } from './utils';
 import WebSocket from 'ws';
 
@@ -214,11 +214,11 @@ test('Delete epic → receives epic:deleted', async () => {
   assertExists(evt, 'epic:deleted event');
 });
 
-// ─── 13.5 Relation events ───────────────────────────────────────
+// ─── 13.5 Relation events (note/task/skill) ─────────────────────
 
-group('13.5 Relation events');
+group('13.5 Relation events — note/task/skill');
 
-test('Create note relation → receives event', async () => {
+test('Create note→note relation → receives note:relation:added', async () => {
   const n1 = await restWith(BASE, 'POST', '/api/projects/sandbox/knowledge/notes',
     { title: 'Rel A', content: 'a' });
   const n2 = await restWith(BASE, 'POST', '/api/projects/sandbox/knowledge/notes',
@@ -228,47 +228,269 @@ test('Create note relation → receives event', async () => {
   clearReceived();
   await restWith(BASE, 'POST', '/api/projects/sandbox/knowledge/relations',
     { fromId: n1.data.id, toId: n2.data.id, kind: 'related_to' });
+  const evt = await findEvent('note:relation:added');
+  assertExists(evt, 'note:relation:added event');
 
-  // Should receive a relation event (exact name may vary)
-  await wait(1000);
-  const hasRelEvt = received.some(e =>
-    e.type?.includes('relation') || e.type?.includes('edge') || e.type?.includes('link'));
-  // If no specific relation event, just verify no crash
-  assert(true, 'relation created without crash');
+  // Delete relation → note:relation:deleted
+  clearReceived();
+  await restWith(BASE, 'DELETE', '/api/projects/sandbox/knowledge/relations',
+    { fromId: n1.data.id, toId: n2.data.id });
+  const delEvt = await findEvent('note:relation:deleted');
+  assertExists(delEvt, 'note:relation:deleted event');
 
   // Cleanup
   await restWith(BASE, 'DELETE', `/api/projects/sandbox/knowledge/notes/${n1.data.id}`);
   await restWith(BASE, 'DELETE', `/api/projects/sandbox/knowledge/notes/${n2.data.id}`);
 });
 
+test('Create task→note relation → receives task:relation:added', async () => {
+  const note = await restWith(BASE, 'POST', '/api/projects/sandbox/knowledge/notes',
+    { title: 'Task Rel Note', content: 'x' });
+  const task = await restWith(BASE, 'POST', '/api/projects/sandbox/tasks',
+    { title: 'Task Rel', description: '', priority: 'low' });
+  assertOk(note); assertOk(task);
+
+  clearReceived();
+  await restWith(BASE, 'POST', '/api/projects/sandbox/tasks/links',
+    { fromId: task.data.id, toId: note.data.id, kind: 'references', targetGraph: 'knowledge' });
+  const evt = await findEvent('task:relation:added');
+  assertExists(evt, 'task:relation:added event');
+
+  clearReceived();
+  await restWith(BASE, 'DELETE', '/api/projects/sandbox/tasks/links',
+    { fromId: task.data.id, toId: note.data.id, targetGraph: 'knowledge' });
+  const delEvt = await findEvent('task:relation:deleted');
+  assertExists(delEvt, 'task:relation:deleted event');
+
+  // Cleanup
+  await restWith(BASE, 'DELETE', `/api/projects/sandbox/tasks/${task.data.id}`);
+  await restWith(BASE, 'DELETE', `/api/projects/sandbox/knowledge/notes/${note.data.id}`);
+});
+
+test('Create skill→skill relation → receives skill:relation:added', async () => {
+  const s1 = await restWith(BASE, 'POST', '/api/projects/sandbox/skills',
+    { title: 'Skill Rel A', description: 'a' });
+  const s2 = await restWith(BASE, 'POST', '/api/projects/sandbox/skills',
+    { title: 'Skill Rel B', description: 'b' });
+  assertOk(s1); assertOk(s2);
+
+  clearReceived();
+  await restWith(BASE, 'POST', '/api/projects/sandbox/skills/links',
+    { fromId: s1.data.id, toId: s2.data.id, kind: 'depends_on' });
+  const evt = await findEvent('skill:relation:added');
+  assertExists(evt, 'skill:relation:added event');
+
+  clearReceived();
+  await restWith(BASE, 'DELETE', '/api/projects/sandbox/skills/links',
+    { fromId: s1.data.id, toId: s2.data.id });
+  const delEvt = await findEvent('skill:relation:deleted');
+  assertExists(delEvt, 'skill:relation:deleted event');
+
+  // Cleanup
+  await restWith(BASE, 'DELETE', `/api/projects/sandbox/skills/${s1.data.id}`);
+  await restWith(BASE, 'DELETE', `/api/projects/sandbox/skills/${s2.data.id}`);
+});
+
 // ─── 13.6 Attachment events ─────────────────────────────────────
 
-group('13.6 Attachment events');
+group('13.6 Attachment events — add + delete');
 
-test('Add attachment → receives event', async () => {
+test('Note attachment add+delete → receives note:attachment:added/deleted', async () => {
   const note = await restWith(BASE, 'POST', '/api/projects/sandbox/knowledge/notes',
     { title: 'Attach WS', content: 'test' });
   assertOk(note);
-
-  // Write temp file
-  const { writeFileSync } = require('fs');
-  const { join } = require('path');
-  const tmpFile = join(__dirname, '..', 'ws-attach-test.txt');
-  writeFileSync(tmpFile, 'ws attachment test');
+  const noteId = note.data.id;
 
   clearReceived();
-  await restWith(BASE, 'POST', `/api/projects/sandbox/tools/notes_add_attachment/call`,
-    { arguments: { noteId: note.data.id, filePath: tmpFile } });
+  const upload = await uploadFile(
+    `/knowledge/notes/${noteId}/attachments`, 'ws-attach.txt', 'hello', 'text/plain');
+  assertOk(upload);
+  const addEvt = await findEvent('note:attachment:added');
+  assertExists(addEvt, 'note:attachment:added event');
 
-  await wait(1000);
-  const hasAttachEvt = received.some(e =>
-    e.type?.includes('attachment') || e.type?.includes('note:updated'));
-  // Attachment may trigger note:updated or attachment-specific event
-  assert(true, 'attachment added without crash');
+  clearReceived();
+  await restWith(BASE, 'DELETE',
+    `/api/projects/sandbox/knowledge/notes/${noteId}/attachments/ws-attach.txt`);
+  const delEvt = await findEvent('note:attachment:deleted');
+  assertExists(delEvt, 'note:attachment:deleted event');
+
+  await restWith(BASE, 'DELETE', `/api/projects/sandbox/knowledge/notes/${noteId}`);
+});
+
+test('Task attachment add+delete → receives task:attachment:added/deleted', async () => {
+  const task = await restWith(BASE, 'POST', '/api/projects/sandbox/tasks',
+    { title: 'Attach Task', description: '', priority: 'low' });
+  assertOk(task);
+  const taskId = task.data.id;
+
+  clearReceived();
+  const upload = await uploadFile(
+    `/tasks/${taskId}/attachments`, 'task-attach.txt', 'task content', 'text/plain');
+  assertOk(upload);
+  const addEvt = await findEvent('task:attachment:added');
+  assertExists(addEvt, 'task:attachment:added event');
+
+  clearReceived();
+  await restWith(BASE, 'DELETE',
+    `/api/projects/sandbox/tasks/${taskId}/attachments/task-attach.txt`);
+  const delEvt = await findEvent('task:attachment:deleted');
+  assertExists(delEvt, 'task:attachment:deleted event');
+
+  await restWith(BASE, 'DELETE', `/api/projects/sandbox/tasks/${taskId}`);
+});
+
+test('Skill attachment add+delete → receives skill:attachment:added/deleted', async () => {
+  const skill = await restWith(BASE, 'POST', '/api/projects/sandbox/skills',
+    { title: 'Attach Skill', description: 'x' });
+  assertOk(skill);
+  const skillId = skill.data.id;
+
+  clearReceived();
+  const upload = await uploadFile(
+    `/skills/${skillId}/attachments`, 'skill-attach.txt', 'skill content', 'text/plain');
+  assertOk(upload);
+  const addEvt = await findEvent('skill:attachment:added');
+  assertExists(addEvt, 'skill:attachment:added event');
+
+  clearReceived();
+  await restWith(BASE, 'DELETE',
+    `/api/projects/sandbox/skills/${skillId}/attachments/skill-attach.txt`);
+  const delEvt = await findEvent('skill:attachment:deleted');
+  assertExists(delEvt, 'skill:attachment:deleted event');
+
+  await restWith(BASE, 'DELETE', `/api/projects/sandbox/skills/${skillId}`);
+});
+
+// ─── 13.8 Task move/reorder events ──────────────────────────────
+
+group('13.8 Task move/reorder events');
+
+test('Move task → receives explicit task:moved event', async () => {
+  const task = await restWith(BASE, 'POST', '/api/projects/sandbox/tasks',
+    { title: 'Move Target', description: '', priority: 'low', status: 'todo' });
+  assertOk(task);
+  const taskId = task.data.id;
+
+  clearReceived();
+  await restWith(BASE, 'POST', `/api/projects/sandbox/tasks/${taskId}/move`,
+    { status: 'in_progress' });
+  const evt = await findEvent('task:moved');
+  assertExists(evt, 'task:moved event');
+
+  await restWith(BASE, 'DELETE', `/api/projects/sandbox/tasks/${taskId}`);
+});
+
+test('Reorder task → receives explicit task:reordered event', async () => {
+  const task = await restWith(BASE, 'POST', '/api/projects/sandbox/tasks',
+    { title: 'Reorder Target', description: '', priority: 'low', status: 'todo' });
+  assertOk(task);
+  const taskId = task.data.id;
+
+  clearReceived();
+  await restWith(BASE, 'POST', `/api/projects/sandbox/tasks/${taskId}/reorder`,
+    { order: 9999 });
+  const evt = await findEvent('task:reordered');
+  assertExists(evt, 'task:reordered event');
+
+  await restWith(BASE, 'DELETE', `/api/projects/sandbox/tasks/${taskId}`);
+});
+
+// ─── 13.9 Epic linking events ───────────────────────────────────
+
+group('13.9 Epic linking events');
+
+test('Link task to epic → receives epic:linked', async () => {
+  const epic = await restWith(BASE, 'POST', '/api/projects/sandbox/epics',
+    { title: 'Link Epic', description: '' });
+  const task = await restWith(BASE, 'POST', '/api/projects/sandbox/tasks',
+    { title: 'Link Task', description: '', priority: 'low' });
+  assertOk(epic); assertOk(task);
+
+  clearReceived();
+  await restWith(BASE, 'POST', `/api/projects/sandbox/epics/${epic.data.id}/link`,
+    { taskId: task.data.id });
+  const evt = await findEvent('epic:linked');
+  assertExists(evt, 'epic:linked event');
+
+  clearReceived();
+  await restWith(BASE, 'DELETE', `/api/projects/sandbox/epics/${epic.data.id}/link`,
+    { taskId: task.data.id });
+  const unlinkEvt = await findEvent('epic:unlinked');
+  assertExists(unlinkEvt, 'epic:unlinked event');
 
   // Cleanup
-  await restWith(BASE, 'DELETE', `/api/projects/sandbox/knowledge/notes/${note.data.id}`);
-  try { require('fs').unlinkSync(tmpFile); } catch {}
+  await restWith(BASE, 'DELETE', `/api/projects/sandbox/tasks/${task.data.id}`);
+  await restWith(BASE, 'DELETE', `/api/projects/sandbox/epics/${epic.data.id}`);
+});
+
+// ─── 13.10 Task bulk events ─────────────────────────────────────
+
+group('13.10 Task bulk operation events');
+
+test('Bulk move tasks → receives task:bulk_moved', async () => {
+  const t1 = await restWith(BASE, 'POST', '/api/projects/sandbox/tasks',
+    { title: 'Bulk A', description: '', priority: 'low', status: 'todo' });
+  const t2 = await restWith(BASE, 'POST', '/api/projects/sandbox/tasks',
+    { title: 'Bulk B', description: '', priority: 'low', status: 'todo' });
+  assertOk(t1); assertOk(t2);
+
+  clearReceived();
+  await restWith(BASE, 'POST', '/api/projects/sandbox/tasks/bulk/move',
+    { taskIds: [t1.data.id, t2.data.id], status: 'done' });
+  const evt = await findEvent('task:bulk_moved');
+  assertExists(evt, 'task:bulk_moved event');
+
+  await restWith(BASE, 'DELETE', `/api/projects/sandbox/tasks/${t1.data.id}`);
+  await restWith(BASE, 'DELETE', `/api/projects/sandbox/tasks/${t2.data.id}`);
+});
+
+test('Bulk priority tasks → receives task:bulk_priority', async () => {
+  const t1 = await restWith(BASE, 'POST', '/api/projects/sandbox/tasks',
+    { title: 'Bulk Pri A', description: '', priority: 'low' });
+  const t2 = await restWith(BASE, 'POST', '/api/projects/sandbox/tasks',
+    { title: 'Bulk Pri B', description: '', priority: 'low' });
+  assertOk(t1); assertOk(t2);
+
+  clearReceived();
+  await restWith(BASE, 'POST', '/api/projects/sandbox/tasks/bulk/priority',
+    { taskIds: [t1.data.id, t2.data.id], priority: 'critical' });
+  const evt = await findEvent('task:bulk_priority');
+  assertExists(evt, 'task:bulk_priority event');
+
+  await restWith(BASE, 'DELETE', `/api/projects/sandbox/tasks/${t1.data.id}`);
+  await restWith(BASE, 'DELETE', `/api/projects/sandbox/tasks/${t2.data.id}`);
+});
+
+test('Bulk delete tasks → receives task:bulk_deleted', async () => {
+  const t1 = await restWith(BASE, 'POST', '/api/projects/sandbox/tasks',
+    { title: 'Bulk Del A', description: '', priority: 'low' });
+  const t2 = await restWith(BASE, 'POST', '/api/projects/sandbox/tasks',
+    { title: 'Bulk Del B', description: '', priority: 'low' });
+  assertOk(t1); assertOk(t2);
+
+  clearReceived();
+  await restWith(BASE, 'POST', '/api/projects/sandbox/tasks/bulk/delete',
+    { taskIds: [t1.data.id, t2.data.id] });
+  const evt = await findEvent('task:bulk_deleted');
+  assertExists(evt, 'task:bulk_deleted event');
+});
+
+// ─── 13.11 Skill bumped event ───────────────────────────────────
+
+group('13.11 Skill bumped event');
+
+test('Bump skill usage → receives skill:bumped', async () => {
+  const skill = await restWith(BASE, 'POST', '/api/projects/sandbox/skills',
+    { title: 'Bump Target', description: 'x' });
+  assertOk(skill);
+  const skillId = skill.data.id;
+
+  clearReceived();
+  await restWith(BASE, 'POST', `/api/projects/sandbox/skills/${skillId}/bump`);
+  const evt = await findEvent('skill:bumped');
+  assertExists(evt, 'skill:bumped event');
+
+  await restWith(BASE, 'DELETE', `/api/projects/sandbox/skills/${skillId}`);
 });
 
 // ─── 13.7 WebSocket reconnection ───────────────────────────────

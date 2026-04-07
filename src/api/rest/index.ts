@@ -405,19 +405,29 @@ export function createRestApp(projectManager: ProjectManager, options?: RestAppO
       );
       if (!hasAnyAccess) return res.status(403).json({ error: 'Access denied' });
     }
-    // Source members from config (auth) or .team/ markdown (no auth), then sync
+    // Source members from config (auth) and/or .team/ markdown, then sync
     // them into the team_members table so the rest of the system has stable
     // numeric IDs to reference (tasks.assigneeId is a FK into team_members.id).
+    // Both sources are merged when present: auth users can log in, .team/
+    // markdown members are non-login collaborators (e.g. assignees only).
     type SourceMember = { slug: string; name: string; email: string | null };
-    let source: SourceMember[];
+    const merged = new Map<string, SourceMember>();
     if (hasUsers) {
-      source = Object.entries(users).map(([slug, u]) => ({ slug, name: u.name, email: u.email ?? null }));
-    } else {
+      for (const [slug, u] of Object.entries(users)) {
+        merged.set(slug, { slug, name: u.name, email: u.email ?? null });
+      }
+    }
+    {
       const p = req.project!;
       const ws = p.workspaceId ? projectManager.getWorkspace(p.workspaceId) : undefined;
       const baseDir = ws ? ws.config.mirrorDir : p.config.projectDir;
-      source = scanTeamDir(path.join(baseDir, '.team')).map(m => ({ slug: m.id, name: m.name, email: m.email || null }));
+      for (const m of scanTeamDir(path.join(baseDir, '.team'))) {
+        if (!merged.has(m.id)) {
+          merged.set(m.id, { slug: m.id, name: m.name, email: m.email || null });
+        }
+      }
     }
+    const source: SourceMember[] = Array.from(merged.values());
 
     const teamStore = req.project!.storeManager.store.team;
     const results = source.map(m => {

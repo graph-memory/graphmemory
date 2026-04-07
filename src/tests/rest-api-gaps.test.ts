@@ -624,6 +624,51 @@ describe('REST Index gaps', () => {
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.results)).toBe(true);
   });
+
+  it('GET /team merges auth users and .team/ markdown', async () => {
+    // Build a fresh project with a .team/ dir on disk
+    const projDir = mkdtempSync(join(tmpdir(), 'team-merge-'));
+    const fs = await import('fs');
+    fs.mkdirSync(join(projDir, '.team'), { recursive: true });
+    fs.writeFileSync(
+      join(projDir, '.team', 'maria.md'),
+      '---\nname: Maria Garcia\nemail: maria@example.com\n---\n# Maria',
+    );
+    fs.writeFileSync(
+      join(projDir, '.team', 'alex.md'),
+      '---\nname: Alex Chen\nemail: alex@example.com\n---\n# Alex',
+    );
+
+    const { project, cleanup: c } = createFullProject(projDir);
+    const mergedApp = createRestApp(makeManager(project), {
+      serverConfig: {
+        host: '127.0.0.1', port: 3000, sessionTimeout: 1800,
+        modelsDir: '/tmp/models',
+        model: { ...TEST_MODEL },
+        embedding: { ...TEST_EMBEDDING },
+        defaultAccess: 'deny',
+        access: { admin: 'rw' },
+        accessTokenTtl: '15m', refreshTokenTtl: '7d',
+        rateLimit: { global: 0, search: 0, auth: 0 },
+        maxFileSize: 1048576, exclude: [],
+        redis: { enabled: false, url: 'redis://localhost:6379', prefix: 'mgm:', embeddingCacheTtl: '30d' },
+        oauth: { enabled: false, accessTokenTtl: '1h', refreshTokenTtl: '7d', authCodeTtl: '10m', allowedRedirectUris: [] },
+      } as any,
+      users: {
+        admin: { name: 'Admin', email: 'admin@example.com', apiKey: 'key-admin' } as any,
+      },
+    });
+
+    const res = await request(mergedApp)
+      .get('/api/projects/test/team')
+      .set('Authorization', 'Bearer key-admin');
+    expect(res.status).toBe(200);
+    const slugs = res.body.results.map((m: { slug: string }) => m.slug).sort();
+    expect(slugs).toEqual(['admin', 'alex', 'maria']);
+
+    c();
+    rmSync(projDir, { recursive: true, force: true });
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -98,7 +98,7 @@ export function RelationManager({ projectId, entityId, entityType, relations, on
         results = skills.map(s => ({ id: s.id, label: s.title, score: s.score }));
       } else if (targetGraph === 'files') {
         const files = await searchFiles(projectId, q, { topK: 10 });
-        results = files.map(f => ({ id: f.filePath, label: f.filePath, score: f.score }));
+        results = files.map(f => ({ id: String(f.id), label: f.filePath, score: f.score }));
       }
       setSearchResults(results);
     } catch { /* ignore */ } finally {

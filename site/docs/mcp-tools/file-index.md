@@ -30,7 +30,7 @@ Lists all project files and directories with optional filters.
 
 ### Returns
 
-Array of `{ filePath, kind, fileName, extension, language, mimeType, size, fileCount }` — each entry includes full metadata. For directories, `fileCount` shows the number of files inside.
+Array of `{ filePath, kind, fileName, extension, language, mimeType, size }` — each entry includes full metadata.
 
 ### When to use
 
@@ -72,7 +72,7 @@ Returns full metadata for a specific file or directory.
 
 ### Returns
 
-`{ filePath, kind, fileName, directory, extension, language, mimeType, size, fileCount, mtime }` — complete metadata including modification time, MIME type, and parent directory.
+`{ filePath, kind, fileName, directory, extension, language, mimeType, size, mtime }` — complete metadata including modification time, MIME type, and parent directory.
 
 ### When to use
 

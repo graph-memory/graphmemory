@@ -229,7 +229,7 @@ List all project files and directories with filters.
 | `filter` | — | Substring match on path |
 | `limit` | 50 | Max results |
 
-**Output**: `[{ filePath, kind, fileName, extension, language, mimeType, size, fileCount }]`
+**Output**: `[{ filePath, kind, fileName, extension, language, mimeType, size }]`
 
 ### `files_search`
 
@@ -245,7 +245,7 @@ Semantic search over files by path.
 Full metadata for a file or directory.
 
 **Input**: `filePath` (e.g. `"src/lib/embedder.ts"`)
-**Output**: `{ filePath, kind, fileName, directory, extension, language, mimeType, size, fileCount, mtime }`
+**Output**: `{ filePath, kind, fileName, directory, extension, language, mimeType, size, mtime }`
 
 ---
 

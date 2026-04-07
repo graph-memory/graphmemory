@@ -64,7 +64,6 @@ Directories also get nodes in the graph:
 | `kind` | `directory` |
 | `filePath` | `src/lib` |
 | `size` | Sum of direct children file sizes |
-| `fileCount` | Count of direct children files |
 | `embedding` | `[]` (empty — directories are not searchable) |
 
 ### Directory chain
@@ -92,7 +91,6 @@ Each directory → child relationship gets a `contains` edge:
 
 After the indexer finishes scanning all files, `rebuildDirectoryStats()` walks the tree bottom-up and computes:
 - `size` — total bytes of direct children files
-- `fileCount` — count of direct children files
 
 This lets you answer questions like "how big is the src/ directory?" without summing file sizes manually.
 

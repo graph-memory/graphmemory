@@ -222,10 +222,7 @@ export default function FilesPage() {
                     <Typography variant="caption" sx={{ color: palette.custom.textMuted }}>{file.language}</Typography>
                   )}
                   <Typography variant="caption" sx={{ color: palette.custom.textMuted, minWidth: 60, textAlign: 'right' }}>
-                    {file.kind === 'directory'
-                      ? (file.fileCount > 0 ? `${file.fileCount} files` : '')
-                      : formatSize(file.size)
-                    }
+                    {file.kind === 'directory' ? '' : formatSize(file.size)}
                   </Typography>
                 </Stack>
               </ListItemButton>

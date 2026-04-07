@@ -18,7 +18,6 @@ Indexes ALL project files and directories (not just pattern-matched ones) with m
 | `language` | string \| null | Detected language (e.g. `"typescript"`) |
 | `mimeType` | string \| null | MIME type (e.g. `"text/typescript"`) |
 | `size` | number | Bytes (dirs: total size of direct children files) |
-| `fileCount` | number | 0 for files; direct children count for dirs |
 | `embedding` | number[] | Embedded from file path (files only; `[]` for dirs) |
 | `mtime` | number | File mtimeMs (dirs: 0) |
 
@@ -56,12 +55,6 @@ Unknown extensions → `null`.
 ## MIME detection
 
 Uses the `mime` npm library (IANA-complete database). Unknown types → `null`.
-
-## Directory stats
-
-`rebuildDirectoryStats()` is called after the indexer drains all queues. It walks the directory tree bottom-up and computes:
-- `size` — sum of all direct children file sizes
-- `fileCount` — count of direct children files
 
 ## Manager: FileIndexGraphManager
 

@@ -9,7 +9,6 @@ export interface FileInfo {
   language: string | null;
   mimeType: string | null;
   size: number;
-  fileCount: number;
 }
 
 export function listFiles(projectId: string, params?: { directory?: string; extension?: string; language?: string; filter?: string; limit?: number; offset?: number }) {

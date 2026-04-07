@@ -46,7 +46,6 @@ Language detection supports ~80 file types. MIME types use the IANA-complete dat
 Directories also get nodes in the graph, with aggregated stats:
 
 - **size** — total bytes of direct children
-- **fileCount** — count of direct children files
 
 When a file is indexed, nodes are automatically created for every parent directory up to the project root. Each directory-to-child relationship gets a `contains` edge, building a full tree you can traverse.
 

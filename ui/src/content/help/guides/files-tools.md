@@ -62,10 +62,9 @@ List project files and directories with optional filters.
 | `filter` | string | No | — | Substring match on file path (case-insensitive) |
 | `limit` | number | No | 50 | Maximum results |
 
-**Returns:** `[{ filePath, kind, fileName, extension, language, mimeType, size, fileCount }]`
+**Returns:** `[{ filePath, kind, fileName, extension, language, mimeType, size }]`
 
 - `kind` is `"file"` or `"directory"`
-- `fileCount` is present for directories (number of files in subtree)
 - `language` and `mimeType` are present for files
 
 **Behavior differences:**
@@ -99,11 +98,10 @@ Get full metadata for a specific file or directory. Use `"."` for the project ro
 
 **Returns for directories:**
 ```
-{ filePath, kind: "directory", fileName, directory, fileCount, size }
+{ filePath, kind: "directory", fileName, directory, size }
 ```
 
 - `size` for directories is the total size of all direct children
-- `fileCount` for directories is the total number of files in the subtree
 - `mtime` is the last modification timestamp (files only)
 
 ## Cross-graph links

@@ -84,9 +84,9 @@ Requires both DocGraph and CodeGraph to be enabled. Bridges code definitions wit
 
 | Tool | Input | Output |
 |------|-------|--------|
-| `files_list` | optional `directory`, `extension`, `language`, `filter`, `limit` | `[{ filePath, kind, fileName, extension, language, mimeType, size, fileCount }]` |
+| `files_list` | optional `directory`, `extension`, `language`, `filter`, `limit` | `[{ filePath, kind, fileName, extension, language, mimeType, size }]` |
 | `files_search` | `query` + optional `limit`, `minScore` | `[{ filePath, fileName, extension, language, size, score }]` |
-| `files_get_info` | `filePath` | `{ filePath, kind, fileName, directory, extension, language, mimeType, size, fileCount, mtime }` |
+| `files_get_info` | `filePath` | `{ filePath, kind, fileName, directory, extension, language, mimeType, size, mtime }` |
 
 ## Knowledge tools
 

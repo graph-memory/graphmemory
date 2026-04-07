@@ -153,7 +153,7 @@ export default function SkillsPage() {
               key={skill.id}
               skill={skill as Skill}
               score={'score' in skill ? (skill as unknown as SkillSearchResult).score : undefined}
-              onClick={() => navigate(skill.id)}
+              onClick={() => navigate(String(skill.id))}
               onEdit={canWrite ? () => navigate(`${skill.id}/edit`) : undefined}
               onDelete={canWrite ? () => setDeleteTarget(skill as Skill) : undefined}
             />

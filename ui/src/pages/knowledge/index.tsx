@@ -141,7 +141,7 @@ export default function KnowledgePage() {
               key={note.id}
               note={note}
               score={'score' in note ? (note as Note & { score: number }).score : undefined}
-              onClick={() => navigate(note.id)}
+              onClick={() => navigate(String(note.id))}
               onEdit={canWrite ? () => navigate(`${note.id}/edit`) : undefined}
               onDelete={canWrite ? () => setDeleteTarget(note) : undefined}
             />

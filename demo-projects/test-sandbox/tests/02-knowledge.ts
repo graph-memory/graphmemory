@@ -363,6 +363,43 @@ test('notes_list with limit', async () => {
   assert(notes.length <= 1, 'should respect limit');
 });
 
+// ─── 2.8 Multi-field update + pagination ────────────────────────
+
+group('2.8 Multi-field update + pagination');
+
+test('Update note with title + content + tags together', async () => {
+  const res = await put(`/knowledge/notes/${noteA_Id}`, {
+    title: 'Multi-field Updated',
+    content: 'Both title and content changed.',
+    tags: ['updated', 'multi'],
+  });
+  assertOk(res);
+  const check = await get(`/knowledge/notes/${noteA_Id}`);
+  assertOk(check);
+  assertEqual(check.data.title, 'Multi-field Updated', 'title');
+  assert(check.data.content.includes('Both title'), 'content');
+  assert(check.data.tags.includes('updated'), 'tags');
+});
+
+test('Update note with empty tags (clear all)', async () => {
+  const res = await put(`/knowledge/notes/${noteA_Id}`, { tags: [] });
+  assertOk(res);
+  const check = await get(`/knowledge/notes/${noteA_Id}`);
+  assertEqual(check.data.tags.length, 0, 'tags should be empty');
+});
+
+test('notes_list with offset pagination', async () => {
+  const all = await mcpCall('notes_list');
+  assertMcpOk(all);
+  const total = (Array.isArray(all.data) ? all.data : all.data?.results ?? []).length;
+  if (total >= 2) {
+    const page = await mcpCall('notes_list', { limit: 1, offset: 1 });
+    assertMcpOk(page);
+    const items = Array.isArray(page.data) ? page.data : page.data?.results ?? [];
+    assert(items.length === 1, 'offset page should have 1 item');
+  }
+});
+
 // ─── Cleanup ─────────────────────────────────────────────────────
 
 group('Cleanup');

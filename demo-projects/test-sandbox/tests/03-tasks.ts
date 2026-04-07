@@ -473,6 +473,69 @@ test('tasks_list with limit', async () => {
   assert(tasks.length <= 1, 'should respect limit');
 });
 
+// ─── 3.11 Optional fields + pagination ──────────────────────────
+
+group('3.11 Optional fields + pagination');
+
+test('Create task with all optional fields', async () => {
+  const now = Date.now();
+  const res = await post('/tasks', {
+    title: 'Full Task',
+    description: 'Task with all fields.',
+    priority: 'critical',
+    status: 'in_progress',
+    tags: ['full', 'test'],
+    dueDate: now + 86400000,
+    estimate: 8,
+    assignee: 'alice',
+    order: 42,
+  });
+  assertOk(res);
+  const task = await get(`/tasks/${res.data.id}`);
+  assertOk(task);
+  assertEqual(task.data.status, 'in_progress', 'status');
+  assertEqual(task.data.priority, 'critical', 'priority');
+  assertExists(task.data.dueDate, 'dueDate');
+  assertEqual(task.data.estimate, 8, 'estimate');
+  await del(`/tasks/${res.data.id}`);
+});
+
+test('PUT /tasks/{id} with status change (raw update, no completedAt auto-set)', async () => {
+  const create = await post('/tasks', { title: 'Status Via Put', description: 'x', priority: 'low' });
+  assertOk(create);
+  const res = await put(`/tasks/${create.data.id}`, { status: 'done' });
+  assertOk(res);
+  const check = await get(`/tasks/${create.data.id}`);
+  assertEqual(check.data.status, 'done', 'status should be done');
+  // NOTE: PUT is a raw update — completedAt is only set by POST /move
+  await del(`/tasks/${create.data.id}`);
+});
+
+test('tasks_list with offset pagination', async () => {
+  // Create 3 tasks
+  const ids: number[] = [];
+  for (let i = 0; i < 3; i++) {
+    const r = await post('/tasks', { title: `Pag Task ${i}`, description: 'x', priority: 'low' });
+    assertOk(r);
+    ids.push(r.data.id);
+  }
+  const page1 = await mcpCall('tasks_list', { limit: 2, offset: 0 });
+  assertMcpOk(page1);
+  const items1 = Array.isArray(page1.data) ? page1.data : page1.data?.results ?? [];
+
+  const page2 = await mcpCall('tasks_list', { limit: 2, offset: 2 });
+  assertMcpOk(page2);
+  const items2 = Array.isArray(page2.data) ? page2.data : page2.data?.results ?? [];
+
+  // No overlap
+  const ids1 = items1.map((t: any) => t.id);
+  const ids2 = items2.map((t: any) => t.id);
+  const overlap = ids1.filter((id: number) => ids2.includes(id));
+  assertEqual(overlap.length, 0, 'pages should not overlap');
+
+  for (const id of ids) await del(`/tasks/${id}`);
+});
+
 // ─── Cleanup ─────────────────────────────────────────────────────
 
 group('Cleanup');

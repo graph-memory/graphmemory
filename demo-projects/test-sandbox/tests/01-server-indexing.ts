@@ -331,6 +331,48 @@ test('REST POST /tools/get_context/call executes tool', async () => {
   assertExists(res.data.result, 'tool result');
 });
 
+// ─── 1.9 List with filter + pagination ──────────────────────────
+
+group('1.9 List with filter + pagination');
+
+test('docs_list_files with filter', async () => {
+  const res = await get('/docs/topics?filter=api');
+  assertOk(res);
+  const files = res.data.results ?? res.data;
+  assert(files.length > 0, 'should find docs matching "api"');
+});
+
+test('code_list_files with filter', async () => {
+  const res = await mcpCall('code_list_files', { filter: 'logger' });
+  assertMcpOk(res);
+  const files = Array.isArray(res.data) ? res.data : res.data?.results ?? [];
+  assert(files.length > 0, 'should find code files matching "logger"');
+});
+
+test('docs_list_files with limit + offset pagination', async () => {
+  const page1 = await get('/docs/topics?limit=1&offset=0');
+  assertOk(page1);
+  const items1 = page1.data.results ?? page1.data;
+  assert(items1.length === 1, 'page 1 should have 1 item');
+
+  const page2 = await get('/docs/topics?limit=1&offset=1');
+  assertOk(page2);
+  const items2 = page2.data.results ?? page2.data;
+  assert(items2.length === 1, 'page 2 should have 1 item');
+
+  // Verify no overlap
+  const id1 = items1[0]?.fileId ?? items1[0]?.id;
+  const id2 = items2[0]?.fileId ?? items2[0]?.id;
+  assert(id1 !== id2, 'pages should not overlap');
+});
+
+test('files_list with offset > total returns empty', async () => {
+  const res = await get('/files?offset=99999');
+  assertOk(res);
+  const files = res.data.results ?? res.data;
+  assertEqual(files.length, 0, 'offset beyond total should return empty');
+});
+
 // ─── Run ─────────────────────────────────────────────────────────
 
 export async function run() {

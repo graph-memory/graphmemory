@@ -207,6 +207,63 @@ test('epics_list with filter (text)', async () => {
   assert(epics.length > 0, 'should find by text filter');
 });
 
+// ─── 4.5 Epic progress + status transitions ────────────────────
+
+group('4.5 Epic progress + status transitions');
+
+test('Epic progress with multiple tasks', async () => {
+  const epic = await post('/epics', { title: 'Progress Epic', description: 'test' });
+  assertOk(epic);
+  const epicId = epic.data.id;
+
+  const t1 = await post('/tasks', { title: 'T1', description: 'x', priority: 'low' });
+  const t2 = await post('/tasks', { title: 'T2', description: 'x', priority: 'low' });
+  const t3 = await post('/tasks', { title: 'T3', description: 'x', priority: 'low', status: 'done' });
+  assertOk(t1); assertOk(t2); assertOk(t3);
+
+  await mcpCall('epics_link_task', { epicId, taskId: t1.data.id });
+  await mcpCall('epics_link_task', { epicId, taskId: t2.data.id });
+  await mcpCall('epics_link_task', { epicId, taskId: t3.data.id });
+
+  const res = await get(`/epics/${epicId}`);
+  assertOk(res);
+  assertEqual(res.data.progress.total, 3, 'total tasks');
+  assertEqual(res.data.progress.done, 1, 'done tasks');
+
+  // Cleanup
+  for (const id of [t1.data.id, t2.data.id, t3.data.id]) await del(`/tasks/${id}`);
+  await del(`/epics/${epicId}`);
+});
+
+test('Epic status transitions', async () => {
+  const epic = await post('/epics', { title: 'Status Epic', description: 'test' });
+  assertOk(epic);
+  const epicId = epic.data.id;
+
+  let res = await put(`/epics/${epicId}`, { status: 'in_progress' });
+  assertOk(res);
+
+  res = await put(`/epics/${epicId}`, { status: 'done' });
+  assertOk(res);
+
+  const check = await get(`/epics/${epicId}`);
+  assertEqual(check.data.status, 'done', 'status should be done');
+
+  await del(`/epics/${epicId}`);
+});
+
+test('epics_list with offset pagination', async () => {
+  const e1 = await post('/epics', { title: 'Pag Epic 1', description: 'x' });
+  const e2 = await post('/epics', { title: 'Pag Epic 2', description: 'x' });
+  assertOk(e1); assertOk(e2);
+
+  const page = await mcpCall('epics_list', { limit: 1, offset: 1 });
+  assertMcpOk(page);
+
+  await del(`/epics/${e1.data.id}`);
+  await del(`/epics/${e2.data.id}`);
+});
+
 // ─── Cleanup ─────────────────────────────────────────────────────
 
 group('Cleanup');

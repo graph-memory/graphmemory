@@ -124,6 +124,37 @@ test('Delete file → removed from file index', async () => {
   assertStatus(res, 404);
 });
 
+// ─── 14.4 Excluded patterns ─────────────────────────────────────
+
+group('14.4 Excluded patterns');
+
+test('File in node_modules not indexed', async () => {
+  const { mkdirSync } = require('fs');
+  try { mkdirSync(projectPath('node_modules'), { recursive: true }); } catch {}
+  writeFile(projectPath('node_modules', 'ignored.ts'), 'export const x = 1;');
+  await wait(3000);
+
+  const res = await restWith(BASE, 'GET', '/api/projects/sandbox/files/info?path=node_modules/ignored.ts');
+  assertStatus(res, 404);
+
+  unlinkSync(projectPath('node_modules', 'ignored.ts'));
+  try { require('fs').rmdirSync(projectPath('node_modules')); } catch {}
+});
+
+test('File outside include glob not indexed as code', async () => {
+  // Config has code include: src/**/*.ts
+  // File in docs/ with .ts should NOT be indexed as code
+  writeFile(projectPath('docs', 'not-code.ts'), 'export const y = 2;');
+  await wait(3000);
+
+  const res = await restWith(BASE, 'GET', '/api/projects/sandbox/code/files');
+  assertOk(res);
+  const files = (res.data.results ?? res.data).map((f: any) => f.fileId ?? f.id);
+  assert(!files.some((f: string) => f.includes('not-code')), 'docs/*.ts should not be in code index');
+
+  unlinkSync(projectPath('docs', 'not-code.ts'));
+});
+
 // ─── Teardown ────────────────────────────────────────────────────
 
 group('Teardown');

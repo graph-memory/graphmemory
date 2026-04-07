@@ -178,6 +178,52 @@ test('get_context for project A shows workspace', async () => {
   assertExists(data.workspaceId, 'workspaceId');
 });
 
+// ─── 15.7 Search across shared graphs ───────────────────────────
+
+group('15.7 Search across shared graphs');
+
+test('Search notes from project B finds note created in A', async () => {
+  await wait(500);
+  const res = await restWith(BASE, 'GET', `${API_B()}/knowledge/search?q=Shared+Note`);
+  assertOk(res);
+  const results = res.data.results ?? res.data;
+  assert(results.length > 0, 'should find shared note via search from B');
+});
+
+// ─── 15.8 Per-project stats isolation ───────────────────────────
+
+group('15.8 Per-project stats');
+
+test('Stats for project A', async () => {
+  const res = await restWith(BASE, 'GET', `${API_A()}/stats`);
+  assertOk(res);
+  assertExists(res.data.docs, 'docs stats');
+  assertExists(res.data.code, 'code stats');
+});
+
+test('Stats for project B', async () => {
+  const res = await restWith(BASE, 'GET', `${API_B()}/stats`);
+  assertOk(res);
+  assertExists(res.data.docs, 'docs stats');
+});
+
+test('Docs stats are project-scoped (different counts)', async () => {
+  const resA = await restWith(BASE, 'GET', `${API_A()}/stats`);
+  const resB = await restWith(BASE, 'GET', `${API_B()}/stats`);
+  assertOk(resA); assertOk(resB);
+  // Project A has 2 doc files, B has 1 — node counts should differ
+  assert(resA.data.docs.nodes !== resB.data.docs.nodes,
+    `docs nodes should differ: A=${resA.data.docs.nodes}, B=${resB.data.docs.nodes}`);
+});
+
+test('Shared graphs have same counts from both projects', async () => {
+  const resA = await restWith(BASE, 'GET', `${API_A()}/stats`);
+  const resB = await restWith(BASE, 'GET', `${API_B()}/stats`);
+  assertOk(resA); assertOk(resB);
+  assertEqual(resA.data.knowledge.nodes, resB.data.knowledge.nodes, 'knowledge nodes should be same');
+  assertEqual(resA.data.tasks.nodes, resB.data.tasks.nodes, 'tasks nodes should be same');
+});
+
 // ─── Cleanup ─────────────────────────────────────────────────────
 
 group('Cleanup');

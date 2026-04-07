@@ -360,6 +360,44 @@ test('skills_list with limit', async () => {
   assert(skills.length <= 1, 'should respect limit');
 });
 
+// ─── 5.9 All optional fields + pagination ───────────────────────
+
+group('5.9 All optional fields + pagination');
+
+test('Create skill with all optional fields', async () => {
+  const res = await post('/skills', {
+    title: 'Full Skill',
+    description: 'All fields set.',
+    steps: ['Step 1', 'Step 2', 'Step 3'],
+    triggers: ['on deploy', 'on release'],
+    inputHints: ['branch name', 'version'],
+    filePatterns: ['*.yaml', 'deploy/**'],
+    tags: ['full', 'test'],
+    source: 'learned',
+    confidence: 0.75,
+  });
+  assertOk(res);
+  const check = await get(`/skills/${res.data.id}`);
+  assertOk(check);
+  assertEqual(check.data.steps.length, 3, 'steps count');
+  assertEqual(check.data.triggers.length, 2, 'triggers count');
+  assertEqual(check.data.confidence, 0.75, 'confidence');
+  assertEqual(check.data.source, 'learned', 'source');
+  await del(`/skills/${res.data.id}`);
+});
+
+test('skills_list with offset pagination', async () => {
+  const all = await mcpCall('skills_list');
+  assertMcpOk(all);
+  const total = (Array.isArray(all.data) ? all.data : all.data?.results ?? []).length;
+  if (total >= 2) {
+    const page = await mcpCall('skills_list', { limit: 1, offset: 1 });
+    assertMcpOk(page);
+    const items = Array.isArray(page.data) ? page.data : page.data?.results ?? [];
+    assert(items.length === 1, 'offset page should have 1 item');
+  }
+});
+
 // ─── Cleanup ─────────────────────────────────────────────────────
 
 group('Cleanup');

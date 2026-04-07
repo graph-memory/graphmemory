@@ -230,6 +230,66 @@ test('Create link that already exists → idempotent or error (not 500)', async 
   await del(`/knowledge/notes/${id2}`);
 });
 
+// ─── 8.5 Boundary tests (max lengths) ───────────────────────────
+
+group('8.5 Boundary tests');
+
+test('Create note with max-length title (500 chars) → 200', async () => {
+  const title = 'A'.repeat(500);
+  const res = await post('/knowledge/notes', { title, content: 'boundary test' });
+  assertOk(res);
+  await del(`/knowledge/notes/${res.data.id}`);
+});
+
+test('Create note with title exceeding max (501 chars) → 400', async () => {
+  const title = 'A'.repeat(501);
+  const res = await post('/knowledge/notes', { title, content: 'boundary test' });
+  assertStatus(res, 400);
+});
+
+test('Create task with max-length tags (100 tags) → 200', async () => {
+  const tags = Array.from({ length: 100 }, (_, i) => `tag${i}`);
+  const res = await post('/tasks', { title: 'Many Tags', description: 'x', priority: 'low', tags });
+  assertOk(res);
+  await del(`/tasks/${res.data.id}`);
+});
+
+test('Create task with too many tags (101) → 400', async () => {
+  const tags = Array.from({ length: 101 }, (_, i) => `tag${i}`);
+  const res = await post('/tasks', { title: 'Too Many', description: 'x', priority: 'low', tags });
+  assertStatus(res, 400);
+});
+
+// ─── 8.6 Unicode and special content ────────────────────────────
+
+group('8.6 Unicode and special content');
+
+test('Create note with unicode/emoji title', async () => {
+  const res = await post('/knowledge/notes', {
+    title: '📝 Тест 测试 العربية',
+    content: 'Multilingual content: こんにちは 🌍',
+  });
+  assertOk(res);
+  const check = await get(`/knowledge/notes/${res.data.id}`);
+  assertOk(check);
+  assert(check.data.title.includes('📝'), 'emoji should be preserved');
+  assert(check.data.title.includes('Тест'), 'cyrillic should be preserved');
+  await del(`/knowledge/notes/${res.data.id}`);
+});
+
+test('Create note with empty content → accepted', async () => {
+  const res = await post('/knowledge/notes', { title: 'Empty Content', content: '' });
+  assertOk(res);
+  const check = await get(`/knowledge/notes/${res.data.id}`);
+  assertEqual(check.data.content, '', 'empty content preserved');
+  await del(`/knowledge/notes/${res.data.id}`);
+});
+
+test('Search with unicode query → no crash', async () => {
+  const res = await get(`/knowledge/search?q=${encodeURIComponent('тест 🔍')}`);
+  assert(res.status < 500, 'should not 500');
+});
+
 // ─── Run ─────────────────────────────────────────────────────────
 
 export async function run() {

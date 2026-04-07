@@ -15,7 +15,7 @@ import {
 import { unlinkSync } from 'fs';
 
 const PORT = 3737;
-const CONFIG = 'graph-memory.yaml';
+const CONFIG = 'tests/configs/sandbox.yaml';
 let BASE = '';
 
 // ─── Setup ───────────────────────────────────────────────────────

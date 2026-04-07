@@ -16,7 +16,7 @@ import { readdirSync } from 'fs';
 import { join } from 'path';
 
 const PORT = 3737;
-const CONFIG = 'graph-memory.yaml';
+const CONFIG = 'tests/configs/sandbox.yaml';
 let BASE = '';
 
 let noteId: number;

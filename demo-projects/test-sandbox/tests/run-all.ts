@@ -66,7 +66,7 @@ async function main() {
   const sandboxPhases = PHASES.filter(p => p.group === 'sandbox' && shouldRun(p.id));
   if (sandboxPhases.length > 0) {
     console.log('\n  Starting sandbox server (port 3737)...');
-    await startServer({ config: 'graph-memory.yaml', port: 3737 });
+    await startServer({ config: 'tests/configs/sandbox.yaml', port: 3737 });
     console.log('  Server ready.\n');
 
     for (const phase of sandboxPhases) {

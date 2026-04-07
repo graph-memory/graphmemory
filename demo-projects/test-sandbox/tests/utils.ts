@@ -465,7 +465,7 @@ export async function uploadFile<T = any>(
  */
 export function runStandalone(runFn: () => Promise<PhaseResult>): void {
   (async () => {
-    await startServer({ config: 'graph-memory.yaml', port: 3737 });
+    await startServer({ config: 'tests/configs/sandbox.yaml', port: 3737 });
     const result = await runFn();
     stopServer();
     printSummary([result]);

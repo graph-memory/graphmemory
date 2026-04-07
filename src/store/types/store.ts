@@ -58,6 +58,9 @@ export interface Store {
   /** Update embedding dimensions: recreate vec0 tables whose dimension changed. */
   updateEmbeddingDims(dims: EmbeddingDims): void;
 
+  /** Current embedding dimensions (set after open / updateEmbeddingDims). */
+  readonly embeddingDims: EmbeddingDims;
+
   // --- Projects ---
   readonly projects: ProjectsStore;
 

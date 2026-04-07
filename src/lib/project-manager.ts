@@ -347,7 +347,12 @@ export class ProjectManager extends EventEmitter {
       ? this.workspaces.get(instance.workspaceId)?.store
       : this.stores.get(id);
     if (store) {
-      store.updateEmbeddingDims(dims);
+      // For workspace projects, merge with existing dims to avoid reverting
+      // shared graph dimensions (knowledge/tasks/skills/epics) to defaults
+      const mergedDims = instance.workspaceId
+        ? { ...store.embeddingDims, ...dims }
+        : dims;
+      store.updateEmbeddingDims(mergedDims);
       // Refresh scopedStore references — old ones have stale embeddingDim values
       instance.scopedStore = store.project(instance.dbProjectId);
       if (!instance.workspaceId) {

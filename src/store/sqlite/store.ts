@@ -28,7 +28,7 @@ export class SqliteStore implements Store {
   private scopedCache = new Map<number, ProjectScopedStore>();
   private _projects: SqliteProjectsStore | null = null;
   private _team: SqliteTeamStore | null = null;
-  private embeddingDims: EmbeddingDims = {};
+  embeddingDims: EmbeddingDims = {};
 
   // --- Sub-stores (workspace-level) ---
 
@@ -63,12 +63,14 @@ export class SqliteStore implements Store {
   updateEmbeddingDims(dims: EmbeddingDims): void {
     this.requireDb();
     const VEC_TABLES: VecGraph[] = ['knowledge', 'tasks', 'epics', 'skills', 'code', 'docs', 'files'];
+    let updated = 0;
     for (const graph of VEC_TABLES) {
       const wanted = getEmbeddingDim(dims, graph);
       const current = this.getVecDimension(`${graph}_vec`);
       if (current !== null && current !== wanted) {
-        this.db!.exec(`DROP TABLE ${graph}_vec`);
+        this.db!.exec(`DROP TABLE IF EXISTS ${graph}_vec`);
         this.db!.exec(`CREATE VIRTUAL TABLE ${graph}_vec USING vec0(embedding float[${wanted}])`);
+        updated++;
       }
     }
     this.embeddingDims = dims;

@@ -283,15 +283,15 @@ export default function TaskDetailPage() {
               <FieldRow label="Epic">
                 {(() => {
                   const epicLink = relations.find(r => r.kind === 'belongs_to');
-                  const currentEpicId = epicLink?.toId ?? '';
+                  const currentEpicId = epicLink ? String(epicLink.toId) : '';
                   const selectableEpics = epics.filter(e => e.status === 'open' || e.status === 'in_progress' || e.id === currentEpicId);
                   if (!canWrite) {
                     if (!epicLink) return <Typography variant="body2" color="text.secondary">—</Typography>;
                     return (
-                      <Link component="button" variant="body2" onClick={() => navigate(`/${projectId}/tasks/epics/${epicLink.toId}`)}>
+                      <Link component="button" variant="body2" onClick={() => navigate(`/${projectId}/tasks/epics/${currentEpicId}`)}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                           <FlagIcon sx={{ fontSize: 14, color: '#1976d2' }} />
-                          {epicLink.title || epicLink.toId}
+                          {epicLink.title || currentEpicId}
                         </Box>
                       </Link>
                     );
@@ -303,7 +303,7 @@ export default function TaskDetailPage() {
                       displayEmpty
                       onChange={async (e) => {
                         const newEpicId = e.target.value as string;
-                        if (epicLink) await unlinkTaskFromEpic(projectId!, epicLink.toId, taskId!);
+                        if (epicLink) await unlinkTaskFromEpic(projectId!, currentEpicId, taskId!);
                         if (newEpicId) await linkTaskToEpic(projectId!, newEpicId, taskId!);
                         load();
                       }}

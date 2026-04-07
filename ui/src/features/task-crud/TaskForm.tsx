@@ -80,7 +80,8 @@ export function TaskForm({ task, defaults, onSubmit, onCancel, submitLabel = 'Sa
   useEffect(() => {
     if (!projectId || !task) return;
     listTaskRelations(projectId, task.id).then(rels => {
-      const epicId = rels.find(r => r.kind === 'belongs_to')?.toId ?? '';
+      const epicLink = rels.find(r => r.kind === 'belongs_to');
+      const epicId = epicLink ? String(epicLink.toId) : '';
       setSelectedEpicId(epicId);
       setInitialEpicId(epicId);
     }).catch(e => console.error('Failed to load task relations', e));

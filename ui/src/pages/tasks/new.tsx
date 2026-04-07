@@ -15,11 +15,12 @@ export default function TaskNewPage() {
   const [searchParams] = useSearchParams();
   const [stagedFiles, setStagedFiles] = useState<File[]>([]);
 
+  const assigneeIdParam = searchParams.get('assigneeId');
   const defaults = {
     title: searchParams.get('title') || undefined,
     status: (searchParams.get('status') as TaskStatus) || undefined,
     priority: (searchParams.get('priority') as TaskPriority) || undefined,
-    assignee: searchParams.get('assignee') || undefined,
+    assigneeId: assigneeIdParam ? Number(assigneeIdParam) : undefined,
     tags: searchParams.get('tags')?.split(',').filter(Boolean) || undefined,
   };
   const epicId = searchParams.get('epicId') || undefined;
@@ -34,6 +35,7 @@ export default function TaskNewPage() {
       await uploadTaskAttachment(projectId, task.id, file).catch(e => console.error('Failed to upload attachment', e));
     }
     navigate(`/${projectId}/tasks/${task.id}`);
+    return task;
   };
 
   return (

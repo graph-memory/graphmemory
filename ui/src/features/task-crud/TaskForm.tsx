@@ -22,14 +22,14 @@ interface TaskFormDefaults {
   title?: string;
   status?: TaskStatus;
   priority?: TaskPriority;
-  assignee?: string;
+  assigneeId?: number;
   tags?: string[];
 }
 
 interface TaskFormProps {
   task?: Task;
   defaults?: TaskFormDefaults;
-  onSubmit: (data: { title: string; description: string; status: TaskStatus; priority: TaskPriority; tags: string[]; dueDate?: number | null; estimate?: number | null; assignee?: string | null }) => Promise<void>;
+  onSubmit: (data: { title: string; description: string; status: TaskStatus; priority: TaskPriority; tags: string[]; dueDate?: number | null; estimate?: number | null; assigneeId?: number | null }) => Promise<Task | void>;
   onCancel: () => void;
   submitLabel?: string;
   extraMain?: React.ReactNode;
@@ -44,7 +44,7 @@ export function TaskForm({ task, defaults, onSubmit, onCancel, submitLabel = 'Sa
   const [tags, setTags] = useState<string[]>([]);
   const [dueDate, setDueDate] = useState('');
   const [estimate, setEstimate] = useState('');
-  const [assignee, setAssignee] = useState<string>('');
+  const [assigneeId, setAssigneeId] = useState<number | ''>('');
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [epics, setEpics] = useState<Epic[]>([]);
   const [selectedEpicId, setSelectedEpicId] = useState<string>('');
@@ -61,12 +61,12 @@ export function TaskForm({ task, defaults, onSubmit, onCancel, submitLabel = 'Sa
       setTags(task.tags ?? []);
       setDueDate(task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '');
       setEstimate(task.estimate != null ? String(task.estimate) : '');
-      setAssignee(task.assignee ?? '');
+      setAssigneeId(task.assigneeId ?? '');
     } else if (defaults) {
       if (defaults.title) setTitle(defaults.title);
       if (defaults.status) setStatus(defaults.status);
       if (defaults.priority) setPriority(defaults.priority);
-      if (defaults.assignee) setAssignee(defaults.assignee);
+      if (defaults.assigneeId != null) setAssigneeId(defaults.assigneeId);
       if (defaults.tags) setTags(defaults.tags);
     }
   }, [task]);
@@ -101,12 +101,12 @@ export function TaskForm({ task, defaults, onSubmit, onCancel, submitLabel = 'Sa
         tags,
         dueDate: dueDate ? new Date(dueDate).getTime() : null,
         estimate: estimate ? Number(estimate) : null,
-        assignee: assignee || null,
+        assigneeId: assigneeId === '' ? null : assigneeId,
       });
 
       // Sync epic link after save
       if (projectId && selectedEpicId !== initialEpicId) {
-        const taskId = task?.id ?? (result as any)?.id;
+        const taskId = task?.id ?? result?.id;
         if (taskId) {
           if (initialEpicId) await unlinkTaskFromEpic(projectId, initialEpicId, taskId);
           if (selectedEpicId) await linkTaskToEpic(projectId, selectedEpicId, taskId);
@@ -193,11 +193,18 @@ export function TaskForm({ task, defaults, onSubmit, onCancel, submitLabel = 'Sa
               <Box>
                 <FieldLabel>Assignee</FieldLabel>
                 <Select
-                  fullWidth value={assignee} onChange={e => setAssignee(e.target.value)} displayEmpty
-                  renderValue={v => { if (!v) return 'Unassigned'; const m = team.find(t => t.id === v); return m?.name || v; }}
+                  fullWidth
+                  value={assigneeId === '' ? '' : String(assigneeId)}
+                  onChange={e => setAssigneeId(e.target.value === '' ? '' : Number(e.target.value))}
+                  displayEmpty
+                  renderValue={v => {
+                    if (v === '' || v == null) return 'Unassigned';
+                    const m = team.find(t => t.id === Number(v));
+                    return m?.name || m?.slug || String(v);
+                  }}
                 >
                   <MenuItem value="">Unassigned</MenuItem>
-                  {team.map(m => <MenuItem key={m.id} value={m.id}>{m.name || m.id}</MenuItem>)}
+                  {team.map(m => <MenuItem key={m.id} value={String(m.id)}>{m.name || m.slug}</MenuItem>)}
                 </Select>
               </Box>
               {epics.length > 0 && (

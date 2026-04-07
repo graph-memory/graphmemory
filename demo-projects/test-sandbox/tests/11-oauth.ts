@@ -210,6 +210,66 @@ test('POST /api/oauth/end-session — returns 200', async () => {
   assertOk(res);
 });
 
+// ─── 11.8 Negative OAuth cases ─────────────────────────────────
+
+group('11.8 Negative OAuth cases');
+
+test('POST /api/oauth/token — invalid grant_type → error', async () => {
+  const res = await restWith(BASE, 'POST', '/api/oauth/token', {
+    grant_type: 'client_credentials',
+    client_id: 'test-client',
+  });
+  assert(res.status >= 400, 'unsupported grant_type should fail');
+});
+
+test('POST /api/oauth/token — missing code → error', async () => {
+  const res = await restWith(BASE, 'POST', '/api/oauth/token', {
+    grant_type: 'authorization_code',
+    client_id: 'test-client',
+    redirect_uri: 'http://localhost:9999/callback',
+    code_verifier: codeVerifier,
+  });
+  assert(res.status >= 400, 'missing code should fail');
+});
+
+test('POST /api/oauth/token — expired/fake code → error', async () => {
+  const res = await restWith(BASE, 'POST', '/api/oauth/token', {
+    grant_type: 'authorization_code',
+    code: 'fake-expired-code-12345',
+    client_id: 'test-client',
+    redirect_uri: 'http://localhost:9999/callback',
+    code_verifier: codeVerifier,
+  });
+  assert(res.status >= 400, 'fake code should fail');
+});
+
+test('POST /api/oauth/token — refresh with invalid token → error', async () => {
+  const res = await restWith(BASE, 'POST', '/api/oauth/token', {
+    grant_type: 'refresh_token',
+    refresh_token: 'invalid-refresh-token',
+    client_id: 'test-client',
+  });
+  assert(res.status >= 400, 'invalid refresh token should fail');
+});
+
+test('POST /api/oauth/authorize — missing code_challenge → error', async () => {
+  const res = await restWith(BASE, 'POST', '/api/oauth/authorize', {
+    response_type: 'code',
+    client_id: 'test-client',
+    redirect_uri: 'http://localhost:9999/callback',
+    // no code_challenge
+  }, { cookie: cookieHeader(adminCookies) });
+  assert(res.status >= 400, 'missing code_challenge should fail');
+});
+
+test('GET /api/oauth/userinfo with revoked token — still works (revoke is no-op)', async () => {
+  // OAuth revoke endpoint returns 200 but does not actually invalidate JWTs
+  // (stateless tokens can't be revoked without a blocklist)
+  const res = await restWith(BASE, 'GET', '/api/oauth/userinfo',
+    undefined, { bearer: accessToken });
+  assertOk(res);
+});
+
 // ─── Teardown ────────────────────────────────────────────────────
 
 group('Teardown');

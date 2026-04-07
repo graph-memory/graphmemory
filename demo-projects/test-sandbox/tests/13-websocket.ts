@@ -236,6 +236,70 @@ test('Add attachment → receives event', async () => {
   try { require('fs').unlinkSync(tmpFile); } catch {}
 });
 
+// ─── 13.7 WebSocket reconnection ───────────────────────────────
+
+group('13.7 WebSocket reconnection');
+
+test('Reconnect after close — receives events', async () => {
+  // Close current connection
+  if (ws && ws.readyState === WebSocket.OPEN) ws.close();
+  await wait(500);
+
+  // Reconnect
+  await connectWs();
+  assert(ws.readyState === WebSocket.OPEN, 'ws should reconnect');
+
+  // Verify events still flow
+  clearReceived();
+  await restWith(BASE, 'POST', '/api/projects/sandbox/knowledge/notes',
+    { title: 'Reconnect Test', content: 'test' });
+  const evt = await findEvent('note:created');
+  assertExists(evt, 'note:created after reconnect');
+
+  // Cleanup
+  const listRes = await restWith(BASE, 'GET', '/api/projects/sandbox/knowledge/notes');
+  for (const n of (listRes.data.results ?? listRes.data)) {
+    if (n.title === 'Reconnect Test') {
+      await restWith(BASE, 'DELETE', `/api/projects/sandbox/knowledge/notes/${n.id}`);
+    }
+  }
+});
+
+test('Multiple WS clients receive same event', async () => {
+  const received2: any[] = [];
+  const ws2 = new WebSocket(`ws://127.0.0.1:${PORT}/api/ws`);
+  await new Promise<void>((resolve, reject) => {
+    ws2.on('open', resolve);
+    ws2.on('error', reject);
+    setTimeout(() => reject(new Error('ws2 timeout')), 5000);
+  });
+  ws2.on('message', (data) => {
+    try { received2.push(JSON.parse(data.toString())); } catch {}
+  });
+
+  clearReceived();
+  await restWith(BASE, 'POST', '/api/projects/sandbox/knowledge/notes',
+    { title: 'Multi WS Test', content: 'test' });
+
+  // Both clients should receive the event
+  const evt1 = await findEvent('note:created');
+  assertExists(evt1, 'client 1 received');
+
+  await wait(500);
+  const evt2 = received2.find(e => e.type === 'note:created');
+  assertExists(evt2, 'client 2 received');
+
+  ws2.close();
+
+  // Cleanup
+  const listRes = await restWith(BASE, 'GET', '/api/projects/sandbox/knowledge/notes');
+  for (const n of (listRes.data.results ?? listRes.data)) {
+    if (n.title === 'Multi WS Test') {
+      await restWith(BASE, 'DELETE', `/api/projects/sandbox/knowledge/notes/${n.id}`);
+    }
+  }
+});
+
 // ─── Teardown ────────────────────────────────────────────────────
 
 group('Teardown');

@@ -6,6 +6,9 @@
  * - REST POST/DELETE /skills/links
  * - code_search with includeBody
  * - files_list with directory/extension/language filters
+ * - Cross-graph REST DELETE (knowledge/tasks with targetGraph)
+ * - Stats detail fields, team endpoint
+ * - Tools explorer detail (schema, 404, list shape)
  */
 
 import {
@@ -249,6 +252,142 @@ test('MCP files_list with extension filter', async () => {
   assertMcpOk(res);
   const files = Array.isArray(res.data) ? res.data : res.data?.results ?? [];
   assert(files.length > 0, 'should find .md files');
+});
+
+// ─── 19.7 Cross-graph REST DELETE ───────────────────────────────
+
+group('19.7 Cross-graph REST relation/link DELETE');
+
+test('Create note + code symbol for cross-graph link', async () => {
+  const noteRes = await post('/knowledge/notes', {
+    title: 'Cross-Graph Delete Test',
+    content: 'Testing REST cross-graph delete.',
+  });
+  assertOk(noteRes);
+  noteId = noteRes.data.id;
+
+  const codeFiles = await get('/code/files');
+  assertOk(codeFiles);
+  const fileId = (codeFiles.data.results ?? codeFiles.data)[0]?.fileId;
+  const symRes = await get(`/code/files/${fileId}/symbols`);
+  assertOk(symRes);
+  const symbols = symRes.data.results ?? symRes.data;
+  assertExists(symbols[0]?.id, 'code symbol');
+  skillId = symbols[0].id; // reuse var for symbolId
+});
+
+test('REST POST /knowledge/relations with targetGraph=code', async () => {
+  const res = await post('/knowledge/relations', {
+    fromId: noteId,
+    toId: skillId, // code symbol id
+    kind: 'references',
+    targetGraph: 'code',
+  });
+  assertOk(res);
+});
+
+test('REST DELETE /knowledge/relations with targetGraph=code', async () => {
+  const res = await del('/knowledge/relations', {
+    fromId: noteId,
+    toId: skillId,
+    targetGraph: 'code',
+  });
+  assert(res.status < 500, `should not 500, got ${res.status}`);
+});
+
+test('Cleanup cross-graph note', async () => {
+  await del(`/knowledge/notes/${noteId}`);
+});
+
+test('Create task for cross-graph link test', async () => {
+  const res = await post('/tasks', {
+    title: 'Cross-Graph Task',
+    description: 'test',
+    priority: 'low',
+  });
+  assertOk(res);
+  taskId = res.data.id;
+});
+
+test('REST POST /tasks/links with targetGraph=code', async () => {
+  const res = await post('/tasks/links', {
+    fromId: taskId,
+    toId: skillId, // code symbol id
+    kind: 'references',
+    targetGraph: 'code',
+  });
+  assertOk(res);
+});
+
+test('REST DELETE /tasks/links with targetGraph=code', async () => {
+  const res = await del('/tasks/links', {
+    fromId: taskId,
+    toId: skillId,
+    targetGraph: 'code',
+  });
+  assert(res.status < 500, `should not 500, got ${res.status}`);
+});
+
+test('Cleanup cross-graph task', async () => {
+  await del(`/tasks/${taskId}`);
+});
+
+// ─── 19.8 Stats detail fields ───────────────────────────────────
+
+group('19.8 Stats detail fields');
+
+test('GET /stats returns all graph counts', async () => {
+  const res = await get('/stats');
+  assertOk(res);
+  assertExists(res.data.docs, 'docs stats');
+  assertExists(res.data.code, 'code stats');
+  assertExists(res.data.files, 'files stats');
+  assertExists(res.data.knowledge, 'knowledge stats');
+  assertExists(res.data.tasks, 'tasks stats');
+  assertExists(res.data.skills, 'skills stats');
+  // Each should have nodes count
+  assert(typeof res.data.docs.nodes === 'number', 'docs.nodes is number');
+  assert(typeof res.data.code.nodes === 'number', 'code.nodes is number');
+});
+
+test('GET /team returns array', async () => {
+  const res = await get('/team');
+  assertOk(res);
+  // Team may be empty or have members — just verify shape
+  assert(Array.isArray(res.data) || typeof res.data === 'object', 'team data shape');
+});
+
+// ─── 19.9 Tools explorer detail ─────────────────────────────────
+
+group('19.9 Tools explorer detail');
+
+test('GET /tools — each tool has name and description', async () => {
+  const res = await get('/tools');
+  assertOk(res);
+  const tools = res.data.results ?? res.data;
+  assert(tools.length >= 50, 'should list >= 50 tools');
+  const first = tools[0];
+  assertExists(first.name, 'tool name');
+  assertExists(first.description, 'tool description');
+});
+
+test('GET /tools/notes_create — returns inputSchema', async () => {
+  const res = await get('/tools/notes_create');
+  assertOk(res);
+  assertExists(res.data.name, 'tool name');
+  assertExists(res.data.inputSchema ?? res.data.schema ?? res.data.parameters, 'tool schema');
+});
+
+test('GET /tools/nonexistent_tool — 404', async () => {
+  const res = await get('/tools/nonexistent_tool_xyz');
+  assertStatus(res, 404);
+});
+
+test('POST /tools/notes_list/call — execute via explorer', async () => {
+  const res = await post('/tools/notes_list/call', { arguments: {} });
+  assertOk(res);
+  assertExists(res.data.result, 'tool result');
+  assert(Array.isArray(res.data.result), 'result is array');
 });
 
 // ─── Run ─────────────────────────────────────────────────────────

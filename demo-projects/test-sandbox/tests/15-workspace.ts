@@ -224,6 +224,38 @@ test('Shared graphs have same counts from both projects', async () => {
   assertEqual(resA.data.tasks.nodes, resB.data.tasks.nodes, 'tasks nodes should be same');
 });
 
+// ─── 15.9 Concurrent workspace writes ──────────────────────────
+
+group('15.9 Concurrent workspace writes');
+
+test('Parallel note creates from both projects — all succeed', async () => {
+  const promises = [
+    ...Array.from({ length: 5 }, (_, i) =>
+      restWith(BASE, 'POST', `${API_A()}/knowledge/notes`, {
+        title: `WS Concurrent A-${i}`, content: `from A #${i}`,
+      }),
+    ),
+    ...Array.from({ length: 5 }, (_, i) =>
+      restWith(BASE, 'POST', `${API_B()}/knowledge/notes`, {
+        title: `WS Concurrent B-${i}`, content: `from B #${i}`,
+      }),
+    ),
+  ];
+  const results = await Promise.all(promises);
+  const ok = results.filter(r => r.ok);
+  assert(ok.length === 10, `all 10 should succeed, got ${ok.length}`);
+
+  // Verify all visible from both projects
+  const notesA = await restWith(BASE, 'GET', `${API_A()}/knowledge/notes`);
+  const notesB = await restWith(BASE, 'GET', `${API_B()}/knowledge/notes`);
+  assertOk(notesA);
+  assertOk(notesB);
+  const listA = notesA.data.results ?? notesA.data;
+  const listB = notesB.data.results ?? notesB.data;
+  assert(listA.length >= 10, `project A should see >= 10 notes, got ${listA.length}`);
+  assertEqual(listA.length, listB.length, 'both projects see same count');
+});
+
 // ─── Cleanup ─────────────────────────────────────────────────────
 
 group('Cleanup');

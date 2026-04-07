@@ -290,6 +290,73 @@ test('Search with unicode query → no crash', async () => {
   assert(res.status < 500, 'should not 500');
 });
 
+// ─── 8.7 Large payload ─────────────────────────────────────────
+
+group('8.7 Large payload');
+
+test('POST body near limit (5MB) → accepted', async () => {
+  const bigContent = 'x'.repeat(5 * 1024 * 1024);
+  const res = await post('/knowledge/notes', {
+    title: 'Big Note',
+    content: bigContent,
+  });
+  // Should be accepted (limit is 10mb)
+  if (res.ok) {
+    await del(`/knowledge/notes/${res.data.id}`);
+  }
+  assert(res.status < 500, `should not 500, got ${res.status}`);
+});
+
+test('POST body exceeding limit (15MB) → 413', async () => {
+  const hugeContent = 'x'.repeat(15 * 1024 * 1024);
+  const res = await post('/knowledge/notes', {
+    title: 'Huge Note',
+    content: hugeContent,
+  });
+  assert(res.status === 413 || res.status === 400, `expected 413 or 400, got ${res.status}`);
+});
+
+// ─── 8.8 CORS headers ──────────────────────────────────────────
+
+group('8.8 CORS headers');
+
+test('Response includes CORS headers', async () => {
+  const res = await get('/api/auth/status');
+  assertOk(res);
+  // CORS is enabled (app.use(cors(...))), should have Access-Control-Allow-Origin
+  const origin = res.headers.get('access-control-allow-origin');
+  assertExists(origin, 'Access-Control-Allow-Origin header');
+});
+
+test('OPTIONS preflight returns CORS headers', async () => {
+  const url = `http://127.0.0.1:3737/api/auth/status`;
+  const res = await fetch(url, {
+    method: 'OPTIONS',
+    headers: {
+      'Origin': 'http://localhost:3000',
+      'Access-Control-Request-Method': 'GET',
+    },
+  });
+  assert(res.status < 500, `OPTIONS should not 500, got ${res.status}`);
+  const allow = res.headers.get('access-control-allow-origin')
+    ?? res.headers.get('access-control-allow-methods');
+  assertExists(allow, 'CORS preflight headers');
+});
+
+// ─── 8.9 Invalid project ────────────────────────────────────────
+
+group('8.9 Invalid project');
+
+test('GET /api/projects/nonexistent/stats → 404', async () => {
+  const res = await get('http://127.0.0.1:3737/api/projects/nonexistent/stats');
+  assertStatus(res, 404);
+});
+
+test('GET /api/projects/nonexistent/knowledge/notes → 404', async () => {
+  const res = await get('http://127.0.0.1:3737/api/projects/nonexistent/knowledge/notes');
+  assertStatus(res, 404);
+});
+
 // ─── Run ─────────────────────────────────────────────────────────
 
 export async function run() {

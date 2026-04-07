@@ -34,7 +34,7 @@ users:
 
 projects:
   sandbox:
-    projectDir: ".."
+    projectDir: "."
     graphs:
       docs:
         include: "docs/**/*.md"

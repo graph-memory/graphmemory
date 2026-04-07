@@ -9,7 +9,7 @@ import {
   get, post, del,
   mcpCall,
   assert, assertEqual, assertExists, assertOk, assertMcpOk,
-  printSummary, wait,
+  printSummary, runStandalone, wait,
   fileExists, readFile, projectPath,
 } from './utils';
 import { readdirSync, existsSync } from 'fs';
@@ -185,8 +185,5 @@ export async function run() {
 }
 
 if (process.argv[1]?.includes('09-')) {
-  run().then(result => {
-    printSummary([result]);
-    process.exit(result.groups.some(g => g.tests.some(t => !t.passed)) ? 1 : 0);
-  });
+  runStandalone(run);
 }

@@ -1,16 +1,48 @@
 /**
- * Test runner — executes all phases in order and prints combined summary.
+ * Test runner — fully autonomous, starts/stops servers as needed.
  *
  * Usage:
- *   npx tsx tests/run-all.ts                # run all phases
- *   npx tsx tests/run-all.ts --phase 1 3    # run specific phases
- *   npx tsx tests/run-all.ts --phase 10 11  # run auth + oauth only
+ *   npx tsx tests/run-all.ts              # run all 18 phases
+ *   npx tsx tests/run-all.ts --phase 1 3  # run specific phases
+ *   npx tsx tests/run-all.ts --phase 10   # run auth only
  *
- * Phases 1-9 require a running server on port 3737 (default sandbox).
- * Phases 10-18 start/stop their own servers with different configs.
+ * Lifecycle:
+ *   Phases 1-9:   share one sandbox server (port 3737) — started once, stopped after phase 9
+ *   Phases 10-18: each starts/stops its own server with a dedicated config
  */
 
-import { PhaseResult, printSummary } from './utils';
+import { PhaseResult, printSummary, startServer, stopServer } from './utils';
+
+// ─── Phase registry ──────────────────────────────────────────────
+
+interface PhaseEntry {
+  id: number;
+  file: string;
+  group: 'sandbox' | 'self'; // sandbox = needs shared server, self = manages own
+}
+
+const PHASES: PhaseEntry[] = [
+  { id: 1,  file: './01-server-indexing',  group: 'sandbox' },
+  { id: 2,  file: './02-knowledge',        group: 'sandbox' },
+  { id: 3,  file: './03-tasks',            group: 'sandbox' },
+  { id: 4,  file: './04-epics',            group: 'sandbox' },
+  { id: 5,  file: './05-skills',           group: 'sandbox' },
+  { id: 6,  file: './06-auth-oauth',       group: 'sandbox' },
+  { id: 7,  file: './07-embedding',        group: 'sandbox' },
+  { id: 8,  file: './08-edge-cases',       group: 'sandbox' },
+  { id: 9,  file: './09-db-filesystem',    group: 'sandbox' },
+  { id: 10, file: './10-auth',             group: 'self' },
+  { id: 11, file: './11-oauth',            group: 'self' },
+  { id: 12, file: './12-embedding-api',    group: 'self' },
+  { id: 13, file: './13-websocket',        group: 'self' },
+  { id: 14, file: './14-watcher',          group: 'self' },
+  { id: 15, file: './15-workspace',        group: 'self' },
+  { id: 16, file: './16-ratelimit',        group: 'self' },
+  { id: 17, file: './17-concurrent',       group: 'self' },
+  { id: 18, file: './18-mirror-import',    group: 'self' },
+];
+
+// ─── Main ────────────────────────────────────────────────────────
 
 async function main() {
   const args = process.argv.slice(2);
@@ -27,100 +59,35 @@ async function main() {
 
   const shouldRun = (n: number) => phaseFilter.size === 0 || phaseFilter.has(n);
   const results: PhaseResult[] = [];
+  const startTime = Date.now();
 
-  // Phases 1-9: require external server on port 3737
-  if (shouldRun(1)) {
-    const { run } = require('./01-server-indexing');
+  // ── Sandbox phases (1-9): shared server ──────────────────────
+  const sandboxPhases = PHASES.filter(p => p.group === 'sandbox' && shouldRun(p.id));
+  if (sandboxPhases.length > 0) {
+    console.log('\n  Starting sandbox server (port 3737)...');
+    await startServer({ config: 'graph-memory.yaml', port: 3737 });
+    console.log('  Server ready.\n');
+
+    for (const phase of sandboxPhases) {
+      const { run } = require(phase.file);
+      results.push(await run());
+    }
+
+    stopServer();
+    console.log('\n  Sandbox server stopped.\n');
+  }
+
+  // ── Self-contained phases (10-18): each manages own server ───
+  const selfPhases = PHASES.filter(p => p.group === 'self' && shouldRun(p.id));
+  for (const phase of selfPhases) {
+    const { run } = require(phase.file);
     results.push(await run());
   }
 
-  if (shouldRun(2)) {
-    const { run } = require('./02-knowledge');
-    results.push(await run());
-  }
-
-  if (shouldRun(3)) {
-    const { run } = require('./03-tasks');
-    results.push(await run());
-  }
-
-  if (shouldRun(4)) {
-    const { run } = require('./04-epics');
-    results.push(await run());
-  }
-
-  if (shouldRun(5)) {
-    const { run } = require('./05-skills');
-    results.push(await run());
-  }
-
-  if (shouldRun(6)) {
-    const { run } = require('./06-auth-oauth');
-    results.push(await run());
-  }
-
-  if (shouldRun(7)) {
-    const { run } = require('./07-embedding');
-    results.push(await run());
-  }
-
-  if (shouldRun(8)) {
-    const { run } = require('./08-edge-cases');
-    results.push(await run());
-  }
-
-  if (shouldRun(9)) {
-    const { run } = require('./09-db-filesystem');
-    results.push(await run());
-  }
-
-  // Phases 10-18: self-contained (start/stop own servers)
-  if (shouldRun(10)) {
-    const { run } = require('./10-auth');
-    results.push(await run());
-  }
-
-  if (shouldRun(11)) {
-    const { run } = require('./11-oauth');
-    results.push(await run());
-  }
-
-  if (shouldRun(12)) {
-    const { run } = require('./12-embedding-api');
-    results.push(await run());
-  }
-
-  if (shouldRun(13)) {
-    const { run } = require('./13-websocket');
-    results.push(await run());
-  }
-
-  if (shouldRun(14)) {
-    const { run } = require('./14-watcher');
-    results.push(await run());
-  }
-
-  if (shouldRun(15)) {
-    const { run } = require('./15-workspace');
-    results.push(await run());
-  }
-
-  if (shouldRun(16)) {
-    const { run } = require('./16-ratelimit');
-    results.push(await run());
-  }
-
-  if (shouldRun(17)) {
-    const { run } = require('./17-concurrent');
-    results.push(await run());
-  }
-
-  if (shouldRun(18)) {
-    const { run } = require('./18-mirror-import');
-    results.push(await run());
-  }
-
+  // ── Summary ──────────────────────────────────────────────────
+  const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
   printSummary(results);
+  console.log(`  Duration: ${elapsed}s\n`);
 
   const hasFails = results.some(r =>
     r.groups.some(g => g.tests.some(t => !t.passed)),

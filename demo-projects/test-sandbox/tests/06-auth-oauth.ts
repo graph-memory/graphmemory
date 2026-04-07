@@ -12,7 +12,7 @@ import {
   group, test, runPhase,
   get, post,
   assert, assertEqual, assertExists, assertOk, assertStatus,
-  printSummary,
+  printSummary, runStandalone,
   BASE,
 } from './utils';
 
@@ -142,8 +142,5 @@ export async function run() {
 }
 
 if (process.argv[1]?.includes('06-')) {
-  run().then(result => {
-    printSummary([result]);
-    process.exit(result.groups.some(g => g.tests.some(t => !t.passed)) ? 1 : 0);
-  });
+  runStandalone(run);
 }

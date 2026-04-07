@@ -414,6 +414,22 @@ export function cookieHeader(cookies: Record<string, string>): string {
   return Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join('; ');
 }
 
+// ─── Standalone runner (for phases 1-9 when run individually) ────
+
+/**
+ * Wrap a sandbox phase for standalone execution:
+ * starts server, runs phase, prints summary, stops server, exits.
+ */
+export function runStandalone(runFn: () => Promise<PhaseResult>): void {
+  (async () => {
+    await startServer({ config: 'graph-memory.yaml', port: 3737 });
+    const result = await runFn();
+    stopServer();
+    printSummary([result]);
+    process.exit(result.groups.some(g => g.tests.some(t => !t.passed)) ? 1 : 0);
+  })();
+}
+
 // ─── Exports ─────────────────────────────────────────────────────
 
 export { BASE, PROJECT, API };

@@ -10,7 +10,7 @@ import {
   get, post, put, del,
   mcpCall,
   assert, assertEqual, assertExists, assertOk, assertStatus, assertMcpOk, assertIncludes,
-  printSummary, wait,
+  printSummary, runStandalone, wait,
   fileExists, projectPath,
 } from './utils';
 import { writeFileSync, unlinkSync } from 'fs';
@@ -494,8 +494,5 @@ export async function run() {
 }
 
 if (process.argv[1]?.includes('03-')) {
-  run().then(result => {
-    printSummary([result]);
-    process.exit(result.groups.some(g => g.tests.some(t => !t.passed)) ? 1 : 0);
-  });
+  runStandalone(run);
 }

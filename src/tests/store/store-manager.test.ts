@@ -179,6 +179,104 @@ describe('StoreManager', () => {
       expect(manager.getTask(t1.id)!.priority).toBe('critical');
       expect(manager.getTask(t2.id)!.priority).toBe('critical');
     });
+
+    it('mirror writer resolves assigneeId → slug in task.md frontmatter', async () => {
+      // Seed a team member directly via the store
+      const member = store.team.create({ slug: 'qa-bot', name: 'QA Bot' });
+
+      const record = await manager.createTask({
+        title: 'Mirrored',
+        description: '',
+        priority: 'medium',
+        assigneeId: member.id,
+      });
+
+      // Read the task.md snapshot and check its frontmatter
+      const fs = await import('fs');
+      const path = await import('path');
+      const taskMd = fs.readFileSync(path.join(projectDir, '.tasks', record.slug, 'task.md'), 'utf-8');
+      // Frontmatter is YAML — quoted or unquoted slug both acceptable.
+      expect(taskMd).toMatch(/^assignee:\s*['"]?qa-bot['"]?\s*$/m);
+    });
+
+    it('mirror writer falls back to null when assigneeId references missing member', async () => {
+      // Create a member, use it, then delete the row — leaving the task with an orphan FK
+      const member = store.team.create({ slug: 'temp', name: 'Temp' });
+      const record = await manager.createTask({
+        title: 'Orphaned',
+        description: '',
+        priority: 'low',
+        assigneeId: member.id,
+      });
+      store.team.delete(member.id);
+
+      // Trigger a re-mirror via update — buildMirrorTaskAttrs should now write null
+      await manager.updateTask(record.id, { description: 'touch' });
+
+      const fs = await import('fs');
+      const path = await import('path');
+      const taskMd = fs.readFileSync(path.join(projectDir, '.tasks', record.slug, 'task.md'), 'utf-8');
+      expect(taskMd).toMatch(/^assignee:\s*(null|~)\s*$/m);
+    });
+
+    it('importTaskFromFile resolves assignee slug → numeric assigneeId', async () => {
+      const member = store.team.create({ slug: 'imported-bot', name: 'Imported Bot' });
+
+      // Construct a parsed task as the file-mirror watcher would have produced
+      const parsed = {
+        id: 'mirror-import-test',
+        title: 'Imported Task',
+        description: 'from mirror',
+        status: 'todo' as const,
+        priority: 'medium' as const,
+        tags: [],
+        dueDate: null,
+        estimate: null,
+        completedAt: null,
+        assignee: 'imported-bot',
+        createdAt: null,
+        updatedAt: null,
+        version: null,
+        createdBy: null,
+        updatedBy: null,
+        relations: [],
+        attachments: [],
+      };
+
+      await manager.importTaskFromFile(parsed);
+
+      const created = manager.getTaskBySlug('mirror-import-test');
+      expect(created).not.toBeNull();
+      expect(created!.assigneeId).toBe(member.id);
+    });
+
+    it('importTaskFromFile sets assigneeId=null when slug is unknown', async () => {
+      const parsed = {
+        id: 'mirror-import-orphan',
+        title: 'Orphan Import',
+        description: '',
+        status: 'todo' as const,
+        priority: 'low' as const,
+        tags: [],
+        dueDate: null,
+        estimate: null,
+        completedAt: null,
+        assignee: 'no-such-slug',
+        createdAt: null,
+        updatedAt: null,
+        version: null,
+        createdBy: null,
+        updatedBy: null,
+        relations: [],
+        attachments: [],
+      };
+
+      await manager.importTaskFromFile(parsed);
+
+      const created = manager.getTaskBySlug('mirror-import-orphan');
+      expect(created).not.toBeNull();
+      expect(created!.assigneeId).toBeNull();
+    });
   });
 
   // =========================================================================

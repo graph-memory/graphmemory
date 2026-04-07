@@ -188,17 +188,31 @@ export class StoreManager {
   // Tasks
   // =========================================================================
 
-  async createTask(data: TaskCreate): Promise<TaskRecord> {
-    const embedding = await this.embedFn(`${data.title} ${data.description ?? ''}`);
-    const record = this.scoped.tasks.create(data, embedding);
-    mirrorTaskCreate(`${this.projectDir}/.tasks`, record.slug, {
+  /**
+   * Build the TaskAttrs object passed to mirrorTaskCreate/mirrorTaskUpdate.
+   * Resolves the numeric `assigneeId` to a human-readable team-member slug for
+   * the markdown frontmatter — falls back to `null` when the team_members row
+   * has been removed (orphaned assignment).
+   */
+  private buildMirrorTaskAttrs(record: TaskRecord) {
+    let assignee: string | null = null;
+    if (record.assigneeId != null) {
+      assignee = this.store.team.get(record.assigneeId)?.slug ?? null;
+    }
+    return {
       title: record.title, description: record.description,
       status: record.status, priority: record.priority,
-      tags: record.tags, order: record.order, assignee: null,
+      tags: record.tags, order: record.order, assignee,
       dueDate: record.dueDate, estimate: record.estimate,
       completedAt: record.completedAt,
       createdAt: record.createdAt, updatedAt: record.updatedAt, version: record.version,
-    }, []);
+    };
+  }
+
+  async createTask(data: TaskCreate): Promise<TaskRecord> {
+    const embedding = await this.embedFn(`${data.title} ${data.description ?? ''}`);
+    const record = this.scoped.tasks.create(data, embedding);
+    mirrorTaskCreate(`${this.projectDir}/.tasks`, record.slug, this.buildMirrorTaskAttrs(record), []);
     this.recordTaskMirrorWrites(record.slug);
     this.emit('task:created', { projectId: this.projectId, taskId: record.id });
     return record;
@@ -215,14 +229,7 @@ export class StoreManager {
       embedding = await this.embedFn(`${title} ${description}`);
     }
     const record = this.scoped.tasks.update(taskId, patch, embedding, authorId, expectedVersion);
-    mirrorTaskUpdate(`${this.projectDir}/.tasks`, record.slug, patch, {
-      title: record.title, description: record.description,
-      status: record.status, priority: record.priority,
-      tags: record.tags, order: record.order, assignee: null,
-      dueDate: record.dueDate, estimate: record.estimate,
-      completedAt: record.completedAt,
-      createdAt: record.createdAt, updatedAt: record.updatedAt, version: record.version,
-    }, []);
+    mirrorTaskUpdate(`${this.projectDir}/.tasks`, record.slug, patch, this.buildMirrorTaskAttrs(record), []);
     this.recordTaskMirrorWrites(record.slug);
     this.emit('task:updated', { projectId: this.projectId, taskId });
     return record;
@@ -238,14 +245,7 @@ export class StoreManager {
 
   moveTask(taskId: number, status: TaskStatus, targetOrder?: number, authorId?: number, expectedVersion?: number): TaskRecord {
     const record = this.scoped.tasks.move(taskId, status, targetOrder, authorId, expectedVersion);
-    mirrorTaskUpdate(`${this.projectDir}/.tasks`, record.slug, { status }, {
-      title: record.title, description: record.description,
-      status: record.status, priority: record.priority,
-      tags: record.tags, order: record.order, assignee: null,
-      dueDate: record.dueDate, estimate: record.estimate,
-      completedAt: record.completedAt,
-      createdAt: record.createdAt, updatedAt: record.updatedAt, version: record.version,
-    }, []);
+    mirrorTaskUpdate(`${this.projectDir}/.tasks`, record.slug, { status }, this.buildMirrorTaskAttrs(record), []);
     this.recordTaskMirrorWrites(record.slug);
     this.emit('task:updated', { projectId: this.projectId, taskId });
     this.emit('task:moved', { projectId: this.projectId, taskId, status });
@@ -256,14 +256,7 @@ export class StoreManager {
     const record = this.scoped.tasks.reorder(taskId, order, status, authorId);
     const patch: TaskPatch = { order };
     if (status) patch.status = status;
-    mirrorTaskUpdate(`${this.projectDir}/.tasks`, record.slug, patch, {
-      title: record.title, description: record.description,
-      status: record.status, priority: record.priority,
-      tags: record.tags, order: record.order, assignee: null,
-      dueDate: record.dueDate, estimate: record.estimate,
-      completedAt: record.completedAt,
-      createdAt: record.createdAt, updatedAt: record.updatedAt, version: record.version,
-    }, []);
+    mirrorTaskUpdate(`${this.projectDir}/.tasks`, record.slug, patch, this.buildMirrorTaskAttrs(record), []);
     this.recordTaskMirrorWrites(record.slug);
     this.emit('task:updated', { projectId: this.projectId, taskId });
     this.emit('task:reordered', { projectId: this.projectId, taskId, order });
@@ -310,14 +303,7 @@ export class StoreManager {
     for (const id of taskIds) {
       const record = this.scoped.tasks.get(id);
       if (!record) continue;
-      mirrorTaskUpdate(`${this.projectDir}/.tasks`, record.slug, { status }, {
-        title: record.title, description: record.description,
-        status: record.status, priority: record.priority,
-        tags: record.tags, order: record.order, assignee: null,
-        dueDate: record.dueDate, estimate: record.estimate,
-        completedAt: record.completedAt,
-        createdAt: record.createdAt, updatedAt: record.updatedAt, version: record.version,
-      }, []);
+      mirrorTaskUpdate(`${this.projectDir}/.tasks`, record.slug, { status }, this.buildMirrorTaskAttrs(record), []);
       this.recordTaskMirrorWrites(record.slug);
     }
     this.emit('task:bulk_moved', { projectId: this.projectId, taskIds, status, count });
@@ -330,14 +316,7 @@ export class StoreManager {
     for (const id of taskIds) {
       const record = this.scoped.tasks.get(id);
       if (!record) continue;
-      mirrorTaskUpdate(`${this.projectDir}/.tasks`, record.slug, { priority }, {
-        title: record.title, description: record.description,
-        status: record.status, priority: record.priority,
-        tags: record.tags, order: record.order, assignee: null,
-        dueDate: record.dueDate, estimate: record.estimate,
-        completedAt: record.completedAt,
-        createdAt: record.createdAt, updatedAt: record.updatedAt, version: record.version,
-      }, []);
+      mirrorTaskUpdate(`${this.projectDir}/.tasks`, record.slug, { priority }, this.buildMirrorTaskAttrs(record), []);
       this.recordTaskMirrorWrites(record.slug);
     }
     this.emit('task:bulk_priority', { projectId: this.projectId, taskIds, priority, count });
@@ -619,6 +598,14 @@ export class StoreManager {
     const existing = this.scoped.tasks.getBySlug(parsed.id);
     const embedding = await this.embedFn(`${parsed.title} ${parsed.description}`);
 
+    // Resolve frontmatter `assignee: <slug>` → numeric team_members.id.
+    // Unknown slug → null (orphaned mirror file references a member that no
+    // longer exists). Empty string from frontmatter is also treated as unset.
+    let assigneeId: number | null = null;
+    if (parsed.assignee) {
+      assigneeId = this.store.team.getBySlug(parsed.assignee)?.id ?? null;
+    }
+
     let record: TaskRecord;
     if (existing) {
       record = this.scoped.tasks.update(existing.id, {
@@ -630,6 +617,7 @@ export class StoreManager {
         dueDate: parsed.dueDate,
         estimate: parsed.estimate,
         completedAt: parsed.completedAt,
+        assigneeId,
       }, embedding);
     } else {
       record = this.scoped.tasks.create({
@@ -641,6 +629,7 @@ export class StoreManager {
         dueDate: parsed.dueDate,
         estimate: parsed.estimate,
         completedAt: parsed.completedAt,
+        assigneeId: assigneeId ?? undefined,
         slug: parsed.id,
         createdAt: parsed.createdAt ?? undefined,
         updatedAt: parsed.updatedAt ?? undefined,

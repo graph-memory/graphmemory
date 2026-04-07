@@ -708,3 +708,115 @@ describe('CORS credentials', () => {
     cleanup();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Relation roundtrip contract
+// ---------------------------------------------------------------------------
+//
+// Regression tests for the class of bugs where the client takes a relation
+// from `GET …/relations` and pipes it back into `DELETE` but the DELETE Zod
+// schema rejects the payload because `targetGraph` enum excludes the entity's
+// own graph (knowledge / tasks / skills schemas each omit their own graph).
+//
+// The fixed UI helper (RelationManager.handleDeleteConfirmed) drops
+// `targetGraph` when it equals the entity's own graph. These tests encode
+// that contract: build the DELETE payload from the GET response with the
+// same guard, send it back, and verify the relation is gone.
+//
+// The original bug — caller forwards `rel.toGraph` verbatim — manifested as
+// a 400 from Zod for any same-graph relation deletion via the UI.
+
+describe('REST Relation roundtrip', () => {
+  let app: express.Express;
+  let cleanup: () => void;
+
+  beforeEach(() => {
+    const { project, cleanup: c } = createFullProject();
+    cleanup = c;
+    app = createRestApp(makeManager(project));
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  // Mirror of the post-fix UI helper in
+  // ui/src/features/relation-manager/RelationManager.tsx — drop `targetGraph`
+  // when the edge is within the entity's own graph.
+  function buildDeletePayload(rel: { fromId: number; toId: number; kind: string; toGraph: string }, entityGraph: string) {
+    const targetGraph = rel.toGraph === entityGraph ? undefined : rel.toGraph;
+    return { fromId: rel.fromId, toId: rel.toId, kind: rel.kind, targetGraph };
+  }
+
+  it('knowledge → knowledge: list → delete same-graph relation', async () => {
+    const a = await request(app).post('/api/projects/test/knowledge/notes').send({ title: 'A', content: '' });
+    const b = await request(app).post('/api/projects/test/knowledge/notes').send({ title: 'B', content: '' });
+    const cr = await request(app).post('/api/projects/test/knowledge/relations').send({
+      fromId: a.body.id, toId: b.body.id, kind: 'relates_to',
+    });
+    expect(cr.status).toBe(201);
+
+    const list = await request(app).get(`/api/projects/test/knowledge/notes/${a.body.id}/relations`);
+    expect(list.status).toBe(200);
+    expect(list.body.results.length).toBe(1);
+    const rel = list.body.results[0];
+    expect(rel.toGraph).toBe('knowledge');
+
+    const del = await request(app)
+      .delete('/api/projects/test/knowledge/relations')
+      .set('Content-Type', 'application/json')
+      .send(buildDeletePayload(rel, 'knowledge'));
+    expect(del.status).toBe(204);
+
+    const after = await request(app).get(`/api/projects/test/knowledge/notes/${a.body.id}/relations`);
+    expect(after.body.results.length).toBe(0);
+  });
+
+  it('tasks → tasks: list → delete same-graph relation', async () => {
+    const a = await request(app).post('/api/projects/test/tasks').send({ title: 'TA', description: '' });
+    const b = await request(app).post('/api/projects/test/tasks').send({ title: 'TB', description: '' });
+    const cr = await request(app).post('/api/projects/test/tasks/links').send({
+      fromId: a.body.id, toId: b.body.id, kind: 'relates_to',
+    });
+    expect(cr.status).toBe(201);
+
+    const list = await request(app).get(`/api/projects/test/tasks/${a.body.id}/relations`);
+    expect(list.status).toBe(200);
+    expect(list.body.results.length).toBe(1);
+    const rel = list.body.results[0];
+    expect(rel.toGraph).toBe('tasks');
+
+    const del = await request(app)
+      .delete('/api/projects/test/tasks/links')
+      .set('Content-Type', 'application/json')
+      .send(buildDeletePayload(rel, 'tasks'));
+    expect(del.status).toBe(204);
+
+    const after = await request(app).get(`/api/projects/test/tasks/${a.body.id}/relations`);
+    expect(after.body.results.length).toBe(0);
+  });
+
+  it('skills → skills: list → delete same-graph relation', async () => {
+    const a = await request(app).post('/api/projects/test/skills').send({ title: 'SA', description: '' });
+    const b = await request(app).post('/api/projects/test/skills').send({ title: 'SB', description: '' });
+    const cr = await request(app).post('/api/projects/test/skills/links').send({
+      fromId: a.body.id, toId: b.body.id, kind: 'relates_to',
+    });
+    expect(cr.status).toBe(201);
+
+    const list = await request(app).get(`/api/projects/test/skills/${a.body.id}/relations`);
+    expect(list.status).toBe(200);
+    expect(list.body.results.length).toBe(1);
+    const rel = list.body.results[0];
+    expect(rel.toGraph).toBe('skills');
+
+    const del = await request(app)
+      .delete('/api/projects/test/skills/links')
+      .set('Content-Type', 'application/json')
+      .send(buildDeletePayload(rel, 'skills'));
+    expect(del.status).toBe(204);
+
+    const after = await request(app).get(`/api/projects/test/skills/${a.body.id}/relations`);
+    expect(after.body.results.length).toBe(0);
+  });
+});

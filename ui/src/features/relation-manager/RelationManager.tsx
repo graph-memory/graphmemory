@@ -31,7 +31,7 @@ const GRAPH_BADGE_COLOR: Record<string, 'warning' | 'primary' | 'success' | 'neu
 };
 
 interface SearchResult {
-  id: string;
+  id: number;
   label: string;
   score: number;
 }
@@ -77,24 +77,21 @@ export function RelationManager({ projectId, entityId, entityType, relations, on
     try {
       let results: SearchResult[] = [];
       const q = searchQuery.trim();
+      const toResult = (r: { id: number; label: string; score: number }) => ({
+        id: r.id, label: r.label || String(r.id), score: r.score,
+      });
       if (targetGraph === 'knowledge') {
-        const notes = await searchNotes(projectId, q, { topK: 10 });
-        results = notes.map(n => ({ id: n.id, label: n.title, score: n.score }));
+        results = (await searchNotes(projectId, q, { topK: 10 })).map(toResult);
       } else if (targetGraph === 'tasks') {
-        const tasks = await searchTasks(projectId, q, { topK: 10 });
-        results = tasks.map(t => ({ id: t.id, label: t.title, score: t.score }));
+        results = (await searchTasks(projectId, q, { topK: 10 })).map(toResult);
       } else if (targetGraph === 'docs') {
-        const docs = await searchDocs(projectId, q, { topK: 10 });
-        results = docs.map(d => ({ id: d.id, label: d.title || d.id, score: d.score }));
+        results = (await searchDocs(projectId, q, { topK: 10 })).map(toResult);
       } else if (targetGraph === 'code') {
-        const code = await searchCode(projectId, q, { topK: 10 });
-        results = code.map(c => ({ id: c.id, label: c.name || c.id, score: c.score }));
+        results = (await searchCode(projectId, q, { topK: 10 })).map(toResult);
       } else if (targetGraph === 'skills') {
-        const skills = await searchSkills(projectId, q, { topK: 10 });
-        results = skills.map(s => ({ id: s.id, label: s.title, score: s.score }));
+        results = (await searchSkills(projectId, q, { topK: 10 })).map(toResult);
       } else if (targetGraph === 'files') {
-        const files = await searchFiles(projectId, q, { topK: 10 });
-        results = files.map(f => ({ id: String(f.id), label: f.filePath, score: f.score }));
+        results = (await searchFiles(projectId, q, { topK: 10 })).map(toResult);
       }
       setSearchResults(results);
     } catch { /* ignore */ } finally {
@@ -134,8 +131,11 @@ export function RelationManager({ projectId, entityId, entityType, relations, on
     // Backend matches the edge by (fromId, toId, fromGraph, toGraph, kind),
     // so all of these must come from the original edge — not the
     // target-perspective view. Without `kind` the SQL DELETE silently affects
-    // 0 rows.
-    const payload = { fromId: rel.fromId, toId: rel.toId, kind: rel.kind, targetGraph: rel.toGraph };
+    // 0 rows. `targetGraph` must be `undefined` when the edge is within the
+    // same graph as the entity, because the DELETE Zod schema's enum excludes
+    // the entity's own graph (mirrors the guard in handleCreate above).
+    const tg = rel.toGraph === entityType ? undefined : rel.toGraph;
+    const payload = { fromId: rel.fromId, toId: rel.toId, kind: rel.kind, targetGraph: tg };
     try {
       if (entityType === 'knowledge') {
         await deleteRelation(projectId, payload);

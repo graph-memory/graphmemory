@@ -605,6 +605,67 @@ describe('StoreManager', () => {
       expect(titles.get(tagEdge!.fromId)).toBe('gamma');
     });
 
+    it('populates targetProjectSlug from edge fromProjectId/toProjectId', async () => {
+      // The current test setup has a single project, so we synthesize the
+      // cross-project case by injecting raw Edge objects with explicit
+      // fromProjectId/toProjectId. This mirrors how the workspace scenario
+      // works in real life: shared knowledge → project-scoped code/docs/files.
+      const note = await manager.createNote({ title: 'Cross-project source', content: '' });
+      const fakeOutgoing = {
+        fromGraph: 'knowledge' as const, fromId: note.id, fromProjectId: 1,
+        toGraph: 'code' as const, toId: 999, toProjectId: 1,
+        kind: 'implemented_in',
+      };
+      const fakeIncoming = {
+        fromGraph: 'tasks' as const, fromId: 888, fromProjectId: 1,
+        toGraph: 'knowledge' as const, toId: note.id, toProjectId: 1,
+        kind: 'documents',
+      };
+      const enriched = manager.enrichRelations('knowledge', note.id, [fakeOutgoing, fakeIncoming]);
+      expect(enriched).toHaveLength(2);
+      // Project id 1 was created in beforeEach with slug 'test'.
+      expect(enriched[0].targetProjectSlug).toBe('test');
+      expect(enriched[1].targetProjectSlug).toBe('test');
+    });
+
+    it('createEdge stores correct to_project_id for cross-project targets', async () => {
+      // Workspace scenario: shared knowledge in project A points to a code
+      // symbol that lives in project B. The edge must record to_project_id=B
+      // so the UI can navigate to the right project page.
+      const projectB = store.projects.create({ slug: 'other', name: 'Other', directory: '/tmp/other' });
+
+      // Create a knowledge note in project A (the manager's project).
+      const note = await manager.createNote({ title: 'A-side note', content: '' });
+
+      // Inject a code "file" node directly into project B by writing to the
+      // code table. We do this with raw SQL because there's no createCode in
+      // StoreManager (code is indexer-managed). This mirrors what the indexer
+      // does for project B.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db = (store as any).db as import('better-sqlite3').Database;
+      const insert = db.prepare(`INSERT INTO code (project_id, kind, file_id, name) VALUES (?, 'file', ?, ?)`);
+      const codeId = Number(insert.run(projectB.id, 'src/foo.ts', 'src/foo.ts').lastInsertRowid);
+
+      // Create the cross-project edge through StoreManager (the public API
+      // path that REST/MCP also use).
+      manager.createEdge({
+        fromGraph: 'knowledge', fromId: note.id,
+        toGraph: 'code', toId: codeId,
+        kind: 'implemented_in',
+      });
+
+      // Inspect the raw row.
+      const row = db.prepare(`SELECT from_project_id, to_project_id FROM edges WHERE from_graph='knowledge' AND from_id=? AND to_id=?`)
+        .get(note.id, codeId) as { from_project_id: bigint; to_project_id: bigint };
+      expect(Number(row.from_project_id)).toBe(manager.projectId);
+      expect(Number(row.to_project_id)).toBe(projectB.id);
+
+      // enrichRelations should surface the right project slug.
+      const enriched = manager.enrichRelations('knowledge', note.id, manager.findOutgoingEdges('knowledge', note.id));
+      const codeRel = enriched.find(e => e.targetGraph === 'code');
+      expect(codeRel?.targetProjectSlug).toBe('other');
+    });
+
     it('falls back to String(targetId) when target node was deleted (orphan edge)', async () => {
       const a = await manager.createNote({ title: 'A', content: '' });
       const b = await manager.createNote({ title: 'B', content: '' });

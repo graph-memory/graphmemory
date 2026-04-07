@@ -22,6 +22,8 @@ export interface Relation {
   targetGraph: string;
   /** Id of the "other end" relative to the queried entity. */
   targetId: number;
+  /** Slug of the project that owns the target node, if known (for cross-project navigation). */
+  targetProjectSlug?: string;
   /** Human-readable label of the target (title / path / name). */
   title: string;
   direction: 'out' | 'in';

@@ -99,6 +99,7 @@ export interface TaskRelation {
   kind: string;
   targetGraph: string;
   targetId: number;
+  targetProjectSlug?: string;
   title: string;
   direction: 'out' | 'in';
 }

@@ -148,11 +148,6 @@ export function RelationManager({ projectId, entityId, entityType, relations, on
     } catch { /* ignore */ }
   };
 
-  const handleNavigate = (graph: string, targetId: number) => {
-    const path = getNavigationPath(pid, graph, targetId);
-    if (path) navigate(path);
-  };
-
   return (
     <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
@@ -171,7 +166,11 @@ export function RelationManager({ projectId, entityId, entityType, relations, on
           {relations.map((rel, i) => {
             const targetId = rel.targetId;
             const graph = rel.targetGraph;
-            const navPath = getNavigationPath(pid, graph, targetId);
+            // For cross-project edges (e.g. shared knowledge → project-scoped code),
+            // route to the project that actually owns the target node, not the
+            // current page's project.
+            const navProject = rel.targetProjectSlug ?? pid;
+            const navPath = getNavigationPath(navProject, graph, targetId);
             const displayLabel = rel.title || String(targetId);
             return (
               <ListItem
@@ -194,7 +193,7 @@ export function RelationManager({ projectId, entityId, entityType, relations, on
                           href={navPath}
                           variant="body2"
                           underline="hover"
-                          onClick={(e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); handleNavigate(graph, targetId); }}
+                          onClick={(e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); navigate(navPath); }}
                         >
                           {displayLabel}
                         </Link>

@@ -123,4 +123,25 @@ export class SqliteProjectScopedStore implements ProjectScopedStore {
     }
     return out;
   }
+
+  /**
+   * Look up the project_id that owns a node by graph + id.
+   * Returns null for the synthetic 'tags' graph (cross-project, no owner).
+   * Used to populate to_project_id when creating cross-project edges.
+   */
+  resolveNodeProjectId(graph: GraphName, id: number): number | null {
+    let table: string;
+    switch (graph) {
+      case 'knowledge': case 'tasks': case 'epics': case 'skills':
+      case 'code':      case 'docs':  case 'files':
+        table = graph;
+        break;
+      case 'tags':
+        return null;
+      default:
+        return null;
+    }
+    const row = this.db.prepare(`SELECT project_id FROM ${table} WHERE id = ?`).get(id) as { project_id: bigint | number } | undefined;
+    return row ? num(row.project_id) : null;
+  }
 }

@@ -37,12 +37,14 @@ export class EdgeHelper {
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
     const rows = this.db.prepare(
-      `SELECT from_graph, from_id, to_graph, to_id, kind FROM edges ${where} LIMIT 10000`
+      `SELECT from_project_id, from_graph, from_id, to_project_id, to_graph, to_id, kind FROM edges ${where} LIMIT 10000`
     ).all(...params) as Array<Record<string, unknown>>;
 
     return rows.map(r => ({
+      fromProjectId: num(r.from_project_id as bigint),
       fromGraph: r.from_graph as GraphName,
       fromId: num(r.from_id as bigint),
+      toProjectId: num(r.to_project_id as bigint),
       toGraph: r.to_graph as GraphName,
       toId: num(r.to_id as bigint),
       kind: r.kind as string,

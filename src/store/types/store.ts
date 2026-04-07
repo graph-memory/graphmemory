@@ -44,6 +44,13 @@ export interface ProjectScopedStore {
    * Missing ids are simply absent from the map.
    */
   resolveTitles(graph: GraphName, ids: number[]): Map<number, string>;
+
+  /**
+   * Look up the project_id that owns a node by graph + id.
+   * Returns null for tag nodes or unresolvable ids. Used by callers that
+   * need to populate to_project_id when creating cross-project edges.
+   */
+  resolveNodeProjectId(graph: GraphName, id: number): number | null;
 }
 
 // ---------------------------------------------------------------------------

@@ -57,6 +57,10 @@ export interface Edge {
   toGraph: GraphName;
   toId: number;
   kind: string;
+  /** Project that owns the source node. Populated by edge readers; ignored on writes (inferred from caller scope). */
+  fromProjectId?: number;
+  /** Project that owns the target node. Populated by edge readers; ignored on writes (inferred from caller scope). */
+  toProjectId?: number;
 }
 
 export interface EdgeFilter {

@@ -54,6 +54,7 @@ export interface SkillRelation {
   kind: string;
   targetGraph: string;
   targetId: number;
+  targetProjectSlug?: string;
   title: string;
   direction: 'out' | 'in';
 }

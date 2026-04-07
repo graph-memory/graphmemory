@@ -493,7 +493,16 @@ export class StoreManager {
   // =========================================================================
 
   createEdge(edge: Edge): void {
-    this.scoped.createEdge(edge);
+    // Resolve the actual project that owns the target node — for cross-project
+    // edges (e.g. shared knowledge → project-scoped code), the target can live
+    // in a different project than the source. Without this lookup, to_project_id
+    // would inherit from the source and the UI couldn't navigate cross-project.
+    const toProjectId = this.scoped.resolveNodeProjectId(edge.toGraph, edge.toId);
+    if (toProjectId !== null && toProjectId !== this.scoped.projectId) {
+      this.scoped.createCrossProjectEdge(toProjectId, edge);
+    } else {
+      this.scoped.createEdge(edge);
+    }
     // Mirror the new edge into the source-side entity's markdown file so the
     // file frontmatter stays in sync with SQLite.
     this.mirrorRelationEvent('add', edge);
@@ -545,7 +554,13 @@ export class StoreManager {
     entityGraph: GraphName,
     entityId: number,
     edges: Edge[],
-  ): Array<Edge & { targetGraph: GraphName; targetId: number; title: string; direction: 'out' | 'in' }> {
+  ): Array<Edge & {
+    targetGraph: GraphName;
+    targetId: number;
+    targetProjectSlug?: string;
+    title: string;
+    direction: 'out' | 'in';
+  }> {
     // Drop auto-tagged edges before enrichment.
     const userEdges = edges.filter(e => !(e.kind === 'tagged' && (e.fromGraph === 'tags' || e.toGraph === 'tags')));
     // Group target ids by their graph so we can batch-resolve titles.
@@ -554,18 +569,35 @@ export class StoreManager {
       const isOutgoing = e.fromGraph === entityGraph && e.fromId === entityId;
       const targetGraph: GraphName = isOutgoing ? e.toGraph : e.fromGraph;
       const targetId = isOutgoing ? e.toId : e.fromId;
+      const targetProjectId = isOutgoing ? e.toProjectId : e.fromProjectId;
       if (!idsByGraph.has(targetGraph)) idsByGraph.set(targetGraph, []);
       idsByGraph.get(targetGraph)!.push(targetId);
-      return { edge: e, targetGraph, targetId, direction: (isOutgoing ? 'out' : 'in') as 'out' | 'in' };
+      return {
+        edge: e,
+        targetGraph,
+        targetId,
+        targetProjectId,
+        direction: (isOutgoing ? 'out' : 'in') as 'out' | 'in',
+      };
     });
     const titles = new Map<GraphName, Map<number, string>>();
     for (const [g, ids] of idsByGraph) {
       titles.set(g, this.scoped.resolveTitles(g, ids));
     }
+    // Resolve project ids → slugs (batched via small in-memory cache).
+    const projectSlugCache = new Map<number, string | undefined>();
+    const resolveProjectSlug = (id: number | undefined): string | undefined => {
+      if (id === undefined) return undefined;
+      if (projectSlugCache.has(id)) return projectSlugCache.get(id);
+      const slug = this.store.projects.get(id)?.slug;
+      projectSlugCache.set(id, slug);
+      return slug;
+    };
     return view.map(v => ({
       ...v.edge,
       targetGraph: v.targetGraph,
       targetId: v.targetId,
+      targetProjectSlug: resolveProjectSlug(v.targetProjectId),
       title: titles.get(v.targetGraph)?.get(v.targetId) ?? String(v.targetId),
       direction: v.direction,
     }));

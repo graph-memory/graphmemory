@@ -159,17 +159,17 @@ export function createSkillsRouter(_users?: Record<string, UserConfig>): Router 
 
   // Delete skill link
   // Must be registered before DELETE /:skillId to avoid 'links' being parsed as a skillId
-  router.delete('/links', requireWriteAccess, validateBody(createSkillLinkSchema.pick({ fromId: true, toId: true, targetGraph: true, projectId: true })), async (req, res, next) => {
+  router.delete('/links', requireWriteAccess, validateBody(createSkillLinkSchema.pick({ fromId: true, toId: true, kind: true, targetGraph: true, projectId: true })), async (req, res, next) => {
     try {
       const p = getProject(req);
-      const { fromId, toId, targetGraph } = req.body;
+      const { fromId, toId, kind, targetGraph } = req.body;
       await p.mutationQueue.enqueue(async () => {
         p.storeManager.deleteEdge({
           fromGraph: 'skills',
           fromId,
           toGraph: targetGraph ?? 'skills',
           toId,
-          kind: '',
+          kind,
         });
       });
       res.status(204).end();

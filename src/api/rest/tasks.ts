@@ -203,16 +203,16 @@ export function createTasksRouter(_users?: Record<string, unknown>): Router {
 
   // Delete edge
   // Must be registered before DELETE /:taskId to avoid 'links' being parsed as a taskId
-  router.delete('/links', requireWriteAccess, validateBody(createTaskLinkSchema.pick({ fromId: true, toId: true, targetGraph: true, projectId: true })), async (req, res, next) => {
+  router.delete('/links', requireWriteAccess, validateBody(createTaskLinkSchema.pick({ fromId: true, toId: true, kind: true, targetGraph: true, projectId: true })), async (req, res, next) => {
     try {
       const p = getProject(req);
-      const { fromId, toId, targetGraph } = req.body;
+      const { fromId, toId, kind, targetGraph } = req.body;
       const edge: Edge = {
         fromGraph: 'tasks' as GraphName,
         fromId,
         toGraph: (targetGraph ?? 'tasks') as GraphName,
         toId,
-        kind: '',  // kind not required for delete lookup
+        kind,
       };
       await p.mutationQueue.enqueue(async () => {
         p.storeManager.deleteEdge(edge);

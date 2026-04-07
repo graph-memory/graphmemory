@@ -234,7 +234,7 @@ test('Create note→note relation → receives note:relation:added', async () =>
   // Delete relation → note:relation:deleted
   clearReceived();
   await restWith(BASE, 'DELETE', '/api/projects/sandbox/knowledge/relations',
-    { fromId: n1.data.id, toId: n2.data.id });
+    { fromId: n1.data.id, toId: n2.data.id, kind: 'related_to' });
   const delEvt = await findEvent('note:relation:deleted');
   assertExists(delEvt, 'note:relation:deleted event');
 
@@ -258,7 +258,7 @@ test('Create task→note relation → receives task:relation:added', async () =>
 
   clearReceived();
   await restWith(BASE, 'DELETE', '/api/projects/sandbox/tasks/links',
-    { fromId: task.data.id, toId: note.data.id, targetGraph: 'knowledge' });
+    { fromId: task.data.id, toId: note.data.id, kind: 'references', targetGraph: 'knowledge' });
   const delEvt = await findEvent('task:relation:deleted');
   assertExists(delEvt, 'task:relation:deleted event');
 
@@ -282,7 +282,7 @@ test('Create skill→skill relation → receives skill:relation:added', async ()
 
   clearReceived();
   await restWith(BASE, 'DELETE', '/api/projects/sandbox/skills/links',
-    { fromId: s1.data.id, toId: s2.data.id });
+    { fromId: s1.data.id, toId: s2.data.id, kind: 'depends_on' });
   const delEvt = await findEvent('skill:relation:deleted');
   assertExists(delEvt, 'skill:relation:deleted event');
 

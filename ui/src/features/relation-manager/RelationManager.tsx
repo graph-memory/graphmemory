@@ -131,10 +131,11 @@ export function RelationManager({ projectId, entityId, entityType, relations, on
     if (!deleteConfirm) return;
     const rel = deleteConfirm;
     setDeleteConfirm(null);
-    // Backend identifies the edge by (fromId, toId, toGraph). Always pass the
-    // original edge endpoints (not the target-perspective ones) so outgoing
-    // cross-graph edges are deleted correctly.
-    const payload = { fromId: rel.fromId, toId: rel.toId, targetGraph: rel.toGraph };
+    // Backend matches the edge by (fromId, toId, fromGraph, toGraph, kind),
+    // so all of these must come from the original edge — not the
+    // target-perspective view. Without `kind` the SQL DELETE silently affects
+    // 0 rows.
+    const payload = { fromId: rel.fromId, toId: rel.toId, kind: rel.kind, targetGraph: rel.toGraph };
     try {
       if (entityType === 'knowledge') {
         await deleteRelation(projectId, payload);

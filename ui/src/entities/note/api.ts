@@ -70,7 +70,7 @@ export function createRelation(projectId: string, data: { fromId: number; toId: 
   });
 }
 
-export function deleteRelation(projectId: string, data: { fromId: number; toId: number; targetGraph?: string }) {
+export function deleteRelation(projectId: string, data: { fromId: number; toId: number; kind: string; targetGraph?: string }) {
   return request<void>(`/projects/${projectId}/knowledge/relations`, {
     method: 'DELETE',
     body: JSON.stringify(data),

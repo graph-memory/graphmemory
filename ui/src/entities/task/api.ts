@@ -114,7 +114,7 @@ export function createTaskLink(projectId: string, data: { fromId: number; toId: 
   });
 }
 
-export function deleteTaskLink(projectId: string, data: { fromId: number; toId: number; targetGraph?: string }) {
+export function deleteTaskLink(projectId: string, data: { fromId: number; toId: number; kind: string; targetGraph?: string }) {
   return request<void>(`/projects/${projectId}/tasks/links`, {
     method: 'DELETE',
     body: JSON.stringify(data),

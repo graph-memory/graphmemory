@@ -209,7 +209,7 @@ describe('REST Skills', () => {
   it('DELETE /links returns 204 for non-existent link (idempotent)', async () => {
     const created = await request(app).post(base).send({ title: 'Unlink Skill', description: '' });
     const del = await request(app).delete(`${base}/links`).set('Content-Type', 'application/json').send({
-      fromId: created.body.id, toId: 999999, targetGraph: 'knowledge',
+      fromId: created.body.id, toId: 999999, kind: 'references', targetGraph: 'knowledge',
     });
     expect(del.status).toBe(204);
   });
@@ -223,7 +223,7 @@ describe('REST Skills', () => {
     expect(cr.status).toBe(201);
     // DELETE /links is idempotent — returns 204 even for non-matching edge
     const del = await request(app).delete(`${base}/links`).set('Content-Type', 'application/json').send({
-      fromId: createdSkill.body.id, toId: 999999, targetGraph: 'knowledge',
+      fromId: createdSkill.body.id, toId: 999999, kind: 'references', targetGraph: 'knowledge',
     });
     expect(del.status).toBe(204);
   });
@@ -463,7 +463,7 @@ describe('REST Knowledge gaps', () => {
       fromId: fromNote.body.id, toId: toNote.body.id, kind: 'relates_to',
     });
     const del = await request(app).delete('/api/projects/test/knowledge/relations').send({
-      fromId: fromNote.body.id, toId: toNote.body.id,
+      fromId: fromNote.body.id, toId: toNote.body.id, kind: 'relates_to',
     });
     expect(del.status).toBe(204);
   });
@@ -523,7 +523,7 @@ describe('REST Tasks gaps', () => {
   it('DELETE /links returns 204 for non-existent link (idempotent)', async () => {
     const created = await request(app).post('/api/projects/test/tasks').send({ title: 'Ul Task', description: '' });
     const del = await request(app).delete('/api/projects/test/tasks/links').set('Content-Type', 'application/json').send({
-      fromId: created.body.id, toId: 999999, targetGraph: 'knowledge',
+      fromId: created.body.id, toId: 999999, kind: 'references', targetGraph: 'knowledge',
     });
     expect(del.status).toBe(204);
   });
@@ -537,7 +537,7 @@ describe('REST Tasks gaps', () => {
     expect(cr.status).toBe(201);
     // DELETE /links is idempotent — returns 204 even for non-matching edge
     const del = await request(app).delete('/api/projects/test/tasks/links').set('Content-Type', 'application/json').send({
-      fromId: createdTask.body.id, toId: 999999, targetGraph: 'knowledge',
+      fromId: createdTask.body.id, toId: 999999, kind: 'references', targetGraph: 'knowledge',
     });
     expect(del.status).toBe(204);
   });

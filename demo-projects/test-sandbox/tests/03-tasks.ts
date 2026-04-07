@@ -252,6 +252,7 @@ test('REST DELETE /tasks/links — delete link', async () => {
   const res = await del('/tasks/links', {
     fromId: taskB_Id,
     toId: taskC_Id,
+    kind: 'related_to',
   });
   assertOk(res);
 });

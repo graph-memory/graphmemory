@@ -3,7 +3,9 @@ import path from 'path';
 import os from 'os';
 import { serializeMarkdown, parseMarkdown } from '@/lib/frontmatter';
 import {
-  mirrorNoteCreate, mirrorTaskCreate, deleteMirrorDir,
+  mirrorNoteCreate, mirrorTaskCreate, mirrorSkillCreate,
+  mirrorNoteRelation, mirrorTaskRelation, mirrorSkillRelation,
+  deleteMirrorDir,
   sanitizeEntityId, sanitizeFilename, writeAttachment, deleteAttachment, getAttachmentPath,
 } from '@/lib/file-mirror';
 import { scanAttachments } from '@/lib/attachment-types';
@@ -176,6 +178,120 @@ describe('file-mirror', () => {
       expect(parsed.frontmatter.dueDate).toBeTruthy();
       expect(parsed.body).toContain('# Fix Bug');
       expect(parsed.body).toContain('Fix the auth bug');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Dedicated relation event mirror functions.
+  //
+  // These were deleted in commit c8997ee along with their call sites during
+  // the SQLite Store migration; the functions themselves stayed in
+  // file-mirror.ts but became unreachable. Restored as a guardrail so they
+  // never silently rot again.
+  // -------------------------------------------------------------------------
+
+  function stubNoteAttrs() {
+    return {
+      title: 'My Note', content: 'body', tags: ['t'],
+      createdAt: 1710000000000, updatedAt: 1710000060000, version: 2,
+    };
+  }
+  function stubTaskAttrs() {
+    return {
+      title: 'My Task', description: 'desc', status: 'todo' as const, priority: 'medium' as const,
+      tags: ['t'], order: 0, assignee: null,
+      dueDate: null, estimate: null, completedAt: null,
+      createdAt: 1710000000000, updatedAt: 1710000060000, version: 2,
+    };
+  }
+  function stubSkillAttrs() {
+    return {
+      title: 'My Skill', description: 'desc',
+      steps: ['step1'], triggers: [], inputHints: [], filePatterns: [],
+      tags: ['t'], source: 'user' as const, confidence: 1.0,
+      usageCount: 0, lastUsedAt: null,
+      createdAt: 1710000000000, updatedAt: 1710000060000, version: 2,
+    };
+  }
+
+  describe('mirrorNoteRelation', () => {
+    it('appends a relation event to events.jsonl and rewrites note.md', () => {
+      const notesDir = path.join(tmpDir, '.notes');
+      // Pre-create entity dir + an existing event so we test append, not first-write.
+      mirrorNoteCreate(notesDir, 'my-note', stubNoteAttrs(), []);
+
+      const relations: RelationLike[] = [
+        { fromId: 'my-note', toId: 'fix-bug', kind: 'relates_to', targetGraph: 'tasks' },
+      ];
+      mirrorNoteRelation(notesDir, 'my-note', 'add', 'relates_to', 'fix-bug', stubNoteAttrs(), relations, 'tasks', 'Bob <bob@test.com>');
+
+      const eventsRaw = fs.readFileSync(path.join(notesDir, 'my-note', 'events.jsonl'), 'utf-8');
+      const lines = eventsRaw.trim().split('\n').filter(Boolean);
+      const last = JSON.parse(lines[lines.length - 1]);
+      expect(last.op).toBe('relation');
+      expect(last.action).toBe('add');
+      expect(last.kind).toBe('relates_to');
+      expect(last.to).toBe('fix-bug');
+      expect(last.graph).toBe('tasks');
+      expect(last.by).toBe('Bob <bob@test.com>');
+
+      const md = fs.readFileSync(path.join(notesDir, 'my-note', 'note.md'), 'utf-8');
+      const parsed = parseMarkdown(md);
+      const rels = parsed.frontmatter.relations as Array<{ to: string; kind: string; graph?: string }>;
+      expect(rels).toEqual([{ to: 'fix-bug', kind: 'relates_to', graph: 'tasks' }]);
+    });
+
+    it('removes a relation event and rewrites snapshot without it', () => {
+      const notesDir = path.join(tmpDir, '.notes');
+      const initial: RelationLike[] = [
+        { fromId: 'my-note', toId: 'other', kind: 'relates_to' },
+      ];
+      mirrorNoteCreate(notesDir, 'my-note', stubNoteAttrs(), initial);
+
+      mirrorNoteRelation(notesDir, 'my-note', 'remove', 'relates_to', 'other', stubNoteAttrs(), [], undefined);
+
+      const md = fs.readFileSync(path.join(notesDir, 'my-note', 'note.md'), 'utf-8');
+      expect(md).not.toContain('relations:');
+
+      const eventsRaw = fs.readFileSync(path.join(notesDir, 'my-note', 'events.jsonl'), 'utf-8');
+      const lines = eventsRaw.trim().split('\n').filter(Boolean);
+      const last = JSON.parse(lines[lines.length - 1]);
+      expect(last.op).toBe('relation');
+      expect(last.action).toBe('remove');
+    });
+  });
+
+  describe('mirrorTaskRelation', () => {
+    it('appends an add event and rewrites task.md frontmatter', () => {
+      const tasksDir = path.join(tmpDir, '.tasks');
+      mirrorTaskCreate(tasksDir, 'fix-bug', stubTaskAttrs(), []);
+
+      const relations: RelationLike[] = [
+        { fromId: 'fix-bug', toId: 'my-note', kind: 'relates_to', targetGraph: 'knowledge' },
+      ];
+      mirrorTaskRelation(tasksDir, 'fix-bug', 'add', 'relates_to', 'my-note', stubTaskAttrs(), relations, 'knowledge');
+
+      const md = fs.readFileSync(path.join(tasksDir, 'fix-bug', 'task.md'), 'utf-8');
+      const parsed = parseMarkdown(md);
+      const rels = parsed.frontmatter.relations as Array<{ to: string; kind: string; graph?: string }>;
+      expect(rels).toEqual([{ to: 'my-note', kind: 'relates_to', graph: 'knowledge' }]);
+    });
+  });
+
+  describe('mirrorSkillRelation', () => {
+    it('appends an add event and rewrites skill.md frontmatter', () => {
+      const skillsDir = path.join(tmpDir, '.skills');
+      mirrorSkillCreate(skillsDir, 'add-endpoint', stubSkillAttrs(), []);
+
+      const relations: RelationLike[] = [
+        { fromId: 'add-endpoint', toId: 'auth-debug', kind: 'related_to' },
+      ];
+      mirrorSkillRelation(skillsDir, 'add-endpoint', 'add', 'related_to', 'auth-debug', stubSkillAttrs(), relations, undefined);
+
+      const md = fs.readFileSync(path.join(skillsDir, 'add-endpoint', 'skill.md'), 'utf-8');
+      const parsed = parseMarkdown(md);
+      const rels = parsed.frontmatter.relations as Array<{ to: string; kind: string; graph?: string }>;
+      expect(rels).toEqual([{ to: 'auth-debug', kind: 'related_to' }]);
     });
   });
 

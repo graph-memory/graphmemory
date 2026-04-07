@@ -45,17 +45,22 @@ import { diffRelations } from './file-import';
 import {
   mirrorNoteCreate,
   mirrorNoteUpdate,
+  mirrorNoteRelation,
   mirrorTaskCreate,
   mirrorTaskUpdate,
+  mirrorTaskRelation,
   mirrorSkillCreate,
   mirrorSkillUpdate,
+  mirrorSkillRelation,
   mirrorEpicCreate,
   mirrorEpicUpdate,
+  mirrorEpicRelation,
   mirrorAttachmentEvent,
   writeAttachment,
   deleteAttachment,
   deleteMirrorDir,
   getAttachmentPath as getAttPath,
+  type RelationLike,
 } from './file-mirror';
 import { scanAttachments } from './attachment-types';
 import type { MirrorWriteTracker } from './mirror-watcher';
@@ -131,7 +136,7 @@ export class StoreManager {
     mirrorNoteCreate(`${this.projectDir}/.notes`, record.slug, {
       title: record.title, content: record.content, tags: record.tags,
       createdAt: record.createdAt, updatedAt: record.updatedAt, version: record.version,
-    }, []);
+    }, this.buildOutgoingForMirror('knowledge', record.id, record.slug));
     this.recordNoteMirrorWrites(record.slug);
     this.emit('note:created', { projectId: this.projectId, noteId: record.id });
     return record;
@@ -151,7 +156,7 @@ export class StoreManager {
     mirrorNoteUpdate(`${this.projectDir}/.notes`, record.slug, patch, {
       title: record.title, content: record.content, tags: record.tags,
       createdAt: record.createdAt, updatedAt: record.updatedAt, version: record.version,
-    }, []);
+    }, this.buildOutgoingForMirror('knowledge', record.id, record.slug));
     this.recordNoteMirrorWrites(record.slug);
     this.emit('note:updated', { projectId: this.projectId, noteId });
     return record;
@@ -212,7 +217,7 @@ export class StoreManager {
   async createTask(data: TaskCreate): Promise<TaskRecord> {
     const embedding = await this.embedFn(`${data.title} ${data.description ?? ''}`);
     const record = this.scoped.tasks.create(data, embedding);
-    mirrorTaskCreate(`${this.projectDir}/.tasks`, record.slug, this.buildMirrorTaskAttrs(record), []);
+    mirrorTaskCreate(`${this.projectDir}/.tasks`, record.slug, this.buildMirrorTaskAttrs(record), this.buildOutgoingForMirror('tasks', record.id, record.slug));
     this.recordTaskMirrorWrites(record.slug);
     this.emit('task:created', { projectId: this.projectId, taskId: record.id });
     return record;
@@ -229,7 +234,7 @@ export class StoreManager {
       embedding = await this.embedFn(`${title} ${description}`);
     }
     const record = this.scoped.tasks.update(taskId, patch, embedding, authorId, expectedVersion);
-    mirrorTaskUpdate(`${this.projectDir}/.tasks`, record.slug, patch, this.buildMirrorTaskAttrs(record), []);
+    mirrorTaskUpdate(`${this.projectDir}/.tasks`, record.slug, patch, this.buildMirrorTaskAttrs(record), this.buildOutgoingForMirror('tasks', record.id, record.slug));
     this.recordTaskMirrorWrites(record.slug);
     this.emit('task:updated', { projectId: this.projectId, taskId });
     return record;
@@ -245,7 +250,7 @@ export class StoreManager {
 
   moveTask(taskId: number, status: TaskStatus, targetOrder?: number, authorId?: number, expectedVersion?: number): TaskRecord {
     const record = this.scoped.tasks.move(taskId, status, targetOrder, authorId, expectedVersion);
-    mirrorTaskUpdate(`${this.projectDir}/.tasks`, record.slug, { status }, this.buildMirrorTaskAttrs(record), []);
+    mirrorTaskUpdate(`${this.projectDir}/.tasks`, record.slug, { status }, this.buildMirrorTaskAttrs(record), this.buildOutgoingForMirror('tasks', record.id, record.slug));
     this.recordTaskMirrorWrites(record.slug);
     this.emit('task:updated', { projectId: this.projectId, taskId });
     this.emit('task:moved', { projectId: this.projectId, taskId, status });
@@ -256,7 +261,7 @@ export class StoreManager {
     const record = this.scoped.tasks.reorder(taskId, order, status, authorId);
     const patch: TaskPatch = { order };
     if (status) patch.status = status;
-    mirrorTaskUpdate(`${this.projectDir}/.tasks`, record.slug, patch, this.buildMirrorTaskAttrs(record), []);
+    mirrorTaskUpdate(`${this.projectDir}/.tasks`, record.slug, patch, this.buildMirrorTaskAttrs(record), this.buildOutgoingForMirror('tasks', record.id, record.slug));
     this.recordTaskMirrorWrites(record.slug);
     this.emit('task:updated', { projectId: this.projectId, taskId });
     this.emit('task:reordered', { projectId: this.projectId, taskId, order });
@@ -303,7 +308,7 @@ export class StoreManager {
     for (const id of taskIds) {
       const record = this.scoped.tasks.get(id);
       if (!record) continue;
-      mirrorTaskUpdate(`${this.projectDir}/.tasks`, record.slug, { status }, this.buildMirrorTaskAttrs(record), []);
+      mirrorTaskUpdate(`${this.projectDir}/.tasks`, record.slug, { status }, this.buildMirrorTaskAttrs(record), this.buildOutgoingForMirror('tasks', record.id, record.slug));
       this.recordTaskMirrorWrites(record.slug);
     }
     this.emit('task:bulk_moved', { projectId: this.projectId, taskIds, status, count });
@@ -316,7 +321,7 @@ export class StoreManager {
     for (const id of taskIds) {
       const record = this.scoped.tasks.get(id);
       if (!record) continue;
-      mirrorTaskUpdate(`${this.projectDir}/.tasks`, record.slug, { priority }, this.buildMirrorTaskAttrs(record), []);
+      mirrorTaskUpdate(`${this.projectDir}/.tasks`, record.slug, { priority }, this.buildMirrorTaskAttrs(record), this.buildOutgoingForMirror('tasks', record.id, record.slug));
       this.recordTaskMirrorWrites(record.slug);
     }
     this.emit('task:bulk_priority', { projectId: this.projectId, taskIds, priority, count });
@@ -335,7 +340,7 @@ export class StoreManager {
       status: record.status, priority: record.priority,
       tags: record.tags, order: record.order,
       createdAt: record.createdAt, updatedAt: record.updatedAt, version: record.version,
-    }, []);
+    }, this.buildOutgoingForMirror('epics', record.id, record.slug));
     this.recordEpicMirrorWrites(record.slug);
     this.emit('epic:created', { projectId: this.projectId, epicId: record.id });
     return record;
@@ -357,7 +362,7 @@ export class StoreManager {
       status: record.status, priority: record.priority,
       tags: record.tags, order: record.order,
       createdAt: record.createdAt, updatedAt: record.updatedAt, version: record.version,
-    }, []);
+    }, this.buildOutgoingForMirror('epics', record.id, record.slug));
     this.recordEpicMirrorWrites(record.slug);
     this.emit('epic:updated', { projectId: this.projectId, epicId });
     return record;
@@ -421,7 +426,7 @@ export class StoreManager {
       tags: record.tags, source: record.source, confidence: record.confidence,
       usageCount: record.usageCount, lastUsedAt: record.lastUsedAt,
       createdAt: record.createdAt, updatedAt: record.updatedAt, version: record.version,
-    }, []);
+    }, this.buildOutgoingForMirror('skills', record.id, record.slug));
     this.recordSkillMirrorWrites(record.slug);
     this.emit('skill:created', { projectId: this.projectId, skillId: record.id });
     return record;
@@ -445,7 +450,7 @@ export class StoreManager {
       tags: record.tags, source: record.source, confidence: record.confidence,
       usageCount: record.usageCount, lastUsedAt: record.lastUsedAt,
       createdAt: record.createdAt, updatedAt: record.updatedAt, version: record.version,
-    }, []);
+    }, this.buildOutgoingForMirror('skills', record.id, record.slug));
     this.recordSkillMirrorWrites(record.slug);
     this.emit('skill:updated', { projectId: this.projectId, skillId });
     return record;
@@ -489,6 +494,9 @@ export class StoreManager {
 
   createEdge(edge: Edge): void {
     this.scoped.createEdge(edge);
+    // Mirror the new edge into the source-side entity's markdown file so the
+    // file frontmatter stays in sync with SQLite.
+    this.mirrorRelationEvent('add', edge);
     // Per-graph relation event for entity graphs so WebSocket clients (which
     // subscribe to singular `note:` / `task:` / `skill:` prefixes) get notified.
     const prefix = ENTITY_EVENT_PREFIX[edge.fromGraph];
@@ -499,6 +507,7 @@ export class StoreManager {
 
   deleteEdge(edge: Edge): void {
     this.scoped.deleteEdge(edge);
+    this.mirrorRelationEvent('remove', edge);
     const prefix = ENTITY_EVENT_PREFIX[edge.fromGraph];
     if (prefix) {
       this.emit(`${prefix}:relation:deleted`, { projectId: this.projectId, edge });
@@ -889,6 +898,86 @@ export class StoreManager {
   }
 
   // -- Edge sync from file relations --
+
+  /**
+   * Build the slug-based outgoing-relations list for an entity, used to feed
+   * the mirror file frontmatter. One SQL query (findOutgoingEdges) plus one
+   * resolveIdToSlug per edge — typical entities have <10 edges so this is cheap.
+   * Indexed-graph targets (docs/code/files) are skipped because they have no slug.
+   */
+  private buildOutgoingForMirror(graph: GraphName, fromId: number, fromSlug: string): RelationLike[] {
+    const edges = this.scoped.findOutgoingEdges(graph, fromId);
+    const out: RelationLike[] = [];
+    for (const edge of edges) {
+      const targetSlug = this.resolveIdToSlug(edge.toGraph, edge.toId);
+      if (!targetSlug) continue;
+      out.push({
+        fromId: fromSlug,
+        toId: targetSlug,
+        kind: edge.kind,
+        targetGraph: edge.toGraph !== graph ? edge.toGraph : undefined,
+      });
+    }
+    return out;
+  }
+
+  /**
+   * Mirror an edge add/remove event to the source-side entity's markdown file.
+   * Appends the event to events.jsonl and regenerates the snapshot frontmatter
+   * so `relations:` reflects current state. Only entity graphs (knowledge,
+   * tasks, skills, epics) have mirror files; edges where the source is an
+   * indexed graph are not mirrored.
+   */
+  private mirrorRelationEvent(action: 'add' | 'remove', edge: Edge, by?: string): void {
+    const targetSlug = this.resolveIdToSlug(edge.toGraph, edge.toId);
+    if (!targetSlug) return; // target is in an indexed graph — can't represent as slug
+    const targetGraphField = edge.toGraph !== edge.fromGraph ? edge.toGraph : undefined;
+
+    if (edge.fromGraph === 'knowledge') {
+      const note = this.scoped.knowledge.get(edge.fromId);
+      if (!note) return;
+      const attrs = {
+        title: note.title, content: note.content, tags: note.tags,
+        createdAt: note.createdAt, updatedAt: note.updatedAt, version: note.version,
+      };
+      const relations = this.buildOutgoingForMirror('knowledge', note.id, note.slug);
+      mirrorNoteRelation(`${this.projectDir}/.notes`, note.slug, action, edge.kind, targetSlug, attrs, relations, targetGraphField, by);
+      this.recordNoteMirrorWrites(note.slug);
+    } else if (edge.fromGraph === 'tasks') {
+      const task = this.scoped.tasks.get(edge.fromId);
+      if (!task) return;
+      const attrs = this.buildMirrorTaskAttrs(task);
+      const relations = this.buildOutgoingForMirror('tasks', task.id, task.slug);
+      mirrorTaskRelation(`${this.projectDir}/.tasks`, task.slug, action, edge.kind, targetSlug, attrs, relations, targetGraphField, by);
+      this.recordTaskMirrorWrites(task.slug);
+    } else if (edge.fromGraph === 'skills') {
+      const skill = this.scoped.skills.get(edge.fromId);
+      if (!skill) return;
+      const attrs = {
+        title: skill.title, description: skill.description,
+        steps: skill.steps, triggers: skill.triggers,
+        inputHints: skill.inputHints, filePatterns: skill.filePatterns,
+        tags: skill.tags, source: skill.source, confidence: skill.confidence,
+        usageCount: skill.usageCount, lastUsedAt: skill.lastUsedAt,
+        createdAt: skill.createdAt, updatedAt: skill.updatedAt, version: skill.version,
+      };
+      const relations = this.buildOutgoingForMirror('skills', skill.id, skill.slug);
+      mirrorSkillRelation(`${this.projectDir}/.skills`, skill.slug, action, edge.kind, targetSlug, attrs, relations, targetGraphField, by);
+      this.recordSkillMirrorWrites(skill.slug);
+    } else if (edge.fromGraph === 'epics') {
+      const epic = this.scoped.epics.get(edge.fromId);
+      if (!epic) return;
+      const attrs = {
+        title: epic.title, description: epic.description,
+        status: epic.status, priority: epic.priority,
+        tags: epic.tags, order: epic.order,
+        createdAt: epic.createdAt, updatedAt: epic.updatedAt, version: epic.version,
+      };
+      const relations = this.buildOutgoingForMirror('epics', epic.id, epic.slug);
+      mirrorEpicRelation(`${this.projectDir}/.epics`, epic.slug, action, edge.kind, targetSlug, attrs, relations, targetGraphField, by);
+      this.recordEpicMirrorWrites(epic.slug);
+    }
+  }
 
   /**
    * Sync edges for an entity based on parsed file relations.

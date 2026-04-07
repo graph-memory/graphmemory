@@ -183,6 +183,7 @@ test('REST DELETE /skills/links — remove link', async () => {
   const res = await del('/skills/links', {
     fromId: skillId,
     toId: skillB_Id,
+    kind: 'depends_on',
   });
   assertOk(res);
 });
@@ -290,6 +291,7 @@ test('REST DELETE /knowledge/relations with targetGraph=code', async () => {
   const res = await del('/knowledge/relations', {
     fromId: noteId,
     toId: skillId,
+    kind: 'references',
     targetGraph: 'code',
   });
   assert(res.status < 500, `should not 500, got ${res.status}`);
@@ -323,6 +325,7 @@ test('REST DELETE /tasks/links with targetGraph=code', async () => {
   const res = await del('/tasks/links', {
     fromId: taskId,
     toId: skillId,
+    kind: 'references',
     targetGraph: 'code',
   });
   assert(res.status < 500, `should not 500, got ${res.status}`);
@@ -669,11 +672,13 @@ test('Cleanup cross-graph file-link fixtures', async () => {
   await del('/knowledge/relations', {
     fromId: linkedNoteId,
     toId: fileNodeId,
+    kind: 'references',
     targetGraph: 'files',
   });
   await del('/tasks/links', {
     fromId: linkedTaskId,
     toId: fileNodeId,
+    kind: 'references',
     targetGraph: 'files',
   });
   await del(`/knowledge/notes/${linkedNoteId}`);

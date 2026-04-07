@@ -133,15 +133,17 @@ export function createKnowledgeRouter(_users?: Record<string, UserConfig>): Rout
     } catch (err) { next(err); }
   });
 
-  // Delete edge (relation)
-  router.delete('/relations', requireWriteAccess, validateBody(createRelationSchema.pick({ fromId: true, toId: true, targetGraph: true, projectId: true })), async (req, res, next) => {
+  // Delete edge (relation). `kind` is required because the underlying SQL
+  // delete matches edges by (fromId, toId, fromGraph, toGraph, kind) — without
+  // it we'd silently affect 0 rows.
+  router.delete('/relations', requireWriteAccess, validateBody(createRelationSchema.pick({ fromId: true, toId: true, kind: true, targetGraph: true, projectId: true })), async (req, res, next) => {
     try {
       const { storeManager: mgr, mutationQueue } = getProject(req);
-      const { fromId, toId, targetGraph } = req.body;
+      const { fromId, toId, kind, targetGraph } = req.body;
       const fromGraph: GraphName = 'knowledge';
       const toGraph: GraphName = targetGraph || 'knowledge';
       await mutationQueue.enqueue(async () => {
-        mgr.deleteEdge({ fromGraph, fromId, toGraph, toId, kind: '' });
+        mgr.deleteEdge({ fromGraph, fromId, toGraph, toId, kind });
       });
       res.status(204).end();
     } catch (err) { next(err); }

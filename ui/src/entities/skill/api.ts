@@ -113,7 +113,7 @@ export function createSkillLink(projectId: string, data: { fromId: number; toId:
   });
 }
 
-export function deleteSkillLink(projectId: string, data: { fromId: number; toId: number; targetGraph?: string }) {
+export function deleteSkillLink(projectId: string, data: { fromId: number; toId: number; kind: string; targetGraph?: string }) {
   return request<void>(`/projects/${projectId}/skills/links`, {
     method: 'DELETE',
     body: JSON.stringify(data),

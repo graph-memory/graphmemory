@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, existsSync } from 'fs';
+import { mkdtempSync, rmSync, existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { EventEmitter } from 'events';
@@ -354,6 +354,168 @@ describe('StoreManager', () => {
       const edges = manager.listEdges({ fromGraph: 'knowledge', fromId: note.id });
       expect(edges.length).toBe(1);
       expect(edges[0].toId).toBe(task.id);
+    });
+  });
+
+  // =========================================================================
+  // Mirror ↔ relations round-trip
+  //
+  // Regression coverage for the silent data-loss bug where relations created
+  // through StoreManager (UI/REST/MCP) were never written to the markdown
+  // mirror, and any subsequent entity update wiped existing relations from
+  // the file frontmatter.
+  // =========================================================================
+
+  describe('mirror relations', () => {
+    function readNoteMd(slug: string): string {
+      return readFileSync(join(projectDir, '.notes', slug, 'note.md'), 'utf-8');
+    }
+    function readTaskMd(slug: string): string {
+      return readFileSync(join(projectDir, '.tasks', slug, 'task.md'), 'utf-8');
+    }
+    function readSkillMd(slug: string): string {
+      return readFileSync(join(projectDir, '.skills', slug, 'skill.md'), 'utf-8');
+    }
+
+    it('createEdge writes outgoing relation to source note.md frontmatter', async () => {
+      const noteA = await manager.createNote({ title: 'A', content: '' });
+      const noteB = await manager.createNote({ title: 'B', content: '' });
+
+      // Newly-created note has no relations in frontmatter.
+      expect(readNoteMd(noteA.slug)).not.toMatch(/^relations:/m);
+
+      manager.createEdge({
+        fromGraph: 'knowledge', fromId: noteA.id,
+        toGraph: 'knowledge', toId: noteB.id,
+        kind: 'related_to',
+      });
+
+      const md = readNoteMd(noteA.slug);
+      expect(md).toMatch(/^relations:/m);
+      expect(md).toContain(`to: ${noteB.slug}`);
+      expect(md).toContain('kind: related_to');
+    });
+
+    it('updateNote preserves existing relations in frontmatter', async () => {
+      const noteA = await manager.createNote({ title: 'A', content: 'old body' });
+      const noteB = await manager.createNote({ title: 'B', content: '' });
+      manager.createEdge({
+        fromGraph: 'knowledge', fromId: noteA.id,
+        toGraph: 'knowledge', toId: noteB.id,
+        kind: 'related_to',
+      });
+
+      // Now update unrelated content — relations must survive.
+      await manager.updateNote(noteA.id, { content: 'new body' });
+
+      const md = readNoteMd(noteA.slug);
+      expect(md).toContain(`to: ${noteB.slug}`);
+      expect(md).toContain('kind: related_to');
+    });
+
+    it('deleteEdge removes the relation from note.md frontmatter', async () => {
+      const noteA = await manager.createNote({ title: 'A', content: '' });
+      const noteB = await manager.createNote({ title: 'B', content: '' });
+      const edge = {
+        fromGraph: 'knowledge' as const, fromId: noteA.id,
+        toGraph: 'knowledge' as const, toId: noteB.id,
+        kind: 'related_to',
+      };
+      manager.createEdge(edge);
+      expect(readNoteMd(noteA.slug)).toContain(`to: ${noteB.slug}`);
+
+      manager.deleteEdge(edge);
+
+      expect(readNoteMd(noteA.slug)).not.toContain(`to: ${noteB.slug}`);
+    });
+
+    it('cross-graph link writes graph: field; same-graph omits it', async () => {
+      const note = await manager.createNote({ title: 'N', content: '' });
+      const task = await manager.createTask({ title: 'T', description: '' });
+      const otherNote = await manager.createNote({ title: 'O', content: '' });
+
+      // Cross-graph: knowledge → tasks
+      manager.createEdge({
+        fromGraph: 'knowledge', fromId: note.id,
+        toGraph: 'tasks', toId: task.id,
+        kind: 'relates_to',
+      });
+      // Same-graph: knowledge → knowledge
+      manager.createEdge({
+        fromGraph: 'knowledge', fromId: note.id,
+        toGraph: 'knowledge', toId: otherNote.id,
+        kind: 'depends_on',
+      });
+
+      const md = readNoteMd(note.slug);
+      // The cross-graph entry (kind: relates_to → task) must carry `graph: tasks`.
+      const relatesBlock = md.match(/- to: [^\n]+\n\s*kind: relates_to(?:\n\s*graph: [^\n]+)?/);
+      expect(relatesBlock).not.toBeNull();
+      expect(relatesBlock![0]).toContain('graph: tasks');
+      // The same-graph entry (kind: depends_on → other note) must NOT carry a `graph:` field.
+      const dependsBlock = md.match(/- to: [^\n]+\n\s*kind: depends_on(?:\n\s*graph: [^\n]+)?/);
+      expect(dependsBlock).not.toBeNull();
+      expect(dependsBlock![0]).not.toContain('graph:');
+    });
+
+    it('task createEdge writes outgoing relation to task.md frontmatter', async () => {
+      const task = await manager.createTask({ title: 'T', description: '' });
+      const note = await manager.createNote({ title: 'N', content: '' });
+
+      manager.createEdge({
+        fromGraph: 'tasks', fromId: task.id,
+        toGraph: 'knowledge', toId: note.id,
+        kind: 'relates_to',
+      });
+
+      const md = readTaskMd(task.slug);
+      expect(md).toMatch(/^relations:/m);
+      expect(md).toContain(`to: ${note.slug}`);
+      expect(md).toContain('graph: knowledge');
+    });
+
+    it('skill createEdge writes outgoing relation to skill.md frontmatter', async () => {
+      const skill = await manager.createSkill({ title: 'S', description: '' });
+      const note = await manager.createNote({ title: 'N', content: '' });
+
+      manager.createEdge({
+        fromGraph: 'skills', fromId: skill.id,
+        toGraph: 'knowledge', toId: note.id,
+        kind: 'related_to',
+      });
+
+      const md = readSkillMd(skill.slug);
+      expect(md).toMatch(/^relations:/m);
+      expect(md).toContain(`to: ${note.slug}`);
+      expect(md).toContain('graph: knowledge');
+    });
+
+    it('updateTask preserves existing relations', async () => {
+      const task = await manager.createTask({ title: 'T', description: 'old' });
+      const note = await manager.createNote({ title: 'N', content: '' });
+      manager.createEdge({
+        fromGraph: 'tasks', fromId: task.id,
+        toGraph: 'knowledge', toId: note.id,
+        kind: 'relates_to',
+      });
+
+      await manager.updateTask(task.id, { description: 'new' });
+
+      expect(readTaskMd(task.slug)).toContain(`to: ${note.slug}`);
+    });
+
+    it('updateSkill preserves existing relations', async () => {
+      const skill = await manager.createSkill({ title: 'S', description: 'old' });
+      const note = await manager.createNote({ title: 'N', content: '' });
+      manager.createEdge({
+        fromGraph: 'skills', fromId: skill.id,
+        toGraph: 'knowledge', toId: note.id,
+        kind: 'related_to',
+      });
+
+      await manager.updateSkill(skill.id, { description: 'new' });
+
+      expect(readSkillMd(skill.slug)).toContain(`to: ${note.slug}`);
     });
   });
 

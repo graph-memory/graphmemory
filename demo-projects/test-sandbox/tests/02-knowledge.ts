@@ -20,6 +20,8 @@ let restNoteId = '';
 let mcpNoteId = '';
 let noteA_Id = '';
 let noteB_Id = '';
+let noteA_Slug = '';
+let noteB_Slug = '';
 let codeSymbolId = '';
 
 // ─── 2.1 CRUD ────────────────────────────────────────────────────
@@ -129,6 +131,8 @@ test('Create note for search tests', async () => {
   });
   assertOk(res);
   noteA_Id = res.data.noteId ?? res.data.id;
+  noteA_Slug = res.data.slug ?? '';
+  assertExists(noteA_Slug, 'noteA slug');
 });
 
 test('REST GET /knowledge/search?q=quantum — finds note', async () => {
@@ -158,6 +162,8 @@ test('Create second note for relations', async () => {
   });
   assertOk(res);
   noteB_Id = res.data.noteId ?? res.data.id;
+  noteB_Slug = res.data.slug ?? '';
+  assertExists(noteB_Slug, 'noteB slug');
 });
 
 test('REST POST /knowledge/relations — create relation', async () => {
@@ -181,6 +187,7 @@ test('REST DELETE /knowledge/relations — remove relation', async () => {
   const res = await del('/knowledge/relations', {
     fromId: noteA_Id,
     toId: noteB_Id,
+    kind: 'related_to',
   });
   assertOk(res);
 });
@@ -208,6 +215,60 @@ test('MCP notes_delete_link — remove relation', async () => {
     kind: 'related_to',
   });
   assertMcpOk(res);
+});
+
+// ─── 2.3.1 Forward mirror (DB → file relations) ─────────────────
+//
+// Regression for the silent data-loss bug: relations created via REST/MCP
+// were never written to the markdown mirror, and any subsequent entity
+// update wiped existing relations from the file frontmatter.
+
+group('2.3.1 Forward mirror (DB → file relations)');
+
+function readNoteMd(slug: string): string {
+  return readFile(projectPath('.notes', slug, 'note.md'));
+}
+
+test('POST /knowledge/relations writes outgoing relation to note.md', async () => {
+  const res = await post('/knowledge/relations', {
+    fromId: noteA_Id,
+    toId: noteB_Id,
+    kind: 'related_to',
+  });
+  assertOk(res);
+  await wait(200);
+
+  const md = readNoteMd(noteA_Slug);
+  assert(md.includes('relations:'), `note.md should contain relations: frontmatter, got:\n${md.substring(0, 300)}`);
+  assert(md.includes(`to: ${noteB_Slug}`), `note.md should reference target slug ${noteB_Slug}`);
+  assert(md.includes('kind: related_to'), 'note.md should have the relation kind');
+});
+
+test('PUT /knowledge/notes/{id} preserves existing relations', async () => {
+  // The previous test left the noteA → noteB edge in place. Updating the note
+  // body must NOT wipe it from the mirror frontmatter.
+  const res = await put(`/knowledge/notes/${noteA_Id}`, {
+    content: 'Quantum computing uses qubits — updated body.',
+  });
+  assertOk(res);
+  await wait(200);
+
+  const md = readNoteMd(noteA_Slug);
+  assert(md.includes(`to: ${noteB_Slug}`), `relation must survive entity update, got:\n${md.substring(0, 400)}`);
+  assert(md.includes('kind: related_to'), 'kind must survive update');
+});
+
+test('DELETE /knowledge/relations removes the relation from note.md', async () => {
+  const res = await del('/knowledge/relations', {
+    fromId: noteA_Id,
+    toId: noteB_Id,
+    kind: 'related_to',
+  });
+  assertOk(res);
+  await wait(200);
+
+  const md = readNoteMd(noteA_Slug);
+  assert(!md.includes(`to: ${noteB_Slug}`), `relation should be removed, got:\n${md.substring(0, 300)}`);
 });
 
 // ─── 2.4 Cross-graph links ──────────────────────────────────────

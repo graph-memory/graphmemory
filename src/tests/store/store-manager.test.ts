@@ -571,6 +571,32 @@ describe('StoreManager', () => {
       expect(skillRel?.title).toBe('S title');
     });
 
+    it('filters out epic ↔ task belongs_to edges (have their own UI surface)', async () => {
+      // linkTaskToEpic creates an epic→task edge with kind='belongs_to'.
+      // The epic is already shown in the task sidebar (Epic field) and the
+      // epic page lists its tasks separately, so this edge would just clutter
+      // the Relations panel on either side.
+      const epic = await manager.createEpic({ title: 'Big Epic', description: '' });
+      const task = await manager.createTask({ title: 'Some task', description: '' });
+      manager.linkTaskToEpic(epic.id, task.id);
+
+      // From the task's perspective: belongs_to should NOT appear.
+      const taskEdges = [
+        ...manager.findOutgoingEdges('tasks', task.id),
+        ...manager.findIncomingEdges('tasks', task.id),
+      ];
+      const taskRels = manager.enrichRelations('tasks', task.id, taskEdges);
+      expect(taskRels.find(r => r.kind === 'belongs_to')).toBeUndefined();
+
+      // From the epic's perspective: belongs_to should NOT appear either.
+      const epicEdges = [
+        ...manager.findOutgoingEdges('epics', epic.id),
+        ...manager.findIncomingEdges('epics', epic.id),
+      ];
+      const epicRels = manager.enrichRelations('epics', epic.id, epicEdges);
+      expect(epicRels.find(r => r.kind === 'belongs_to')).toBeUndefined();
+    });
+
     it('filters out auto-tagged edges so the Relations panel stays clean', async () => {
       // Notes with tags get auto-created `tags → knowledge` edges (kind: 'tagged').
       // Tags already render in their own sidebar section; the Relations panel

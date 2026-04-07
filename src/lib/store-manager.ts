@@ -544,11 +544,16 @@ export class StoreManager {
    * relative to a queried entity: targetGraph, targetId, title, direction.
    * Titles are batch-resolved per graph (one SQL query per distinct graph).
    *
-   * Auto-managed `kind: 'tagged'` edges from the `tags` graph are filtered out:
-   * tags already render in their own sidebar section, and surfacing them in
-   * the Relations panel just clutters it with one row per tag. The raw edges
-   * remain available via MCP notes_list_links / tasks_list_links / etc. for
-   * LLM agents that want the full graph.
+   * Auto-managed edges are filtered out before enrichment:
+   *
+   * - `kind: 'tagged'` from/to the `tags` graph — tags already render in
+   *   their own sidebar section, and one row per tag in Relations is noise.
+   * - `kind: 'belongs_to'` between `epics` and `tasks` — the epic↔task link
+   *   has dedicated UI (Epic field in the task sidebar, task list on the epic
+   *   page), so duplicating it in Relations is noise.
+   *
+   * The raw edges remain available via MCP notes_list_links /
+   * tasks_list_links / etc. for LLM agents that want the full graph.
    */
   enrichRelations(
     entityGraph: GraphName,
@@ -561,8 +566,13 @@ export class StoreManager {
     title: string;
     direction: 'out' | 'in';
   }> {
-    // Drop auto-tagged edges before enrichment.
-    const userEdges = edges.filter(e => !(e.kind === 'tagged' && (e.fromGraph === 'tags' || e.toGraph === 'tags')));
+    // Drop auto-managed edges before enrichment.
+    const isTagEdge = (e: Edge) => e.kind === 'tagged' && (e.fromGraph === 'tags' || e.toGraph === 'tags');
+    const isEpicTaskLink = (e: Edge) =>
+      e.kind === 'belongs_to' &&
+      ((e.fromGraph === 'epics' && e.toGraph === 'tasks') ||
+       (e.fromGraph === 'tasks' && e.toGraph === 'epics'));
+    const userEdges = edges.filter(e => !isTagEdge(e) && !isEpicTaskLink(e));
     // Group target ids by their graph so we can batch-resolve titles.
     const idsByGraph = new Map<GraphName, number[]>();
     const view = userEdges.map(e => {

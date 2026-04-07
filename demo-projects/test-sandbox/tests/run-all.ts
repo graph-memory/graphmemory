@@ -40,6 +40,7 @@ const PHASES: PhaseEntry[] = [
   { id: 16, file: './16-ratelimit',        group: 'self' },
   { id: 17, file: './17-concurrent',       group: 'self' },
   { id: 18, file: './18-mirror-import',    group: 'self' },
+  { id: 19, file: './19-coverage-gaps',    group: 'sandbox' },
 ];
 
 // ─── Main ────────────────────────────────────────────────────────

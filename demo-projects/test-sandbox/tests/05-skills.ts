@@ -224,8 +224,7 @@ test('MCP skills_link — related_to', async () => {
   assertMcpOk(res);
 });
 
-test('REST POST /skills/links — create link', async () => {
-  // Already have links, just verify the endpoint works
+test('REST GET /skills/{id}/relations — lists relations', async () => {
   const res = await get(`/skills/${skillA_Id}/relations`);
   assertOk(res);
   const rels = res.data.results ?? res.data;

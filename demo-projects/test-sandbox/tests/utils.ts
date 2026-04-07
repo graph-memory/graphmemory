@@ -414,6 +414,49 @@ export function cookieHeader(cookies: Record<string, string>): string {
   return Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join('; ');
 }
 
+// ─── Multipart upload helper ─────────────────────────────────────
+
+/** Upload a file via multipart/form-data POST. */
+export async function uploadFile<T = any>(
+  path: string,
+  filename: string,
+  content: Buffer | string,
+  mimeType = 'application/octet-stream',
+): Promise<RestResponse<T>> {
+  const url = path.startsWith('http')
+    ? path
+    : path.startsWith('/api/')
+      ? `${BASE}${path}`
+      : `${API}${path}`;
+
+  const boundary = '----FormBoundary' + Math.random().toString(36).slice(2);
+  const body = Buffer.concat([
+    Buffer.from(
+      `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="file"; filename="${filename}"\r\n` +
+      `Content-Type: ${mimeType}\r\n\r\n`,
+    ),
+    Buffer.isBuffer(content) ? content : Buffer.from(content),
+    Buffer.from(`\r\n--${boundary}--\r\n`),
+  ]);
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
+    body,
+  });
+
+  let data: any = null;
+  const ct = res.headers.get('content-type') ?? '';
+  if (ct.includes('application/json')) {
+    data = await res.json();
+  } else if (res.status !== 204) {
+    data = await res.text();
+  }
+
+  return { status: res.status, ok: res.ok, data, headers: res.headers };
+}
+
 // ─── Standalone runner (for phases 1-9 when run individually) ────
 
 /**

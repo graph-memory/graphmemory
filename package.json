@@ -50,7 +50,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@huggingface/transformers": "^3.8.1",
+    "@huggingface/transformers": "^4.0.1",
     "@modelcontextprotocol/sdk": "^1.27.1",
     "@vscode/tree-sitter-wasm": "^0.3.0",
     "better-sqlite3": "^12.8.0",
@@ -92,6 +92,6 @@
     "ts-jest": "^29.4.6",
     "tsc-alias": "^1.8.16",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.2"
   }
 }

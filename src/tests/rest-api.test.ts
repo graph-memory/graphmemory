@@ -311,10 +311,10 @@ describe('REST API', () => {
 
       const rel = await request(app)
         .post('/api/projects/test/knowledge/relations')
-        .send({ fromId: String(noteAId), toId: String(noteBId), kind: 'relates_to' });
+        .send({ fromId: noteAId, toId: noteBId, kind: 'relates_to' });
       expect(rel.status).toBe(201);
-      expect(Number(rel.body.fromId)).toBe(noteAId);
-      expect(Number(rel.body.toId)).toBe(noteBId);
+      expect(rel.body.fromId).toBe(noteAId);
+      expect(rel.body.toId).toBe(noteBId);
 
       const list = await request(app).get(`/api/projects/test/knowledge/notes/${noteAId}/relations`);
       expect(list.body.results.length).toBeGreaterThan(0);
@@ -451,7 +451,7 @@ describe('REST API', () => {
 
       const res = await request(app)
         .post('/api/projects/test/tasks/bulk/move')
-        .send({ taskIds: [String(t1.body.id), String(t2.body.id)], status: 'done' });
+        .send({ taskIds: [t1.body.id, t2.body.id], status: 'done' });
       expect(res.status).toBe(200);
       expect(typeof res.body.moved).toBe('number');
       expect(res.body.moved).toBe(2);
@@ -466,7 +466,7 @@ describe('REST API', () => {
 
       const res = await request(app)
         .post('/api/projects/test/tasks/bulk/priority')
-        .send({ taskIds: [String(t1.body.id), String(t2.body.id)], priority: 'critical' });
+        .send({ taskIds: [t1.body.id, t2.body.id], priority: 'critical' });
       expect(res.status).toBe(200);
       expect(typeof res.body.updated).toBe('number');
       expect(res.body.updated).toBe(2);
@@ -481,7 +481,7 @@ describe('REST API', () => {
 
       const res = await request(app)
         .post('/api/projects/test/tasks/bulk/delete')
-        .send({ taskIds: [String(t1.body.id), String(t2.body.id)] });
+        .send({ taskIds: [t1.body.id, t2.body.id] });
       expect(res.status).toBe(200);
       expect(typeof res.body.deleted).toBe('number');
       expect(res.body.deleted).toBe(2);
@@ -495,7 +495,7 @@ describe('REST API', () => {
 
       const res = await request(app)
         .post('/api/projects/test/tasks/bulk/move')
-        .send({ taskIds: [String(t1.body.id), '999999'], status: 'review' });
+        .send({ taskIds: [t1.body.id, 999999], status: 'review' });
       expect(res.status).toBe(200);
       expect(typeof res.body.moved).toBe('number');
       expect(res.body.moved).toBe(1);
@@ -577,7 +577,7 @@ describe('REST API', () => {
       // Link
       const linkRes = await request(app)
         .post(`/api/projects/test/epics/${epic.body.id}/link`)
-        .send({ taskId: String(task.body.id) });
+        .send({ taskId: task.body.id });
       expect(linkRes.status).toBe(201);
 
       // Get tasks
@@ -589,7 +589,7 @@ describe('REST API', () => {
       // Unlink
       const unlinkRes = await request(app)
         .delete(`/api/projects/test/epics/${epic.body.id}/link`)
-        .send({ taskId: String(task.body.id) });
+        .send({ taskId: task.body.id });
       expect(unlinkRes.status).toBe(204);
     });
 
@@ -601,8 +601,8 @@ describe('REST API', () => {
       const t1 = await request(app).post('/api/projects/test/tasks').send({ title: 'T1', description: '' });
       const t2 = await request(app).post('/api/projects/test/tasks').send({ title: 'T2', description: '', status: 'done' });
 
-      await request(app).post(`/api/projects/test/epics/${epic.body.id}/link`).send({ taskId: String(t1.body.id) });
-      await request(app).post(`/api/projects/test/epics/${epic.body.id}/link`).send({ taskId: String(t2.body.id) });
+      await request(app).post(`/api/projects/test/epics/${epic.body.id}/link`).send({ taskId: t1.body.id });
+      await request(app).post(`/api/projects/test/epics/${epic.body.id}/link`).send({ taskId: t2.body.id });
 
       const res = await request(app).get(`/api/projects/test/epics/${epic.body.id}`);
       expect(res.body.progress.total).toBe(2);

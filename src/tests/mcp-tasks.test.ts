@@ -298,16 +298,13 @@ describe('Task CRUD tools', () => {
     expect(res.created).toBe(true);
   });
 
-  it('get_task shows edges for subtask and blocks links', async () => {
+  it('get_task shows structured link arrays', async () => {
     const task = json<any>(await call('tasks_get', { taskId: fixAuthId }));
-    const edges = task.edges as Array<{ fromGraph: string; fromId: number; toGraph: string; toId: number; kind: string }>;
-    expect(edges).toBeDefined();
-    // refactorConfig subtask_of fixAuth → edge from=refactorConfig to=fixAuth
-    const subtaskEdge = edges.find(e => e.kind === 'subtask_of');
-    expect(subtaskEdge).toBeDefined();
-    // fixAuth blocks addSearch → edge from=fixAuth to=addSearch
-    const blocksEdge = edges.find(e => e.kind === 'blocks');
-    expect(blocksEdge).toBeDefined();
+    // tasks_get now returns structured arrays: subtasks, blockedBy, blocks, related
+    expect(task.subtasks).toBeDefined();
+    expect(task.subtasks.length).toBeGreaterThan(0);
+    expect(task.blocks).toBeDefined();
+    expect(task.blocks.length).toBeGreaterThan(0);
   });
 
   it('link_task duplicate is silently ignored', async () => {
@@ -452,13 +449,11 @@ describe('Same-graph task links via tasks_create_link/tasks_delete_link', () => 
     expect(res.targetId).toBe(childTaskId);
   });
 
-  it('same-graph link appears in tasks_get edges', async () => {
+  it('same-graph link appears in tasks_get related', async () => {
     const task = json<any>(await sgCall('tasks_get', { taskId: parentTaskId }));
-    const edges = task.edges as Array<{ fromId: number; toId: number; kind: string }>;
-    expect(edges).toBeDefined();
-    const relEdge = edges.find(e => e.kind === 'related_to');
-    expect(relEdge).toBeDefined();
-    expect(relEdge!.toId).toBe(childTaskId);
+    // tasks_get now returns structured arrays instead of raw edges
+    expect(task.related).toBeDefined();
+    expect(task.related).toContain(childTaskId);
   });
 
   it('tasks_delete_link without targetGraph removes same-graph link', async () => {
@@ -472,10 +467,9 @@ describe('Same-graph task links via tasks_create_link/tasks_delete_link', () => 
     expect(res.deleted).toBe(true);
   });
 
-  it('after deletion, link no longer appears in tasks_get edges', async () => {
+  it('after deletion, link no longer appears in tasks_get related', async () => {
     const task = json<any>(await sgCall('tasks_get', { taskId: parentTaskId }));
-    const edges = (task.edges ?? []) as Array<{ kind: string }>;
-    expect(edges.find(e => e.kind === 'related_to')).toBeUndefined();
+    expect(task.related ?? []).not.toContain(childTaskId);
   });
 });
 

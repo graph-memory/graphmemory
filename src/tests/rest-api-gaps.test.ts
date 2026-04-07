@@ -201,7 +201,7 @@ describe('REST Skills', () => {
     const createdSkill = await request(app).post(base).send({ title: 'Linked Skill', description: '' });
     const createdNote = await request(app).post('/api/projects/test/knowledge/notes').send({ title: 'Link Target', content: '' });
     const res = await request(app).post(`${base}/links`).send({
-      fromId: String(createdSkill.body.id), toId: String(createdNote.body.id), kind: 'references', targetGraph: 'knowledge',
+      fromId: createdSkill.body.id, toId: createdNote.body.id, kind: 'references', targetGraph: 'knowledge',
     });
     expect(res.status).toBe(201);
   });
@@ -209,7 +209,7 @@ describe('REST Skills', () => {
   it('DELETE /links returns 204 for non-existent link (idempotent)', async () => {
     const created = await request(app).post(base).send({ title: 'Unlink Skill', description: '' });
     const del = await request(app).delete(`${base}/links`).set('Content-Type', 'application/json').send({
-      fromId: String(created.body.id), toId: '999999', targetGraph: 'knowledge',
+      fromId: created.body.id, toId: 999999, targetGraph: 'knowledge',
     });
     expect(del.status).toBe(204);
   });
@@ -218,12 +218,12 @@ describe('REST Skills', () => {
     const createdSkill = await request(app).post(base).send({ title: 'DSkill', description: '' });
     const createdNote = await request(app).post('/api/projects/test/knowledge/notes').send({ title: 'DNote', content: '' });
     const cr = await request(app).post(`${base}/links`).send({
-      fromId: String(createdSkill.body.id), toId: String(createdNote.body.id), kind: 'references', targetGraph: 'knowledge',
+      fromId: createdSkill.body.id, toId: createdNote.body.id, kind: 'references', targetGraph: 'knowledge',
     });
     expect(cr.status).toBe(201);
     // DELETE /links is idempotent — returns 204 even for non-matching edge
     const del = await request(app).delete(`${base}/links`).set('Content-Type', 'application/json').send({
-      fromId: String(createdSkill.body.id), toId: '999999', targetGraph: 'knowledge',
+      fromId: createdSkill.body.id, toId: 999999, targetGraph: 'knowledge',
     });
     expect(del.status).toBe(204);
   });
@@ -232,7 +232,7 @@ describe('REST Skills', () => {
     const createdSkill = await request(app).post(base).send({ title: 'Find Skill', description: '' });
     const createdNote = await request(app).post('/api/projects/test/knowledge/notes').send({ title: 'Find Note', content: '' });
     await request(app).post(`${base}/links`).send({
-      fromId: String(createdSkill.body.id), toId: String(createdNote.body.id), kind: 'references', targetGraph: 'knowledge',
+      fromId: createdSkill.body.id, toId: createdNote.body.id, kind: 'references', targetGraph: 'knowledge',
     });
     const res = await request(app).get(`${base}/linked?targetGraph=knowledge&targetNodeId=${createdNote.body.id}`);
     expect(res.status).toBe(200);
@@ -460,10 +460,10 @@ describe('REST Knowledge gaps', () => {
     const fromNote = await request(app).post('/api/projects/test/knowledge/notes').send({ title: 'From', content: '' });
     const toNote = await request(app).post('/api/projects/test/knowledge/notes').send({ title: 'To', content: '' });
     await request(app).post('/api/projects/test/knowledge/relations').send({
-      fromId: String(fromNote.body.id), toId: String(toNote.body.id), kind: 'relates_to',
+      fromId: fromNote.body.id, toId: toNote.body.id, kind: 'relates_to',
     });
     const del = await request(app).delete('/api/projects/test/knowledge/relations').send({
-      fromId: String(fromNote.body.id), toId: String(toNote.body.id),
+      fromId: fromNote.body.id, toId: toNote.body.id,
     });
     expect(del.status).toBe(204);
   });
@@ -472,7 +472,7 @@ describe('REST Knowledge gaps', () => {
     const createdNote = await request(app).post('/api/projects/test/knowledge/notes').send({ title: 'KNote', content: '' });
     const createdTask = await request(app).post('/api/projects/test/tasks').send({ title: 'KTask', description: '' });
     await request(app).post('/api/projects/test/knowledge/relations').send({
-      fromId: String(createdNote.body.id), toId: String(createdTask.body.id), kind: 'tracks', targetGraph: 'tasks',
+      fromId: createdNote.body.id, toId: createdTask.body.id, kind: 'tracks', targetGraph: 'tasks',
     });
     const res = await request(app).get(`/api/projects/test/knowledge/linked?targetGraph=tasks&targetNodeId=${createdTask.body.id}`);
     expect(res.status).toBe(200);
@@ -515,7 +515,7 @@ describe('REST Tasks gaps', () => {
     const createdTask = await request(app).post('/api/projects/test/tasks').send({ title: 'Link Task', description: '' });
     const createdNote = await request(app).post('/api/projects/test/knowledge/notes').send({ title: 'Link Note', content: '' });
     const res = await request(app).post('/api/projects/test/tasks/links').send({
-      fromId: String(createdTask.body.id), toId: String(createdNote.body.id), kind: 'references', targetGraph: 'knowledge',
+      fromId: createdTask.body.id, toId: createdNote.body.id, kind: 'references', targetGraph: 'knowledge',
     });
     expect(res.status).toBe(201);
   });
@@ -523,7 +523,7 @@ describe('REST Tasks gaps', () => {
   it('DELETE /links returns 204 for non-existent link (idempotent)', async () => {
     const created = await request(app).post('/api/projects/test/tasks').send({ title: 'Ul Task', description: '' });
     const del = await request(app).delete('/api/projects/test/tasks/links').set('Content-Type', 'application/json').send({
-      fromId: String(created.body.id), toId: '999999', targetGraph: 'knowledge',
+      fromId: created.body.id, toId: 999999, targetGraph: 'knowledge',
     });
     expect(del.status).toBe(204);
   });
@@ -532,12 +532,12 @@ describe('REST Tasks gaps', () => {
     const createdTask = await request(app).post('/api/projects/test/tasks').send({ title: 'DTask', description: '' });
     const createdNote = await request(app).post('/api/projects/test/knowledge/notes').send({ title: 'DNote2', content: '' });
     const cr = await request(app).post('/api/projects/test/tasks/links').send({
-      fromId: String(createdTask.body.id), toId: String(createdNote.body.id), kind: 'references', targetGraph: 'knowledge',
+      fromId: createdTask.body.id, toId: createdNote.body.id, kind: 'references', targetGraph: 'knowledge',
     });
     expect(cr.status).toBe(201);
     // DELETE /links is idempotent — returns 204 even for non-matching edge
     const del = await request(app).delete('/api/projects/test/tasks/links').set('Content-Type', 'application/json').send({
-      fromId: String(createdTask.body.id), toId: '999999', targetGraph: 'knowledge',
+      fromId: createdTask.body.id, toId: 999999, targetGraph: 'knowledge',
     });
     expect(del.status).toBe(204);
   });
@@ -553,7 +553,7 @@ describe('REST Tasks gaps', () => {
     const createdTask = await request(app).post('/api/projects/test/tasks').send({ title: 'FTask', description: '' });
     const createdNote = await request(app).post('/api/projects/test/knowledge/notes').send({ title: 'FNote', content: '' });
     await request(app).post('/api/projects/test/tasks/links').send({
-      fromId: String(createdTask.body.id), toId: String(createdNote.body.id), kind: 'references', targetGraph: 'knowledge',
+      fromId: createdTask.body.id, toId: createdNote.body.id, kind: 'references', targetGraph: 'knowledge',
     });
     const res = await request(app).get(`/api/projects/test/tasks/linked?targetGraph=knowledge&targetNodeId=${createdNote.body.id}`);
     expect(res.status).toBe(200);

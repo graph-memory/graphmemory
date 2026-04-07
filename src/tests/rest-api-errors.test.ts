@@ -338,7 +338,7 @@ describe('REST API error responses', () => {
 
       const res = await request(app)
         .post('/api/projects/test/tasks/bulk/move')
-        .send({ taskIds: [String(t1.body.id), String(t2.body.id)], status: 'done' });
+        .send({ taskIds: [t1.body.id, t2.body.id], status: 'done' });
       expect(res.status).toBe(200);
     });
 
@@ -348,7 +348,7 @@ describe('REST API error responses', () => {
 
       const res = await request(app)
         .post('/api/projects/test/tasks/bulk/delete')
-        .send({ taskIds: [String(t1.body.id), String(t2.body.id)] });
+        .send({ taskIds: [t1.body.id, t2.body.id] });
       expect(res.status).toBe(200);
     });
 

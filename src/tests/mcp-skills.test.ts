@@ -255,10 +255,10 @@ describe('MCP Skill Tools', () => {
       expect(res.created).toBe(true);
     });
 
-    it('skills_get edges shows depends_on link', async () => {
-      const skill = json<SkillResult>(await call('skills_get', { skillId: runTestSuiteId }));
-      const dep = skill.edges?.find(e => e.toGraph === 'skills' && e.toId === addRestEndpointId && e.kind === 'depends_on');
-      expect(dep).toBeDefined();
+    it('skills_get shows depends_on link', async () => {
+      const skill = json<any>(await call('skills_get', { skillId: runTestSuiteId }));
+      expect(skill.dependsOn).toBeDefined();
+      expect(skill.dependsOn).toContain(addRestEndpointId);
     });
 
     it('skills_link duplicate is silently ignored (INSERT OR IGNORE)', async () => {
@@ -487,10 +487,11 @@ describe('Same-graph skill links via skills_create_link/skills_delete_link', () 
     expect(res.targetId).toBe(skillBId);
   });
 
-  it('link is visible via skills_get edges', async () => {
-    const skill = json<SkillResult>(await sgCall('skills_get', { skillId: skillAId }));
-    const edge = skill.edges?.find(e => e.toGraph === 'skills' && e.toId === skillBId && e.kind === 'depends_on');
-    expect(edge).toBeDefined();
+  it('link is visible via skills_get dependsOn', async () => {
+    const skill = json<any>(await sgCall('skills_get', { skillId: skillAId }));
+    // skills_get now returns structured arrays instead of raw edges
+    expect(skill.dependsOn).toBeDefined();
+    expect(skill.dependsOn).toContain(skillBId);
   });
 
   it('skills_delete_link without targetGraph removes same-graph link', async () => {
@@ -504,9 +505,8 @@ describe('Same-graph skill links via skills_create_link/skills_delete_link', () 
     expect(res.deleted).toBe(true);
   });
 
-  it('after deletion, link no longer exists in edges', async () => {
-    const skill = json<SkillResult>(await sgCall('skills_get', { skillId: skillAId }));
-    const edge = skill.edges?.find(e => e.toGraph === 'skills' && e.toId === skillBId && e.kind === 'depends_on');
-    expect(edge).toBeUndefined();
+  it('after deletion, link no longer exists', async () => {
+    const skill = json<any>(await sgCall('skills_get', { skillId: skillAId }));
+    expect(skill.dependsOn ?? []).not.toContain(skillBId);
   });
 });

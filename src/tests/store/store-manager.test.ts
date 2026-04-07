@@ -520,6 +520,101 @@ describe('StoreManager', () => {
   });
 
   // =========================================================================
+  // enrichRelations — used by REST /relations endpoints to attach human-readable
+  // titles to edge endpoints. Regression coverage for the bigint-vs-number Map
+  // key bug: SQLite returns INTEGER columns as BigInt under safeIntegers(true),
+  // and the previous resolveTitles implementation kept those bigint keys in the
+  // result Map, so callers doing Map.get(numericId) silently missed every row
+  // and fell back to String(targetId) — turning the Relations panel into a
+  // wall of raw IDs.
+  //
+  // Also covers the previously-missing 'tags' graph case (auto-edges from
+  // indexer-managed tag nodes to tagged entities).
+  // =========================================================================
+
+  describe('enrichRelations (title resolution)', () => {
+    it('resolves knowledge titles for cross-note edges', async () => {
+      const a = await manager.createNote({ title: 'Alpha title', content: '' });
+      const b = await manager.createNote({ title: 'Beta title', content: '' });
+      manager.createEdge({
+        fromGraph: 'knowledge', fromId: a.id,
+        toGraph: 'knowledge', toId: b.id,
+        kind: 'depends_on',
+      });
+
+      const edges = [
+        ...manager.findOutgoingEdges('knowledge', a.id),
+        ...manager.findIncomingEdges('knowledge', a.id),
+      ];
+      const enriched = manager.enrichRelations('knowledge', a.id, edges);
+
+      expect(enriched).toHaveLength(1);
+      expect(enriched[0].targetId).toBe(b.id);
+      expect(enriched[0].targetGraph).toBe('knowledge');
+      expect(enriched[0].title).toBe('Beta title');
+      expect(enriched[0].direction).toBe('out');
+    });
+
+    it('resolves cross-graph titles (knowledge → tasks → skills)', async () => {
+      const note = await manager.createNote({ title: 'N title', content: '' });
+      const task = await manager.createTask({ title: 'T title', description: '' });
+      const skill = await manager.createSkill({ title: 'S title', description: '' });
+      manager.createEdge({ fromGraph: 'knowledge', fromId: note.id, toGraph: 'tasks', toId: task.id, kind: 'relates_to' });
+      manager.createEdge({ fromGraph: 'knowledge', fromId: note.id, toGraph: 'skills', toId: skill.id, kind: 'uses' });
+
+      const edges = manager.findOutgoingEdges('knowledge', note.id);
+      const enriched = manager.enrichRelations('knowledge', note.id, edges);
+
+      const taskRel = enriched.find(e => e.targetGraph === 'tasks');
+      const skillRel = enriched.find(e => e.targetGraph === 'skills');
+      expect(taskRel?.title).toBe('T title');
+      expect(skillRel?.title).toBe('S title');
+    });
+
+    it('resolves tag names for incoming tagged edges (auto-created by indexer)', async () => {
+      // Notes with tags get auto-created `tags → knowledge` edges (kind: 'tagged').
+      // Those incoming edges show up in the relations panel and must resolve
+      // to the tag's name, not the raw tag id.
+      const note = await manager.createNote({ title: 'Tagged note', content: '', tags: ['alpha', 'beta'] });
+
+      const edges = [
+        ...manager.findOutgoingEdges('knowledge', note.id),
+        ...manager.findIncomingEdges('knowledge', note.id),
+      ];
+      const enriched = manager.enrichRelations('knowledge', note.id, edges);
+
+      const tagRels = enriched.filter(e => e.targetGraph === 'tags');
+      expect(tagRels.length).toBeGreaterThanOrEqual(2);
+      const titles = tagRels.map(r => r.title).sort();
+      expect(titles).toEqual(expect.arrayContaining(['alpha', 'beta']));
+      // None of them should fall back to the raw numeric id.
+      for (const r of tagRels) {
+        expect(r.title).not.toMatch(/^\d+$/);
+      }
+    });
+
+    it('falls back to String(targetId) when target node was deleted (orphan edge)', async () => {
+      const a = await manager.createNote({ title: 'A', content: '' });
+      const b = await manager.createNote({ title: 'B', content: '' });
+      manager.createEdge({
+        fromGraph: 'knowledge', fromId: a.id,
+        toGraph: 'knowledge', toId: b.id,
+        kind: 'related_to',
+      });
+      // Delete the target — the edge is cascade-removed by the trigger, so
+      // build a synthetic orphan edge to drive enrichRelations directly.
+      manager.deleteNote(b.id);
+      const orphanEdge = {
+        fromGraph: 'knowledge' as const, fromId: a.id,
+        toGraph: 'knowledge' as const, toId: 99999,
+        kind: 'related_to',
+      };
+      const enriched = manager.enrichRelations('knowledge', a.id, [orphanEdge]);
+      expect(enriched[0].title).toBe('99999');
+    });
+  });
+
+  // =========================================================================
   // Attachments
   // =========================================================================
 

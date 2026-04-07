@@ -16,6 +16,7 @@ import type {
 } from '../../types';
 import { getEmbeddingDim } from '../../types/common';
 import { EdgeHelper } from '../lib/edge-helper';
+import { num } from '../lib/bigint';
 import { SqliteCodeStore } from './code';
 import { SqliteDocsStore } from './docs';
 import { SqliteFilesStore } from './files';
@@ -107,12 +108,18 @@ export class SqliteProjectScopedStore implements ProjectScopedStore {
       case 'files':
         sql = `SELECT id, file_path AS label FROM files WHERE id IN (${placeholders})`;
         break;
+      case 'tags':
+        sql = `SELECT id, name AS label FROM tags WHERE id IN (${placeholders})`;
+        break;
       default:
         return out;
     }
-    const rows = this.db.prepare(sql).all(...unique) as Array<{ id: number; label: string }>;
+    // better-sqlite3 is configured with safeIntegers(true) for sqlite-vec compat,
+    // so INTEGER columns come back as bigint. Convert via num() so callers can
+    // do plain Map.get(numericId) without type-equality misses.
+    const rows = this.db.prepare(sql).all(...unique) as Array<{ id: bigint | number; label: string }>;
     for (const row of rows) {
-      if (row.label) out.set(row.id, row.label);
+      if (row.label) out.set(num(row.id), row.label);
     }
     return out;
   }

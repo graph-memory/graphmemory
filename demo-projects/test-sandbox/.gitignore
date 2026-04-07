@@ -1,0 +1,7 @@
+# Test artifacts (created/cleaned by test runner)
+.graph-memory/
+.workspace-shared/
+.notes/
+.tasks/
+.skills/
+.epics/

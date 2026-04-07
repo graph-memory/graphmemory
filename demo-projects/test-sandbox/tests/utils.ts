@@ -354,11 +354,17 @@ export async function startServer(opts: ServerOptions): Promise<string> {
   throw new Error(`Server did not become healthy within 30s on port ${port}`);
 }
 
-/** Stop the currently running server. */
-export function stopServer(): void {
+/** Stop the currently running server and clean up artifacts. */
+export function stopServer(cwd?: string): void {
   if (serverProc) {
     serverProc.kill('SIGTERM');
     serverProc = null;
+  }
+  // Clean test artifacts
+  const dir = cwd ?? join(ROOT, 'demo-projects', 'test-sandbox');
+  for (const d of ['.graph-memory', '.notes', '.tasks', '.skills', '.epics', '.workspace-shared']) {
+    const p = join(dir, d);
+    if (existsSync(p)) rmSync(p, { recursive: true });
   }
 }
 
